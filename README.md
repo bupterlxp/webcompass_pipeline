@@ -2,6 +2,40 @@
 
 多步骤数据过滤流水线，用于生成、评估和筛选 LLM 生成的网页项目代码。流水线接收网页设计指令作为输入，通过 LLM 生成代码仓库，并通过代码审查和视觉截图分析进行评估。
 
+## 快速开始
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/bupterlxp/webcompass_pipeline.git
+cd webcompass_pipeline
+
+# 2. 安装依赖
+pip install -r requirements.txt
+pip install huggingface_hub
+playwright install chromium
+
+# 3. 下载数据集（需要 HuggingFace 访问权限）
+python3 -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download(
+    repo_id='lxpp/all_merged_instructions',
+    filename='all_merged_instructions.jsonl',
+    repo_type='dataset',
+    local_dir='./data',
+)
+print('数据集已下载到 ./data/all_merged_instructions.jsonl')
+"
+
+# 4. 配置 API Key
+cp .env.example .env
+# 编辑 .env，填入你的 API Key
+
+# 5. 运行流水线
+bash run_all.sh
+```
+
+> **注意**：数据集托管在 [HuggingFace](https://huggingface.co/datasets/lxpp/all_merged_instructions)（私有仓库），使用前请确保已通过 `huggingface-cli login` 登录并拥有访问权限。
+
 ## 流水线概览
 
 ```
@@ -16,6 +50,20 @@
         ├──► Step 4: 截图评分 ──► 启动网页截图进行视觉评分
         │
         └──► Step 5: 筛选过滤 ──► 合并分数、应用阈值、输出高质量数据
+```
+
+## 数据集
+
+本项目使用的指令数据集托管在 HuggingFace：[lxpp/all_merged_instructions](https://huggingface.co/datasets/lxpp/all_merged_instructions)
+
+- **样本数**：31,900 条
+- **格式**：JSONL，每行包含 `id`、`instruction`（网页设计文档）、`length` 三个字段
+- **内容**：每条 instruction 是一份完整的网页设计文档，涵盖页面内容、交互逻辑和视觉规范
+
+下载后需要修改 `config.py` 中的 `INPUT_JSONL` 指向数据文件路径：
+
+```python
+INPUT_JSONL = "./data/all_merged_instructions.jsonl"
 ```
 
 ## 项目结构
@@ -36,32 +84,6 @@
 ├── run_all.sh                 # 流水线编排脚本
 ├── .env.example               # 环境变量模板
 └── requirements.txt           # Python 依赖
-```
-
-## 安装
-
-### 1. 安装依赖
-
-```bash
-pip install -r requirements.txt
-playwright install chromium
-```
-
-### 2. 配置 API Key
-
-将 `.env.example` 复制为 `.env` 并填入真实的 API Key：
-
-```bash
-cp .env.example .env
-# 编辑 .env，填入你的 API Key
-```
-
-### 3. 准备输入数据
-
-将输入 JSONL 文件放到 `config.py` 中 `INPUT_JSONL` 指定的路径。每行格式：
-
-```json
-{"id": "唯一ID", "instruction": "网页设计文档内容..."}
 ```
 
 ## 使用方式
