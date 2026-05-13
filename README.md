@@ -1,96 +1,96 @@
 # WebCompass Pipeline
 
-A multi-step data filter pipeline for generating, evaluating, and filtering LLM-generated web project code. The pipeline takes web design instructions as input, generates code repositories via LLM, and evaluates them through code review and visual screenshot analysis.
+多步骤数据过滤流水线，用于生成、评估和筛选 LLM 生成的网页项目代码。流水线接收网页设计指令作为输入，通过 LLM 生成代码仓库，并通过代码审查和视觉截图分析进行评估。
 
-## Pipeline Overview
-
-```
-Input (instructions.jsonl)
-        │
-        ├──► Step 1: Inference ──► Generate web project repos from instructions
-        │
-        ├──► Step 2: Checklist ──► Generate evaluation checklists per instruction
-        │
-        ├──► Step 3: Code Judge ──► Score repos against checklists (code review)
-        │
-        ├──► Step 4: Screenshot Judge ──► Score repos via visual screenshots
-        │
-        └──► Step 5: Filter ──► Combine scores, apply threshold, output filtered data
-```
-
-## Project Structure
+## 流水线概览
 
 ```
-├── config.py              # Centralized configuration (models, paths, thresholds)
-├── call_model.py           # OpenAI-compatible API client (uses MODEL_REGISTRY)
-├── parse_json.py           # Extract JSON from LLM markdown output
-├── prompts.py              # Prompt templates for generation and evaluation
-├── utils.py                # Shared utilities (JSONL I/O, code reading, etc.)
-├── webhandler.py           # Web project screenshot capture (Playwright)
-├── step1_inference.py      # Step 1: Generate web repos from instructions
-├── step2_checklist.py      # Step 2: Generate evaluation checklists
-├── step3_code_judge.py     # Step 3: Code-based scoring
-├── step4_screenshot_judge.py  # Step 4: Visual scoring via screenshots
-├── step5_filter.py         # Step 5: Score aggregation and filtering
-├── run_retry.py            # Multi-round retry orchestrator (Best-of-N)
-├── run_all.sh              # Pipeline orchestration script
-├── .env.example            # Environment variable template
-└── requirements.txt        # Python dependencies
+输入 (instructions.jsonl)
+        │
+        ├──► Step 1: 推理生成 ──► 根据指令生成网页项目仓库
+        │
+        ├──► Step 2: 清单生成 ──► 为每条指令生成评估清单
+        │
+        ├──► Step 3: 代码评分 ──► 基于代码内容对清单逐项打分
+        │
+        ├──► Step 4: 截图评分 ──► 启动网页截图进行视觉评分
+        │
+        └──► Step 5: 筛选过滤 ──► 合并分数、应用阈值、输出高质量数据
 ```
 
-## Setup
+## 项目结构
 
-### 1. Install dependencies
+```
+├── config.py                  # 统一配置（模型注册、路径、阈值等）
+├── call_model.py              # OpenAI 兼容 API 客户端（使用 MODEL_REGISTRY）
+├── parse_json.py              # 从 LLM 输出中提取 JSON
+├── prompts.py                 # 生成和评估的 Prompt 模板
+├── utils.py                   # 共享工具函数（JSONL 读写、代码读取等）
+├── webhandler.py              # 网页项目截图工具（Playwright）
+├── step1_inference.py         # Step 1: 根据指令生成网页代码仓库
+├── step2_checklist.py         # Step 2: 生成评估清单
+├── step3_code_judge.py        # Step 3: 基于代码的评分
+├── step4_screenshot_judge.py  # Step 4: 基于截图的视觉评分
+├── step5_filter.py            # Step 5: 分数汇总与筛选
+├── run_retry.py               # 多轮重试编排器（Best-of-N 选择）
+├── run_all.sh                 # 流水线编排脚本
+├── .env.example               # 环境变量模板
+└── requirements.txt           # Python 依赖
+```
+
+## 安装
+
+### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 2. Configure API keys
+### 2. 配置 API Key
 
-Copy `.env.example` to `.env` and fill in your API keys:
+将 `.env.example` 复制为 `.env` 并填入真实的 API Key：
 
 ```bash
 cp .env.example .env
-# Edit .env with your actual API keys
+# 编辑 .env，填入你的 API Key
 ```
 
-### 3. Prepare input data
+### 3. 准备输入数据
 
-Place your input JSONL file at the path specified in `config.py` (`INPUT_JSONL`). Each line should contain:
+将输入 JSONL 文件放到 `config.py` 中 `INPUT_JSONL` 指定的路径。每行格式：
 
 ```json
-{"id": "unique_id", "instruction": "web design document text..."}
+{"id": "唯一ID", "instruction": "网页设计文档内容..."}
 ```
 
-## Usage
+## 使用方式
 
-### Serial mode (default)
+### 串行模式（默认）
 
 ```bash
 bash run_all.sh
 ```
 
-### Run specific steps
+### 仅运行指定步骤
 
 ```bash
 bash run_all.sh --steps 1,2,3
 ```
 
-### Decoupled mode (all steps in parallel with polling)
+### 解耦模式（所有步骤并行，自动轮询上游数据）
 
 ```bash
 bash run_all.sh --decouple
 ```
 
-### Multi-round retry with Best-of-N
+### 多轮重试 + Best-of-N 选择
 
 ```bash
 python3 run_retry.py --threshold 70 --max-rounds 5 --gen-model Deepseek-v4-pro --eval-model Gemini-3.1-Pro
 ```
 
-### Run individual steps
+### 单独运行各步骤
 
 ```bash
 python3 step1_inference.py --model Deepseek-v4-pro --max-workers 4
@@ -100,12 +100,12 @@ python3 step4_screenshot_judge.py --model Gemini-3.1-Pro --watch 60
 python3 step5_filter.py --threshold 70 --strategy average
 ```
 
-## Configuration
+## 配置说明
 
-All configuration is in `config.py`:
+所有配置集中在 `config.py` 中：
 
-- **MODEL_REGISTRY**: Register new models by adding entries with `base_url`, `model_id`, and `api_key`
-- **Concurrency**: `MAX_WORKERS_*` controls parallelism per step
-- **Retry**: `MAX_RETRIES` and `BACKOFF_BASE` for API call retries
-- **Threshold**: `SCORE_THRESHOLD` (default 70/100) for quality filtering
-- **Scoring strategy**: `average`, `code-only`, or `visual-only`
+- **MODEL_REGISTRY**：模型注册表，新增模型只需添加 `base_url`、`model_id`、`api_key` 三个字段
+- **并发控制**：`MAX_WORKERS_*` 控制各步骤的并行数
+- **重试策略**：`MAX_RETRIES`（最大重试次数）和 `BACKOFF_BASE`（退避基数）
+- **筛选阈值**：`SCORE_THRESHOLD`（默认 70/100）
+- **评分策略**：`average`（代码+视觉平均）、`code-only`（仅代码）、`visual-only`（仅视觉）
