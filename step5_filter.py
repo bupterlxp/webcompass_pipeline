@@ -14,7 +14,7 @@ import argparse
 from collections import defaultdict
 
 from config import (
-    INPUT_JSONL, STEP2_OUTPUT, STEP3_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT,
+    INPUT_JSONL, STEP2_OUTPUT, STEP3_OUTPUT, STEP3B_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT,
     SCORE_THRESHOLD,
 )
 from utils import load_jsonl, ensure_dir
@@ -39,6 +39,7 @@ def run_once(args):
     checklist_map = {item['id']: item.get('checklist') for item in step2_data}
 
     step3_data = load_jsonl(args.step3)
+    step3b_data = load_jsonl(args.step3b)
     step4_data = load_jsonl(args.step4)
 
     code_by_id_round = {}
@@ -46,6 +47,12 @@ def run_once(args):
         if item.get('scores'):
             key = (item['id'], item.get('round', 1))
             code_by_id_round[key] = item['scores']
+
+    interaction_by_id_round = {}
+    for item in step3b_data:
+        if item.get('scores'):
+            key = (item['id'], item.get('round', 1))
+            interaction_by_id_round[key] = item['scores']
 
     visual_by_id_round = {}
     for item in step4_data:
@@ -60,13 +67,26 @@ def run_once(args):
     else:
         scoreable_keys = set(code_by_id_round.keys()) & set(visual_by_id_round.keys())
 
+    code_weight = args.code_weight
+    interaction_weight = args.interaction_weight
+    visual_weight = 1.0 - code_weight - interaction_weight
+
     attempts_by_id = defaultdict(list)
     for (id_, round_num) in scoreable_keys:
         code_total = sum_scores(code_by_id_round.get((id_, round_num)))
+        interaction_total = sum_scores(interaction_by_id_round.get((id_, round_num)))
         visual_total = sum_scores(visual_by_id_round.get((id_, round_num)))
 
         if args.strategy == 'average':
             combined = (code_total + visual_total) / 2
+            if interaction_by_id_round.get((id_, round_num)):
+                combined = (code_total + interaction_total + visual_total) / 3
+        elif args.strategy == 'weighted':
+            combined = code_total * code_weight + visual_total * visual_weight
+            if interaction_by_id_round.get((id_, round_num)):
+                combined = (code_total * code_weight
+                            + interaction_total * interaction_weight
+                            + visual_total * visual_weight)
         elif args.strategy == 'code-only':
             combined = code_total
         else:
@@ -75,9 +95,11 @@ def run_once(args):
         attempts_by_id[id_].append({
             'round': round_num,
             'code_total': code_total,
+            'interaction_total': interaction_total,
             'visual_total': visual_total,
             'combined_score': combined,
             'code_scores': code_by_id_round.get((id_, round_num)),
+            'interaction_scores': interaction_by_id_round.get((id_, round_num)),
             'visual_scores': visual_by_id_round.get((id_, round_num)),
         })
 
@@ -101,9 +123,11 @@ def run_once(args):
                     'best_round': best['round'],
                     'num_attempts': len(attempts_by_id[id_]),
                     'code_total': best['code_total'],
+                    'interaction_total': best['interaction_total'],
                     'visual_total': best['visual_total'],
                     'combined_score': best['combined_score'],
                     'code_scores': best['code_scores'],
+                    'interaction_scores': best['interaction_scores'],
                     'visual_scores': best['visual_scores'],
                 }
                 fout.write(json.dumps(record, ensure_ascii=False) + '\n')
@@ -123,10 +147,16 @@ def main():
     parser.add_argument('--input', default=INPUT_JSONL)
     parser.add_argument('--step2', default=STEP2_OUTPUT)
     parser.add_argument('--step3', default=STEP3_OUTPUT)
+    parser.add_argument('--step3b', default=STEP3B_OUTPUT)
     parser.add_argument('--step4', default=STEP4_OUTPUT)
     parser.add_argument('--output', default=STEP5_OUTPUT)
     parser.add_argument('--threshold', type=float, default=SCORE_THRESHOLD)
-    parser.add_argument('--strategy', choices=['average', 'code-only', 'visual-only'], default='average')
+    parser.add_argument('--strategy', choices=['average', 'code-only', 'visual-only', 'weighted'], default='average')
+    parser.add_argument('--code-weight', type=float, default=0.4,
+                        help='Code judge weight for "weighted" strategy')
+    parser.add_argument('--interaction-weight', type=float, default=0.3,
+                        help='Interaction test weight for "weighted" strategy')
+    # visual_weight = 1.0 - code_weight - interaction_weight
     parser.add_argument('--watch', type=int, default=0, metavar='SECONDS',
                         help='轮询模式：每隔 N 秒重新汇总')
     parser.add_argument('--idle-exit', type=int, default=30, metavar='ROUNDS',

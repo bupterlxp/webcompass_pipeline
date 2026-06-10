@@ -24,7 +24,7 @@ import time
 
 from config import (
     INPUT_JSONL, STEP1_LOG, STEP1_RESPONSES, STEP2_OUTPUT,
-    STEP3_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT,
+    STEP3_OUTPUT, STEP3B_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT,
     MODEL, SCORE_THRESHOLD,
 )
 from utils import load_jsonl
@@ -41,12 +41,13 @@ def run_cmd(cmd, desc=""):
     return ret.returncode
 
 
-def get_failed_ids(threshold, strategy, input_jsonl, step2, step3, step4, output):
+def get_failed_ids(threshold, strategy, input_jsonl, step2, step3, step3b, step4, output):
     cmd = [
         sys.executable, 'step5_filter.py',
         '--input', input_jsonl,
         '--step2', step2,
         '--step3', step3,
+        '--step3b', step3b,
         '--step4', step4,
         '--output', output,
         '--threshold', str(threshold),
@@ -81,7 +82,7 @@ def main():
     parser = argparse.ArgumentParser(description='Multi-round retry orchestrator')
     parser.add_argument('--threshold', type=float, default=SCORE_THRESHOLD)
     parser.add_argument('--max-rounds', type=int, default=5)
-    parser.add_argument('--strategy', choices=['average', 'code-only', 'visual-only'], default='average')
+    parser.add_argument('--strategy', choices=['average', 'code-only', 'visual-only', 'weighted'], default='average')
     parser.add_argument('--gen-model', default=MODEL, help='Model for generation (step1)')
     parser.add_argument('--eval-model', default='Gemini-3.1-Pro', help='Model for evaluation (step2/3/4)')
     parser.add_argument('--gen-workers', type=int, default=4)
@@ -110,6 +111,11 @@ def main():
                  '--max-workers', str(args.eval_workers)],
                 "Round 1: Step3 Code Judge")
 
+        run_cmd([sys.executable, 'step3b_interaction_test.py',
+                 '--model', args.eval_model,
+                 '--max-workers', str(args.screenshot_workers)],
+                "Round 1: Step3b Interaction Test")
+
         run_cmd([sys.executable, 'step4_screenshot_judge.py',
                  '--model', args.eval_model,
                  '--max-workers', str(args.screenshot_workers)],
@@ -117,7 +123,7 @@ def main():
 
     failed_ids = get_failed_ids(
         args.threshold, args.strategy,
-        INPUT_JSONL, STEP2_OUTPUT, STEP3_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT
+        INPUT_JSONL, STEP2_OUTPUT, STEP3_OUTPUT, STEP3B_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT
     )
     print(f"\n[Retry] Round 1 complete: {len(failed_ids)} items below threshold {args.threshold}")
 
@@ -147,6 +153,11 @@ def main():
                  '--max-workers', str(args.eval_workers)],
                 f"Round {round_num}: Step3 Code Judge")
 
+        run_cmd([sys.executable, 'step3b_interaction_test.py',
+                 '--model', args.eval_model,
+                 '--max-workers', str(args.screenshot_workers)],
+                f"Round {round_num}: Step3b Interaction Test")
+
         run_cmd([sys.executable, 'step4_screenshot_judge.py',
                  '--model', args.eval_model,
                  '--max-workers', str(args.screenshot_workers)],
@@ -154,7 +165,7 @@ def main():
 
         failed_ids = get_failed_ids(
             args.threshold, args.strategy,
-            INPUT_JSONL, STEP2_OUTPUT, STEP3_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT
+            INPUT_JSONL, STEP2_OUTPUT, STEP3_OUTPUT, STEP3B_OUTPUT, STEP4_OUTPUT, STEP5_OUTPUT
         )
         print(f"\n[Retry] Round {round_num} complete: {len(failed_ids)} items still below threshold")
 

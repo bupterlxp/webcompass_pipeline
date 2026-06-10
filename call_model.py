@@ -44,17 +44,36 @@ def create_client(model):
     return client, entry["model_id"]
 
 
+def _get_extra_kwargs(model):
+    entry = MODEL_REGISTRY.get(model, {})
+    if entry.get("thinking"):
+        return {"extra_body": {"enable_thinking": True}}
+    return {}
+
+
 def call_api_stream(prompt, model="Claude-4-Sonnet", video_path=None, image_path=None):
     client, model_id = create_client(model)
     user_messages = _build_user_content(prompt, video_path=video_path, image_path=image_path)
+
+    extra = _get_extra_kwargs(model)
+    extra.setdefault("extra_body", {})
+    extra["extra_body"]["stream_options"] = {"include_usage": True}
 
     stream = client.chat.completions.create(
         model=model_id,
         messages=[{"role": "user", "content": user_messages}],
         stream=True,
+        **extra,
     )
 
     for event in stream:
+        if hasattr(event, "usage") and event.usage:
+            yield {
+                "prompt_tokens": getattr(event.usage, "prompt_tokens", 0),
+                "completion_tokens": getattr(event.usage, "completion_tokens", 0),
+                "total_tokens": getattr(event.usage, "total_tokens", 0),
+            }
+
         try:
             choice0 = event.choices[0]
         except Exception:
@@ -83,6 +102,8 @@ def call_api(
     on_chunk=None,
     stream_print: bool = False,
     print_fn=None,
+    return_thinking: bool = False,
+    return_usage: bool = False,
 ):
     if on_chunk is None and stream_print:
         if print_fn is None:
@@ -90,12 +111,85 @@ def call_api(
                 print(t, end="", flush=True)
         on_chunk = print_fn
 
+    entry = MODEL_REGISTRY.get(model, {})
+    is_thinking = entry.get("thinking", False)
+
+    if not is_thinking or not return_thinking:
+        pieces = []
+        usage = None
+        for chunk in call_api_stream(prompt, model=model, video_path=video_path, image_path=image_path):
+            if isinstance(chunk, dict):
+                usage = chunk
+                continue
+            pieces.append(chunk)
+            if on_chunk is not None:
+                on_chunk(chunk)
+        result = "".join(pieces)
+        if return_thinking and return_usage:
+            return result, "", usage
+        if return_thinking:
+            return result, ""
+        if return_usage:
+            return result, usage
+        return result
+
+    client, model_id = create_client(model)
+    user_messages = _build_user_content(prompt, video_path=video_path, image_path=image_path)
+
+    extra = _get_extra_kwargs(model)
+    extra.setdefault("extra_body", {})
+    extra["extra_body"]["stream_options"] = {"include_usage": True}
+
+    stream = client.chat.completions.create(
+        model=model_id,
+        messages=[{"role": "user", "content": user_messages}],
+        stream=True,
+        **extra,
+    )
+
     pieces = []
-    for chunk in call_api_stream(prompt, model=model, video_path=video_path, image_path=image_path):
-        pieces.append(chunk)
-        if on_chunk is not None:
-            on_chunk(chunk)
-    return "".join(pieces)
+    thinking_pieces = []
+    usage = None
+
+    for event in stream:
+        if hasattr(event, "usage") and event.usage:
+            usage = {
+                "prompt_tokens": getattr(event.usage, "prompt_tokens", 0),
+                "completion_tokens": getattr(event.usage, "completion_tokens", 0),
+                "total_tokens": getattr(event.usage, "total_tokens", 0),
+            }
+
+        try:
+            choice0 = event.choices[0]
+        except Exception:
+            continue
+
+        delta = getattr(choice0, "delta", None)
+        if delta is not None:
+            reasoning = getattr(delta, "reasoning_content", None)
+            if reasoning:
+                thinking_pieces.append(reasoning)
+                continue
+            chunk = getattr(delta, "content", None)
+            if chunk:
+                pieces.append(chunk)
+                if on_chunk is not None:
+                    on_chunk(chunk)
+                continue
+
+        msg = getattr(choice0, "message", None)
+        if msg is not None:
+            chunk = getattr(msg, "content", None)
+            if chunk:
+                pieces.append(chunk)
+                if on_chunk is not None:
+                    on_chunk(chunk)
+
+    content = "".join(pieces)
+    thinking = "".join(thinking_pieces)
+    if return_usage:
+        return content, thinking, usage
+    return content, thinking
 
 
 if __name__ == '__main__':

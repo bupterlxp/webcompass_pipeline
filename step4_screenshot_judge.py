@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 from config import (
-    REPOS_DIR, STEP1_LOG, STEP2_OUTPUT, STEP4_OUTPUT, MODEL,
+    REPOS_DIR, STEP1_LOG, STEP4_OUTPUT, MODEL,
     MAX_WORKERS_SCREENSHOT, MAX_RETRIES, BACKOFF_BASE,
 )
 from utils import (
@@ -27,46 +27,51 @@ from webhandler import save_screenshots
 
 write_lock = threading.Lock()
 
-VISUAL_JUDGE_PROMPT = '''You are a strict visual QA expert. You are given a checklist and screenshots of a generated web application. Evaluate each checklist item based on what you can see in the screenshots.
-
-## Checklist
-```json
-{checklist_json}
-```
+VISUAL_JUDGE_PROMPT = '''You are a professional UI/UX design critic. You are given screenshots of a web application. Evaluate ONLY the visual design quality — do NOT evaluate interactivity, animations, hover states, or any dynamic behavior (those are tested separately via code review).
 
 ## Screenshots
-The attached images are full-page screenshots of the web application (each sub-page captured separately).
+The attached images are full-page screenshots of the web application.
+
+## Evaluation Criteria
+Score each of the following 10 dimensions from 0 to 10:
+
+1. **Layout & Spacing** — Is the layout well-structured? Are elements properly aligned? Is whitespace used effectively with consistent spacing/margins?
+2. **Color Palette & Harmony** — Are colors visually harmonious? Is there a coherent color scheme? Is contrast sufficient for readability?
+3. **Typography** — Are fonts readable and well-chosen? Is there a clear hierarchy (headings vs body)? Are font sizes, weights, and line heights appropriate?
+4. **Visual Hierarchy** — Can the user immediately identify the most important elements? Is the information flow logical and scannable?
+5. **Component Design** — Are buttons, cards, inputs, and other UI components well-designed with proper borders, shadows, and rounded corners?
+6. **Responsiveness Appearance** — Does the layout appear well-proportioned? Are elements not overflowing or awkwardly sized?
+7. **Imagery & Icons** — Are icons/images/SVGs crisp and well-integrated? Do they enhance the design rather than clutter it?
+8. **Overall Polish** — Does it look like a finished product? Are there any rough edges, misalignments, or unfinished areas?
+9. **Creativity & Aesthetics** — Is the design visually appealing and creative? Does it go beyond a generic template look?
+10. **Professional Quality** — Would this pass as a professionally designed web page? Could it be shown to a client or end user?
 
 ## Instructions
-For each checklist item, evaluate whether the screenshots demonstrate that the required functionality, interaction, and visual design have been correctly implemented. Score each item from 0 to its max_score.
-
-You must output ONLY a JSON array (inside a ```json code block), with one object per checklist item:
+You must output ONLY a JSON array (inside a ```json code block):
 ```json
 [
-  {{"task": "the task description", "score": <number 0 to max_score>, "max_score": <number>, "reason": "brief explanation based on visual evidence"}}
+  {{"task": "Layout & Spacing", "score": <0-10>, "max_score": 10, "reason": "brief explanation"}},
+  {{"task": "Color Palette & Harmony", "score": <0-10>, "max_score": 10, "reason": "brief explanation"}},
+  ...all 10 items...
 ]
 ```
 '''
 
 
-def judge_one_visual(item_id, repo_path, checklist, model, max_retries, round_num=1):
+def judge_one_visual(item_id, repo_path, model, max_retries, round_num=1):
+    zero_scores = [{'task': t, 'score': 0, 'max_score': 10, 'reason': 'Screenshot failed'}
+                   for t in ['Layout & Spacing', 'Color Palette & Harmony', 'Typography',
+                             'Visual Hierarchy', 'Component Design', 'Responsiveness Appearance',
+                             'Imagery & Icons', 'Overall Polish', 'Creativity & Aesthetics',
+                             'Professional Quality']]
+
     try:
         screenshot_fns = save_screenshots(repo_path)
     except Exception as e:
-        return {
-            'id': item_id, 'round': round_num,
-            'scores': [{'task': c['task'], 'score': 0, 'max_score': c['max_score'], 'reason': f'Screenshot failed: {e}'}
-                       for c in checklist],
-            'error': f'screenshot_failed: {e}'
-        }
+        return {'id': item_id, 'round': round_num, 'scores': zero_scores, 'error': f'screenshot_failed: {e}'}
 
     if not screenshot_fns:
-        return {
-            'id': item_id, 'round': round_num,
-            'scores': [{'task': c['task'], 'score': 0, 'max_score': c['max_score'], 'reason': 'No screenshots captured'}
-                       for c in checklist],
-            'error': 'no_screenshots'
-        }
+        return {'id': item_id, 'round': round_num, 'scores': zero_scores, 'error': 'no_screenshots'}
 
     image_paths = []
     for fn in screenshot_fns:
@@ -75,15 +80,9 @@ def judge_one_visual(item_id, repo_path, checklist, model, max_retries, round_nu
             image_paths.append(full_path)
 
     if not image_paths:
-        return {
-            'id': item_id, 'round': round_num,
-            'scores': [{'task': c['task'], 'score': 0, 'max_score': c['max_score'], 'reason': 'Screenshot files not found'}
-                       for c in checklist],
-            'error': 'screenshots_missing'
-        }
+        return {'id': item_id, 'round': round_num, 'scores': zero_scores, 'error': 'screenshots_missing'}
 
-    checklist_json = json.dumps(checklist, ensure_ascii=False, indent=2)
-    prompt = VISUAL_JUDGE_PROMPT.replace('{checklist_json}', checklist_json)
+    prompt = VISUAL_JUDGE_PROMPT
 
     for attempt in range(max_retries):
         try:
@@ -112,9 +111,6 @@ def run_once(args):
                 'repo_path': item['repo_path'],
             })
 
-    step2_data = load_jsonl(args.step2_output)
-    checklist_map = {item['id']: item['checklist'] for item in step2_data if item.get('checklist')}
-
     done_keys = set()
     if os.path.exists(args.output):
         for line in open(args.output, 'r', encoding='utf-8'):
@@ -125,9 +121,9 @@ def run_once(args):
                 continue
 
     pending = [e for e in repo_entries
-               if e['id'] in checklist_map and (e['id'], e['round']) not in done_keys]
+               if (e['id'], e['round']) not in done_keys]
 
-    print(f"[Step4] repos={len(repo_entries)}, checklists={len(checklist_map)}, 待处理={len(pending)}")
+    print(f"[Step4] repos={len(repo_entries)}, 待处理={len(pending)}")
 
     if not pending:
         return 0
@@ -138,7 +134,7 @@ def run_once(args):
         with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
             futures = {
                 executor.submit(
-                    judge_one_visual, e['id'], e['repo_path'], checklist_map[e['id']],
+                    judge_one_visual, e['id'], e['repo_path'],
                     args.model, args.max_retries, e['round']
                 ): e
                 for e in pending
@@ -162,7 +158,6 @@ def run_once(args):
 def main():
     parser = argparse.ArgumentParser(description='Step 4: Screenshot Judge')
     parser.add_argument('--step1-log', default=STEP1_LOG)
-    parser.add_argument('--step2-output', default=STEP2_OUTPUT)
     parser.add_argument('--output', default=STEP4_OUTPUT)
     parser.add_argument('--model', default=MODEL)
     parser.add_argument('--max-workers', type=int, default=MAX_WORKERS_SCREENSHOT)

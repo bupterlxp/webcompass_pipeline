@@ -6,7 +6,20 @@ Generate_Repo_Template = '''
 You are a highly skilled professional front-end engineer.
 
 Your task: Based on the web design document below, generate a complete runnable web project repository.
-Hard output contract (MUST follow):
+
+## Technology Preference
+- STRONGLY prefer pure HTML + CSS + JavaScript (no build tools, no npm).
+- If external libraries are needed (charting, icons, UI frameworks), load them via CDN <script>/<link> tags.
+- Do NOT generate React/Vue/Angular/Svelte projects unless the design document explicitly requires a specific framework.
+- The project must run instantly by opening index.html in a browser.
+
+## Quality Requirements
+- **Design**: Modern, clean aesthetics. Harmonious color palette with CSS custom properties. Consistent spacing (8px grid). Readable typography (body >= 14px, line-height >= 1.5).
+- **Interaction**: Hover/active/focus states on all interactive elements. Smooth CSS transitions (0.2-0.3s). Loading states and empty states where appropriate. Keyboard navigable.
+- **Code**: Semantic HTML5 elements (<header>, <nav>, <main>, <section>, <article>, <footer>). Modern CSS (flexbox/grid, custom properties, media queries). Clean JavaScript with no console errors.
+- **Responsiveness**: Must work on desktop (1280px+) and adapt reasonably to mobile (375px+) using media queries or fluid layouts.
+
+## Hard output contract (MUST follow):
 1) Your entire response MUST be pure Markdown text.
 2) ABSOLUTELY NO explanations, no extra commentary, no preface, no trailing notes.
 3) Every file MUST be emitted using the following format:
@@ -25,22 +38,34 @@ Few-shot examples:
 # index.html
 ```html
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Demo</title>
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-        Hello
-        <script type="module" src="main.js"></script>
+        <main>Hello</main>
+        <script src="main.js"></script>
     </body>
 </html>
 ```
 
 # styles.css
 ```css
-body { font-family: system-ui; }
+:root {
+    --primary: #2563eb;
+    --text: #1e293b;
+    --bg: #f8fafc;
+}
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    margin: 0;
+}
 ```
 
 # main.js
@@ -52,6 +77,40 @@ Web design document:
 ---
 [DOCUMENT]
 ---
+'''
+
+
+SELF_REPAIR_PROMPT = '''
+You are a highly skilled professional front-end engineer performing a code repair task.
+
+The previous version of this web project was evaluated and received low scores on several items. Your task is to fix ALL issues mentioned in the feedback while keeping the parts that already work well.
+
+## Original Design Document
+---
+{instruction}
+---
+
+## Previous Code
+{previous_code}
+
+## Evaluation Feedback (items that lost points)
+{feedback}
+
+## Repair Instructions
+1. Carefully analyze each piece of feedback and fix the corresponding issue in the code.
+2. Keep all correctly implemented features unchanged — do not regress.
+3. Focus especially on items that scored 0 or lost significant points.
+4. Ensure no new bugs or console errors are introduced.
+
+## Hard output contract (MUST follow):
+1) Your entire response MUST be pure Markdown text.
+2) ABSOLUTELY NO explanations, no extra commentary, no preface, no trailing notes.
+3) Every file MUST be emitted using this format:
+# path/to/file.ext
+```ext
+<full file content>
+```
+4) You MUST output ALL files (both fixed and unchanged), as the entire project will be replaced.
 '''
 
 new_checklist = '''

@@ -34,6 +34,7 @@ _GPT5_KEY = _os.environ.get("GPT5_API_KEY", "")
 _DEEPSEEK_R1_KEY = _os.environ.get("DEEPSEEK_R1_API_KEY", "")
 _GEMINI25PRO_KEY = _os.environ.get("GEMINI25PRO_API_KEY", "")
 _CLAUDE_OPUS_KEY = _os.environ.get("CLAUDE_OPUS_API_KEY", "")
+_QWEN37_MAX_KEY = _os.environ.get("QWEN37_MAX_API_KEY", "")
 
 # =====================================================================
 #  模型注册表  —— 新增 / 修改模型只需编辑这里
@@ -54,8 +55,13 @@ MODEL_REGISTRY = {
         "api_key":  _ROUTIFY_KEY,
     },
     "qwen3.6-plus": {
-        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "base_url": "https://app-hk.ppapi.ai/v1",
         "model_id": "qwen3.6-plus",
+        "api_key":  _QWEN37_MAX_KEY,
+    },
+    "Qwen3-Max": {
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "model_id": "qwen3-max",
         "api_key":  _DASHSCOPE_KEY,
     },
     "Qwen3-VL-32B-Instruct": {
@@ -67,6 +73,7 @@ MODEL_REGISTRY = {
         "base_url": "http://14.103.68.46/v1",
         "model_id": "doubao-seed-1-8-251228-thinking",
         "api_key":  _DOUBAO_KEY,
+        "thinking": True,
     },
     "MiniMax-M2.1": {
         "base_url": "http://10.48.88.226:17878/v1",
@@ -188,6 +195,12 @@ MODEL_REGISTRY = {
         "model_id": "ep-xr2rp2-1778509411434814651",
         "api_key":  _WANQING_KEY,
     },
+    "Qwen3.7-Max": {
+        "base_url": "https://app-hk.ppapi.ai/v1",
+        "model_id": "qwen3.7-max",
+        "api_key":  _QWEN37_MAX_KEY,
+        "thinking": True,
+    },
 }
 
 # =====================================================================
@@ -195,7 +208,7 @@ MODEL_REGISTRY = {
 # =====================================================================
 
 # --- 输入 ---
-INPUT_JSONL = "/tmp/3k_items.jsonl"
+INPUT_JSONL = "/share/leixinping/opensource_data/generation/all_merged_instructions.jsonl"
 
 # --- 输出根目录 ---
 OUTPUT_ROOT = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "output")
@@ -206,6 +219,7 @@ STEP1_LOG = f"{OUTPUT_ROOT}/step1_inference_log.jsonl"
 STEP1_RESPONSES = f"{OUTPUT_ROOT}/step1_responses.jsonl"
 STEP2_OUTPUT = f"{OUTPUT_ROOT}/step2_checklists.jsonl"
 STEP3_OUTPUT = f"{OUTPUT_ROOT}/step3_code_scores.jsonl"
+STEP3B_OUTPUT = f"{OUTPUT_ROOT}/step3b_interaction_scores.jsonl"
 STEP4_OUTPUT = f"{OUTPUT_ROOT}/step4_visual_scores.jsonl"
 STEP5_OUTPUT = f"{OUTPUT_ROOT}/step5_filtered.jsonl"
 

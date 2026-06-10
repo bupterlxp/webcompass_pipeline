@@ -9,8 +9,7 @@ import re
 def parse_json_output(output):
     match = re.search(r'```json\s*(.*?)\s*```', output, re.DOTALL)
     if match:
-        json_str = match.group(1)
-        json_str = json_str.replace('\n', '').replace('\r', '').strip()
+        json_str = match.group(1).strip()
         try:
             return json.loads(json_str)
         except json.JSONDecodeError:

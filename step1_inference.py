@@ -10,6 +10,7 @@ import os
 import sys
 import time
 import re
+import json
 import threading
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,13 +18,15 @@ from tqdm import tqdm
 
 from config import (
     INPUT_JSONL, REPOS_DIR, STEP1_LOG, STEP1_RESPONSES, MODEL,
+    STEP3_OUTPUT, STEP3B_OUTPUT, STEP4_OUTPUT,
     MAX_WORKERS_INFERENCE, MAX_RETRIES, BACKOFF_BASE,
+    CODE_EXTENSIONS, MAX_CODE_LENGTH,
 )
 from utils import (
     load_jsonl, load_done_ids, append_jsonl_threadsafe,
-    ensure_dir, call_api,
+    ensure_dir, call_api, read_repo_code,
 )
-from prompts import Generate_Repo_Template
+from prompts import Generate_Repo_Template, SELF_REPAIR_PROMPT
 
 write_lock = threading.Lock()
 response_lock = threading.Lock()
@@ -63,7 +66,45 @@ def mark_done(repo_path):
     os.replace(tmp, done_path)
 
 
-def process_one(item, model, repos_dir, max_retries, round_num=1):
+def build_repair_context(item_id, prev_round, repos_dir, step3_path, step3b_path, step4_path):
+    prev_suffix = f"_r{prev_round}" if prev_round > 1 else ""
+    prev_repo = os.path.join(repos_dir, f"{item_id}{prev_suffix}")
+
+    prev_code = read_repo_code(prev_repo, CODE_EXTENSIONS, MAX_CODE_LENGTH)
+    if not prev_code.strip():
+        return None
+
+    source_labels = {step3_path: "Code", step3b_path: "Interaction", step4_path: "Visual"}
+    feedback_lines = []
+    for score_path in [step3_path, step3b_path, step4_path]:
+        if not score_path or not os.path.exists(score_path):
+            continue
+        with open(score_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    obj = json.loads(line.strip())
+                    if obj['id'] == item_id and obj.get('round', 1) == prev_round and obj.get('scores'):
+                        source = source_labels.get(score_path, "Unknown")
+                        for s in obj['scores']:
+                            score = s.get('score', 0)
+                            max_score = s.get('max_score', 0)
+                            if score < max_score:
+                                feedback_lines.append(
+                                    f"- [{source}] [{score}/{max_score}] {s.get('task','')}: {s.get('reason','')}"
+                                )
+                except (json.JSONDecodeError, KeyError):
+                    continue
+
+    if not feedback_lines:
+        return None
+
+    return {
+        'previous_code': prev_code,
+        'feedback': '\n'.join(feedback_lines),
+    }
+
+
+def process_one(item, model, repos_dir, max_retries, round_num=1, step3_path=None, step3b_path=None, step4_path=None):
     item_id = item['id']
     instruction = item['instruction']
     suffix = f"_r{round_num}" if round_num > 1 else ""
@@ -74,25 +115,36 @@ def process_one(item, model, repos_dir, max_retries, round_num=1):
 
     ensure_dir(repo_path)
 
-    prompt = Generate_Repo_Template.replace('[DOCUMENT]', instruction)
+    if round_num > 1 and step3_path and step4_path:
+        repair_ctx = build_repair_context(item_id, round_num - 1, repos_dir, step3_path, step3b_path, step4_path)
+        if repair_ctx:
+            prompt = SELF_REPAIR_PROMPT.format(
+                instruction=instruction,
+                previous_code=repair_ctx['previous_code'],
+                feedback=repair_ctx['feedback'],
+            )
+        else:
+            prompt = Generate_Repo_Template.replace('[DOCUMENT]', instruction)
+    else:
+        prompt = Generate_Repo_Template.replace('[DOCUMENT]', instruction)
 
     last_count = 0
     for attempt in range(max_retries):
         try:
-            result = call_api(prompt, model, stream_print=False)
+            result, thinking, usage = call_api(prompt, model, stream_print=False, return_thinking=True, return_usage=True)
             if not result:
                 continue
             count = parse_markdown_to_files(result, repo_path)
             if count > 0:
                 mark_done(repo_path)
-                return {'id': item_id, 'round': round_num, 'repo_path': repo_path, 'status': 'ok', 'file_count': count, 'response': result}
+                return {'id': item_id, 'round': round_num, 'repo_path': repo_path, 'status': 'ok', 'file_count': count, 'response': result, 'thinking': thinking, 'usage': usage}
             last_count = count
         except Exception as e:
             last_count = 0
             if attempt < max_retries - 1:
                 time.sleep(BACKOFF_BASE * (2 ** attempt))
 
-    return {'id': item_id, 'round': round_num, 'repo_path': repo_path, 'status': 'error', 'file_count': last_count, 'response': None}
+    return {'id': item_id, 'round': round_num, 'repo_path': repo_path, 'status': 'error', 'file_count': last_count, 'response': None, 'thinking': None, 'usage': None}
 
 
 def main():
@@ -106,6 +158,9 @@ def main():
     parser.add_argument('--max-retries', type=int, default=MAX_RETRIES)
     parser.add_argument('--round', type=int, default=1, help='当前重试轮次 (1=首次)')
     parser.add_argument('--retry-ids-file', default=None, help='需要重试的 id 列表文件（每行一个 id）')
+    parser.add_argument('--step3-output', default=STEP3_OUTPUT)
+    parser.add_argument('--step3b-output', default=STEP3B_OUTPUT)
+    parser.add_argument('--step4-output', default=STEP4_OUTPUT)
     args = parser.parse_args()
 
     ensure_dir(args.repos_dir)
@@ -126,6 +181,9 @@ def main():
     pending = [item for item in items if item['id'] not in done_ids]
     print(f"已完成 {len(done_ids)} 条，待处理 {len(pending)} 条")
 
+    if args.round > 1:
+        print(f"Self-repair 模式: 将读取上轮评分反馈进行定向修复")
+
     if not pending:
         print("没有需要处理的数据")
         return
@@ -135,15 +193,25 @@ def main():
     with tqdm(total=len(pending), desc="Step1 Inference") as pbar:
         with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
             futures = {
-                executor.submit(process_one, item, args.model, args.repos_dir, args.max_retries, args.round): item
+                executor.submit(
+                    process_one, item, args.model, args.repos_dir, args.max_retries,
+                    args.round, args.step3_output, args.step3b_output, args.step4_output,
+                ): item
                 for item in pending
             }
             for future in as_completed(futures):
                 result = future.result()
                 response = result.pop('response', None)
+                thinking = result.pop('thinking', None)
+                usage = result.get('usage')
                 append_jsonl_threadsafe(args.log, result, write_lock)
                 if response:
-                    append_jsonl_threadsafe(args.responses, {'id': result['id'], 'response': response}, response_lock)
+                    resp_record = {'id': result['id'], 'response': response}
+                    if thinking:
+                        resp_record['thinking'] = thinking
+                    if usage:
+                        resp_record['usage'] = usage
+                    append_jsonl_threadsafe(args.responses, resp_record, response_lock)
 
                 status = result['status']
                 if status == 'ok':
