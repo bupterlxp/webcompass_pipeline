@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transition Effect Editor</title>
+<style>* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #111;
+  color: #fff;
+  overflow: hidden;
+}
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr 360px;
+  height: 100vh;
+  gap: 16px;
+  padding: 16px;
+}
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.status {
+  color: #66ccff;
+  font-size: 13px;
+}
+.panel {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px;
+  overflow: auto;
+  min-height: 0;
+}
+.panel-head {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #66ccff;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.clip-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.1s;
+}
+.clip-item:active { cursor: grabbing; }
+.clip-item:hover { background: #3a3a3a; }
+.clip-thumb {
+  width: 24px; height: 14px;
+  background: #4a4a4a;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.clip-info { flex: 1; min-width: 0; }
+.clip-name { font-size: 13px; }
+.clip-duration { font-size: 11px; color: #888; }
+.clip-controls { display: flex; gap: 4px; opacity: 0.7; }
+.clip-controls button {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  background: #444;
+  border: 1px solid #555;
+  cursor: pointer;
+  font-size: 10px;
+  color: #fff;
+}
+.clip-controls button:hover { background: #666; }
+
+.timeline {
+  position: relative;
+  height: 220px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.rail { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: #222; }
+.ticks {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.tick {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: #333;
+  opacity: 0.5;
+}
+.tick:nth-child(10) { background: #66ccff; opacity: 1; }
+.clip-on-timeline {
+  position: absolute;
+  top: 0;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.1s;
+}
+.clip-on-timeline:active { cursor: grabbing; }
+.clip-on-timeline .clip-thumb { background: #ffcc66; }
+
+.transition-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.transition-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #aaa;
+}
+.transition-panel input[type="number"] {
+  width: 80px;
+  padding: 6px 8px;
+  background: #222;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 4px;
+}
+.transition-panel select {
+  padding: 6px 8px;
+  background: #222;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 4px;
+}
+
+.preview-wrap {
+  margin-top: 8px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #000;
+  overflow: hidden;
+}
+#preview {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.preview-meta {
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 12px;
+  background: #111;
+  font-size: 12px;
+  color: #66ccff;
+  border-top: 1px solid #333;
+}
+.preview-meta div { display: flex; gap: 6px; align-items: center; }
+.preview-meta code {
+  background: #222;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #ffcc66;
+}
+.btn {
+  padding: 8px 12px;
+  background: #333;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+.btn:hover { background: #555; }
+.btn-primary {
+  width: 100%;
+  background: #ffcc66;
+  border-color: #ff9933;
+}
+.btn-primary:hover { background: #ffdd88; }
+.hint {
+  font-size: 11px;
+  color: #888;
+  margin: 4px 0 0;
+  padding: 8px;
+  background: #222;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.hint code { color: #ffcc66; }
+
+@media (max-width: 1100px) {
+  .app { grid-template-columns: 1fr 1fr; }
+  .right { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>🎬 Transition Effect Editor</h1>
+    <div class="status" id="status">Ready</div>
+  </header>
+
+  <div class="panel left">
+    <div class="panel-head">🎬 Clips</div>
+    <div class="clip-list" id="clipList"></div>
+    <button class="btn" id="addClipBtn">+ Add Clip</button>
+  </div>
+
+  <div class="panel center">
+    <div class="panel-head">🎚️ Timeline</div>
+    <div class="timeline" id="timeline">
+      <div class="rail"></div>
+      <div class="ticks" id="ticks"></div>
+      <div class="clips" id="timelineClips"></div>
+    </div>
+    <div class="panel-head">🎛️ Transition</div>
+    <div class="transition-panel">
+      <label>Transition: <select id="transitionSelect">
+        <option value="none">None</option>
+        <option value="fade">Fade</option>
+        <option value="dissolve">Dissolve</option>
+        <option value="slide">Slide (left)</option>
+        <option value="wipe">Wipe (right)</option>
+      </select></label>
+      <label>Duration (frames): <input type="number" id="durationInput" value="30" min="1" max="200"></label>
+      <button class="btn" id="applyTransitionBtn">Apply to Selection</button>
+    </div>
+  </div>
+
+  <div class="panel right">
+    <div class="panel-head">👁 Preview</div>
+    <div class="preview-wrap">
+      <canvas id="preview" width="720" height="405"></canvas>
+      <div class="preview-meta">
+        <div>FPS: <span id="fps">30</span></div>
+        <div>Duration: <span id="totalFrames">0</span> frames</div>
+        <div>Clip count: <span id="clipCount">0</span></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="exportBtn">▶ Export Video (FFmpeg)</button>
+    <p class="hint">Tip: Use <code>ffmpeg</code> in terminal: <code>ffmpeg -y -framerate 30 -i frame_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4</code></p>
+  </div>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const W = 720, H = 405;
+  const FPS = 30;
+  const TOTAL_SECONDS = 120; // total video length
+  const TOTAL_FRAMES = TOTAL_SECONDS * FPS;
+
+  const state = {
+    clips: [],
+    timeline: [], // [{id, start, end, transition, duration}]
+    fps: FPS,
+    selectedClipIds: new Set(),
+    drag: null,
+    previewFrame: 0,
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Utilities ----------
+  const randColor = () => {
+    const hue = Math.floor(Math.random() * 360);
+    return `hsl(${hue}, 70%, 55%)`;
+  };
+
+  const randName = () => {
+    const names = ['Sunset', 'Forest', 'Ocean', 'Mountain', 'Desert', 'City', 'Rainbow', 'Neon', 'Clouds', 'Night'];
+    return names[Math.floor(Math.random() * names.length)];
+  };
+
+  const addClip = () => {
+    const id = 'c' + Date.now() + Math.random().toString(36).slice(2, 6);
+    state.clips.push({
+      id,
+      name: randName(),
+      color: randColor(),
+      duration: 45,
+    });
+    renderClipList();
+    renderTimeline();
+    renderPreview();
+  };
+
+  const removeClip = (id) => {
+    state.clips = state.clips.filter(c => c.id !== id);
+    state.timeline = state.timeline.filter(t => t.id !== id);
+    state.selectedClipIds.delete(id);
+    renderClipList();
+    renderTimeline();
+    renderPreview();
+  };
+
+  const applyTransitionToSelection = () => {
+    const sel = Array.from(state.selectedClipIds);
+    if (sel.length === 0) return;
+    const t = $('transitionSelect').value;
+    const dur = parseInt($('durationInput').value, 10) || 30;
+    if (dur <= 0) return;
+    sel.forEach(id => {
+      const idx = state.timeline.findIndex(t => t.id === id);
+      if (idx >= 0) {
+        state.timeline[idx].transition = t;
+        state.timeline[idx].duration = dur;
+      } else {
+        state.timeline.push({
+          id,
+          start: 0,
+          end: state.clips.find(c => c.id === id).duration,
+          transition: t,
+          duration: dur,
+        });
+      }
+    });
+    renderTimeline();
+    renderPreview();
+  };
+
+  // ---------- Rendering ----------
+  const renderClipList = () => {
+    const list = $('clipList');
+    list.innerHTML = '';
+    state.clips.forEach(c => {
+      const el = document.createElement('div');
+      el.className = 'clip-item';
+      el.draggable = true;
+      el.dataset.id = c.id;
+      el.innerHTML = `
+        <div class="clip-thumb"></div>
+        <div class="clip-info">
+          <div class="clip-name">${escapeHtml(c.name)}</div>
+          <div class="clip-duration">${c.duration} sec</div>
+        </div>
+        <div class="clip-controls">
+          <button title="Remove" data-act="remove">✕</button>
+          <button title="Select" data-act="select">●</button>
+        </div>
+      `;
+      el.addEventListener('dragstart', (e) => dragStart(e, c.id));
+      el.addEventListener('dragend', dragEnd);
+      el.addEventListener('click', (e) => {
+        if (e.target.dataset.act === 'remove') {
+          removeClip(c.id);
+        } else if (e.target.dataset.act === 'select') {
+          toggleSelect(c.id);
+        }
+      });
+      list.appendChild(el);
+    });
+  };
+
+  const renderTimeline = () => {
+    const ticks = $('ticks');
+    ticks.innerHTML = '';
+    for (let i = 0; i <= TOTAL_SECONDS; i++) {
+      const tick = document.createElement('div');
+      tick.className = 'tick';
+      tick.style.left = (i / TOTAL_SECONDS * 100) + '%';
+      ticks.appendChild(tick);
+    }
+
+    const clipsEl = $('timelineClips');
+    clipsEl.innerHTML = '';
+    state.clips.forEach(c => {
+      const t = state.timeline.find(x => x.id === c.id);
+      const start = t ? t.start : 0;
+      const end = t ? t.end : c.duration;
+      const dur = end - start;
+      const el = document.createElement('div');
+      el.className = 'clip-on-timeline';
+      el.dataset.id = c.id;
+      el.style.left = (start / TOTAL_SECONDS * 100) + '%';
+      el.style.width = (dur / TOTAL_SECONDS * 100) + '%';
+      el.style.background = c.color;
+      el.innerHTML = `
+        <div class="clip-thumb"></div>
+        <div style="margin-left: 10px; font-size: 11px; color: #fff; font-weight: 600;">${escapeHtml(c.name)}</div>
+      `;
+      el.addEventListener('dragstart', (e) => dragStart(e, c.id));
+      el.addEventListener('dragend', dragEnd);
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.clip-thumb')) return;
+        toggleSelect(c.id);
+      });
+      clipsEl.appendChild(el);
+    });
+  };
+
+  const toggleSelect = (id) => {
+    if (state.selectedClipIds.has(id)) state.selectedClipIds.delete(id);
+    else state.selectedClipIds.add(id);
+    renderTimeline();
+  };
+
+  const renderPreview = () => {
+    const canvas = $('preview');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    if (state.previewFrame >= TOTAL_FRAMES) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+    const frame = state.previewFrame;
+    const clipIdx = state.clips.findIndex(c => frame < c.duration);
+    const clip = clipIdx >= 0 ? state.clips[clipIdx] : null;
+
+    if (!clip) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
+    const prevClip = state.clips[clipIdx - 1];
+    const nextClip = state.clips[clipIdx + 1];
+
+    // Background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Clip content
+    const clipStart = prevClip ? prevClip.duration : 0;
+    const clipEnd = clip.duration;
+    const clipDuration = clipEnd - clipStart;
+    const clipRatio = clipDuration / TOTAL_SECONDS;
+    const clipWidth = W * clipRatio;
+    const clipX = (clipStart / TOTAL_SECONDS) * W;
+
+    const transition = state.timeline.find(t => t.id === clip.id)?.transition;
+    const transitionDur = state.timeline.find(t => t.id === clip.id)?.duration || 0;
+
+    const clipStartFrame = clipStart * FPS;
+    const clipEndFrame = clipStartFrame + clipDuration * FPS;
+    const currentClipFrame = frame - clipStartFrame;
+
+    const prevClipStartFrame = prevClip ? prevClip.duration * FPS : -1;
+    const prevClipEndFrame = prevClip ? (prevClip.duration + clipDuration) * FPS : -1;
+    const prevClipCurrentFrame = frame - prevClipStartFrame;
+
+    // Draw prev clip (if any) with transition
+    if (prevClip && prevClipStartFrame < frame && frame < prevClipEndFrame) {
+      const prevRatio = transition ? Math.min(1, currentClipFrame / transitionDur) : 1;
+      const prevColor = prevClip.color;
+      const prevW = W * (prevClip.duration / TOTAL_SECONDS);
+      const prevX = (prevClip.duration / TOTAL_SECONDS) * W;
+      const prevY = (H - prevW) / 2;
+      drawClip(ctx, prevColor, prevW, prevX, prevY, prevRatio, transition, transitionDur);
+    }
+
+    // Draw current clip
+    const ratio = transition ? Math.min(1, currentClipFrame / transitionDur) : 1;
+    drawClip(ctx, clip.color, clipWidth, clipX, (H - clipWidth) / 2, ratio, transition, transitionDur);
+
+    // Draw next clip (if any) with transition
+    if (nextClip && clipEndFrame < frame && frame < (clipEnd + nextClip.duration) * FPS) {
+      const nextRatio = transition ? Math.min(1, (frame - clipEndFrame) / transitionDur) : 1;
+      const nextColor = nextClip.color;
+      const nextW = W * (nextClip.duration / TOTAL_SECONDS);
+      const nextX = ((clip.duration + nextClip.duration) / TOTAL_SECONDS) * W;
+      const nextY = (H - nextW) / 2;
+      drawClip(ctx, nextColor, nextW, nextX, nextY, nextRatio, transition, transitionDur);
+    }
+
+    // Status
+    $('totalFrames').textContent = TOTAL_FRAMES;
+    $('clipCount').textContent = state.clips.length;
+  };
+
+  const drawClip = (ctx, color, w, x, y, ratio, transition, dur) => {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    if (transition === 'fade' || transition === 'dissolve') {
+      const alpha = ratio;
+      ctx.fillStyle = color + (alpha < 1 ? '88' : 'ff');
+      ctx.fillRect(x, y, w, w);
+    } else if (transition === 'slide' || transition === 'wipe') {
+      const alpha = ratio;
+      const rect = new Path2D();
+      rect.rect(x, y, w, w);
+      ctx.fillStyle = color + (alpha < 1 ? '88' : 'ff');
+      ctx.fill(rect);
+    }
+    ctx.restore();
+  };
+
+  // ---------- Drag & Drop ----------
+  const dragStart = (e, id) => {
+    state.drag = { id, source: 'clip' };
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', id); } catch (_) {}
+  };
+  const dragEnd = () => { state.drag = null; };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain') || null;
+    if (!id) return;
+    const item = state.clips.find(c => c.id === id);
+    if (!item) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const seconds = x / rect.width * TOTAL_SECONDS;
+    const clip = state.clips.find(c => c.duration > seconds);
+    if (!clip) return;
+    const start = Math.max(0, Math.min(clip.duration, seconds));
+    const end = start + 1;
+    const t = state.timeline.find(x => x.id === clip.id);
+    if (t) {
+      t.start = start;
+      t.end = end;
+    } else {
+      state.timeline.push({ id: clip.id, start, end, transition: 'none', duration: 0 });
+    }
+    renderTimeline();
+    renderPreview();
+  };
+
+  // ---------- Events ----------
+  $('addClipBtn').addEventListener('click', addClip);
+  $('applyTransitionBtn').addEventListener('click', applyTransitionToSelection);
+  $('exportBtn').addEventListener('click', () => {
+    const status = $('status');
+    status.textContent = 'Exporting...';
+    status.style.color = '#ffcc66';
+    setTimeout(() => {
+      status.textContent = 'Exported ' + TOTAL_FRAMES + ' frames (use FFmpeg)';
+      status.style.color = '#66ccff';
+    }, 800);
+  });
+
+  // Drag over timeline
+  $('timeline').addEventListener('dragover', onDragOver);
+  $('timeline').addEventListener('drop', onDrop);
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      state.clips.forEach(c => { if (state.selectedClipIds.has(c.id)) removeClip(c.id); });
+      renderClipList();
+      renderTimeline();
+      renderPreview();
+    }
+  });
+
+  // ---------- Preview loop ----------
+  const startPreview = () => {
+    $('status').textContent = 'Playing...';
+    $('status').style.color = '#66ccff';
+    let raf;
+    const tick = () => {
+      state.previewFrame++;
+      renderPreview();
+      if (state.previewFrame < TOTAL_FRAMES) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        state.previewFrame = 0;
+        $('status').textContent = 'Ready';
+        $('status').style.color = '#66ccff';
+      }
+    };
+    raf = requestAnimationFrame(tick);
+  };
+  $('preview').addEventListener('click', startPreview);
+
+  // ---------- Helpers ----------
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+
+  // ---------- Init ----------
+  state.clips = [
+    { id: 'c1', name: 'Sunset', color: '#ff7755', duration: 30 },
+    { id: 'c2', name: 'Ocean', color: '#4a99ff', duration: 45 },
+    { id: 'c3', name: 'Mountain', color: '#66cc66', duration: 35 },
+    { id: 'c4', name: 'Desert', color: '#e6a84a', duration: 40 },
+  ];
+  state.timeline = [
+    { id: 'c1', start: 0, end: 30, transition: 'fade', duration: 15 },
+    { id: 'c2', start: 30, end: 75, transition: 'dissolve', duration: 20 },
+    { id: 'c3', start: 75, end: 110, transition: 'slide', duration: 10 },
+    { id: 'c4', start: 110, end: 150, transition: 'wipe', duration: 15 },
+  ];
+  state.selectedClipIds = new Set(['c1']);
+
+  renderClipList();
+  renderTimeline();
+  renderPreview();
+})();
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

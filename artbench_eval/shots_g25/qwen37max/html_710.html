@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>五合一聚合收银台 · 修复增强版</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4ecf7 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+  }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header {
+    text-align: center;
+    margin-bottom: 18px;
+    color: #555;
+    font-size: 13px;
+  }
+  .header h1 { font-size: 18px; color: #222; margin-bottom: 4px; }
+  .tabs {
+    display: flex;
+    background: #fff;
+    border-radius: 12px 12px 0 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .tab {
+    flex: 1;
+    padding: 14px 4px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    border-bottom: 3px solid transparent;
+    transition: all .25s;
+    user-select: none;
+  }
+  .tab:hover { background: #fafafa; }
+  .tab.active { color: var(--brand); border-bottom-color: var(--brand); background: #fff; }
+
+  .card {
+    background: #fff;
+    border-radius: 0 0 12px 12px;
+    padding: 24px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+  .brand-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--brand);
+    margin-bottom: 4px;
+  }
+  .brand-sub {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 20px;
+  }
+  .order-info {
+    background: #f8f9fb;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    line-height: 1.9;
+  }
+  .order-info .row { display: flex; justify-content: space-between; }
+  .order-info .label { color: #888; }
+  .order-info .value { color: #333; font-weight: 500; }
+  .amount {
+    text-align: center;
+    margin: 18px 0;
+  }
+  .amount .label { font-size: 13px; color: #888; }
+  .amount .num {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--brand);
+    margin-top: 4px;
+  }
+  .amount .num::before { content: "¥"; font-size: 20px; margin-right: 2px; }
+
+  .qr-box {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 14px;
+    border: 1px dashed #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      repeating-linear-gradient(45deg, #f0f0f0 0 6px, #fff 6px 12px);
+    position: relative;
+    color: #aaa;
+    font-size: 12px;
+  }
+  .qr-box::after {
+    content: "扫码支付";
+    position: absolute;
+    bottom: -22px;
+    font-size: 12px;
+    color: #888;
+  }
+
+  .countdown {
+    text-align: center;
+    font-size: 13px;
+    color: #e67e22;
+    margin: 28px 0 14px;
+  }
+  .countdown b { color: var(--brand); font-size: 15px; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .status-pending  { background: #fff4e5; color: #e67e22; }
+  .status-success  { background: #e8f8ef; color: #27ae60; }
+  .status-expired  { background: #fdecea; color: #c0392b; }
+  .status-cancel   { background: #eef0f3; color: #7f8c8d; }
+  .status-deliver  { background: #e3f2fd; color: #1976d2; }
+
+  .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .btn {
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-primary { background: var(--brand); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-outline {
+    background: #fff;
+    color: #666;
+    border: 1px solid #ddd;
+  }
+  .btn-outline:hover { background: #f5f5f5; }
+  .btn-link {
+    background: transparent;
+    color: var(--brand);
+    font-size: 13px;
+    text-decoration: underline;
+  }
+
+  .toast {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 18px;
+    line-height: 1.6;
+  }
+
+  /* Brand themes */
+  .theme-meituan   { --brand: #FFC300; }
+  .theme-jd        { --brand: #E2231A; }
+  .theme-pinduoduo { --brand: #E02E24; }
+  .theme-didi      { --brand: #FF6611; }
+  .theme-ctrip     { --brand: #2577E3; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>五合一聚合收银台</h1>
+    <div>修复增强版 · 细节优化 · 状态完整</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-key="meituan">美团</div>
+    <div class="tab" data-key="jd">京东</div>
+    <div class="tab" data-key="pinduoduo">拼多多</div>
+    <div class="tab" data-key="didi">滴滴</div>
+    <div class="tab" data-key="ctrip">携程</div>
+  </div>
+
+  <div class="card" id="card">
+    <!-- Panels injected by JS -->
+  </div>
+
+  <div class="footer-note">
+    本模板为演示前端交互，支付行为均为模拟<br>
+    点击「前往官方」将跳转对应平台官网
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 平台配置 ============ */
+const PLATFORMS = {
+  meituan: {
+    theme: 'theme-meituan',
+    title: '美团 · 生活收银台',
+    sub:   '美团订单 · 吃喝玩乐一站式',
+    order: 'MT2025011500001',
+    goods: '美团外卖 · 精选套餐',
+    amount: 68.50,
+    official: 'https://www.meituan.com'
+  },
+  jd: {
+    theme: 'theme-jd',
+    title: '京东 · 商城收银台',
+    sub:   '京东商城 · 多快好省',
+    order: 'JD2025011500002',
+    goods: '京东自营 · 数码家电',
+    amount: 1299.00,
+    official: 'https://www.jd.com'
+  },
+  pinduoduo: {
+    theme: 'theme-pinduoduo',
+    title: '拼多多 · 拼团收银台',
+    sub:   '拼多多 · 拼着买更便宜',
+    order: 'PDD2025011500003',
+    goods: '万人团 · 日用百货',
+    amount: 29.90,
+    official: 'https://www.pinduoduo.com'
+  },
+  didi: {
+    theme: 'theme-didi',
+    title: '滴滴出行 · 行程收银台',
+    sub:   '滴滴出行 · 美好出行',
+    order: 'DD2025011500004',
+    goods: '快车行程 · 市区通勤',
+    amount: 35.60,
+    official: 'https://www.didiglobal.com'
+  },
+  ctrip: {
+    theme: 'theme-ctrip',
+    title: '携程旅行 · 订单收银台',
+    sub:   '携程旅行 · 说走就走',
+    order: 'CT2025011500005',
+    goods: '机票+酒店 · 度假套餐',
+    amount: 2580.00,
+    official: 'https://www.ctrip.com'
+  }
+};
+
+/* ============ 状态机 ============ */
+const STATUS = {
+  PENDING:  { key:'pending',  text:'待支付',   cls:'status-pending' },
+  SUCCESS:  { key:'success',  text:'支付成功', cls:'status-success' },
+  EXPIRED:  { key:'expired',  text:'订单已过期', cls:'status-expired' },
+  CANCEL:   { key:'cancel',   text:'订单已取消', cls:'status-cancel'  },
+  DELIVER:  { key:'deliver',  text:'已发货/已完成', cls:'status-deliver' }
+};
+
+/* 每个平台独立的状态上下文 */
+const ctx = {};
+Object.keys(PLATFORMS).forEach(k => {
+  ctx[k] = { status: STATUS.PENDING, remain: 300, timer: null };
+});
+
+/* ============ 渲染 ============ */
+const card = document.getElementById('card');
+
+function renderPanel(key) {
+  const p = PLATFORMS[key];
+  const c = ctx[key];
+  const mm = String(Math.floor(c.remain / 60)).padStart(2,'0');
+  const ss = String(c.remain % 60).padStart(2,'0');
+  const isPending = c.status.key === 'pending';
+
+  return `
+    <div class="panel active ${p.theme}" data-panel="${key}">
+      <div class="brand-title">${p.title}</div>
+      <div class="brand-sub">${p.sub}</div>
+
+      <div style="text-align:center">
+        <span class="status-badge ${c.status.cls}">${c.status.text}</span>
+      </div>
+
+      <div class="order-info">
+        <div class="row"><span class="label">订单编号</span><span class="value">${p.order}</span></div>
+        <div class="row"><span class="label">商品名称</span><span class="value">${p.goods}</span></div>
+        <div class="row"><span class="label">创建时间</span><span class="value">${new Date().toLocaleString('zh-CN')}</span></div>
+      </div>
+
+      <div class="amount">
+        <div class="label">应付金额</div>
+        <div class="num">${p.amount.toFixed(2)}</div>
+      </div>
+
+      ${isPending ? `<div class="qr-box">QR · ${key.toUpperCase()}</div>` : ''}
+
+      ${isPending
+        ? `<div class="countdown">剩余支付时间 <b>${mm}:${ss}</b></div>`
+        : `<div class="countdown" style="color:#888">订单状态：${c.status.text}</div>`}
+
+      <div class="btn-group">
+        ${isPending ? `
+          <button class="btn btn-primary" onclick="payOrder('${key}')">立即支付 ¥${p.amount.toFixed(2)}</button>
+          <button class="btn btn-outline" onclick="cancelOrder('${key}')">取消订单</button>
+        ` : ''}
+        ${c.status.key === 'success' ? `
+          <button class="btn btn-primary" onclick="deliverOrder('${key}')">确认发货 / 完成服务</button>
+        ` : ''}
+        ${c.status.key === 'expired' || c.status.key === 'cancel' ? `
+          <button class="btn btn-primary" onclick="recreateOrder('${key}')">重新下单</button>
+        ` : ''}
+        <button class="btn btn-link" onclick="goOfficial('${key}')">前往 ${p.title.split('·')[0].trim()} 官方页面 →</button>
+      </div>
+    </div>
+  `;
+}
+
+function refresh(key) {
+  const panel = card.querySelector(`[data-panel="${key}"]`);
+  if (panel) panel.outerHTML = renderPanel(key);
+}
+
+function renderAll() {
+  card.innerHTML = Object.keys(PLATFORMS).map(k => renderPanel(k)).join('');
+  // 仅显示当前激活
+  showPanel(currentKey);
+}
+
+/* ============ 切换 Tab ============ */
+let currentKey = 'meituan';
+function showPanel(key) {
+  currentKey = key;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.key === key);
+  });
+  card.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('active', p.dataset.panel === key);
+  });
+  // 应用主题到 card
+  card.className = 'card ' + PLATFORMS[key].theme;
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  if (e.target.classList.contains('tab')) showPanel(e.target.dataset.key);
+});
+
+/* ============ 倒计时 ============ */
+function tickAll() {
+  Object.keys(ctx).forEach(k => {
+    const c = ctx[k];
+    if (c.status.key !== 'pending') return;
+    c.remain--;
+    if (c.remain <= 0) {
+      c.status = STATUS.EXPIRED;
+      clearInterval(c.timer);
+      toast(`${PLATFORMS[k].title.split('·')[0].trim()} 订单已过期`);
+    }
+    if (k === currentKey) refresh(k);
+  });
+}
+setInterval(tickAll, 1000);
+
+/* ============ 操作 ============ */
+function payOrder(key) {
+  ctx[key].status = STATUS.SUCCESS;
+  toast('支付成功');
+  refresh(key);
+}
+function cancelOrder(key) {
+  if (!confirm('确定要取消该订单吗？')) return;
+  ctx[key].status = STATUS.CANCEL;
+  toast('订单已取消');
+  refresh(key);
+}
+function deliverOrder(key) {
+  ctx[key].status = STATUS.DELIVER;
+  toast('已确认发货/完成服务');
+  refresh(key);
+}
+function recreateOrder(key) {
+  ctx[key].status = STATUS.PENDING;
+  ctx[key].remain = 300;
+  toast('已重新生成订单');
+  refresh(key);
+}
+function goOfficial(key) {
+  const url = PLATFORMS[key].official;
+  toast('正在跳转官方页面...');
+  setTimeout(() => window.open(url, '_blank'), 400);
+}
+
+/* ============ Toast ============ */
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+/* ============ 初始化 ============ */
+renderAll();
+</script>
+</body>
+</html>

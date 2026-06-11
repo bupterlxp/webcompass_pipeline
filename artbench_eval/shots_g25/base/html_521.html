@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Theory Learning</title>
+    <style>/* styles.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+#app {
+    min-height: 100vh;
+}
+
+.navbar {
+    background: #2c3e50;
+    color: white;
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+}
+
+.nav-links li {
+    margin-left: 20px;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: #3498db;
+}
+
+.main-content {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page {
+    padding: 2rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.page:last-child {
+    border-bottom: none;
+}
+
+.hero {
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.hero h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.hero p {
+    font-size: 1.2rem;
+    color: #555;
+    max-width: 800px;
+    margin: 0 auto 2rem auto;
+}
+
+.hero button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.hero button:hover {
+    background: #2980b9;
+}
+
+.scale-container,
+.chord-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.scale-card,
+.chord-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.scale-card:hover,
+.chord-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.scale-card h3,
+.chord-card h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.scale-notes,
+.chord-examples {
+    margin: 1rem 0;
+}
+
+.note {
+    display: inline-block;
+    margin-right: 5px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    background: #f0f0f0;
+    font-weight: bold;
+}
+
+.chord-example {
+    background: #f9f9f9;
+    padding: 1rem;
+    border-left: 4px solid #3498db;
+    margin-bottom: 1rem;
+}
+
+.chord-example h4 {
+    margin-bottom: 0.5rem;
+}
+
+.chord-example p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.audio-examples {
+    margin: 2rem 0;
+}
+
+.audio-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.audio-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.audio-card h4 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.audio-card button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px 0;
+    transition: background 0.3s;
+}
+
+.audio-card button:hover {
+    background: #2980b9;
+}
+
+.practice-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.practice-instructions {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.practice-instructions h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.practice-form {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+.form-group button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.form-group button:hover {
+    background: #2980b9;
+}
+
+.result {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.result.correct {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.result.incorrect {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.progression-examples {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.example {
+    background: #f9f9f9;
+    padding: 1rem;
+    border-left: 4px solid #3498db;
+    margin-bottom: 1rem;
+}
+
+.example h4 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.example p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.example button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px 0;
+    transition: background 0.3s;
+}
+
+.example button:hover {
+    background: #2980b9;
+}
+
+.about-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.about-content p {
+    margin-bottom: 1rem;
+}
+
+.about-content ul {
+    margin-bottom: 1rem;
+    padding-left: 20px;
+}
+
+footer {
+    background: #2c3e50;
+    color: white;
+    text-align: center;
+    padding: 1rem;
+    margin-top: 2rem;
+}
+
+.audio-player {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    width: 300px;
+}
+
+.audio-player h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+#audio-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#audio-controls button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+    flex: 1;
+}
+
+#audio-controls button:hover {
+    background: #2980b9;
+}
+
+#current-audio-info {
+    font-size: 0.9rem;
+    color: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nav-container {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .nav-links {
+        margin-top: 1rem;
+        justify-content: center;
+    }
+    
+    .nav-links li {
+        margin: 0 10px;
+    }
+    
+    .practice-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .audio-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .audio-player {
+        width: 100%;
+        right: 0;
+        bottom: 20px;
+    }
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.page {
+    animation: fadeIn 0.5s ease-in-out;
+}
+</style>
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <h1>Music Theory Learning</h1>
+                <ul class="nav-links">
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#scales">Scales</a></li>
+                    <li><a href="#chords">Chords</a></li>
+                    <li><a href="#practice">Practice</a></li>
+                    <li><a href="#about">About</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Home Page -->
+            <section id="home" class="page">
+                <div class="hero">
+                    <h2>Welcome to Music Theory Learning</h2>
+                    <p>Learn the fundamentals of music theory with interactive lessons, audio examples, and practice exercises.</p>
+                    <button onclick="navigateTo('scales')">Start Learning Scales</button>
+                </div>
+            </section>
+
+            <!-- Scales Page -->
+            <section id="scales" class="page">
+                <h2>Scales</h2>
+                <div class="scale-container">
+                    <div class="scale-card">
+                        <h3>Major Scale</h3>
+                        <p>The major scale follows the pattern: W-W-H-W-W-W-H</p>
+                        <div class="scale-notes">
+                            <span class="note">C</span>
+                            <span class="note">D</span>
+                            <span class="note">E</span>
+                            <span class="note">F</span>
+                            <span class="note">G</span>
+                            <span class="note">A</span>
+                            <span class="note">B</span>
+                        </div>
+                        <button onclick="playScale('major', 'C')">Play C Major</button>
+                    </div>
+                    
+                    <div class="scale-card">
+                        <h3>Minor Scale</h3>
+                        <p>The natural minor scale follows the pattern: W-H-W-W-H-W-W</p>
+                        <div class="scale-notes">
+                            <span class="note">A</span>
+                            <span class="note">B</span>
+                            <span class="note">C</span>
+                            <span class="note">D</span>
+                            <span class="note">E</span>
+                            <span class="note">F</span>
+                            <span class="note">G</span>
+                        </div>
+                        <button onclick="playScale('minor', 'A')">Play A Natural Minor</button>
+                    </div>
+                    
+                    <div class="scale-card">
+                        <h3>Chromatic Scale</h3>
+                        <p>All 12 notes in an octave, each a half step apart.</p>
+                        <div class="scale-notes">
+                            <span class="note">C</span>
+                            <span class="note">C#</span>
+                            <span class="note">D</span>
+                            <span class="note">D#</span>
+                            <span class="note">E</span>
+                            <span class="note">F</span>
+                            <span class="note">F#</span>
+                            <span class="note">G</span>
+                            <span class="note">G#</span>
+                            <span class="note">A</span>
+                            <span class="note">A#</span>
+                            <span class="note">B</span>
+                        </div>
+                        <button onclick="playScale('chromatic', 'C')">Play C Chromatic</button>
+                    </div>
+                </div>
+                
+                <div class="audio-examples">
+                    <h3>Audio Examples</h3>
+                    <div class="audio-container">
+                        <div class="audio-card">
+                            <h4>C Major Scale</h4>
+                            <button onclick="playScale('major', 'C')">Play</button>
+                            <audio id="major-c" src="assets/scales/major-c.mp3" preload="auto"></audio>
+                        </div>
+                        <div class="audio-card">
+                            <h4>A Natural Minor Scale</h4>
+                            <button onclick="playScale('minor', 'A')">Play</button>
+                            <audio id="minor-a" src="assets/scales/minor-a.mp3" preload="auto"></audio>
+                        </div>
+                        <div class="audio-card">
+                            <h4>C Chromatic Scale</h4>
+                            <button onclick="playScale('chromatic', 'C')">Play</button>
+                            <audio id="chromatic-c" src="assets/scales/chromatic-c.mp3" preload="auto"></audio>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chords Page -->
+            <section id="chords" class="page">
+                <h2>Chords</h2>
+                <div class="chord-container">
+                    <div class="chord-card">
+                        <h3>Major Chords</h3>
+                        <p>Constructed from root, major third, and perfect fifth.</p>
+                        <div class="chord-examples">
+                            <div class="chord-example">
+                                <h4>C Major</h4>
+                                <p>C - E - G</p>
+                                <button onclick="playChord('major', 'C')">Play C Major</button>
+                            </div>
+                            <div class="chord-example">
+                                <h4>G Major</h4>
+                                <p>G - B - D</p>
+                                <button onclick="playChord('major', 'G')">Play G Major</button>
+                            </div>
+                            <div class="chord-example">
+                                <h4>D Major</h4>
+                                <p>D - F# - A</p>
+                                <button onclick="playChord('major', 'D')">Play D Major</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chord-card">
+                        <h3>Minor Chords</h3>
+                        <p>Constructed from root, minor third, and perfect fifth.</p>
+                        <div class="chord-examples">
+                            <div class="chord-example">
+                                <h4>A Minor</h4>
+                                <p>A - C - E</p>
+                                <button onclick="playChord('minor', 'A')">Play A Minor</button>
+                            </div>
+                            <div class="chord-example">
+                                <h4>E Minor</h4>
+                                <p>E - G - B</p>
+                                <button onclick="playChord('minor', 'E')">Play E Minor</button>
+                            </div>
+                            <div class="chord-example">
+                                <h4>F Minor</h4>
+                                <p>F - Ab - C</p>
+                                <button onclick="playChord('minor', 'F')">Play F Minor</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chord-card">
+                        <h3>7th Chords</h3>
+                        <p>Constructed from root, third, fifth, and seventh.</p>
+                        <div class="chord-examples">
+                            <div class="chord-example">
+                                <h4>C7</h4>
+                                <p>C - E - G - Bb</p>
+                                <button onclick="playChord('dominant7', 'C')">Play C7</button>
+                            </div>
+                            <div class="chord-example">
+                                <h4>G7</h4>
+                                <p>G - B - D - F</p>
+                                <button onclick="playChord('dominant7', 'G')">Play G7</button>
+                            </div>
+                            <div class="chord-example">
+                                <h4>D7</h4>
+                                <p>D - F# - A - C</p>
+                                <button onclick="playChord('dominant7', 'D')">Play D7</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="audio-examples">
+                    <h3>Audio Examples</h3>
+                    <div class="audio-container">
+                        <div class="audio-card">
+                            <h4>C Major Chord</h4>
+                            <button onclick="playChord('major', 'C')">Play</button>
+                            <audio id="major-c-chord" src="assets/chords/major-c.mp3" preload="auto"></audio>
+                        </div>
+                        <div class="audio-card">
+                            <h4>A Minor Chord</h4>
+                            <button onclick="playChord('minor', 'A')">Play</button>
+                            <audio id="minor-a-chord" src="assets/chords/minor-a.mp3" preload="auto"></audio>
+                        </div>
+                        <div class="audio-card">
+                            <h4>C7 Chord</h4>
+                            <button onclick="playChord('dominant7', 'C')">Play</button>
+                            <audio id="dominant7-c" src="assets/chords/dominant7-c.mp3" preload="auto"></audio>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Practice Page -->
+            <section id="practice" class="page">
+                <h2>Practice Chord Combinations</h2>
+                <div class="practice-container">
+                    <div class="practice-instructions">
+                        <h3>How to Practice</h3>
+                        <p>Choose a key, select two chords, and play them in sequence. The system will check if your combination is correct.</p>
+                        <p>Try to create progressions that make musical sense!</p>
+                    </div>
+                    
+                    <div class="practice-form">
+                        <h3>Chord Progression Practice</h3>
+                        <div class="form-group">
+                            <label for="key">Select Key:</label>
+                            <select id="key" onchange="updateChordOptions()">
+                                <option value="C">C Major</option>
+                                <option value="G">G Major</option>
+                                <option value="D">D Major</option>
+                                <option value="A">A Major</option>
+                                <option value="E">E Major</option>
+                                <option value="F">F Major</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="chord1">First Chord:</label>
+                            <select id="chord1" onchange="updateChord2Options()">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="chord2">Second Chord:</label>
+                            <select id="chord2">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="chord3">Third Chord (Optional):</label>
+                            <select id="chord3">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button onclick="checkProgression()">Check Progression</button>
+                        </div>
+                        
+                        <div id="result" class="result"></div>
+                    </div>
+                    
+                    <div class="progression-examples">
+                        <h3>Common Progressions</h3>
+                        <div class="example">
+                            <h4>I - V - vi - IV</h4>
+                            <p>Example: C - G - Am - F</p>
+                            <button onclick="playProgression('C', 'G', 'Am', 'F')">Play Example</button>
+                        </div>
+                        <div class="example">
+                            <h4>I - IV - V</h4>
+                            <p>Example: C - F - G</p>
+                            <button onclick="playProgression('C', 'F', 'G', '')">Play Example</button>
+                        </div>
+                        <div class="example">
+                            <h4>vi - IV - I - V</h4>
+                            <p>Example: Am - F - C - G</p>
+                            <button onclick="playProgression('Am', 'F', 'C', 'G')">Play Example</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- About Page -->
+            <section id="about" class="page">
+                <h2>About Music Theory Learning</h2>
+                <div class="about-content">
+                    <p>This website is designed to help musicians of all levels learn and practice music theory concepts. From basic scales and chords to practical progression exercises, this platform provides interactive learning with audio examples to reinforce understanding.</p>
+                    <p>Features include:</p>
+                    <ul>
+                        <li>Interactive scale and chord lessons</li>
+                        <li>Audio examples for each concept</li>
+                        <li>Practice exercises with instant feedback</li>
+                        <li>Progression building with correctness checking</li>
+                    </ul>
+                    <p>Whether you're a beginner learning your first chord or an advanced musician looking to deepen your understanding, this site offers valuable resources to enhance your musical knowledge.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2023 Music Theory Learning. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Audio Player -->
+    <div id="audio-player" class="audio-player">
+        <h3>Current Audio</h3>
+        <div id="audio-controls">
+            <button id="play-btn" onclick="togglePlay()">Play</button>
+            <button id="stop-btn" onclick="stopAudio()">Stop</button>
+            <button id="pause-btn" onclick="pauseAudio()">Pause</button>
+            <button id="prev-btn" onclick="prevAudio()">Previous</button>
+            <button id="next-btn" onclick="nextAudio()">Next</button>
+            <div id="current-audio-info">No audio playing</div>
+        </div>
+    </div>
+
+    <script>// script.js
+// Audio files are placeholders. In a real implementation, you would need to include actual audio files.
+// For demonstration, we'll create fake audio data.
+
+// Audio player functionality
+let currentAudio = null;
+let audioQueue = [];
+let currentAudioIndex = -1;
+
+// Initialize audio player
+function initializeAudioPlayer() {
+    // Create audio elements for each type of audio
+    const audioElements = {
+        scales: {
+            'major-c': new Audio(),
+            'minor-a': new Audio(),
+            'chromatic-c': new Audio()
+        },
+        chords: {
+            'major-c': new Audio(),
+            'minor-a': new Audio(),
+            'dominant7-c': new Audio()
+        }
+    };
+    
+    // Set up audio elements with placeholder data
+    for (let type in audioElements) {
+        for (let id in audioElements[type]) {
+            audioElements[type][id].src = `assets/${type}/${id}.mp3`;
+            audioElements[type][id].preload = 'auto';
+        }
+    }
+    
+    // Store audio elements
+    window.audioElements = audioElements;
+}
+
+// Play audio function
+function playAudio(audioId) {
+    if (!audioId) return;
+    
+    const audio = window.audioElements.scales[audioId];
+    if (audio) {
+        currentAudio = audio;
+        audio.play();
+        updateAudioInfo(audioId);
+    } else {
+        console.error(`Audio ${audioId} not found`);
+    }
+}
+
+// Stop audio function
+function stopAudio() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+        updateAudioInfo('No audio playing');
+    }
+}
+
+// Pause audio function
+function pauseAudio() {
+    if (currentAudio) {
+        currentAudio.pause();
+        updateAudioInfo('Paused');
+    }
+}
+
+// Toggle play/pause
+function togglePlay() {
+    if (currentAudio) {
+        if (currentAudio.paused) {
+            currentAudio.play();
+            updateAudioInfo(currentAudio.src);
+        } else {
+            currentAudio.pause();
+            updateAudioInfo('Paused');
+        }
+    } else {
+        // Try to play the first available audio
+        playAudio('major-c');
+    }
+}
+
+// Update audio info display
+function updateAudioInfo(info) {
+    document.getElementById('current-audio-info').textContent = info;
+}
+
+// Play scale
+function playScale(scaleType, key) {
+    const audioId = `${scaleType}-${key}`;
+    playAudio(audioId);
+    
+    // Update UI
+    document.getElementById(`major-c`).pause();
+    document.getElementById(`minor-a`).pause();
+    document.getElementById(`chromatic-c`).pause();
+    
+    // Play the selected audio
+    const audio = window.audioElements.scales[`${scaleType}-${key}`];
+    if (audio) {
+        audio.play();
+    }
+}
+
+// Play chord
+function playChord(chordType, key) {
+    const audioId = `${chordType}-${key}`;
+    playAudio(audioId);
+    
+    // Update UI
+    document.getElementById(`major-c-chord`).pause();
+    document.getElementById(`minor-a-chord`).pause();
+    document.getElementById(`dominant7-c`).pause();
+    
+    // Play the selected audio
+    const audio = window.audioElements.chords[`${chordType}-${key}`];
+    if (audio) {
+        audio.play();
+    }
+}
+
+// Play progression
+function playProgression(chord1, chord2, chord3, chord4) {
+    const chords = [chord1, chord2, chord3, chord4].filter(Boolean);
+    let audioPromises = [];
+    
+    for (let i = 0; i < chords.length; i++) {
+        const chord = chords[i];
+        const audioId = chord.includes('major') ? `${chord}-major` : chord;
+        const audio = window.audioElements.chords[audioId];
+        
+        if (audio) {
+            audioPromises.push(audio.play());
+        }
+    }
+    
+    // Play all chords sequentially
+    if (audioPromises.length > 0) {
+        audioPromises[0].then(() => {
+            if (audioPromises.length > 1) {
+                setTimeout(() => {
+                    audioPromises[1].then(() => {
+                        if (audioPromises.length > 2) {
+                            setTimeout(() => {
+                                audioPromises[2].then(() => {
+                                    if (audioPromises.length > 3) {
+                                        setTimeout(() => {
+                                            audioPromises[3].then(() => {
+                                                // All played
+                                            });
+                                        }, 1000);
+                                    }
+                                });
+                            }, 1000);
+                        }
+                    });
+                }, 1000);
+            }
+        });
+    }
+}
+
+// Navigation
+function navigateTo(pageId) {
+    // Hide all pages
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => page.style.display = 'none');
+    
+    // Show selected page
+    const selectedPage = document.getElementById(pageId);
+    if (selectedPage) {
+        selectedPage.style.display = 'block';
+    }
+}
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAudioPlayer();
+    
+    // Set up navigation
+    const navLinks = document.querySelectorAll('.nav-links a');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const pageId = this.getAttribute('href').substring(1);
+            navigateTo(pageId);
+        });
+    });
+    
+    // Set up key selection
+    const keySelect = document.getElementById('key');
+    keySelect.addEventListener('change', function() {
+        const key = this.value;
+        updateChordOptions(key);
+    });
+    
+    // Update chord options based on key
+    function updateChordOptions(key = 'C') {
+        const chord1Select = document.getElementById('chord1');
+        const chord2Select = document.getElementById('chord2');
+        const chord3Select = document.getElementById('chord3');
+        
+        // Clear existing options
+        chord1Select.innerHTML = '<option value="">-- Select --</option>';
+        chord2Select.innerHTML = '<option value="">-- Select --</option>';
+        chord3Select.innerHTML = '<option value="">-- Select --</option>';
+        
+        // Add chord options based on key
+        const chords = [];
+        if (key === 'C') {
+            chords.push('C', 'G', 'Am', 'F', 'D', 'A', 'E', 'F#m', 'Bm', 'Dm', 'Gm', 'Cm');
+        } else if (key === 'G') {
+            chords.push('G', 'D', 'Em', 'C', 'A', 'E', 'B', 'F#m', 'Cm', 'Dm', 'Gm', 'Am');
+        } else if (key === 'D') {
+            chords.push('D', 'A', 'Bm', 'G', 'E', 'B', 'F#', 'C#m', 'Dm', 'Gm', 'Am', 'Fm');
+        } else if (key === 'A') {
+            chords.push('A', 'E', 'F#m', 'D', 'B', 'F#', 'C#', 'G#m', 'Am', 'Dm', 'Em', 'Cm');
+        } else if (key === 'E') {
+            chords.push('E', 'B', 'C#m', 'A', 'F#', 'C#', 'G#', 'D#m', 'Em', 'Am', 'Bm', 'Gm');
+        } else if (key === 'F') {
+            chords.push('F', 'C', 'Dm', 'Bb', 'G', 'D', 'A', 'Em', 'Fm', 'Bbm', 'Cm', 'Gm');
+        }
+        
+        // Add options to chord1
+        chords.forEach(chord => {
+            const option = document.createElement('option');
+            option.value = chord;
+            option.textContent = chord;
+            chord1Select.appendChild(option);
+        });
+        
+        // Update chord2 options based on chord1
+        chord1Select.addEventListener('change', function() {
+            const chord1 = this.value;
+            chord2Select.innerHTML = '<option value="">-- Select --</option>';
+            chords.forEach(chord => {
+                if (chord !== chord1) {
+                    const option = document.createElement('option');
+                    option.value = chord;
+                    option.textContent = chord;
+                    chord2Select.appendChild(option);
+                }
+            });
+        });
+        
+        // Update chord3 options based on chord2
+        chord2Select.addEventListener('change', function() {
+            const chord2 = this.value;
+            chord3Select.innerHTML = '<option value="">-- Select --</option>';
+            chords.forEach(chord => {
+                if (chord !== chord1Select.value && chord !== chord2) {
+                    const option = document.createElement('option');
+                    option.value = chord;
+                    option.textContent = chord;
+                    chord3Select.appendChild(option);
+                }
+            });
+        });
+    }
+    
+    // Check progression
+    function checkProgression() {
+        const key = document.getElementById('key').value;
+        const chord1 = document.getElementById('chord1').value;
+        const chord2 = document.getElementById('chord2').value;
+        const chord3 = document.getElementById('chord3').value;
+        
+        if (!chord1 || !chord2) {
+            document.getElementById('result').innerHTML = '<p class="incorrect">Please select both chords.</p>';
+            return;
+        }
+        
+        // Get chord types
+        const chord1Type = getChordType(chord1);
+        const chord2Type = getChordType(chord2);
+        
+        // Check if progression is valid
+        let isCorrect = false;
+        const keyTones = getKeyTones(key);
+        
+        // Simple progression validation
+        if (chord1Type === 'major' && chord2Type === 'minor') {
+            isCorrect = true;
+        } else if (chord1Type === 'minor' && chord2Type === 'major') {
+            isCorrect = true;
+        } else if (chord1Type === 'major' && chord2Type === 'major') {
+            isCorrect = true;
+        } else if (chord1Type === 'minor' && chord2Type === 'minor') {
+            isCorrect = true;
+        } else if (chord1Type === 'major' && chord2Type === 'dominant7') {
+            isCorrect = true;
+        } else if (chord1Type === 'minor' && chord2Type === 'dominant7') {
+            isCorrect = true;
+        }
+        
+        // Add more complex validation here
+        
+        const result = isCorrect ? 'correct' : 'incorrect';
+        document.getElementById('result').innerHTML = `<p class="${result}">Your progression is ${isCorrect ? 'correct' : 'incorrect'}</p>`;
+        
+        // Play the progression
+        playProgression(chord1, chord2, chord3, '');
+    }
+    
+    // Get chord type
+    function getChordType(chord) {
+        if (chord.includes('m')) return 'minor';
+        if (chord.includes('7')) return 'dominant7';
+        return 'major';
+    }
+    
+    // Get key tones
+    function getKeyTones(key) {
+        const tones = {
+            'C': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+            'G': ['G', 'A', 'B', 'C', 'D', 'E', 'F#'],
+            'D': ['D', 'E', 'F#', 'G', 'A', 'B', 'C#'],
+            'A': ['A', 'B', 'C#', 'D', 'E', 'F#', 'G#'],
+            'E': ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D#'],
+            'F': ['F', 'G', 'A', 'Bb', 'C', 'D', 'E']
+        };
+        return tones[key] || ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    }
+    
+    // Initialize with default values
+    updateChordOptions();
+    
+    // Initialize audio player
+    initializeAudioPlayer();
+    
+    // Set default page
+    navigateTo('home');
+});
+
+// Helper functions for audio
+function getAudioElement(id) {
+    return document.getElementById(id);
+}
+
+function playAudioById(id) {
+    const audio = getAudioElement(id);
+    if (audio) {
+        audio.play();
+    }
+}
+
+function pauseAudioById(id) {
+    const audio = getAudioElement(id);
+    if (audio) {
+        audio.pause();
+    }
+}
+
+function stopAudioById(id) {
+    const audio = getAudioElement(id);
+    if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+    }
+}
+
+function nextAudio() {
+    // Logic for next audio
+}
+
+function prevAudio() {
+    // Logic for previous audio
+}
+
+// Add event listeners for audio controls
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize audio player
+    initializeAudioPlayer();
+    
+    // Set up audio controls
+    const playBtn = document.getElementById('play-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    
+    // Set up event listeners
+    playBtn.addEventListener('click', togglePlay);
+    stopBtn.addEventListener('click', stopAudio);
+    pauseBtn.addEventListener('click', pauseAudio);
+    prevBtn.addEventListener('click', prevAudio);
+    nextBtn.addEventListener('click', nextAudio);
+});
+</script></script>
+</body>
+</html>

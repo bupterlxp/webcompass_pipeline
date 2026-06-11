@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Starship Gravity Escape</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+<style>
+  body { margin: 0; overflow: hidden; background: #000; }
+  canvas { display: block; }
+  #hud {
+    position: absolute;
+    top: 10px; left: 10px;
+    color: #fff;
+    font-family: monospace;
+    text-shadow: 0 0 8px #0ff;
+    pointer-events: none;
+  }
+  #hud .metric { color: #0ff; }
+  #hud .warn { color: #ff0; }
+  #hud .ok { color: #0f0; }
+  #hud .danger { color: #f00; }
+  #pause {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-family: monospace;
+    font-size: 48px;
+    text-shadow: 0 0 20px #ff0;
+    pointer-events: none;
+  }
+  #pause.active { display: block; }
+  #restart {
+    position: absolute;
+    bottom: 15px; left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-family: monospace;
+    font-size: 20px;
+    text-shadow: 0 0 10px #0ff;
+    cursor: pointer;
+    background: rgba(0,0,0,0.5);
+    padding: 10px 20px;
+    border: 2px solid #0ff;
+    border-radius: 6px;
+    pointer-events: auto;
+  }
+  #restart:hover { background: rgba(0,0,0,0.8); }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div>Speed: <span id="speed" class="metric">0.0</span> km/s</div>
+  <div>Distance: <span id="dist" class="metric">0.0</span> AU</div>
+  <div>Planet: <span id="planet" class="metric">—</span></div>
+  <div>Status: <span id="status" class="metric">Free</span></div>
+</div>
+<div id="pause" class="active">PAUSED</div>
+<div id="restart">Restart</div>
+
+<script>
+// ===== THREE.JS SCENE =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05070d);
+scene.fog = new THREE.FogExp2(0x05070d, 0.015);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// Starfield layers
+const layers = 4;
+const starCount = [6000, 4000, 2500, 1500];
+const starLayers = [];
+for (let i = 0; i < layers; i++) {
+  const layer = new THREE.Group();
+  const count = starCount[i];
+  const radius = 200 + i * 150;
+  const positions = [];
+  for (let j = 0; j < count; j++) {
+    positions.push(new THREE.Vector3(
+      (Math.random() - 0.5) * radius,
+      (Math.random() - 0.5) * radius,
+      (Math.random() - 0.5) * radius
+    ));
+  }
+  for (let j = 0; j < count; j++) {
+    const s = new THREE.PointLight(0xffffff, Math.random() * 0.6 + 0.1, 30);
+    s.position.copy(positions[j]);
+    layer.add(s);
+  }
+  starLayers.push(layer);
+  scene.add(layer);
+}
+
+// Planet geometry
+const planetGeo = new THREE.SphereGeometry(4, 32, 32);
+const planetMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+const planetMesh = new THREE.Mesh(planetGeo, planetMat);
+scene.add(planetMesh);
+
+// Ship
+const shipGeo = new THREE.SphereGeometry(0.8, 24, 24);
+const shipMat = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+const shipMesh = new THREE.Mesh(shipGeo, shipMat);
+scene.add(shipMesh);
+
+// ===== PHYSICS =====
+const G = 6.674e-11; // m³ kg⁻¹ s⁻²
+const AU = 1.496e11; // meters in 1 AU
+const SCALE = 1e8;   // meters per screen unit (1 screen unit = 1e8 m)
+const M_SUN = 1.989e30;
+const M_PLANET = 5.972e24;
+
+const ship = {
+  pos: new THREE.Vector3(0, 0, 0),
+  vel: new THREE.Vector3(0, 0, 0),
+  rot: new THREE.Vector3(0, 0, 0),
+  thrust: 0,
+  mass: 1000,
+  alive: true,
+  dist: 0,
+  speed: 0,
+  status: 'free',
+  planet: null
+};
+
+// Planet position (in meters)
+const planetPos = new THREE.Vector3(0, 0, 0);
+const planetMass = M_PLANET;
+const planetRadius = 4 * SCALE; // radius in meters
+
+// ===== INPUT =====
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  keys[e.key] = true;
+  if (e.key === ' ') ship.thrust = 1;
+  if (e.key === 'Shift') ship.thrust = -1;
+  if (e.key === 'p' || e.key === 'P') togglePause();
+});
+window.addEventListener('keyup', (e) => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  keys[e.key] = false;
+  if (e.key === ' ') ship.thrust = 0;
+  if (e.key === 'Shift') ship.thrust = 0;
+});
+
+// ===== UPDATE =====
+function update(dt) {
+  if (!ship.alive) return;
+
+  // Thrust
+  const thrust = ship.thrust;
+  ship.vel.x += thrust * Math.sin(ship.rot.y) * dt * 20000;
+  ship.vel.z += thrust * Math.cos(ship.rot.y) * dt * 20000;
+
+  // Rotation
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) ship.rot.x -= dt * 4;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) ship.rot.x += dt * 4;
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) ship.rot.y -= dt * 4;
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) ship.rot.y += dt * 4;
+
+  // Gravity from planet
+  const dx = planetPos.x - ship.pos.x;
+  const dy = planetPos.y - ship.pos.y;
+  const dz = planetPos.z - ship.pos.z;
+  const r2 = dx*dx + dy*dy + dz*dz;
+  const r = Math.sqrt(r2);
+  if (r > 0) {
+    const force = G * planetMass * ship.mass / (r2 + 1e-10);
+    const fx = dx / r * force;
+    const fy = dy / r * force;
+    const fz = dz / r * force;
+    ship.vel.x += fx * dt;
+    ship.vel.y += fy * dt;
+    ship.vel.z += fz * dt;
+  }
+
+  // Integrate position
+  ship.pos.x += ship.vel.x * dt;
+  ship.pos.y += ship.vel.y * dt;
+  ship.pos.z += ship.vel.z * dt;
+
+  // Update ship mesh
+  shipMesh.position.copy(ship.pos);
+  shipMesh.rotation.set(ship.rot.x, ship.rot.y, 0);
+
+  // Distance traveled (arc length)
+  const d = ship.vel.length();
+  ship.dist += d * dt;
+  ship.speed = d;
+
+  // Escape detection
+  const esc = Math.sqrt(2 * G * planetMass / r);
+  if (r > planetRadius && d > esc) {
+    ship.status = 'escaped';
+    ship.alive = false;
+    document.getElementById('status').textContent = 'Escaped';
+    document.getElementById('status').className = 'metric ok';
+    document.getElementById('planet').textContent = '—';
+  } else if (r < planetRadius) {
+    ship.status = 'captured';
+    ship.alive = false;
+    document.getElementById('status').textContent = 'Captured';
+    document.getElementById('status').className = 'metric danger';
+    document.getElementById('planet').textContent = 'Planet';
+  } else {
+    ship.status = 'free';
+    document.getElementById('status').textContent = 'Free';
+    document.getElementById('status').className = 'metric ok';
+    document.getElementById('planet').textContent = 'Planet';
+  }
+
+  // Update HUD
+  document.getElementById('speed').textContent = ship.speed.toFixed(1);
+  document.getElementById('dist').textContent = (ship.dist / AU).toFixed(1);
+
+  // Camera follows ship
+  camera.position.copy(ship.pos).add(new THREE.Vector3(0, 0, 10));
+
+  // Planet subtle drift
+  planetPos.x += Math.sin(performance.now() * 0.001) * 0.1;
+  planetPos.y += Math.cos(performance.now() * 0.0015) * 0.05;
+  planetPos.z += Math.sin(performance.now() * 0.002) * 0.1;
+
+  planetMesh.position.copy(planetPos);
+}
+
+// ===== RENDER =====
+function render() {
+  renderer.render(scene, camera);
+}
+
+// ===== LOOP =====
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ===== PAUSE =====
+let paused = true;
+function togglePause() {
+  paused = !paused;
+  const el = document.getElementById('pause');
+  el.classList.toggle('active', paused);
+}
+document.getElementById('restart').addEventListener('click', () => {
+  ship.alive = true;
+  ship.status = 'free';
+  ship.dist = 0;
+  ship.speed = 0;
+  ship.pos.set(0, 0, 0);
+  ship.vel.set(0, 0, 0);
+  ship.rot.set(0, 0, 0);
+  ship.thrust = 0;
+  document.getElementById('status').textContent = 'Free';
+  document.getElementById('status').className = 'metric ok';
+  document.getElementById('planet').textContent = '—';
+  document.getElementById('speed').textContent = '0.0';
+  document.getElementById('dist').textContent = '0.0';
+  paused = false;
+  document.getElementById('pause').classList.remove('active');
+});
+
+// ===== RESIZE =====
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

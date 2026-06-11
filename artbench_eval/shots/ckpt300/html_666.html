@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Matting Tool — Brush Selection</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.topbar {
+  text-align: center;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+}
+.subtitle {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  padding: 16px;
+  border-radius: 12px;
+}
+.tool-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tool-group label {
+  font-size: 12px;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tool-group input[type="range"] {
+  width: 140px;
+  accent-color: #4f46e5;
+}
+.tool-group span {
+  font-size: 12px;
+  color: #374151;
+  font-weight: 600;
+}
+select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn {
+  padding: 8px 18px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4f46e5;
+}
+.btn-primary:hover { background: #3730a3; border-color: #3730a3; }
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: #111827;
+}
+.btn-ghost:hover { background: #f3f4f6; }
+
+.preview {
+  position: relative;
+  background: #0f172a;
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  max-height: 500px;
+}
+#preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+#preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(79, 70, 229, 0.15), transparent 60%);
+  pointer-events: none;
+}
+
+.upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #fff;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.upload-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+.upload-btn:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+#urlInput {
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  min-width: 220px;
+}
+
+.status {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 13px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.status.hidden { opacity: 0; }
+
+@media (max-width: 600px) {
+  .app { padding: 16px; }
+  .toolbar { padding: 12px; }
+  .tool-group input[type="range"] { width: 120px; }
+  .topbar h1 { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>Image Matting Tool</h1>
+    <p class="subtitle">Brush to keep, erase to remove</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="tool-group">
+      <label for="brushSize">Size</label>
+      <input type="range" id="brushSize" min="1" max="200" value="20" />
+      <span id="brushSizeVal">20px</span>
+    </div>
+    <div class="tool-group">
+      <label for="brushOpacity">Opacity</label>
+      <input type="range" id="brushOpacity" min="0" max="100" value="70" />
+      <span id="brushOpacityVal">70%</span>
+    </div>
+    <div class="tool-group">
+      <select id="mode">
+        <option value="brush">Brush</option>
+        <option value="erase">Erase</option>
+      </select>
+    </div>
+    <button id="resetBtn" class="btn">Reset</button>
+    <button id="exportBtn" class="btn btn-primary">Export PNG</button>
+  </div>
+
+  <div class="preview">
+    <canvas id="preview" width="800" height="600" aria-label="Image preview"></canvas>
+    <div id="status" class="status">Load an image to begin</div>
+  </div>
+
+  <div class="upload">
+    <label for="fileInput" class="upload-btn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Image
+    </label>
+    <input type="file" id="fileInput" accept="image/*" hidden />
+    <input type="url" id="urlInput" placeholder="https://..." />
+    <button id="loadUrlBtn" class="btn btn-ghost">Load from URL</button>
+  </div>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const canvas = document.getElementById('preview');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const statusEl = document.getElementById('status');
+
+  const fileInput = document.getElementById('fileInput');
+  const urlInput = document.getElementById('urlInput');
+  const loadUrlBtn = document.getElementById('loadUrlBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const exportBtn = document.getElementById('exportBtn');
+
+  const brushSizeInput = document.getElementById('brushSize');
+  const brushSizeVal = document.getElementById('brushSizeVal');
+  const brushOpacityInput = document.getElementById('brushOpacity');
+  const brushOpacityVal = document.getElementById('brushOpacityVal');
+  const modeSelect = document.getElementById('mode');
+
+  let image = null;
+  let isDrawing = false;
+  let mode = 'brush';
+  let brushSize = 20;
+  let brushOpacity = 0.7;
+  let lastX = 0;
+  let lastY = 0;
+
+  // --- State ---
+  // We'll store a "mask" image (same size as canvas) where:
+  //   0 = fully transparent
+  //   1 = fully opaque
+  //   values in between = partial opacity
+  let mask = null;
+
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle('hidden', !msg);
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  function loadCanvasImage(src) {
+    return loadImage(src).then(img => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = w * dpr;
+      newCanvas.height = h * dpr;
+      const nctx = newCanvas.getContext('2d');
+      nctx.scale(dpr, dpr);
+      nctx.drawImage(img, 0, 0, w, h);
+      return newCanvas;
+    });
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+  }
+
+  function createMask() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const m = document.createElement('canvas');
+    m.width = w;
+    m.height = h;
+    const mc = m.getContext('2d');
+    mc.clearRect(0, 0, w, h);
+    return m;
+  }
+
+  function applyMask() {
+    if (!image || !mask) return;
+    const iw = image.naturalWidth;
+    const ih = image.naturalHeight;
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    // Scale mask to image resolution
+    const mctx = mask.getContext('2d');
+    mctx.imageSmoothingEnabled = true;
+    mctx.imageSmoothingQuality = 'high';
+    mctx.clearRect(0, 0, iw, ih);
+    mctx.drawImage(canvas, 0, 0, iw, ih);
+
+    // Draw image with mask
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.drawImage(image, 0, 0, cw, ch);
+    const imgData = ctx.getImageData(0, 0, cw, ch);
+    const mImgData = mctx.getImageData(0, 0, iw, ih);
+    const mData = mImgData.data;
+    const dData = imgData.data;
+    const iw2 = iw * 4;
+    const ch2 = ch * 4;
+
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        const mi = (y * iw2) + (x * 4);
+        const di = (y * ch2) + (x * 4);
+        const m = mData[mi];
+        if (m > 0.01) {
+          // Preserve color, set alpha based on mask
+          dData[di] = mData[mi + 0];
+          dData[di + 1] = mData[mi + 1];
+          dData[di + 2] = mData[mi + 2];
+          dData[di + 3] = Math.round(m * 255);
+        } else {
+          dData[di + 3] = 0;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function drawBrush(x, y) {
+    const size = brushSize;
+    const opacity = brushOpacity;
+    const w = canvas.width;
+    const h = canvas.height;
+    const r = Math.max(1, Math.floor(size / 2));
+    const radius = r;
+
+    // Draw on mask
+    const mctx = mask.getContext('2d');
+    mctx.save();
+    mctx.globalCompositeOperation = 'source-over';
+    mctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+    mctx.beginPath();
+    mctx.arc(x, y, radius, 0, Math.PI * 2);
+    mctx.fill();
+    mctx.restore();
+
+    // Draw on preview canvas with soft alpha
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawErase(x, y) {
+    const size = brushSize;
+    const r = Math.max(1, Math.floor(size / 2));
+    const mctx = mask.getContext('2d');
+    mctx.save();
+    mctx.globalCompositeOperation = 'destination-out';
+    mctx.fillStyle = 'rgba(255, 255, 255, 1)';
+    mctx.beginPath();
+    mctx.arc(x, y, r, 0, Math.PI * 2);
+    mctx.fill();
+    mctx.restore();
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function onPointerDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    isDrawing = true;
+    lastX = x;
+    lastY = y;
+    if (mode === 'brush') drawBrush(x, y);
+    else drawErase(x, y);
+  }
+
+  function onPointerMove(e) {
+    if (!isDrawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const dx = x - lastX;
+    const dy = y - lastY;
+    if (Math.hypot(dx, dy) < 1) return;
+    lastX = x;
+    lastY = y;
+    if (mode === 'brush') drawBrush(x, y);
+    else drawErase(x, y);
+  }
+
+  function onPointerUp() {
+    isDrawing = false;
+  }
+
+  canvas.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+
+  canvas.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    onPointerDown({ clientX: t.clientX, clientY: t.clientY });
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    onPointerMove({ clientX: t.clientX, clientY: t.clientY });
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', onPointerUp);
+
+  // --- Events ---
+  brushSizeInput.addEventListener('input', (e) => {
+    brushSize = parseInt(e.target.value, 10);
+    brushSizeVal.textContent = brushSize + 'px';
+  });
+  brushOpacityInput.addEventListener('input', (e) => {
+    brushOpacity = parseFloat(e.target.value) / 100;
+    brushOpacityVal.textContent = e.target.value + '%';
+  });
+  modeSelect.addEventListener('change', (e) => {
+    mode = e.target.value;
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      loadCanvasImage(ev.target.result).then((img) => {
+        image = img;
+        mask = createMask();
+        setStatus('Image loaded. Brush to keep, erase to remove.');
+        applyMask();
+      }).catch(() => setStatus('Failed to decode image'));
+    };
+    reader.readAsDataURL(file);
+  });
+
+  loadUrlBtn.addEventListener('click', () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+      setStatus('Please enter an image URL');
+      return;
+    }
+    loadImage(url).then((img) => {
+      image = img;
+      mask = createMask();
+      setStatus('Image loaded. Brush to keep, erase to remove.');
+      applyMask();
+    }).catch(() => setStatus('Failed to load image from URL'));
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (!image) {
+      setStatus('Load an image first');
+      return;
+    }
+    mask = createMask();
+    setStatus('Selection cleared');
+    applyMask();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (!image) {
+      setStatus('Load an image first');
+      return;
+    }
+    const link = document.createElement('a');
+    link.download = 'matting-output.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setStatus('Image exported');
+  });
+
+  // --- Resize ---
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    if (image && mask) applyMask();
+  });
+
+  // --- Init ---
+  setStatus('Load an image to begin');
+  resizeCanvas();
+})();
+</script></script>
+</body>
+</html>

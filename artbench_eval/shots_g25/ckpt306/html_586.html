@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batch Image Annotation Tool</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-600: #4338ca;
+    --primary-50: #eef2ff;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+    --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.02em;
+  }
+
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: white;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  .btn:hover { background: var(--primary-50); border-color: var(--primary); color: var(--primary); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+  .btn.primary:hover { background: var(--primary-600); border-color: var(--primary-600); }
+  .btn.danger {
+    background: transparent;
+    border-color: transparent;
+    color: var(--danger);
+  }
+  .btn.danger:hover { background: #fee2e2; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn i { font-size: 12px; }
+
+  /* Main */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .upload-area {
+    flex: 1;
+    min-width: 200px;
+    padding: 16px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    background: var(--primary-50);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+  .upload-area:hover, .upload-area.dragover {
+    border-color: var(--primary);
+    background: #eef2ff;
+  }
+  .upload-area i { font-size: 28px; margin-bottom: 8px; color: var(--primary); }
+  .upload-area h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .upload-area p { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
+
+  .upload-area input[type="file"] { display: none; }
+
+  .image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .image-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .image-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .image-card.dragging { opacity: 0.4; }
+
+  .image-actions {
+    display: flex;
+    gap: 8px;
+    padding: 6px;
+  }
+
+  .image-actions .btn {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .image-preview {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: #0f172a;
+    overflow: hidden;
+    cursor: move;
+  }
+  .image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .annotation-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .annotation {
+    position: absolute;
+    pointer-events: auto;
+    background: rgba(15, 23, 42, 0.92);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(255,255,255,0.15);
+    z-index: 2;
+  }
+  .annotation .handle {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 12px;
+    height: 12px;
+    background: var(--text);
+    border-radius: 50%;
+    cursor: grab;
+    z-index: 3;
+    transition: background 0.15s ease;
+  }
+  .annotation .handle:active { cursor: grabbing; background: var(--primary); }
+  .annotation .handle:hover { background: var(--primary); }
+
+  .annotation-tools {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 3;
+  }
+  .annotation-tools .btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: rgba(15, 23, 42, 0.9);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s ease;
+  }
+  .annotation-tools .btn:hover { background: var(--primary); }
+
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    padding: 12px;
+    background: var(--primary-50);
+    border-radius: 12px;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .legend-item span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .legend-item .dot { background: var(--primary); }
+
+  .footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .status {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .status strong { color: var(--primary); font-weight: 600; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    display: grid;
+    place-items: center;
+    z-index: 100;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal h2 { margin: 0 0 8px; font-size: 18px; }
+  .modal p { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    main { padding: 16px; }
+    header { padding: 12px 16px; }
+    .header-right { display: none; }
+    .legend { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="header-left">
+        <div class="logo-mark"><i class="fa-solid fa-pen-ruler"></i></div>
+        <div>
+          <div class="logo">Batch Annotator</div>
+          <div class="logo-sub">Image Annotation Tool</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="status"><strong id="statusCount">0</strong> images loaded</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="toolbar">
+        <div class="upload-area" id="uploadArea" tabindex="0">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <h3>Upload Images</h3>
+          <p>Drag & drop or click to browse — supports JPG, PNG, GIF up to 10MB</p>
+          <input type="file" id="fileInput" accept="image/*" multiple />
+        </div>
+        <button class="btn" id="clearBtn" disabled><i class="fa-solid fa-trash"></i> Clear All</button>
+        <button class="btn primary" id="downloadBtn" disabled><i class="fa-solid fa-download"></i> Download Annotated</button>
+      </section>
+
+      <section id="imageGrid" class="image-grid">
+        <div class="empty-state" id="emptyState">
+          <i class="fa-solid fa-images"></i>
+          <h3>No images yet</h3>
+          <p>Upload images to begin annotating.</p>
+        </div>
+      </section>
+
+      <section class="legend">
+        <div class="legend-item"><span class="dot"></span> Image</div>
+        <div class="legend-item"><i class="fa-solid fa-pen"></i> Add Annotation</div>
+        <div class="legend-item"><i class="fa-solid fa-pen-clip"></i> Drag to move</div>
+        <div class="legend-item"><i class="fa-solid fa-xmark"></i> Delete</div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span class="status">Tip: drag annotations to reposition them</span>
+      <span class="status">Drag images between cards to reorder</span>
+    </footer>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal">
+      <h2 id="modalTitle">Download Annotated Images</h2>
+      <p id="modalText">Click "Download" to save all annotated images as PNG files.</p>
+      <div class="modal-actions">
+        <button class="btn" id="modalCancel">Cancel</button>
+        <button class="btn primary" id="modalConfirm"><i class="fa-solid fa-check"></i> Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ---------- State ----------
+    const state = {
+      images: [],          // { id, file, url, annotations: [{id, text, x, y, w, h}] }
+      nextId: 1,
+      nextAnnotId: 1,
+    };
+
+    // ---------- DOM ----------
+    const $ = (sel) => document.querySelector(sel);
+    const uploadArea = $('#uploadArea');
+    const fileInput = $('#fileInput');
+    const imageGrid = $('#imageGrid');
+    const emptyState = $('#emptyState');
+    const clearBtn = $('#clearBtn');
+    const downloadBtn = $('#downloadBtn');
+    const modalBackdrop = $('#modalBackdrop');
+    const modalTitle = $('#modalTitle');
+    const modalText = $('#modalText');
+    const modalConfirm = $('#modalConfirm');
+    const modalCancel = $('#modalCancel');
+    const toast = $('#toast');
+
+    // ---------- Helpers ----------
+    const uid = () => 'a_' + (state.nextAnnotId++);
+    const imgId = () => 'img_' + (state.nextId++);
+
+    const showToast = (msg) => {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 2200);
+    };
+
+    const setStatus = () => {
+      $('#statusCount').textContent = state.images.length;
+    };
+
+    // ---------- Image loading ----------
+    const loadImage = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Failed to decode image'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    };
+
+    const addImage = async (file) => {
+      if (!file.type.startsWith('image/')) {
+        showToast('Please upload a valid image file.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Image exceeds 10MB limit.');
+        return;
+      }
+      try {
+        const img = await loadImage(file);
+        const id = imgId();
+        state.images.push({
+          id,
+          file,
+          url: img.src,
+          annotations: [],
+        });
+        render();
+      } catch (err) {
+        showToast('Failed to load image: ' + err.message);
+      }
+    };
+
+    // ---------- Rendering ----------
+    const render = () => {
+      imageGrid.innerHTML = '';
+      if (state.images.length === 0) {
+        emptyState.style.display = 'grid';
+        return;
+      }
+      emptyState.style.display = 'none';
+      state.images.forEach((img) => imageGrid.appendChild(createImageCard(img)));
+      setStatus();
+      clearBtn.disabled = state.images.length === 0;
+      downloadBtn.disabled = state.images.length === 0;
+    };
+
+    const createImageCard = (img) => {
+      const card = document.createElement('article');
+      card.className = 'image-card';
+      card.dataset.id = img.id;
+      card.draggable = true;
+      card.innerHTML = `
+        <div class="image-actions">
+          <button class="btn" title="Delete image" data-action="delete"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn" title="Move image" data-action="move"><i class="fa-solid fa-arrows"></i></button>
+        </div>
+        <div class="image-preview">
+          <img src="${img.url}" alt="Image preview" />
+          <div class="annotation-layer" id="layer_${img.id}"></div>
+        </div>
+      `;
+
+      // Delete
+      card.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteImage(img.id);
+      });
+
+      // Move (drag image between cards)
+      card.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', img.id);
+        e.dataTransfer.effectAllowed = 'move';
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+
+      // Reorder on drop
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if (draggedId !== img.id) {
+          const fromIdx = state.images.findIndex(i => i.id === draggedId);
+          const toIdx = state.images.findIndex(i => i.id === img.id);
+          if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
+            state.images.splice(toIdx, 1);
+            state.images.splice(fromIdx, 0, img);
+            render();
+          }
+        }
+      });
+
+      // Annotations
+      img.annotations.forEach((a) => {
+        const layer = card.querySelector(`#layer_${img.id}`);
+        const el = document.createElement('div');
+        el.className = 'annotation';
+        el.dataset.annotId = a.id;
+        el.textContent = a.text;
+        el.style.left = a.x + 'px';
+        el.style.top = a.y + 'px';
+        el.style.width = a.w + 'px';
+        el.style.height = a.h + 'px';
+        el.innerHTML += `<span class="handle"></span>`;
+        el.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          startDragAnnotation(el, a, e);
+        });
+        layer.appendChild(el);
+      });
+
+      // Add annotation button
+      card.querySelector('.image-preview').addEventListener('click', (e) => {
+        if (e.target.closest('.annotation') || e.target.closest('.image-actions')) return;
+        addAnnotationToCard(img.id);
+      });
+
+      return card;
+    };
+
+    // ---------- Annotations ----------
+    const addAnnotationToCard = (imgId) => {
+      const img = state.images.find(i => i.id === imgId);
+      if (!img) return;
+      const a = { id: uid(), text: 'Annotation', x: 20, y: 20, w: 120, h: 30 };
+      img.annotations.push(a);
+      render();
+      setTimeout(() => {
+        const card = imageGrid.querySelector(`[data-id="${imgId}"]`);
+        const layer = card.querySelector(`#layer_${imgId}`);
+        const el = layer.querySelector(`[data-annot-id="${a.id}"]`);
+        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 100);
+    };
+
+    const deleteImage = (imgId) => {
+      state.images = state.images.filter(i => i.id !== imgId);
+      render();
+      showToast('Image deleted');
+    };
+
+    const deleteAnnotation = (imgId, annotId) => {
+      const img = state.images.find(i => i.id === imgId);
+      if (!img) return;
+      img.annotations = img.annotations.filter(a => a.id !== annotId);
+      render();
+    };
+
+    const startDragAnnotation = (el, a, e) => {
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const origX = a.x;
+      const origY = a.y;
+
+      const move = (ev) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        a.x = Math.max(0, origX + dx);
+        a.y = Math.max(0, origY + dy);
+        el.style.left = a.x + 'px';
+        el.style.top = a.y + 'px';
+      };
+
+      const up = (ev) => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        render();
+      };
+
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    };
+
+    // ---------- Download ----------
+    const downloadAnnotatedImages = async () => {
+      if (state.images.length === 0) return;
+      modalTitle.textContent = 'Preparing download';
+      modalText.textContent = 'Generating annotated PNG files. This may take a moment.';
+      modalConfirm.disabled = true;
+      modalConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
+
+      const images = await Promise.all(state.images.map(async (img) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const imgEl = new Image();
+        imgEl.src = img.url;
+        await new Promise((res, rej) => { imgEl.onload = res; imgEl.onerror = rej; });
+
+        // Auto-fit canvas to image
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = imgEl.width * dpr;
+        canvas.height = imgEl.height * dpr;
+        canvas.style.width = imgEl.width + 'px';
+        canvas.style.height = imgEl.height + 'px';
+        canvas.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        ctx.drawImage(imgEl, 0, 0);
+
+        img.annotations.forEach((a) => {
+          ctx.fillStyle = '#1e293b';
+          ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+          ctx.lineWidth = 1.5;
+          ctx.font = '12px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillRect(a.x, a.y, a.w, a.h);
+          ctx.strokeRect(a.x, a.y, a.w, a.h);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(a.text, a.x + 6, a.y + 14);
+        });
+
+        return canvas;
+      }));
+
+      modalTitle.textContent = 'Ready to download';
+      modalText.textContent = 'Click "Download" to save all annotated images as PNG files.';
+      modalConfirm.disabled = false;
+      modalConfirm.innerHTML = '<i class="fa-solid fa-check"></i> Download';
+
+      setTimeout(() => {
+        downloadImages(images);
+      }, 400);
+    };
+
+    const downloadImages = (canvases) => {
+      const zip = new JSZip();
+      canvases.forEach((canvas, i) => {
+        const blob = canvas.toBlob();
+        zip.file(`annotated-${String(i + 1).padStart(3, '0')}.png`, blob, { base64: true });
+      });
+      zip.generateAsync({ type: 'blob' }).then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch-annotations-${new Date().toISOString().slice(0, 10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('Download started');
+      });
+    };
+
+    // ---------- Modal ----------
+    const openModal = () => { modalBackdrop.hidden = false; };
+    const closeModal = () => { modalBackdrop.hidden = true; };
+
+    // ---------- Upload ----------
+    const handleFiles = (files) => {
+      Array.from(files).forEach((file) => addImage(file));
+    };
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+    });
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    ['dragenter', 'dragover'].forEach((ev) => {
+      uploadArea.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach((ev) => {
+      uploadArea.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+      });
+    });
+    uploadArea.addEventListener('drop', (e) => {
+      handleFiles(e.dataTransfer.files);
+    });
+
+    imageGrid.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    imageGrid.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      if (id) {
+        const fromIdx = state.images.findIndex(i => i.id === id);
+        if (fromIdx >= 0) {
+          const moved = state.images.splice(fromIdx, 1)[0];
+          state.images.push(moved);
+          render();
+        }
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      if (state.images.length === 0) return;
+      if (!confirm('Delete all images and annotations?')) return;
+      state.images = [];
+      render();
+      showToast('All cleared');
+    });
+
+    downloadBtn.addEventListener('click', downloadAnnotatedImages);
+    modalConfirm.addEventListener('click', () => {
+      downloadAnnotatedImages();
+      closeModal();
+    });
+    modalCancel.addEventListener('click', closeModal);
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modalBackdrop.hidden) closeModal();
+    });
+
+    // ---------- Init ----------
+    render();
+  </script>
+
+  <!-- JSZip required for download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</body>
+</html>

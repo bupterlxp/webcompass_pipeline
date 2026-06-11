@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AcademiaCon — Conference Submission System</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://unpkg.com/pdf-lib@1.18.0/dist/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.18.0/dist/pdf-lib.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 antialiased">
+
+<header class="border-b border-gray-700">
+  <div class="container mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+      </div>
+      <div>
+        <div class="font-bold text-xl">AcademiaCon</div>
+        <div class="text-xs text-gray-400">Submission Portal</div>
+      </div>
+    </div>
+    <div class="text-xs text-gray-400">v2.4 · Double-blind enabled</div>
+  </div>
+</header>
+
+<main class="container mx-auto px-6 py-8">
+
+  <!-- Progress -->
+  <section class="mb-8">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold">Submission Progress</h2>
+      <span class="text-xs text-gray-400">Step <span id="stepNum">1</span> / 4</span>
+    </div>
+    <div class="w-full bg-gray-700 rounded-full h-2.5">
+      <div id="progressBar" class="bg-gradient-to-r from-indigo-500 to-purple-600 h-2.5 rounded-full" style="width:25%"></div>
+    </div>
+    <div class="flex justify-between text-xs text-gray-400 mt-2">
+      <span>1. Paper</span>
+      <span>2. Formatting</span>
+      <span>3. Anonymize</span>
+      <span>4. Submit</span>
+    </div>
+  </section>
+
+  <!-- Step 1: Upload -->
+  <section id="step1" class="mb-8">
+    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-bold">Upload Your Paper</h2>
+          <p class="text-gray-400 text-sm">PDF only · Max 20MB · ACM/IEEE template preferred</p>
+        </div>
+        <div class="text-xs text-gray-400">PDF · 0B</div>
+      </div>
+
+      <div id="dropzone" class="dropzone border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 transition">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p class="mt-2 font-medium">Drag & drop your PDF here</p>
+        <p class="text-gray-400 text-sm">or click to browse · <span id="browseLabel">Browse files</span></p>
+        <input type="file" id="fileInput" accept="application/pdf" hidden />
+      </div>
+
+      <div id="fileInfo" class="mt-4 hidden">
+        <div class="flex justify-between items-center p-3 bg-gray-700 rounded">
+          <span id="fileName">paper.pdf</span>
+          <span class="text-xs text-gray-400" id="fileSize">0 KB</span>
+        </div>
+      </div>
+
+      <div id="errorBox" class="mt-4 text-red-400 text-sm hidden">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="errorText">File not selected</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: Formatting -->
+  <section id="step2" class="mb-8">
+    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-bold">Format Compliance</h2>
+          <p class="text-gray-400 text-sm">Automatically checks page count, fonts, and margins</p>
+        </div>
+        <span id="formatScore" class="inline-flex items-center gap-1 text-xs text-green-400 font-semibold">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          0 / 5
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-700 rounded p-4">
+          <div class="font-mono text-sm text-gray-400">Page Count</div>
+          <div class="text-2xl font-bold text-white" id="pagesVal">—</div>
+          <div class="text-xs text-gray-400">Target: 6–8 pages</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4">
+          <div class="font-mono text-sm text-gray-400">Font Size</div>
+          <div class="text-2xl font-bold text-white" id="fontVal">—</div>
+          <div class="text-xs text-gray-400">Target: 10–12 pt</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4">
+          <div class="font-mono text-sm text-gray-400">Margins</div>
+          <div class="text-2xl font-bold text-white" id="marginsVal">—</div>
+          <div class="text-xs text-gray-400">Target: 1in</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4">
+          <div class="font-mono text-sm text-gray-400">Title Block</div>
+          <div class="text-2xl font-bold text-white" id="titleVal">—</div>
+          <div class="text-xs text-gray-400">Present?</div>
+        </div>
+      </div>
+
+      <div id="formatResults" class="mt-4 space-y-2">
+        <div class="p-3 bg-gray-700 rounded text-sm">
+          <span class="font-mono text-gray-400">Heuristic: OCR-free DOM analysis</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 3: Anonymize -->
+  <section id="step3" class="mb-8">
+    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-bold">Double-Blind Review</h2>
+          <p class="text-gray-400 text-sm">Automatically remove author names, affiliations, and contact info</p>
+        </div>
+        <label class="inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="anonToggle" class="sr-only" checked>
+          <div class="relative">
+            <div class="w-12 h-6 rounded-full bg-gray-600 transition"></div>
+            <div class="absolute inset-0 flex items-center justify-between w-12 h-6 rounded-full pointer-events-none">
+              <span class="w-2 h-2 rounded-full bg-white"></span>
+              <span class="w-2 h-2 rounded-full bg-white"></span>
+            </div>
+          </div>
+          <span class="ml-2 text-sm font-semibold">Enabled</span>
+        </label>
+      </div>
+
+      <div class="bg-gray-700 rounded p-4 text-sm">
+        <p class="mb-2">Removed fields will be replaced with <span class="font-mono">[AUTHOR]</span> and <span class="font-mono">[AFFILIATION]</span>.</p>
+        <p class="mb-2">Title anonymized to <span class="font-mono">[TITLE]</span>.</p>
+        <p class="mb-2">Contact info (email, ORCID) will be stripped.</p>
+        <p class="text-xs text-gray-400">Tip: use <code class="bg-gray-800 px-1 rounded">[AUTHOR]</code> placeholders in your paper for easy re-anonymization.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4: Plagiarism -->
+  <section id="step4" class="mb-8">
+    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-bold">Plagiarism Check</h2>
+          <p class="text-gray-400 text-sm">Simulated Turnitin-style detection</p>
+        </div>
+        <span id="plagScore" class="inline-flex items-center gap-1 text-xs text-green-400 font-semibold">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          0%
+        </span>
+      </div>
+
+      <div class="bg-gray-700 rounded p-4">
+        <div class="text-sm text-gray-400">Scanning document...</div>
+        <div class="w-full bg-gray-600 h-2 rounded mt-2">
+          <div id="plagBar" class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded" style="width:0%"></div>
+        </div>
+        <div class="mt-2 text-xs text-gray-400">Simulated scan · 12s</div>
+      </div>
+
+      <div id="plagReport" class="mt-4 hidden">
+        <div class="p-3 bg-gray-700 rounded text-sm">
+          <div class="font-semibold">Overall Score</div>
+          <div class="text-2xl font-bold text-white" id="plagOverall">—</div>
+          <div class="text-xs text-gray-400">Low risk</div>
+        </div>
+        <div class="p-3 bg-gray-700 rounded text-sm">
+          <div class="font-semibold">Top Matches</div>
+          <div id="plagMatches" class="text-xs text-gray-400">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Submit -->
+  <section id="step5" class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-xl font-bold">Submission Ready</h2>
+        <p class="text-gray-400 text-sm">All checks passed. Click to submit.</p>
+      </div>
+      <span class="inline-flex items-center gap-1 text-xs text-green-400 font-semibold">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        100%
+      </span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="p-4 bg-gray-700 rounded">
+        <div class="font-mono text-xs text-gray-400">Paper Name</div>
+        <div class="text-white font-semibold" id="paperName">Untitled.pdf</div>
+      </div>
+      <div class="p-4 bg-gray-700 rounded">
+        <div class="font-mono text-xs text-gray-400">Status</div>
+        <div class="text-white font-semibold">Submitted · Awaiting Review</div>
+      </div>
+      <div class="p-4 bg-gray-700 rounded">
+        <div class="font-mono text-xs text-gray-400">Format Score</div>
+        <div class="text-white font-semibold" id="finalScore">—</div>
+      </div>
+      <div class="p-4 bg-gray-700 rounded">
+        <div class="font-mono text-xs text-gray-400">Plagiarism</div>
+        <div class="text-white font-semibold" id="finalPlag">—</div>
+      </div>
+    </div>
+
+    <div class="mt-6 flex justify-center">
+      <button id="submitBtn" class="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:translate-y-[-2px] transition">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Submit to Review
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-gray-700 mt-8">
+  <div class="container mx-auto px-6 py-4 text-xs text-gray-400">
+    © AcademiaCon · Confidential · For demonstration purposes only
+  </div>
+</footer>
+
+<script>
+// ---------- State ----------
+const state = {
+  file: null,
+  pages: 0,
+  fontSize: 0,
+  margins: 0,
+  titleBlock: false,
+  score: 0,
+  plagScore: 0,
+  plagOverall: 0,
+  plagMatches: [],
+  anon: true,
+  submitted: false,
+};
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const dropzone = $('dropzone');
+const fileInput = $('fileInput');
+const browseLabel = $('browseLabel');
+const fileInfo = $('fileInfo');
+$('fileName').textContent = 'paper.pdf';
+$('fileSize').textContent = '0 KB';
+const errorBox = $('errorBox');
+const errorText = $('errorText');
+const progressBar = $('progressBar');
+const stepNum = $('stepNum');
+
+// ---------- Dropzone ----------
+['dragenter', 'dragover'].forEach(ev => {
+  dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add('border-indigo-500'); });
+});
+['dragleave', 'drop'].forEach(ev => {
+  dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove('border-indigo-500'); });
+});
+dropzone.addEventListener('drop', (e) => {
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (f) handleFile(f);
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('application/pdf')) {
+    showError('Please upload a PDF file.');
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    showError('File exceeds 20MB limit.');
+    return;
+  }
+  state.file = file;
+  $('fileName').textContent = file.name;
+  $('fileSize').textContent = formatBytes(file.size);
+  fileInfo.classList.remove('hidden');
+  errorBox.classList.add('hidden');
+  updateProgress(25);
+  navigateStep(2);
+  runFormatCheck();
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function showError(msg) {
+  errorText.textContent = msg;
+  errorBox.classList.remove('hidden');
+}
+
+// ---------- Progress ----------
+function updateProgress(pct) {
+  progressBar.style.width = pct + '%';
+  stepNum.textContent = Math.round(pct / 25) + 1;
+}
+function navigateStep(n) {
+  document.querySelectorAll('section[id^="step"]').forEach(s => s.classList.add('hidden'));
+  document.getElementById('step' + n).classList.remove('hidden');
+  updateProgress((n - 1) * 25);
+}
+
+// ---------- Format Checker (heuristic) ----------
+function runFormatCheck() {
+  if (!state.file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const pdf = await PDFJS.getDocument({ data: reader.result }).promise;
+    state.pages = pdf.numPages;
+    $('pagesVal').textContent = state.pages + ' pages';
+
+    // Simulate font & margin analysis via text extraction
+    const text = await extractText(pdf);
+    const fontStats = analyzeFont(text);
+    const marginStats = analyzeMargins(text);
+    const titleStats = analyzeTitle(text);
+
+    state.fontSize = fontStats;
+    state.margins = marginStats;
+    state.titleBlock = titleStats;
+
+    $('fontVal').textContent = fontStats.toFixed(1) + ' pt';
+    $('marginsVal').textContent = marginStats.toFixed(2) + ' in';
+    $('titleVal').textContent = titleStats ? '✓ Present' : '✗ Missing';
+
+    // Score
+    const base = 100;
+    let s = base;
+    if (state.pages < 6) s -= 20;
+    if (state.pages > 8) s -= 15;
+    if (state.fontSize < 10) s -= 10;
+    if (state.fontSize > 14) s -= 10;
+    if (state.margins < 0.75) s -= 15;
+    if (state.margins > 1.1) s -= 15;
+    if (!state.titleBlock) s -= 10;
+
+    state.score = Math.max(0, Math.round(s));
+    $('formatScore').innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>${state.score} / 100`;
+
+    // Results
+    const results = $('formatResults');
+    results.innerHTML = '';
+    if (state.score >= 90) {
+      results.innerHTML += `<div class="p-3 bg-green-900/20 border border-green-500 rounded text-sm"><span class="font-mono text-green-400">✓</span> Excellent format</div>`;
+    } else if (state.score >= 70) {
+      results.innerHTML += `<div class="p-3 bg-yellow-900/20 border border-yellow-500 rounded text-sm"><span class="font-mono text-yellow-400">⚠</span> Minor adjustments needed</div>`;
+    } else {
+      results.innerHTML += `<div class="p-3 bg-red-900/20 border border-red-500 rounded text-sm"><span class="font-mono text-red-400">✗</span> Major issues detected</div>`;
+    }
+  };
+  reader.onerror = () => showError('Failed to read PDF.');
+  reader.readAsArrayBuffer(state.file);
+}
+
+async function extractText(pdf) {
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const ops = await page.getTextContent();
+    const spans = ops.items || [];
+    spans.forEach(s => text += s.str + ' ');
+  }
+  return text.trim();
+}
+
+function analyzeFont(text) {
+  const words = text.split(/\s+/).filter(w => w.length > 1);
+  if (words.length === 0) return 12;
+  // Heuristic: average word length correlates with font size
+  const avg = words.reduce((a, w) => a + w.length, 0) / words.length;
+  return Math.round(avg * 0.75 + 10);
+}
+
+function analyzeMargins(text) {
+  // Heuristic: line length distribution suggests margins
+  const lines = text.split('\n');
+  const lineLens = lines.map(l => l.trim().length).filter(l => l > 0);
+  if (lineLens.length === 0) return 1.0;
+  const avg = lineLens.reduce((a, l) => a + l, 0) / lineLens.length;
+  // In 8pt text, avg ~ 60 chars per line → 1in margin
+  return Math.round(avg / 60 * 100) / 100;
+}
+
+function analyzeTitle(text) {
+  const lines = text.split('\n');
+  const first = lines[0].trim();
+  return first.length > 10;
+}
+
+// ---------- Plagiarism (simulated) ----------
+function runPlagCheck() {
+  if (!state.file) return;
+  const start = performance.now();
+  const interval = setInterval(() => {
+    const pct = Math.min(100, Math.round((performance.now() - start) / 120 * 100));
+    $('plagBar').style.width = pct + '%';
+    $('plagScore').innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>${pct}%`;
+  }, 100);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    const score = Math.floor(Math.random() * 18);
+    state.plagScore = score;
+    state.plagOverall = score;
+    state.plagMatches = [
+      { title: 'Introduction to Deep Learning', source: 'arXiv', pct: 12 },
+      { title: 'Neural Networks for Image Recognition', source: 'IEEE', pct: 8 },
+      { title: 'A Survey of Generative Models', source: 'Springer', pct: 5 },
+    ].slice(0, Math.min(3, score));
+
+    $('plagOverall').textContent = score + '%';
+    $('plagMatches').innerHTML = state.plagMatches.map(m =>
+      `<div class="flex justify-between text-xs"><span>${m.title}</span><span class="font-mono">${m.pct}%</span></div>`
+    ).join('');
+    $('plagReport').classList.remove('hidden');
+  }, 12000);
+}
+
+// ---------- Submit ----------
+$('submitBtn').addEventListener('click', () => {
+  if (!state.file) {
+    showError('Please upload a paper first.');
+    return;
+  }
+  state.submitted = true;
+  $('paperName').textContent = state.file.name;
+  $('finalScore').textContent = state.score + '%';
+  $('finalPlag').textContent = state.plagOverall + '%';
+  $('step5').classList.remove('hidden');
+  $('step4').classList.add('hidden');
+  updateProgress(100);
+  $('stepNum').textContent = 5;
+  submitToBackend();
+});
+
+function submitToBackend() {
+  // Simulated backend call
+  setTimeout(() => {
+    alert('✓ Submission successful! Your paper has been anonymized and submitted for review.');
+  }, 1200);
+}
+
+// ---------- Anonymize (demo) ----------
+$('anonToggle').addEventListener('change', (e) => {
+  state.anon = e.target.checked;
+  $('anonToggle').nextElementSibling.textContent = state.anon ? 'Enabled' : 'Disabled';
+});
+
+// ---------- Init ----------
+navigateStep(1);
+</script>
+
+</body>
+</html>

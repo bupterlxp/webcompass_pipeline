@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Image Annotation Tool</title>
+    <!-- Import Fabric.js library for easy canvas manipulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .toolbar {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button, input[type="file"] {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #d3d9df;
+        }
+        .btn-danger {
+            background-color: #ff4d4f;
+            color: white;
+            border: none;
+        }
+        .btn-danger:hover {
+            background-color: #ff7875;
+        }
+        .btn-success {
+            background-color: #52c41a;
+            color: white;
+            border: none;
+        }
+        .btn-success:hover {
+            background-color: #73d13d;
+        }
+        .canvas-container-wrapper {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <!-- Upload Image -->
+        <input type="file" id="imageLoader" accept="image/*" title="Upload Image" />
+        
+        <!-- Annotation Tools -->
+        <button onclick="addRectangle()">Add Rectangle</button>
+        <button onclick="addCircle()">Add Circle</button>
+        <button onclick="addText()">Add Text</button>
+        
+        <!-- Edit/Delete Tools -->
+        <button class="btn-danger" onclick="deleteSelected()">Delete Selected</button>
+        
+        <!-- Export Tool -->
+        <button class="btn-success" onclick="exportImage()">Export Image</button>
+    </div>
+
+    <div class="canvas-container-wrapper">
+        <!-- The canvas element where Fabric.js will render -->
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
+
+    <script>
+        // Initialize Fabric.js canvas
+        const canvas = new fabric.Canvas('canvas');
+
+        // Handle Image Upload
+        const imageLoader = document.getElementById('imageLoader');
+        imageLoader.addEventListener('change', handleImage, false);
+
+        function handleImage(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgObj = new Image();
+                imgObj.src = event.target.result;
+                imgObj.onload = function() {
+                    const image = new fabric.Image(imgObj);
+                    
+                    // Scale image to fit canvas while maintaining aspect ratio
+                    const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+                    image.set({
+                        scaleX: scale,
+                        scaleY: scale,
+                        originX: 'center',
+                        originY: 'center',
+                        left: canvas.width / 2,
+                        top: canvas.height / 2
+                    });
+
+                    // Set the uploaded image as the background of the canvas
+                    canvas.setBackgroundImage(image, canvas.renderAll.bind(canvas));
+                }
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+
+        // Function to add a Rectangle annotation
+        function addRectangle() {
+            const rect = new fabric.Rect({
+                left: 100,
+                top: 100,
+                width: 100,
+                height: 100,
+                fill: 'transparent', // Transparent inside
+                stroke: 'red',       // Red border
+                strokeWidth: 3,
+                cornerColor: 'blue',
+                cornerSize: 10,
+                transparentCorners: false
+            });
+            canvas.add(rect);
+            canvas.setActiveObject(rect);
+        }
+
+        // Function to add a Circle annotation
+        function addCircle() {
+            const circle = new fabric.Circle({
+                left: 150,
+                top: 150,
+                radius: 50,
+                fill: 'transparent', // Transparent inside
+                stroke: 'blue',      // Blue border
+                strokeWidth: 3,
+                cornerColor: 'red',
+                cornerSize: 10,
+                transparentCorners: false
+            });
+            canvas.add(circle);
+            canvas.setActiveObject(circle);
+        }
+
+        // Function to add a Text annotation
+        function addText() {
+            const text = new fabric.IText('Double click to edit', {
+                left: 200,
+                top: 200,
+                fontFamily: 'Arial',
+                fill: '#000000',
+                fontSize: 24,
+                fontWeight: 'bold',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)' // Slight background to make text readable
+            });
+            canvas.add(text);
+            canvas.setActiveObject(text);
+        }
+
+        // Function to delete the currently selected annotation
+        function deleteSelected() {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length) {
+                canvas.discardActiveObject();
+                activeObjects.forEach(function(object) {
+                    canvas.remove(object);
+                });
+            } else {
+                alert('Please select an annotation to delete.');
+            }
+        }
+
+        // Function to export the annotated image
+        function exportImage() {
+            // Deselect any active objects so selection borders don't show in export
+            canvas.discardActiveObject();
+            canvas.renderAll();
+
+            // Get canvas data URL
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                quality: 1
+            });
+
+            // Create a temporary link element to trigger the download
+            const link = document.createElement('a');
+            link.download = 'annotated-image.png';
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Add a default placeholder background so the canvas isn't completely empty initially
+        window.onload = function() {
+            const text = new fabric.Text('Please upload an image to start annotating', {
+                left: canvas.width / 2,
+                top: canvas.height / 2,
+                originX: 'center',
+                originY: 'center',
+                fontSize: 20,
+                fill: '#888',
+                selectable: false
+            });
+            canvas.add(text);
+            
+            // Remove placeholder text when an image is uploaded
+            imageLoader.addEventListener('change', function() {
+                canvas.remove(text);
+            });
+        };
+    </script>
+</body>
+</html>

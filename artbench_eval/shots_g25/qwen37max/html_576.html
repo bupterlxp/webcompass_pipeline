@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Video Transition Effect Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 { text-align: center; margin-bottom: 20px; color: #60a5fa; }
+  .app {
+    display: grid;
+    grid-template-columns: 260px 1fr 280px;
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: #1e293b;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #334155;
+  }
+  .panel h3 {
+    margin-bottom: 12px;
+    color: #93c5fd;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+    margin: 4px 2px;
+  }
+  button:hover { background: #2563eb; }
+  button:disabled { background: #475569; cursor: not-allowed; }
+  button.danger { background: #ef4444; }
+  button.danger:hover { background: #dc2626; }
+  button.success { background: #10b981; }
+  button.success:hover { background: #059669; }
+  .clip-item {
+    background: #334155;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .clip-item.active { border-color: #60a5fa; }
+  .clip-item .del {
+    background: #ef4444;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+  canvas {
+    width: 100%;
+    background: #000;
+    border-radius: 8px;
+    display: block;
+  }
+  .preview-wrap { display: flex; flex-direction: column; gap: 12px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .timeline {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    min-height: 80px;
+  }
+  .tl-clip {
+    background: #3b82f6;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    min-width: 80px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .tl-trans {
+    background: #f59e0b;
+    color: #1e293b;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 2px solid transparent;
+  }
+  .tl-trans.active { border-color: #fff; }
+  label { display: block; margin: 10px 0 4px; font-size: 12px; color: #cbd5e1; }
+  select, input[type="range"], input[type="file"] {
+    width: 100%;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #475569;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 13px;
+  }
+  .value { color: #60a5fa; font-weight: bold; }
+  .status {
+    text-align: center;
+    padding: 8px;
+    background: #0f172a;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .hint { font-size: 11px; color: #64748b; margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>🎬 Video Transition Effect Editor</h1>
+
+<div class="app">
+  <!-- LEFT: Clips -->
+  <div class="panel">
+    <h3>Clips</h3>
+    <input type="file" id="fileInput" accept="video/*" multiple style="margin-bottom:8px;" />
+    <button onclick="addSampleClip()" style="width:100%;">+ Add Sample Clip</button>
+    <div id="clipList" style="margin-top:12px;"></div>
+    <p class="hint">Click a clip to select it. Add at least 2 clips to use transitions.</p>
+  </div>
+
+  <!-- CENTER: Preview -->
+  <div class="panel preview-wrap">
+    <h3>Preview</h3>
+    <canvas id="canvas" width="640" height="360"></canvas>
+    <div class="controls">
+      <button onclick="playPreview()" id="playBtn">▶ Play Preview</button>
+      <button onclick="stopPreview()">⏹ Stop</button>
+      <button class="success" onclick="exportVideo()" id="exportBtn">⬇ Export Video</button>
+    </div>
+    <div class="status" id="status">Ready. Add clips to begin.</div>
+    <h3 style="margin-top:12px;">Timeline</h3>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <!-- RIGHT: Transition controls -->
+  <div class="panel">
+    <h3>Transition Settings</h3>
+    <div id="transControls">
+      <p class="hint">Select a transition marker (orange) on the timeline to edit it.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Video Transition Effect Editor
+   - Canvas-based real-time preview
+   - MediaRecorder-based export to WebM
+   ========================================================= */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// State
+let clips = [];            // {id, name, video, duration, color, text, isSample}
+let transitions = [];      // {id, type, duration}  (between clip i and i+1)
+let selectedTransIdx = -1;
+let selectedClipIdx = -1;
+let playing = false;
+let animHandle = null;
+
+const TRANS_TYPES = [
+  { id: 'none',    name: 'None' },
+  { id: 'fade',    name: 'Fade (Cross-fade)' },
+  { id: 'slideL',  name: 'Slide Left' },
+  { id: 'slideR',  name: 'Slide Right' },
+  { id: 'slideUp', name: 'Slide Up' },
+  { id: 'dissolve',name: 'Dissolve' },
+  { id: 'wipe',    name: 'Wipe' },
+  { id: 'zoom',    name: 'Zoom' }
+];
+
+const SAMPLE_COLORS = ['#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4'];
+
+/* ---------- Clip management ---------- */
+function addSampleClip() {
+  const idx = clips.length;
+  const color = SAMPLE_COLORS[idx % SAMPLE_COLORS.length];
+  const text = 'Clip ' + (idx + 1);
+  clips.push({
+    id: Date.now() + Math.random(),
+    name: text,
+    video: null,
+    duration: 3,
+    color, text,
+    isSample: true
+  });
+  if (clips.length > 1) {
+    transitions.push({ id: Date.now(), type: 'fade', duration: 1.0 });
+  }
+  refreshUI();
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  for (const file of e.target.files) {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    await new Promise(res => {
+      video.onloadedmetadata = () => {
+        clips.push({
+          id: Date.now() + Math.random(),
+          name: file.name,
+          video,
+          duration: Math.min(video.duration || 3, 10),
+          isSample: false
+        });
+        if (clips.length > 1) {
+          transitions.push({ id: Date.now(), type: 'fade', duration: 1.0 });
+        }
+        res();
+      };
+      video.onerror = res;
+    });
+  }
+  refreshUI();
+});
+
+function removeClip(i) {
+  clips.splice(i, 1);
+  // Rebuild transitions array: N clips => N-1 transitions
+  while (transitions.length > clips.length - 1) transitions.pop();
+  while (transitions.length < clips.length - 1) {
+    transitions.push({ id: Date.now()+Math.random(), type: 'fade', duration: 1.0 });
+  }
+  selectedClipIdx = -1;
+  selectedTransIdx = -1;
+  refreshUI();
+}
+
+/* ---------- UI refresh ---------- */
+function refreshUI() {
+  // Clip list
+  const list = document.getElementById('clipList');
+  list.innerHTML = '';
+  clips.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'clip-item' + (i === selectedClipIdx ? ' active' : '');
+    div.innerHTML = `<span>${i+1}. ${c.name}</span>
+                     <button class="del" onclick="event.stopPropagation();removeClip(${i})">✕</button>`;
+    div.onclick = () => { selectedClipIdx = i; selectedTransIdx = -1; refreshUI(); };
+    list.appendChild(div);
+  });
+
+  // Timeline
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  clips.forEach((c, i) => {
+    const clipEl = document.createElement('div');
+    clipEl.className = 'tl-clip';
+    clipEl.textContent = c.name;
+    clipEl.style.width = Math.max(60, c.duration * 30) + 'px';
+    tl.appendChild(clipEl);
+    if (i < transitions.length) {
+      const t = transitions[i];
+      const tEl = document.createElement('div');
+      tEl.className = 'tl-trans' + (i === selectedTransIdx ? ' active' : '');
+      const typeName = TRANS_TYPES.find(x => x.id === t.type)?.name || t.type;
+      tEl.textContent = `${typeName} (${t.duration.toFixed(1)}s)`;
+      tEl.style.width = Math.max(50, t.duration * 40) + 'px';
+      tEl.onclick = () => { selectedTransIdx = i; selectedClipIdx = -1; refreshUI(); };
+      tl.appendChild(tEl);
+    }
+  });
+
+  // Transition controls
+  const ctrl = document.getElementById('transControls');
+  if (selectedTransIdx >= 0 && selectedTransIdx < transitions.length) {
+    const t = transitions[selectedTransIdx];
+    ctrl.innerHTML = `
+      <label>Transition #${selectedTransIdx + 1} (between clip ${selectedTransIdx+1} & ${selectedTransIdx+2})</label>
+      <label>Type</label>
+      <select id="typeSel">
+        ${TRANS_TYPES.map(x => `<option value="${x.id}" ${x.id===t.type?'selected':''}>${x.name}</option>`).join('')}
+      </select>
+      <label>Duration: <span class="value" id="durVal">${t.duration.toFixed(2)}s</span></label>
+      <input type="range" id="durRange" min="0.2" max="3" step="0.1" value="${t.duration}" />
+      <button onclick="previewSingleTransition()" style="width:100%;margin-top:12px;">▶ Preview This Transition</button>
+      <p class="hint">Adjust type and duration, then preview. The transition blends the end of the previous clip into the start of the next.</p>
+    `;
+    document.getElementById('typeSel').onchange = e => {
+      t.type = e.target.value; refreshUI();
+    };
+    document.getElementById('durRange').oninput = e => {
+      t.duration = parseFloat(e.target.value);
+      document.getElementById('durVal').textContent = t.duration.toFixed(2) + 's';
+      refreshTimelineOnly();
+    };
+  } else {
+    ctrl.innerHTML = `<p class="hint">Select a transition marker (orange) on the timeline to edit it.<br><br>
+      Available effects:<br>
+      • Fade (cross-fade)<br>
+      • Slide (left/right/up)<br>
+      • Dissolve (noise blend)<br>
+      • Wipe (rectangular reveal)<br>
+      • Zoom (scale in/out)</p>`;
+  }
+
+  // Status
+  const totalDur = clips.reduce((s,c)=>s+c.duration,0)
+                 - transitions.reduce((s,t)=>s+t.duration,0);
+  document.getElementById('status').textContent =
+    clips.length === 0 ? 'Ready. Add clips to begin.'
+    : `${clips.length} clip(s) • ${transitions.length} transition(s) • Est. duration: ${Math.max(0,totalDur).toFixed(1)}s`;
+
+  // Draw first frame
+  if (!playing) drawStaticFrame();
+}
+
+function refreshTimelineOnly() {
+  // lightweight: just update timeline widths
+  const tl = document.getElementById('timeline');
+  const transEls = tl.querySelectorAll('.tl-trans');
+  transEls.forEach((el, i) => {
+    if (transitions[i]) {
+      const t = transitions[i];
+      const typeName = TRANS_TYPES.find(x => x.id === t.type)?.name || t.type;
+      el.textContent = `${typeName} (${t.duration.toFixed(1)}s)`;
+      el.style.width = Math.max(50, t.duration * 40) + 'px';
+    }
+  });
+}
+
+/* ---------- Drawing helpers ---------- */
+function drawClipFrame(clip, t /* time within clip */, alpha=1, transform=null) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (transform) transform();
+
+  if (clip.isSample) {
+    // Animated sample: gradient + moving shape + text
+    const grad = ctx.createLinearGradient(0,0,W,H);
+    grad.addColorStop(0, clip.color);
+    grad.addColorStop(1, shade(clip.color, -40));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+    // moving circle
+    const cx = (t * 80) % (W + 100) - 50;
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(cx, H/2, 60, 0, Math.PI*2);
+    ctx.fill();
+    // text
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 64px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(clip.text, W/2, H/2);
+    ctx.font = '20px Segoe UI, sans-serif';
+    ctx.fillText(`t = ${t.toFixed(2)}s`, W/2, H/2 + 60);
+  } else if (clip.video) {
+    try {
+      clip.video.currentTime = Math.min(t, clip.video.duration - 0.05);
+      ctx.drawImage(clip.video, 0, 0, W, H);
+    } catch(e) {
+      ctx.fillStyle = '#333'; ctx.fillRect(0,0,W,H);
+    }
+  }
+  ctx.restore();
+}
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1),16);
+  let r = (n>>16)+amt, g = ((n>>8)&0xff)+amt, b = (n&0xff)+amt;
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  return '#' + ((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+}
+
+function drawStaticFrame() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  if (clips.length > 0) {
+    drawClipFrame(clips[0], 0);
+  } else {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '24px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText('Add clips to begin', W/2, H/2);
+  }
+}
+
+/* ---------- Transition renderers ----------
+   Each renderer: renderTransition(type, clipA, clipB, progress, tA, tB)
+   progress in [0,1]; tA = time in clipA (near end), tB = time in clipB (near start)
+*/
+function renderTransition(type, A, B, p, tA, tB) {
+  switch(type) {
+    case 'none':
+      drawClipFrame(p < 1 ? A : B, p < 1 ? tA : tB);
+      break;
+    case 'fade':
+      drawClipFrame(A, tA, 1 - p);
+      drawClipFrame(B, tB, p);
+      break;
+    case 'slideL':
+      drawClipFrame(A, tA, 1, () => ctx.translate(-p * W, 0));
+      drawClipFrame(B, tB, 1, () => ctx.translate((1 - p) * W, 0));
+      break;
+    case 'slideR':
+      drawClipFrame(A, tA, 1, () => ctx.translate(p * W, 0));
+      drawClipFrame(B, tB, 1, () => ctx.translate(-(1 - p) * W, 0));
+      break;
+    case 'slideUp':
+      drawClipFrame(A, tA, 1, () => ctx.translate(0, -p * H));
+      drawClipFrame(B, tB, 1, () => ctx.translate(0, (1 - p) * H));
+      break;
+    case 'dissolve': {
+      // Cross-fade with pixelated noise dithering
+      drawClipFrame(A, tA);
+      const imgB = document.createElement('canvas');
+      imgB.width = W; imgB.height = H;
+      const c2 = imgB.getContext('2d');
+      // draw B into offscreen
+      const prevCtx = ctx;
+      // simpler: draw A, then overlay B with alpha + noise mask
+      drawClipFrame(B, tB, p);
+      // Add noise speckles that fade
+      const blockSize = 8;
+      for (let y = 0; y < H; y += blockSize) {
+        for (let x = 0; x < W; x += blockSize) {
+          if (Math.random() < (1 - Math.abs(p - 0.5)*2) * 0.3) {
+            ctx.fillStyle = `rgba(255,255,255,${0.15})`;
+            ctx.fillRect(x, y, blockSize, blockSize);
+          }
+        }
+      }
+      break;
+    }
+    case 'wipe':
+      drawClipFrame(A, tA);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W * p, H);
+      ctx.clip();
+      drawClipFrame(B, tB);
+      ctx.restore();
+      break;
+    case 'zoom':
+      // A zooms in and fades, B zooms in from small
+      drawClipFrame(A, tA, 1 - p, () => {
+        const s = 1 + p * 0.5;
+        ctx.translate(W/2, H/2); ctx.scale(s, s); ctx.translate(-W/2, -H/2);
+      });
+      drawClipFrame(B, tB, p, () => {
+        const s = 0.5 + p * 0.5;
+        ctx.translate(W/2, H/2); ctx.scale(s, s); ctx.translate(-W/2, -H/2);
+      });
+      break;
+  }
+}
+
+/* ---------- Preview single transition ---------- */
+function previewSingleTransition() {
+  if (selectedTransIdx < 0) return;
+  stopPreview();
+  const i = selectedTransIdx;
+  const A = clips[i], B = clips[i+1];
+  const t = transitions[i];
+  const dur = t.duration;
+  const start = performance.now();
+  playing = true;
+  function frame(now) {
+    const elapsed = (now - start) / 1000;
+    if (elapsed >= dur) {
+      renderTransition(t.type, A, B, 1, A.duration, 0);
+      playing = false;
+      return;
+    }
+    const p = elapsed / dur;
+    const tA = A.duration - dur + elapsed;
+    const tB = elapsed;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    renderTransition(t.type, A, B, p, Math.max(0,tA), tB);
+    animHandle = requestAnimationFrame(frame);
+  }
+  animHandle = requestAnimationFrame(frame);
+}
+
+/* ---------- Full preview ---------- */
+function playPreview() {
+  if (clips.length === 0) return;
+  stopPreview();
+  playing = true;
+  document.getElementById('playBtn').disabled = true;
+
+  // Build sequence of segments: clip (non-overlapping part) + transition
+  // For each clip i: play from 0 to duration - trans[i].duration (if exists)
+  // Then transition i blends end of clip i with start of clip i+1
+  const segments = [];
+  for (let i = 0; i < clips.length; i++) {
+    const c = clips[i];
+    const outTrans = transitions[i];
+    const inTrans = transitions[i-1];
+    const startCut = inTrans ? inTrans.duration : 0;
+    const endCut = outTrans ? outTrans.duration : 0;
+    const segDur = c.duration - startCut - endCut;
+    if (segDur > 0) {
+      segments.push({ kind: 'clip', idx: i, from: startCut, to: c.duration - endCut, dur: segDur });
+    }
+    if (outTrans) {
+      segments.push({ kind: 'trans', idx: i, dur: outTrans.duration });
+    }
+  }
+
+  const totalDur = segments.reduce((s,x)=>s+x.dur,0);
+  const start = performance.now();
+
+  function frame(now) {
+    const elapsed = (now - start) / 1000;
+    if (elapsed >= totalDur) {
+      playing = false;
+      document.getElementById('playBtn').disabled = false;
+      drawStaticFrame();
+      return;
+    }
+    // find current segment
+    let acc = 0;
+    for (const seg of segments) {
+      if (elapsed < acc + seg.dur) {
+        const local = elapsed - acc;
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+        if (seg.kind === 'clip') {
+          drawClipFrame(clips[seg.idx], seg.from + local);
+        } else {
+          const tr = transitions[seg.idx];
+          const p = local / seg.dur;
+          const A = clips[seg.idx], B = clips[seg.idx+1];
+          const tA = A.duration - tr.duration + local;
+          const tB = local;
+          renderTransition(tr.type, A, B, p, tA, tB);
+        }
+        break;
+      }
+      acc += seg.dur;
+    }
+    animHandle = requestAnimationFrame(frame);
+  }
+  animHandle = requestAnimationFrame(frame);
+}
+
+function stopPreview() {
+  playing = false;
+  if (animHandle) cancelAnimationFrame(animHandle);
+  animHandle = null;
+  document.getElementById('playBtn').disabled = false;
+  drawStaticFrame();
+}
+
+/* ---------- Export via MediaRecorder ---------- */
+async function exportVideo() {
+  if (clips.length === 0) { alert('Add clips first.'); return; }
+  stopPreview();
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  const status = document.getElementById('status');
+  status.textContent = 'Rendering...';
+
+  // Build segments (same as preview)
+  const segments = [];
+  for (let i = 0; i < clips.length; i++) {
+    const c = clips[i];
+    const outTrans = transitions[i];
+    const inTrans = transitions[i-1];
+    const startCut = inTrans ? inTrans.duration : 0;
+    const endCut = outTrans ? outTrans.duration : 0;
+    const segDur = c.duration - startCut - endCut;
+    if (segDur > 0) segments.push({ kind:'clip', idx:i, from:startCut, to:c.duration-endCut, dur:segDur });
+    if (outTrans) segments.push({ kind:'trans', idx:i, dur:outTrans.duration });
+  }
+  const totalDur = segments.reduce((s,x)=>s+x.dur,0);
+
+  // For videos, we need to pre-seek. Use offscreen rendering at 30fps.
+  const FPS = 30;
+  const totalFrames = Math.ceil(totalDur * FPS);
+  const stream = canvas.captureStream(FPS);
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+             ? 'video/webm;codecs=vp9' : 'video/webm';
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 5_000_000 });
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'transition-video.webm';
+    a.click();
+    URL.revokeObjectURL(url);
+    status.textContent = 'Export complete!';
+    btn.disabled = false;
+  };
+
+  rec.start();
+
+  // Render frames synchronously using manual time stepping
+  // For sample clips this is fine. For real videos, currentTime seeking is async;
+  // we approximate by drawing each frame with a small delay.
+  for (let f = 0; f < totalFrames; f++) {
+    const elapsed = f / FPS;
+    let acc = 0;
+    for (const seg of segments) {
+      if (elapsed < acc + seg.dur) {
+        const local = elapsed - acc;
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+        if (seg.kind === 'clip') {
+          drawClipFrame(clips[seg.idx], seg.from + local);
+        } else {
+          const tr = transitions[seg.idx];
+          const p = local / seg.dur;
+          const A = clips[seg.idx], B = clips[seg.idx+1];
+          renderTransition(tr.type, A, B, p, A.duration - tr.duration + local, local);
+        }
+        break;
+      }
+      acc += seg.dur;
+    }
+    status.textContent = `Rendering... ${Math.round(100*f/totalFrames)}%`;
+    // yield to let MediaRecorder capture the frame
+    await new Promise(r => setTimeout(r, 1000/FPS));
+  }
+  // small tail
+  await new Promise(r => setTimeout(r, 200));
+  rec.stop();
+}
+
+/* ---------- Init ---------- */
+// Add two sample clips by default so user can try immediately
+addSampleClip();
+addSampleClip();
+addSampleClip();
+selectedTransIdx = 0;
+refreshUI();
+</script>
+</body>
+</html>

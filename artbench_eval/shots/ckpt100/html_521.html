@@ -1,0 +1,133 @@
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Theory Playground</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="40" height="40">
+          <g fill="#3a86ff">
+            <path d="M4 28 Q10 14 16 28"/>
+            <path d="M12 24 Q20 10 28 24"/>
+            <path d="M18 20 Q28 6 36 20"/>
+            <path d="M22 16 Q32 4 40 16"/>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <h1>Music Theory Playground</h1>
+        <p class="tagline">Learn scales, chords, and intervals — with sound.</p>
+      </div>
+    </div>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#theory" class="nav-link">Theory</a>
+      <a href="#practice" class="nav-link">Practice</a>
+      <a href="#about" class="nav-link">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- THEORY -->
+    <section id="theory" class="section">
+      <div class="section-head">
+        <h2>Theory</h2>
+        <p>Foundations of Western music.</p>
+      </div>
+
+      <article class="card">
+        <h3>Scales</h3>
+        <p>A scale is a sequence of notes ordered by pitch. The most common is the <strong>major scale</strong>, built from whole and half steps: <code>W-W-H-W-W-W-H</code>.</p>
+        <ul class="audio-list">
+          <li><button class="audio-btn" data-scale="C major" data-notes="C D E F G A B">C Major</button></li>
+          <li><button class="audio-btn" data-scale="A minor" data-notes="A B C D E F G">A Minor</button></li>
+          <li><button class="audio-btn" data-scale="D Dorian" data-notes="D E F G A B C">D Dorian</button></li>
+          <li><button class="audio-btn" data-scale="G Mixolydian" data-notes="G A B C D E F">G Mixolydian</button></li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h3>Chords</h3>
+        <p>Triads built on three notes. <strong>Major</strong> = root, major 3rd, perfect 5th. <strong>Minor</strong> = root, minor 3rd, perfect 5th.</p>
+        <ul class="audio-list">
+          <li><button class="audio-btn" data-chord="C major" data-notes="C E G">C</button></li>
+          <li><button class="audio-btn" data-chord="A minor" data-notes="A C E">Am</button></li>
+          <li><button class="audio-btn" data-chord="D major" data-notes="D F# A">D</button></li>
+          <li><button class="audio-btn" data-chord="G major" data-notes="G B D">G</button></li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h3>Intervals</h3>
+        <p>The distance between two notes. A <strong>major third</strong> is four semitones (e.g., C to E). A <strong>perfect fifth</strong> is seven semitones (e.g., C to G).</p>
+        <ul class="audio-list">
+          <li><button class="audio-btn" data-interval="Major third" data-notes="C E">C → E</button></li>
+          <li><button class="audio-btn" data-interval="Perfect fifth" data-notes="C G">C → G</button></li>
+          <li><button class="audio-btn" data-interval="Minor third" data-notes="C Eb">C → Eb</button></li>
+          <li><button class="audio-btn" data-interval="Major sixth" data-notes="C A">C → A</button></li>
+        </ul>
+      </article>
+    </section>
+
+    <!-- PRACTICE -->
+    <section id="practice" class="section">
+      <div class="section-head">
+        <h2>Practice</h2>
+        <p>Build your own chord progressions. The system will check if your combination is correct.</p>
+      </div>
+
+      <div class="practice-card">
+        <h3>Chord Progression Builder</h3>
+        <p>Choose a key and build a 3-chord progression. Click <strong>Submit</strong> to check.</p>
+
+        <form id="progression-form" class="progression-form">
+          <label for="key-select">Key</label>
+          <select id="key-select" class="select">
+            <option value="C">C</option>
+            <option value="A">A</option>
+            <option value="D">D</option>
+            <option value="G">G</option>
+            <option value="E">E</option>
+          </select>
+
+          <div class="chord-row">
+            <label>Chord 1</label>
+            <input type="text" id="chord1" class="chord-input" placeholder="e.g. C" autocomplete="off">
+          </div>
+          <div class="chord-row">
+            <label>Chord 2</label>
+            <input type="text" id="chord2" class="chord-input" placeholder="e.g. G" autocomplete="off">
+          </div>
+          <div class="chord-row">
+            <label>Chord 3</option>
+            <input type="text" id="chord3" class="chord-input" placeholder="e.g. Am" autocomplete="off">
+          </div>
+
+          <button type="submit" class="btn-primary">Submit</button>
+        </form>
+
+        <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="section">
+      <div class="section-head">
+        <h2>About</h2>
+        <p>Created for curious musicians. Built with HTML, CSS, JavaScript, and Tone.js.</p>
+      </div>
+      <p class="about-text">This playground is a small introduction to music theory. Click any audio button to hear the scale or chord, and try the practice module to test your knowledge.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© Music Theory Playground · Built with care</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.2.1/Tone.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

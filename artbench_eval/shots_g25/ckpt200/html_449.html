@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alex Chen — Personal Blog</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<style>
+  :root {
+    --primary: #4a6fa5;
+    --primary-dark: #355682;
+    --primary-light: #e8eef7;
+    --accent: #f59e0b;
+    --danger: #e74c3c;
+    --success: #27ae60;
+    --warning: #f39c12;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --text: #2c3e50;
+    --muted: #8a97a6;
+    --shadow: 0 4px 16px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { color: var(--primary-dark); }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  img { max-width: 100%; display: block; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid #e3e8ef;
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: var(--shadow);
+  }
+  .header-inner {
+    display: flex; align-items: center; gap: 24px;
+    padding: 16px 24px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 18px; color: var(--primary-dark);
+  }
+  .brand .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+  }
+  .brand span { letter-spacing: 0.5px; }
+
+  .nav { display: flex; gap: 4px; margin-left: auto; }
+  .nav a {
+    padding: 8px 14px; border-radius: 8px;
+    color: var(--text); font-weight: 500;
+    transition: background .2s, color .2s;
+  }
+  .nav a:hover { background: var(--primary-light); color: var(--primary-dark); }
+  .nav a.active { background: var(--primary); color: white; }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-right .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--primary-light); color: var(--primary-dark);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .2s, background .2s;
+  }
+  .header-right .icon-btn:hover { transform: scale(1.05); background: var(--primary); color: white; }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid #e3e8ef;
+    padding: 24px;
+    height: calc(100vh - 64px);
+    position: sticky; top: 64px;
+    display: flex; flex-direction: column;
+    gap: 24px;
+  }
+  .sidebar-section { padding-bottom: 20px; border-bottom: 1px solid #e3e8ef; }
+  .sidebar-section h4 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin: 0 0 12px; font-weight: 600;
+  }
+  .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .sidebar-item i { width: 24px; text-align: center; color: var(--muted); }
+  .sidebar-item a { color: var(--text); font-weight: 500; }
+  .sidebar-item a:hover { color: var(--primary); }
+
+  .sidebar-stats { display: flex; flex-direction: column; gap: 12px; }
+  .stat-card {
+    background: var(--primary-light); border-radius: 10px;
+    padding: 14px; text-align: center;
+  }
+  .stat-card i { font-size: 28px; color: var(--primary); margin-bottom: 4px; }
+  .stat-card strong { display: block; font-size: 20px; color: var(--primary-dark); }
+  .stat-card span { font-size: 12px; color: var(--muted); }
+
+  .sidebar-follow { padding: 12px; background: var(--primary-light); border-radius: 10px; }
+  .sidebar-follow h4 { margin: 0 0 8px; font-size: 14px; }
+  .follow-btn {
+    width: 100%; padding: 8px; border-radius: 8px;
+    background: var(--primary); color: white; font-weight: 600;
+    transition: background .2s;
+  }
+  .follow-btn:hover { background: var(--primary-dark); }
+
+  /* Main */
+  main { padding: 24px; }
+
+  .page-header {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+    padding-bottom: 16px; border-bottom: 2px solid var(--primary);
+  }
+  .page-header h1 { margin: 0; font-size: 28px; color: var(--primary-dark); }
+  .page-header .crumbs { font-size: 13px; color: var(--muted); }
+  .page-header .crumbs a { color: var(--muted); }
+  .page-header .crumbs a:hover { color: var(--primary); }
+
+  .grid { display: grid; gap: 24px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    transition: transform .2s, box-shadow .2s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+
+  .card-title { font-size: 18px; margin: 0 0 8px; color: var(--primary-dark); }
+  .card-meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .card-body { font-size: 14px; color: var(--text); }
+
+  .post-thumb { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+  .post-thumb img { width: 100%; height: auto; aspect-ratio: 16/9; object-fit: cover; }
+
+  .post-excerpt { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+
+  .post-actions { display: flex; gap: 8px; }
+  .action-btn {
+    padding: 6px 12px; border-radius: 8px;
+    background: var(--primary-light); color: var(--primary-dark);
+    font-size: 12px; font-weight: 600;
+  }
+  .action-btn:hover { background: var(--primary); color: white; }
+
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .photo-item { cursor: pointer; border-radius: 10px; overflow: hidden; }
+  .photo-item img { width: 100%; height: 180px; object-fit: cover; }
+  .photo-item:hover { transform: translateY(-3px); }
+
+  .video-item { background: #000; border-radius: 10px; overflow: hidden; }
+  .video-item iframe { width: 100%; height: 220px; border: 0; }
+
+  .social-card { padding: 20px; }
+  .social-card h4 { margin: 0 0 12px; font-size: 16px; }
+  .social-list { display: flex; flex-direction: column; gap: 8px; }
+  .social-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 8px; }
+  .social-item .avatar-sm { width: 36px; height: 36px; }
+  .social-item .name { font-weight: 600; font-size: 14px; }
+  .social-item .status { font-size: 12px; color: var(--muted); }
+  .social-item .follow-btn { padding: 4px 10px; font-size: 12px; }
+  .social-item .follow-btn.following { background: var(--success); color: white; }
+
+  .user-card { text-align: center; padding: 20px; }
+  .user-card .avatar-lg { width: 80px; height: 80px; margin: 0 auto 12px; }
+  .user-card h3 { margin: 0 0 4px; font-size: 20px; }
+  .user-card .role { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .user-card .bio { font-size: 14px; color: var(--text); line-height: 1.6; }
+  .user-card .stats { display: flex; justify-content: center; gap: 16px; margin-top: 16px; }
+  .stat-chip {
+    background: var(--primary-light); padding: 8px 14px; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+  }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid #d9dde5; border-radius: 8px;
+    font-family: inherit; font-size: 14px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light);
+  }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 8px;
+    font-weight: 600; font-size: 14px;
+    transition: background .2s, transform .1s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+  .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #c0392b; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+  .alert { padding: 12px 14px; border-radius: 8px; margin-bottom: 12px; }
+  .alert-success { background: #e6f7ee; color: #2e7d5b; border: 1px solid #c8e6d2; }
+  .alert-danger { background: #fdecea; color: #b34a3a; border: 1px solid #f5b0a8; }
+
+  .message-list { display: flex; flex-direction: column; gap: 12px; }
+  .message-item { background: var(--surface); border-radius: 10px; padding: 14px; box-shadow: var(--shadow); }
+  .message-item .from { font-weight: 600; margin-bottom: 2px; }
+  .message-item .time { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .message-item .body { font-size: 14px; color: var(--text); }
+
+  .compose-form { background: var(--surface); border-radius: 10px; padding: 14px; box-shadow: var(--shadow); }
+  .compose-form .form-group label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-state i { font-size: 48px; color: var(--muted); margin-bottom: 12px; }
+
+  /* Footer */
+  footer {
+    background: var(--surface); border-top: 1px solid #e3e8ef;
+    padding: 24px; text-align: center; color: var(--muted);
+    margin-top: 40px;
+  }
+  footer p { margin: 0; font-size: 13px; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; animation: fadeIn .2s; }
+  .modal-backdrop.hidden { display: none; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--surface); border-radius: 14px; padding: 28px;
+    max-width: 480px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp .25s;
+  }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal h3 { margin: 0 0 16px; }
+  .modal .modal-body { margin-bottom: 16px; }
+  .modal .modal-body p { color: var(--muted); margin: 0; }
+  .modal .modal-actions { display: flex; gap: 10px; }
+  .modal .modal-actions .btn { flex: 1; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 200; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 900px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .photo-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .sidebar { display: none; }
+    .header-inner { gap: 12px; }
+    .nav { display: none; }
+    .page-header h1 { font-size: 22px; }
+    .photo-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="container header-inner">
+    <div class="brand">
+      <div class="avatar" title="Alex Chen">AC</div>
+      <span>Alex Chen</span>
+    </div>
+    <nav class="nav">
+      <a href="#" class="active" data-view="home"><i class="bi bi-house"></i> Home</a>
+      <a href="#" data-view="articles"><i class="bi bi-journal-text"></i> Articles</a>
+      <a href="#" data-view="photos"><i class="bi bi-image"></i> Photos</a>
+      <a href="#" data-view="videos"><i class="bi bi-play-btn"></i> Videos</a>
+      <a href="#" data-view="social"><i class="bi bi-people"></i> Social</a>
+      <a href="#" data-view="profile"><i class="bi bi-person"></i> Profile</a>
+    </nav>
+    <div class="header-right">
+      <div class="icon-btn" title="Messages" id="msgBtn"><i class="bi bi-envelope"></i><span class="badge" id="msgBadge">0</span></div>
+      <div class="icon-btn" title="Search"><i class="bi bi-search"></i></div>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- HOME -->
+  <section class="view active" data-view="home">
+    <div class="container">
+      <div class="page-header">
+        <h1>Welcome back, Alex 👋</h1>
+        <div class="crumbs"><a href="#">Home</a> <i class="bi bi-chevron-right"></i> <span>Dashboard</span></div>
+      </div>
+
+      <div class="grid grid-2">
+        <article class="card">
+          <h3 class="card-title">Latest Article</h3>
+          <div class="post-thumb"><img src="https://picsum.photos/seed/blog1/800/450" alt="Article cover"></div>
+          <p class="post-excerpt">A deep dive into modern CSS layout techniques that will transform how you build responsive interfaces in 2025.</p>
+          <div class="post-actions">
+            <button class="action-btn" onclick="viewArticle(1)"><i class="bi bi-eye"></i> Read</button>
+            <button class="action-btn"><i class="bi bi-bookmark"></i> Save</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title">Recent Photos</h3>
+          <div class="photo-grid">
+            <div class="photo-item"><img src="https://picsum.photos/seed/photo1/600/400" alt="Photo 1"></div>
+            <div class="photo-item"><img src="https://picsum.photos/seed/photo2/600/400" alt="Photo 2"></div>
+            <div class="photo-item"><img src="https://picsum.photos/seed/photo3/600/400" alt="Photo 3"></div>
+            <div class="photo-item"><img src="https://picsum.photos/seed/photo4/600/400" alt="Photo 4"></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="grid grid-2">
+        <article class="card">
+          <h3 class="card-title">Featured Video</h3>
+          <div class="video-item">
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="YouTube video"></iframe>
+          </div>
+          <p class="post-excerpt">Watch the full tutorial on building a full-stack app with modern tools.</p>
+          <div class="post-actions">
+            <button class="action-btn"><i class="bi bi-play-btn"></i> Watch</button>
+            <button class="action-btn"><i class="bi bi-heart"></i> Like</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title">Social Circle</h3>
+          <div class="social-list">
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#4a6fa5,#f59e0b)">JS</div>
+              <div>
+                <div class="name">Jordan Smith</div>
+                <div class="status">Online · 2m ago</div>
+              </div>
+              <button class="follow-btn following">Following</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#355682,#f39c12)">MS</div>
+              <div>
+                <div class="name">Maya Santos</div>
+                <div class="status">Offline</div>
+              </div>
+              <button class="follow-btn">Follow</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#27ae60,#355682)">RK</div>
+              <div>
+                <div class="name">Ravi Kapoor</div>
+                <div class="status">Online · 1h ago</div>
+              </div>
+              <button class="follow-btn following">Following</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARTICLES -->
+  <section class="view" data-view="articles">
+    <div class="container">
+      <div class="page-header">
+        <h1>Articles</h1>
+        <div class="crumbs"><a href="#">Home</a> <i class="bi bi-chevron-right"></i> <span>Articles</span></div>
+      </div>
+      <div class="grid grid-2">
+        <article class="card">
+          <h3 class="card-title">Building Responsive Layouts with CSS Grid</h3>
+          <div class="post-meta">Published 2 days ago · 5 min read</div>
+          <p class="card-body">Learn how to use CSS Grid to create flexible, responsive layouts without the complexity of floats and flexbox. Perfect for dashboards and product pages.</p>
+          <div class="post-actions">
+            <button class="action-btn" onclick="viewArticle(1)"><i class="bi bi-eye"></i> Read</button>
+            <button class="action-btn"><i class="bi bi-bookmark"></i> Save</button>
+          </div>
+        </article>
+        <article class="card">
+          <h3 class="card-title">The Art of Clean Code: Naming Conventions That Stick</h3>
+          <div class="post-meta">Published 1 week ago · 8 min read</div>
+          <p class="card-body">Naming is the first thing new developers struggle with, and the last thing senior engineers discuss. Here's a practical guide to naming variables, functions, and components that your future self will thank you for.</p>
+          <div class="post-actions">
+            <button class="action-btn" onclick="viewArticle(2)"><i class="bi bi-eye"></i> Read</button>
+            <button class="action-btn"><i class="bi bi-bookmark"></i> Save</button>
+          </div>
+        </article>
+        <article class="card">
+          <h3 class="card-title">Designing for Dark Mode: A Practical Approach</h3>
+          <div class="post-meta">Published 3 weeks ago · 7 min read</div>
+          <p class="card-body">Dark mode isn't just a color swap — it's a design system decision. We'll walk through tokenization, contrast ratios, and the subtle details that make dark interfaces feel native.</p>
+          <div class="post-actions">
+            <button class="action-btn" onclick="viewArticle(3)"><i class="bi bi-eye"></i> Read</button>
+            <button class="action-btn"><i class="bi bi-bookmark"></i> Save</button>
+          </div>
+        </article>
+        <article class="card">
+          <h3 class="card-title">State Management in Modern JavaScript</h3>
+          <div class="post-meta">Published 1 month ago · 10 min read</div>
+          <p class="card-body">From simple closures to sophisticated stores, we'll explore the evolution of state management in the browser and pick the right tool for the job.</p>
+          <div class="post-actions">
+            <button class="action-btn" onclick="viewArticle(4)"><i class="bi bi-eye"></i> Read</button>
+            <button class="action-btn"><i class="bi bi-bookmark"></i> Save</button>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHOTOS -->
+  <section class="view" data-view="photos">
+    <div class="container">
+      <div class="page-header">
+        <h1>Photos</h1>
+        <div class="crumbs"><a href="#">Home</a> <i class="bi bi-chevron-right"></i> <span>Photos</span></div>
+      </div>
+      <div class="photo-grid" id="photoGrid">
+        <div class="photo-item"><img src="https://picsum.photos/seed/pic1/600/400" alt="Mountain"></div>
+        <div class="photo-item"><img src="https://picsum.photos/seed/pic2/600/400" alt="Beach"></div>
+        <div class="photo-item"><img src="https://picsum.photos/seed/pic3/600/400" alt="City"></div>
+        <div class="photo-item"><img src="https://picsum.photos/seed/pic4/600/400" alt="Forest"></div>
+        <div class="photo-item"><img src="https://picsum.photos/seed/pic5/600/400" alt="Sunset"></div>
+        <div class="photo-item"><img src="https://picsum.photos/seed/pic6/600/400" alt="Desert"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIDEOS -->
+  <section class="view" data-view="videos">
+    <div class="container">
+      <div class="page-header">
+        <h1>Videos</h1>
+        <div class="crumbs"><a href="#">Home</a> <i class="bi bi-chevron-right"></i> <span>Videos</span></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3 class="card-title">Full-Stack Tutorial: Building a Blog</h3>
+          <div class="video-item">
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Tutorial"></iframe>
+          </div>
+          <p class="post-excerpt">A complete walkthrough of building a blog from scratch with Node.js, Express, and MongoDB.</p>
+          <div class="post-actions">
+            <button class="action-btn"><i class="bi bi-play-btn"></i> Watch</button>
+            <button class="action-btn"><i class="bi bi-heart"></i> Like</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Design Systems: Patterns That Scale</h3>
+          <div class="video-item">
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Design Systems"></iframe>
+          </div>
+          <p class="post-excerpt">How top companies ship consistent, scalable UIs across hundreds of products.</p>
+          <div class="post-actions">
+            <button class="action-btn"><i class="bi bi-play-btn"></i> Watch</button>
+            <button class="action-btn"><i class="bi bi-heart"></i> Like</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Performance: Speeding Up Your Web App</h3>
+          <div class="video-item">
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Performance"></iframe>
+          </div>
+          <p class="post-excerpt">Practical techniques for reducing load times and improving Core Web Vitals.</p>
+          <div class="post-actions">
+            <button class="action-btn"><i class="bi bi-play-btn"></i> Watch</button>
+            <button class="action-btn"><i class="bi-heart"></i> Like</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Accessibility: Building Inclusive Interfaces</h3>
+          <div class="video-item">
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Accessibility"></iframe>
+          </div>
+          <p class="post-excerpt">A deep dive into WCAG principles and how to apply them without sacrificing design.</p>
+          <div class="post-actions">
+            <button class="action-btn"><i class="bi bi-play-btn"></i> Watch</button>
+            <button class="action-btn"><i class="bi-heart"></i> Like</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section class="view" data-view="social">
+    <div class="container">
+      <div class="page-header">
+        <h1>My Social Circle</h1>
+        <div class="crumbs"><a href="#">Home</a> <i class="bi bi-chevron-right"></i> <span>Social</span></div>
+      </div>
+      <div class="grid grid-2">
+        <article class="card">
+          <h3 class="card-title">Friends</h3>
+          <div class="social-list">
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#4a6fa5,#f59e0b)">JS</div>
+              <div>
+                <div class="name">Jordan Smith</div>
+                <div class="status">Online · 2m ago</div>
+              </div>
+              <button class="follow-btn following">Following</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#355682,#f39c12)">MS</div>
+              <div>
+                <div class="name">Maya Santos</div>
+                <div class="status">Offline</div>
+              </div>
+              <button class="follow-btn">Follow</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#27ae60,#355682)">RK</div>
+              <div>
+                <div class="name">Ravi Kapoor</div>
+                <div class="status">Online · 1h ago</div>
+              </div>
+              <button class="follow-btn following">Following</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#e74c3c,#f59e0b)">DT</div>
+              <div>
+                <div class="name">Diana Tan</div>
+                <div class="status">Online · 5m ago</div>
+              </div>
+              <button class="follow-btn">Follow</button>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <h3 class="card-title">Mutual Connections</h3>
+          <div class="social-list">
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#f39c12,#4a6fa5)">AP</div>
+              <div>
+                <div class="name">Amelia Park</div>
+                <div class="status">Following you</div>
+              </div>
+              <button class="follow-btn">Follow</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#355682,#f39c12)">SK</div>
+              <div>
+                <div class="name">Sam Kowalski</div>
+                <div class="status">Following you</div>
+              </div>
+              <button class="follow-btn">Follow</button>
+            </div>
+            <div class="social-item">
+              <div class="avatar-sm" style="background:linear-gradient(135deg,#27ae60,#355682)">LO</div>
+              <div>
+                <div class="name">Lena Ortiz</div>
+                <div class="status">Following you</div>
+              </div>
+              <button class="follow-btn">Follow</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="view" data-view="profile">
+    <div class="container">
+      <div class="page-header">
+        <h1>My Profile</h1>
+        <div class="crumbs"><a href="#">Home</a> <i class="bi bi-chevron-right"></i> <span>Profile</span></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card user-card">
+          <div class="avatar-lg" style="background:linear-gradient(135deg,var(--primary),var(--accent))">AC</div>
+          <h3>Alex Chen</h3>
+          <div class="role">Web Developer & Designer</div>
+          <p class="bio">Hi, I'm Alex — a front-end engineer building thoughtful interfaces. I write about CSS, design systems, and the craft of building software that people love.</p>
+          <div class="stats">
+            <div class="stat-chip"><i class="bi bi-people"></i> 1,284 Followers</div>
+            <div class="stat-chip"><i class="bi bi-heart"></i> 4,892 Likes</div>
+            <div class="stat-chip"><i class="bi bi-chat"></i> 2,103 Messages</div>
+            <div class="stat-chip"><i class="bi bi-star"></i> 3.9 Rating</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">About</h3>
+          <p class="card-body">Based in San Francisco. Currently working at Northwind Labs. Previously at Pixel & Paper. I'm always open to interesting side projects.</p>
+          <h4 class="card-title">Contact</h4>
+          <p class="card-body"><i class="bi bi-envelope"></i> alex.chen@example.com</p>
+          <p class="card-body"><i class="bi bi-link-45deg"></i> linkedin.com/in/alexchen</p>
+          <h4 class="card-title">Skills</h4>
+          <div class="tag-list">
+            <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JavaScript</span>
+            <span class="tag">TypeScript</span><span class="tag">React</span><span class="tag">Node.js</span>
+            <span class="tag">Design Systems</span><span class="tag">Accessibility</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Private Messages</h3>
+        <div id="msgList" class="message-list"></div>
+        <div class="empty-state" id="msgEmpty">
+          <i class="bi bi-envelope"></i>
+          <p>No messages yet. Send one to get started!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>© 2025 Alex Chen · Built with love and a lot of coffee</p>
+  </div>
+</footer>
+
+<!-- Login Modal -->
+<div class="modal-backdrop hidden" id="loginModal">
+  <div class="modal">
+    <button class="btn btn-sm btn-outline" id="closeModal" style="margin-bottom:16px"><i class="bi bi-x"></i> Close</button>
+    <h3 id="loginTitle">Welcome back</h3>
+    <p class="modal-body" id="loginBody">Sign in to continue to Alex's blog.</p>
+    <form id="loginForm" class="compose-form" style="display:none">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
+        <button class="btn btn-outline" type="button" id="switchToRegister">Create account</button>
+      </div>
+    </form>
+    <form id="registerForm" class="compose-form">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="regUsername" placeholder="alexchen" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" placeholder="At least 8 characters" required minlength="8">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-person-plus"></i> Create Account</button>
+        <button class="btn btn-outline" type="button" id="switchToLogin">Already have an account?</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ---------- State ----------
+const STORAGE = {
+  users: 'alex_blog_users',
+  messages: 'alex_blog_messages',
+  followers: 'alex_blog_followers',
+  auth: 'alex_blog_auth'
+};
+
+const state = {
+  user: loadAuth(),
+  messages: loadMessages(),
+  followers: loadFollowers(),
+  currentView: 'home'
+};
+
+function loadAuth() {
+  try { return JSON.parse(localStorage.getItem(STORAGE.auth)) || null; }
+  catch { return null; }
+}
+function saveAuth(u) { localStorage.setItem(STORAGE.auth, JSON.stringify(u)); }
+function loadMessages() {
+  try { return JSON.parse(localStorage.getItem(STORAGE.messages)) || []; }
+  catch { return []; }
+}
+function saveMessages(ms) { localStorage.setItem(STORAGE.messages, JSON.stringify(ms)); }
+function loadFollowers() {
+  try { return JSON.parse(localStorage.getItem(STORAGE.followers)) || []; }
+  catch { return []; }
+}
+function saveFollowers(f) { localStorage.setItem(STORAGE.followers, JSON.stringify(f)); }
+
+// ---------- Helpers ----------
+function $$(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
+function $$(id) { return document.getElementById(id); }
+function toast(msg, type='success') {
+  const t = $$('toast')[0];
+  t.textContent = msg;
+  t.className = 'toast' + (type === 'error' ? ' alert-danger' : ' alert-success');
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+function openModal() {
+  $$('#loginModal')[0].classList.remove('hidden');
+  $$('#loginForm')[0].style.display = 'none';
+  $$('#registerForm')[0].style.display = 'block';
+  $$('#loginTitle')[0].textContent = 'Welcome back';
+  $$('#loginBody')[0].textContent = 'Sign in to continue to Alex\'s blog.';
+  $$('#switchToRegister')[0].textContent = 'Create account';
+  $$('#loginForm')[0].reset();
+  $$('#registerForm')[0].reset();
+}
+function closeModal() { $$('#loginModal')[0].classList.add('hidden'); }
+
+// ---------- Auth ----------
+function loginUser(username) {
+  state.user = { username };
+  saveAuth(state.user);
+  toast(`Welcome back, ${username}!`, 'success');
+  render();
+}
+function logoutUser() {
+  state.user = null;
+  saveAuth(null);
+  toast('You have been logged out', 'success');
+  render();
+}
+function toggleFollow(userId) {
+  const idx = state.followers.findIndex(f => f.id === userId);
+  if (idx >= 0) {
+    state.followers.splice(idx, 1);
+    toast('Unfollowed', 'success');
+  } else {
+    state.followers.push({ id: userId, name: getUserName(userId) });
+    toast('Following', 'success');
+  }
+  saveFollowers(state.followers);
+  render();
+}
+
+// ---------- Messaging ----------
+function sendMessage(from, to, text) {
+  const now = new Date();
+  const msg = { from, to, text, time: now };
+  state.messages.push(msg);
+  saveMessages(state.messages);
+  toast('Message sent!', 'success');
+  render();
+}
+function getMessagesForUser(user) {
+  return state.messages.filter(m => m.from === user || m.to === user);
+}
+
+// ---------- Rendering ----------
+function render() {
+  // Sidebar
+  renderSidebar();
+  // Header nav active
+  $$('.nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.view === state.currentView);
+  });
+  // View content
+  $$('.view').forEach(v => v.classList.toggle('active', v.dataset.view === state.currentView));
+  // Profile
+  if (state.currentView === 'profile') renderProfile();
+  // Messages badge
+  updateBadge();
+}
+
+function renderSidebar() {
+  const u = state.user;
+  const followersCount = state.followers.length;
+  const followingCount = getFollowingCount();
+  const postsCount = 4;
+  const likesCount = 4892;
+  const commentsCount = 2103;
+
+  $$('.stat-card strong').forEach((el, i) => {
+    const vals = [followersCount, followingCount, postsCount, likesCount];
+    el.textContent = vals[i];
+  });
+  $$('.stat-card span').forEach((el, i) => {
+    const labels = ['Followers', 'Following', 'Posts', 'Likes'];
+    el.textContent = labels[i];
+  });
+
+  // Follow button
+  const followBtn = $$('.sidebar-follow .follow-btn')[0];
+  if (u) {
+    followBtn.textContent = 'Unfollow';
+    followBtn.classList.add('following');
+  } else {
+    followBtn.textContent = 'Follow';
+    followBtn.classList.remove('following');
+  }
+}
+
+function renderProfile() {
+  const u = state.user;
+  const msgList = $$('#msgList')[0];
+  const msgEmpty = $$('#msgEmpty')[0];
+  const msgs = getMessagesForUser(u.username);
+  msgList.innerHTML = '';
+  if (msgs.length === 0) {
+    msgEmpty.style.display = 'block';
+  } else {
+    msgEmpty.style.display = 'none';
+    msgs.forEach(m => {
+      const item = document.createElement('div');
+      item.className = 'message-item';
+      item.innerHTML = `
+        <div class="from">${m.from}</div>
+        <div class="time">${formatTime(m.time)}</div>
+        <div class="body">${escapeHtml(m.text)}</div>
+      `;
+      msgList.appendChild(item);
+    });
+  }
+}
+
+function getFollowingCount() {
+  return state.followers.filter(f => f.following).length;
+}
+
+function formatTime(d) {
+  const h = d.getHours().toString().padStart(2,'0');
+  const m = d.getMinutes().toString().padStart(2,'0');
+  return `${h}:${m}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function updateBadge() {
+  const badge = $$('#msgBadge')[0];
+  const count = state.messages.filter(m => m.to === state.user.username && !m.read).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline-flex' : 'none';
+}
+
+// ---------- Navigation ----------
+$$('.nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const view = a.dataset.view;
+    state.currentView = view;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+$$('[data-view]').forEach(el => {
+  el.addEventListener('click', e => {
+    if (el.tagName === 'A') {
+      e.preventDefault();
+      const view = el.dataset.view;
+      state.currentView = view;
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+});
+
+// ---------- Article preview ----------
+function viewArticle(id) {
+  const titles = ['Building Responsive Layouts with CSS Grid', 'The Art of Clean Code: Naming Conventions That Stick',
+    'Designing for Dark Mode: A Practical Approach', 'State Management in Modern JavaScript'];
+  const body = titles[id - 1] + ' — A comprehensive guide covering everything from fundamentals to advanced patterns. Perfect for developers looking to deepen their craft.';
+  toast(body, 'success');
+}
+
+// ---------- Photo grid ----------
+function initPhotoGrid() {
+  const grid = $$('#photoGrid')[0];
+  grid.innerHTML = '';
+  const photos = ['pic1','pic2','pic3','pic4','pic5','pic6','pic7','pic8','pic9','pic10'];
+  photos.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'photo-item';
+    item.innerHTML = `<img src="https://picsum.photos/seed/${p}/600/400" alt="${p}">`;
+    grid.appendChild(item);
+  });
+}
+
+// ---------- Social follow ----------
+$$('.social-item .follow-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const following = btn.classList.contains('following');
+    const name = btn.parentElement.querySelector('.name').textContent;
+    const id = name.toLowerCase().replace(/\s+/g,'');
+    if (following) {
+      state.followers = state.followers.filter(f => f.id !== id);
+    } else {
+      state.followers.push({ id, name });
+    }
+    saveFollowers(state.followers);
+    btn.classList.toggle('following', !following);
+    btn.textContent = following ? 'Follow' : 'Following';
+    toast(following ? 'Unfollowed' : 'Following', 'success');
+  });
+});
+
+// ---------- Messages ----------
+$$('.header-right .icon-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.user) {
+      render();
+      $$('#msgList')[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      openModal();
+    }
+  });
+});
+
+$$('.compose-form').forEach(form => {
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const from = state.user.username;
+    const to = form.querySelector('input[type="text"]').value.trim();
+    const text = form.querySelector('textarea').value.trim();
+    if (!to || !text) return;
+    sendMessage(from, to, text);
+    form.reset();
+    closeModal();
+  });
+});
+
+// ---------- Login / Register ----------
+$$('.nav a').forEach(a => {
+  if (a.dataset.view === 'profile' && state.user) {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      openModal();
+    });
+  }
+});
+
+$$('.btn-outline').forEach(b => {
+  b.addEventListener('click', () => {
+    const label = b.textContent;
+    if (label.includes('Create account')) {
+      $$('#loginForm')[0].style.display = 'none';
+      $$('#registerForm')[0].style.display = 'block';
+      $$('#loginTitle')[0].textContent = 'Create your account';
+      $$('#loginBody')[0].textContent = 'Join Alex\'s blog and start connecting.';
+      $$('#switchToRegister')[0].textContent = 'Already have an account?';
+    } else if (label.includes('Already have')) {
+      $$('#loginForm')[0].style.display = 'block';
+      $$('#registerForm')[0].style.display = 'none';
+      $$('#loginTitle')[0].textContent = 'Welcome back';
+      $$('#loginBody')[0].textContent = 'Sign in to continue to Alex\'s blog.';
+      $$('#switchToRegister')[0].textContent = 'Create account';
+    }
+  });
+});
+
+$$('form').forEach(f => {
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const email = f.querySelector('#loginEmail')?.value;
+    const username = f.querySelector('#regUsername')?.value;
+    if (f.id === 'loginForm') {
+      if (email) loginUser(username || email);
+    } else {
+      if (username && email) {
+        state.user = { username };
+        saveAuth(state.user);
+        toast(`Account created! Welcome, ${username}!`, 'success');
+        render();
+      }
+    }
+  });
+});
+
+// ---------- Close modal ----------
+$$('body').addEventListener('click', e => {
+  if (e.target.id === 'closeModal' || e.target.id === 'loginModal') closeModal();
+});
+
+// ---------- Init ----------
+initPhotoGrid();
+render();
+</script>
+</body>
+</html>

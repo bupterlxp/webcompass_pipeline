@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chunked File Upload</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 24px;
+  text-align: center;
+}
+
+.app h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  color: #1a1a1a;
+}
+
+.app p {
+  margin: 0 0 24px;
+  color: #6b7280;
+}
+
+.dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 48px 24px;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+.dropzone:hover,
+.dropzone:focus-visible {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  transform: translateY(-2px);
+}
+
+.dropzone.dragover {
+  border-color: #4f46e5;
+  background: #dbeafe;
+  border-style: solid;
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropzone-icon {
+  width: 56px;
+  height: 56px;
+  color: #93c5fd;
+  margin-bottom: 8px;
+}
+
+.dropzone-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dropzone-sub {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+
+.info label {
+  font-size: 14px;
+  color: #475569;
+}
+
+.info input {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.progress {
+  margin: 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-info > span {
+  font-size: 14px;
+  color: #475569;
+}
+
+.progress-info > span:first-child {
+  font-weight: 600;
+}
+
+.progress-info > span:last-child {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.status {
+  min-height: 24px;
+  color: #1a1a1a;
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+
+.status.success { color: #10b981; }
+.status.error { color: #ef4444; }
+
+.btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.btn:focus-visible {
+  outline: 3px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.btn-primary:hover { background: #3730a3; }
+
+.btn-ghost {
+  background: transparent;
+  color: #475569;
+}
+
+.btn-ghost:hover { background: #f1f5f9; }
+
+.hidden { display: none !important; }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .app { padding: 16px; }
+  .dropzone { padding: 32px 16px; }
+  .dropzone-icon { width: 44px; height: 44px; }
+  .dropzone-title { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1>Chunked File Upload Demo</h1>
+    <p>Drag and drop a file below, or click to browse. Uploads are split into chunks for resilience.</p>
+
+    <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload file">
+      <div class="dropzone-content">
+        <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <p class="dropzone-title">Drop files here</p>
+        <p class="dropzone-sub">or click to browse</p>
+        <input type="file" id="fileInput" hidden />
+      </div>
+    </div>
+
+    <div class="info">
+      <label for="chunkSize">Chunk size (MB):</label>
+      <input type="number" id="chunkSize" value="2" min="1" max="100" />
+      <span id="chunkCount" class="info-value">0 chunks</span>
+    </div>
+
+    <div id="progress" class="progress hidden">
+      <div class="progress-bar" id="progressBar"></div>
+      <div class="progress-info">
+        <span id="progressText">0%</span>
+        <span id="progressFile">—</span>
+      </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <button id="startBtn" class="btn btn-primary">Start Upload</button>
+    <button id="resetBtn" class="btn btn-ghost">Reset</button>
+  </div>
+
+  <script>(function () {
+  'use strict';
+
+  const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB
+  const MAX_CHUNKS = 100;
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const chunkSizeInput = document.getElementById('chunkSize');
+  const chunkCountEl = document.getElementById('chunkCount');
+  const progress = document.getElementById('progress');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const progressFile = document.getElementById('progressFile');
+  const statusEl = document.getElementById('status');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let file = null;
+  let totalChunks = 0;
+  let currentChunk = 0;
+  let isUploading = false;
+  let totalBytes = 0;
+  let uploadedBytes = 0;
+
+  function getChunkCount(file) {
+    const size = file.size;
+    if (size <= CHUNK_SIZE) return 1;
+    return Math.min(Math.ceil(size / CHUNK_SIZE), MAX_CHUNKS);
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  }
+
+  function updateProgress() {
+    if (totalBytes === 0) return;
+    const pct = Math.round((uploadedBytes / totalBytes) * 100);
+    progressBar.style.width = pct + '%';
+    progressText.textContent = pct + '%';
+    progressFile.textContent = `${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)}`;
+  }
+
+  function setStatus(text, type) {
+    statusEl.textContent = text;
+    statusEl.className = 'status ' + (type || '');
+  }
+
+  function resetUI() {
+    file = null;
+    totalChunks = 0;
+    currentChunk = 0;
+    isUploading = false;
+    totalBytes = 0;
+    uploadedBytes = 0;
+    updateProgress();
+    setStatus('Ready. Drag and drop a file to begin.', '');
+    startBtn.disabled = true;
+    progress.classList.add('hidden');
+    resetBtn.disabled = true;
+  }
+
+  // Dropzone events
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('dragover');
+    });
+  });
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files && files.length) handleFile(files[0]);
+  });
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length) handleFile(e.target.files[0]);
+    fileInput.value = '';
+  });
+
+  function handleFile(f) {
+    if (f.size === 0) {
+      setStatus('Invalid file. Please select a non-empty file.', 'error');
+      return;
+    }
+    file = f;
+    totalChunks = getChunkCount(f);
+    totalBytes = f.size;
+    currentChunk = 0;
+    uploadedBytes = 0;
+    updateProgress();
+    chunkCountEl.textContent = totalChunks + ' chunks';
+    setStatus(`Selected: ${f.name} (${formatBytes(f.size)})`, '');
+    startBtn.disabled = false;
+    resetBtn.disabled = false;
+    progress.classList.remove('hidden');
+  }
+
+  async function uploadChunk() {
+    if (!file || isUploading) return;
+    isUploading = true;
+    setStatus('Uploading chunk…', '');
+
+    const chunkSize = parseInt(chunkSizeInput.value, 10) * 1024 * 1024;
+    const start = currentChunk * chunkSize;
+    const end = Math.min(start + chunkSize, file.size);
+    const chunk = file.slice(start, end);
+
+    const formData = new FormData();
+    formData.append('file', chunk);
+    formData.append('chunkIndex', currentChunk);
+    formData.append('chunkCount', totalChunks);
+    formData.append('fileName', file.name);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setStatus('Upload failed: ' + (data.message || 'Unknown error'), 'error');
+        isUploading = false;
+        return;
+      }
+      uploadedBytes = end;
+      currentChunk++;
+      updateProgress();
+      setStatus(`Uploaded ${formatBytes(uploadedBytes)} of ${formatBytes(totalBytes)}`, 'success');
+    } catch (err) {
+      setStatus('Network error during upload.', 'error');
+      isUploading = false;
+      return;
+    } finally {
+      isUploading = false;
+    }
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (!file) return;
+    if (currentChunk >= totalChunks) {
+      setStatus('All chunks uploaded. Reassembling…', 'success');
+      setTimeout(() => {
+        setStatus('Upload complete! File reassembled successfully.', 'success');
+      }, 1500);
+    } else {
+      uploadChunk();
+    }
+  });
+
+  resetBtn.addEventListener('click', resetUI);
+
+  // Auto-upload on file change
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+})();
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

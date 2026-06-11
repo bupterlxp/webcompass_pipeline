@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Screenshot Tool</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+  }
+  h1, h2 {
+    color: #fff;
+    text-align: center;
+  }
+  h1 {
+    font-size: 2.4rem;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 1.2rem;
+    margin: 24px 0 8px;
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  input, button {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 1rem;
+    transition: all 0.2s;
+  }
+  input:focus, button:focus {
+    outline: none;
+    border-color: #fff;
+    background: rgba(255,255,255,0.2);
+  }
+  button {
+    background: #fff;
+    color: #333;
+    font-weight: 600;
+  }
+  button:hover {
+    background: #e9ecef;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .preview {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+  }
+  .preview canvas {
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    background: #000;
+  }
+  .status {
+    text-align: center;
+    padding: 12px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    font-size: 0.9rem;
+  }
+  .status.success { background: rgba(46, 204, 113, 0.2); }
+  .status.error { background: rgba(231, 76, 60, 0.2); }
+</style>
+</head>
+<body>
+  <h1>🌐 Page Screenshot Tool</h1>
+  <p class="status" id="status">Ready. Enter a URL and click "Take Screenshot".</p>
+
+  <div class="card">
+    <label for="urlInput">Target URL</label>
+    <input type="url" id="urlInput" placeholder="https://example.com" value="https://example.com" />
+    <button id="captureBtn" disabled>📷 Take Screenshot</button>
+  </div>
+
+  <div class="preview" id="preview">
+    <canvas id="screenshot" width="600" height="400" style="display:none;"></canvas>
+    <img id="screenshotImg" alt="Screenshot preview" />
+  </div>
+
+  <div class="card">
+    <h2>How it works</h2>
+    <p>This tool captures the visible portion of the page you're viewing. For full-page screenshots, a server-side headless browser is recommended.</p>
+  </div>
+
+  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const captureBtn = document.getElementById('captureBtn');
+    const statusEl = document.getElementById('status');
+    const canvas = document.getElementById('screenshot');
+    const img = document.getElementById('screenshotImg');
+
+    captureBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        setStatus('error', 'Please enter a URL first.');
+        return;
+      }
+
+      // Disable button while capturing
+      captureBtn.disabled = true;
+      setStatus('info', 'Capturing screenshot…');
+
+      try {
+        const { width, height } = getViewport();
+        const options = {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          windowWidth: width,
+          windowHeight: height,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false
+        };
+
+        const result = await html2canvas(document.body, options);
+        const dataUrl = result.toDataURL('image/png');
+
+        // Display
+        img.src = dataUrl;
+        img.style.display = 'block';
+        canvas.style.display = 'none';
+
+        // Download
+        const link = document.createElement('a');
+        link.download = `${new Date().toISOString().replace(/[:.]/g, '-')}_screenshot.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setStatus('success', `Screenshot saved. ${result.width} × ${result.height} pixels.`);
+      } catch (err) {
+        console.error(err);
+        setStatus('error', `Capture failed: ${err.message}`);
+      } finally {
+        captureBtn.disabled = false;
+      }
+    });
+
+    function getViewport() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = window.innerWidth * dpr;
+      const h = window.innerHeight * dpr;
+      return { width: w, height: h };
+    }
+
+    function setStatus(type, message) {
+      statusEl.className = 'status ' + type;
+      statusEl.textContent = message;
+    }
+
+    // Auto-enable button if URL is present
+    urlInput.addEventListener('input', () => {
+      captureBtn.disabled = urlInput.value.trim().length === 0;
+    });
+  </script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

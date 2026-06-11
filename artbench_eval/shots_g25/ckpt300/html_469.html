@@ -1,0 +1,67 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SEO Analysis Report — {report['url']}</title>
+<style>
+body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 40px; color: #1f2937; line-height: 1.6; }}
+h1, h2, h3 {{ color: #0f172a; margin-top: 24px; }}
+h1 {{ font-size: 28px; border-bottom: 2px solid #111827; padding-bottom: 10px; }}
+h2 {{ font-size: 20px; margin-top: 32px; }}
+h3 {{ font-size: 16px; color: #334155; }}
+p {{ margin: 8px 0; }}
+ul {{ padding-left: 20px; }}
+table {{ border-collapse: collapse; width: 100%; margin: 16px 0; }}
+th, td {{ border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }}
+th {{ background: #f3f4f6; font-weight: 600; }}
+.green {{ color: #16a34a; font-weight: 600; }}
+.yellow {{ color: #d97706; font-weight: 600; }}
+.red {{ color: #dc2626; font-weight: 600; }}
+code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }}
+</style>
+</head>
+<body>
+<h1>SEO Analysis Report</h1>
+<p><strong>URL:</strong> <code>{report['url']}</code> · <strong>Status:</strong> {report['status_code']}</p>
+
+<h2>Meta Information</h2>
+<table>
+<tr><th>Tag</th><th>Value</th></tr>
+<tr><td>Meta Title</td><td><code>{report['title'] or '—'}</code></td></tr>
+<tr><td>Meta Description</td><td>{report['meta_description'][:120] + '…' if len(report['meta_description']) > 120 else report['meta_description']}</td></tr>
+<tr><td>Meta Description Length</td><td>{report['meta_description_length']}</td></tr>
+<tr><td>Meta Robots</td><td>{report['meta_robots'] or '—'}</td></tr>
+<tr><td>Canonical</td><td>{report['canonical'] or '—'}</td></tr>
+<tr><td>Viewport</td><td>{report['viewport'] or '—'}</td></tr>
+<tr><td>Charset</td><td>{report['charset'] or '—'}</td></tr>
+<tr><td>Open Graph Title</td><td>{report['og_title'] or '—'}</td></tr>
+<tr><td>Twitter Card</td><td>{report['twitter_card'] or '—'}</td></tr>
+<tr><td>Twitter Title</td><td>{report['twitter_title'] or '—'}</td></tr>
+</table>
+
+<h2>Headings</h2>
+{headings_html or '<p>No headings found.</p>'}
+
+<h2>Keyword Density</h2>
+<ul>
+{keywords_html or '<li>No keywords detected.</li>'}
+</ul>
+<p><strong>Total words:</strong> {report['total_words']} · <strong>Unique keywords:</strong> {report['keywords_count']}</p>
+
+<h2>Links</h2>
+<p><strong>Internal:</strong> {report['internal_links']} · <strong>External:</strong> {report['external_links']} · <strong>Broken:</strong> {report['broken_links']}</p>
+{broken_html or '<p>No broken links detected.</p>'}
+
+<h2>Images</h2>
+<p><strong>Images without alt text:</strong> {report['image_alt_count']}</p>
+{alt_html or '<p>All images have alt text.</p>'}
+
+<h2>Performance &amp; UX</h2>
+<p><strong>Page Speed Hint:</strong> {report['page_speed']}</p>
+<p><strong>Mobile Friendly:</strong> {report['mobile_friendly']}</p>
+<p><strong>Robots Tag:</strong> {report['robots_tag']}</p>
+<p><strong>Article Published:</strong> {report['article_published'] or '—'}</p>
+<p><strong>Article Modified:</strong> {report['article_modified'] or '—'}</p>
+<p><strong>Article Author:</strong> {report['article_author'] or '—'}</p>
+
+</body>
+</html>

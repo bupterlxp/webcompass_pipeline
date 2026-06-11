@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Professional Blog</title>
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Header Styles */
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #3498db;
+        }
+        
+        /* Main Content Styles */
+        main {
+            padding: 2rem 0;
+        }
+        
+        .section {
+            margin-bottom: 3rem;
+        }
+        
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        /* Homepage Content */
+        .homepage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        
+        .card p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+        
+        .card a {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+        
+        .card a:hover {
+            background: #2980b9;
+        }
+        
+        /* Articles Section */
+        .articles-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .article-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .article-image {
+            height: 200px;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+        }
+        
+        .article-content {
+            padding: 1.5rem;
+        }
+        
+        .article-content h3 {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        
+        .article-meta {
+            display: flex;
+            justify-content: space-between;
+            color: #777;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .article-excerpt {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+        
+        /* Photos Section */
+        .photos-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .photo-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            height: 200px;
+            background: #ddd;
+            cursor: pointer;
+        }
+        
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+        
+        .photo-item:hover img {
+            transform: scale(1.05);
+        }
+        
+        /* Videos Section */
+        .videos-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .video-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .video-thumbnail {
+            width: 100%;
+            height: 200px;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            position: relative;
+        }
+        
+        .video-play-btn {
+            background: #3498db;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .video-play-btn:hover {
+            background: #2980b9;
+        }
+        
+        .video-info {
+            padding: 1.5rem;
+        }
+        
+        .video-info h3 {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        
+        /* Social Circle */
+        .social-circle {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .social-member {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1rem;
+            width: 150px;
+            text-align: center;
+        }
+        
+        .social-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .social-name {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .social-stats {
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        /* Login/Registration */
+        .auth-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .auth-form input, .auth-form textarea {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .auth-form button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .auth-form button:hover {
+            background: #2980b9;
+        }
+        
+        .auth-toggle {
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .auth-toggle a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .auth-toggle a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Profile Section */
+        .profile-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .profile-info {
+            flex: 1;
+        }
+        
+        .profile-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .profile-bio {
+            color: #555;
+            margin-bottom: 1rem;
+        }
+        
+        .profile-stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .stat-label {
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        /* Messaging Section */
+        .messaging-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+        
+        .messaging-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .messaging-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+        
+        .messaging-controls {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .messaging-controls button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .messaging-controls button:hover {
+            background: #f0f0f0;
+        }
+        
+        .messaging-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+        }
+        
+        .message-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        .message-sender {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+        
+        .message-text {
+            color: #555;
+        }
+        
+        .message-time {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 0.25rem;
+        }
+        
+        /* Footer */
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1rem 0;
+        }
+        
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+        }
+        
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-links {
+                margin-top: 1rem;
+            }
+            
+            .profile-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .profile-avatar {
+                margin-bottom: 1rem;
+            }
+            
+            .homepage-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container header-container">
+            <a href="#" class="logo">My Professional Blog</a>
+            <nav class="nav-links">
+                <a href="#home">Home</a>
+                <a href="#articles">Articles</a>
+                <a href="#photos">Photos</a>
+                <a href="#videos">Videos</a>
+                <a href="#social">Social Circle</a>
+                <a href="#login">Login</a>
+                <a href="#register">Register</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Homepage Section -->
+        <section id="home" class="section">
+            <h2 class="section-title">Welcome to My Blog</h2>
+            <div class="homepage-grid">
+                <div class="card">
+                    <h3>Latest Articles</h3>
+                    <p>Discover my latest thoughts and insights on technology, design, and development.</p>
+                    <a href="#articles">View All Articles</a>
+                </div>
+                <div class="card">
+                    <h3>Photo Gallery</h3>
+                    <p>Explore my favorite moments captured through the lens.</p>
+                    <a href="#photos">View All Photos</a>
+                </div>
+                <div class="card">
+                    <h3>Video Collection</h3>
+                    <p>Watch my tutorials, presentations, and creative projects.</p>
+                    <a href="#videos">View All Videos</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Articles Section -->
+        <section id="articles" class="section">
+            <h2 class="section-title">My Articles</h2>
+            <div class="articles-container">
+                <div class="article-card">
+                    <div class="article-image">
+                        <span>Article Image Placeholder</span>
+                    </div>
+                    <div class="article-content">
+                        <h3>Article Title 1</h3>
+                        <div class="article-meta">
+                            <span>By: John Doe</span>
+                            <span>May 15, 2023</span>
+                        </div>
+                        <p class="article-excerpt">This is a sample article about web development best practices. Learn how to build scalable applications with modern technologies.</p>
+                        <a href="#">Read More</a>
+                    </div>
+                </div>
+                <div class="article-card">
+                    <div class="article-image">
+                        <span>Article Image Placeholder</span>
+                    </div>
+                    <div class="article-content">
+                        <h3>Article Title 2</h3>
+                        <div class="article-meta">
+                            <span>By: John Doe</span>
+                            <span>May 10, 2023</span>
+                        </div>
+                        <p class="article-excerpt">Discover the latest trends in UI/UX design and how they're shaping the future of digital experiences.</p>
+                        <a href="#">Read More</a>
+                    </div>
+                </div>
+                <div class="article-card">
+                    <div class="article-image">
+                        <span>Article Image Placeholder</span>
+                    </div>
+                    <div class="article-content">
+                        <h3>Article Title 3</h3>
+                        <div class="article-meta">
+                            <span>By: John Doe</span>
+                            <span>May 5, 2023</span>
+                        </div>
+                        <p class="article-excerpt">Explore the fundamentals of responsive web design and how to create websites that work across all devices.</p>
+                        <a href="#">Read More</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Photos Section -->
+        <section id="photos" class="section">
+            <h2 class="section-title">My Photos</h2>
+            <div class="photos-container">
+                <div class="photo-item">
+                    <img src="https://via.placeholder.com/300x200?text=Photo+1" alt="Photo 1">
+                </div>
+                <div class="photo-item">
+                    <img src="https://via.placeholder.com/300x200?text=Photo+2" alt="Photo 2">
+                </div>
+                <div class="photo-item">
+                    <img src="https://via.placeholder.com/300x200?text=Photo+3" alt="Photo 3">
+                </div>
+                <div class="photo-item">
+                    <img src="https://via.placeholder.com/300x200?text=Photo+4" alt="Photo 4">
+                </div>
+                <div class="photo-item">
+                    <img src="https://via.placeholder.com/300x200?text=Photo+5" alt="Photo 5">
+                </div>
+                <div class="photo-item">
+                    <img src="https://via.placeholder.com/300x200?text=Photo+6" alt="Photo 6">
+                </div>
+            </div>
+        </section>
+
+        <!-- Videos Section -->
+        <section id="videos" class="section">
+            <h2 class="section-title">My Videos</h2>
+            <div class="videos-container">
+                <div class="video-card">
+                    <div class="video-thumbnail">
+                        <div class="video-play-btn">▶</div>
+                        <span>Video Title 1</span>
+                    </div>
+                    <div class="video-info">
+                        <h3>Video Title 1</h3>
+                        <p>Duration: 5:30 | Views: 12,450</p>
+                        <p>Description: Learn how to create beautiful animations with CSS.</p>
+                        <a href="#">Watch Now</a>
+                    </div>
+                </div>
+                <div class="video-card">
+                    <div class="video-thumbnail">
+                        <div class="video-play-btn">▶</div>
+                        <span>Video Title 2</span>
+                    </div>
+                    <div class="video-info">
+                        <h3>Video Title 2</h3>
+                        <p>Duration: 8:15 | Views: 8,720</p>
+                        <p>Description: Master JavaScript ES6+ features for modern web development.</p>
+                        <a href="#">Watch Now</a>
+                    </div>
+                </div>
+                <div class="video-card">
+                    <div class="video-thumbnail">
+                        <div class="video-play-btn">▶</div>
+                        <span>Video Title 3</span>
+                    </div>
+                    <div class="video-info">
+                        <h3>Video Title 3</h3>
+                        <p>Duration: 12:45 | Views: 25,600</p>
+                        <p>Description: Build a complete React application from scratch.</p>
+                        <a href="#">Watch Now</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Social Circle Section -->
+        <section id="social" class="section">
+            <h2 class="section-title">My Social Circle</h2>
+            <div class="social-circle">
+                <div class="social-member">
+                    <div class="social-avatar">
+                        <span>J</span>
+                    </div>
+                    <div class="social-name">Jane Smith</div>
+                    <div class="social-stats">
+                        <span>Posts: 42</span>
+                        <span>Followers: 1,200</span>
+                    </div>
+                </div>
+                <div class="social-member">
+                    <div class="social-avatar">
+                        <span>A</span>
+                    </div>
+                    <div class="social-name">Alex Johnson</div>
+                    <div class="social-stats">
+                        <span>Posts: 35</span>
+                        <span>Followers: 850</span>
+                    </div>
+                </div>
+                <div class="social-member">
+                    <div class="social-avatar">
+                        <span>M</span>
+                    </div>
+                    <div class="social-name">Mike Chen</div>
+                    <div class="social-stats">
+                        <span>Posts: 28</span>
+                        <span>Followers: 1,500</span>
+                    </div>
+                </div>
+                <div class="social-member">
+                    <div class="social-avatar">
+                        <span>S</span>
+                    </div>
+                    <div class="social-name">Sarah Williams</div>
+                    <div class="social-stats">
+                        <span>Posts: 31</span>
+                        <span>Followers: 980</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Login/Registration Section -->
+        <section class="section">
+            <h2 class="section-title">Login & Registration</h2>
+            <div class="auth-section">
+                <div class="auth-form">
+                    <h3>Login</h3>
+                    <input type="email" placeholder="Email" required>
+                    <input type="password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                    <div class="auth-toggle">
+                        <a href="#register">Don't have an account? Register</a>
+                    </div>
+                </div>
+                
+                <div class="auth-form">
+                    <h3>Register</h3>
+                    <input type="text" placeholder="Full Name" required>
+                    <input type="email" placeholder="Email" required>
+                    <input type="password" placeholder="Password" required>
+                    <input type="password" placeholder="Confirm Password" required>
+                    <button type="submit">Register</button>
+                    <div class="auth-toggle">
+                        <a href="#login">Already have an account? Login</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section class="section">
+            <h2 class="section-title">My Profile</h2>
+            <div class="profile-section">
+                <div class="profile-avatar">
+                    <span>J</span>
+                </div>
+                <div class="profile-info">
+                    <div class="profile-name">John Doe</div>
+                    <div class="profile-bio">Web Developer & Tech Enthusiast</div>
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">124</div>
+                            <div class="stat-label">Articles</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">892</div>
+                            <div class="stat-label">Followers</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">42</div>
+                            <div class="stat-label">Photos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Messaging Section -->
+        <section class="section">
+            <h2 class="section-title">Private Messaging</h2>
+            <div class="messaging-section">
+                <div class="messaging-header">
+                    <h3 class="messaging-title">Messages</h3>
+                    <div class="messaging-controls">
+                        <button>Compose</button>
+                        <button>Settings</button>
+                    </div>
+                </div>
+                <div class="messaging-list">
+                    <div class="message-item">
+                        <div class="message-content">
+                            <div class="message-sender">Sarah Williams</div>
+                            <div class="message-text">Hi John, I saw your latest article on React and wanted to say great job! I'm planning to implement some of your techniques in my project.</div>
+                            <div class="message-time">5 minutes ago</div>
+                        </div>
+                    </div>
+                    <div class="message-item">
+                        <div class="message-content">
+                            <div class="message-sender">Mike Chen</div>
+                            <div class="message-text">Hey John, your video tutorial on CSS animations was incredibly helpful. I've implemented what you showed and it's working perfectly!</div>
+                            <div class="message-time">1 hour ago</div>
+                        </div>
+                    </div>
+                    <div class="message-item">
+                        <div class="message-content">
+                            <div class="message-sender">Jane Smith</div>
+                            <div class="message-text">John, I'm looking for someone to help me with my new website project. Would you be available for a consultation next week?</div>
+                            <div class="message-time">2 hours ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="#home">Home</a>
+                <a href="#articles">Articles</a>
+                <a href="#photos">Photos</a>
+                <a href="#videos">Videos</a>
+                <a href="#social">Social Circle</a>
+                <a href="#login">Login</a>
+                <a href="#register">Register</a>
+            </div>
+            <p>&copy; 2023 My Professional Blog. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Simple JavaScript for interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add smooth scrolling for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+            
+            // Add hover effects to cards
+            document.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-5px)';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+            
+            // Add click events for video play buttons
+            document.querySelectorAll('.video-play-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    alert('Video would play here!');
+                });
+            });
+            
+            // Add message sending functionality
+            document.querySelector('.messaging-section').addEventListener('click', function(e) {
+                if (e.target.classList.contains('messaging-controls') && e.target.textContent === 'Compose') {
+                    alert('Compose message functionality would be implemented here!');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

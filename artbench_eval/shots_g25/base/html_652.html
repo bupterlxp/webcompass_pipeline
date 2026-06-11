@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Browser Task Scheduler</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .task { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    button { padding: 8px 16px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Task Scheduler</h2>
+  <div id="tasks"></div>
+  <button onclick="addTask()">Add Task</button>
+
+  <script>
+    let tasks = [];
+
+    // Request notification permission
+    if (!("Notification" in window)) {
+      alert("This browser does not support notifications.");
+    } else {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          console.log("Notifications enabled.");
+        } else {
+          console.log("Notifications not enabled.");
+        }
+      });
+    }
+
+    function addTask() {
+      const task = prompt("Enter task description (e.g., 'Daily Reminder'):");
+      if (!task) return;
+
+      const time = prompt("Enter time (e.g., '09:00'):");
+      if (!time) return;
+
+      const code = prompt("Enter JavaScript code to execute (e.g., 'location.reload()'):");
+      if (!code) return;
+
+      const taskObj = {
+        id: Date.now(),
+        description: task,
+        time: time,
+        code: code,
+        createdAt: new Date().toISOString()
+      };
+
+      tasks.push(taskObj);
+      renderTasks();
+      scheduleTask(taskObj);
+    }
+
+    function renderTasks() {
+      const container = document.getElementById("tasks");
+      container.innerHTML = "";
+      tasks.forEach(task => {
+        const div = document.createElement("div");
+        div.className = "task";
+        div.innerHTML = `
+          <strong>${task.description}</strong> - ${task.time}
+          <p>Code: ${task.code}</p>
+          <button onclick="executeTask(${task.id})">Execute Now</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function scheduleTask(task) {
+      const [hours, minutes] = task.time.split(':').map(Number);
+      const now = new Date();
+      const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+
+      // If target time is in the past, schedule for next day
+      if (targetTime <= now) {
+        targetTime.setDate(targetTime.getDate() + 1);
+      }
+
+      const timeDiff = targetTime.getTime() - now.getTime();
+      if (timeDiff <= 0) {
+        console.log("Task already passed, scheduling for next occurrence.");
+        targetTime.setDate(targetTime.getDate() + 1);
+      }
+
+      const intervalId = setTimeout(() => {
+        triggerTask(task);
+      }, timeDiff);
+
+      // Store interval ID for later cancellation
+      task.intervalId = intervalId;
+    }
+
+    function triggerTask(task) {
+      // Show notification
+      if (Notification.permission === "granted") {
+        const notification = new Notification("Task Triggered", {
+          body: `Task: ${task.description}`,
+          icon: "https://via.placeholder.com/64"
+        });
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } else {
+        console.log("Notifications not permitted.");
+      }
+
+      // Execute custom JavaScript code
+      try {
+        eval(task.code); // ⚠️ WARNING: EVAL IS UNSAFE
+        console.log(`Executed: ${task.code}`);
+      } catch (e) {
+        console.error("Error executing task code:", e);
+      }
+    }
+
+    function executeTask(id) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+
+      // Simulate task execution
+      triggerTask(task);
+    }
+
+    // Optional: Clear all tasks
+    window.addEventListener("beforeunload", () => {
+      tasks.forEach(task => {
+        if (task.intervalId) {
+          clearTimeout(task.intervalId);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

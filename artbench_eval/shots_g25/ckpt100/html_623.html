@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Echo Audio Effect Tool</title>
+<link rel="stylesheet" href="style.css">
+<style>/* styles.css not found in result */</style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+        <h1>Echo Audio Tool</h1>
+      </div>
+      <p class="tagline">Upload audio, add echo, listen & download.</p>
+    </header>
+
+    <section class="panel" aria-label="Audio upload">
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p class="dropzone-title">Click or drag an audio file here</p>
+        <p class="dropzone-sub">MP3, WAV, OGG, M4A — up to 20MB</p>
+        <input type="file" id="fileInput" accept="audio/*" hidden />
+      </div>
+      <div class="file-info" id="fileInfo" hidden>
+        <div class="file-row">
+          <span class="file-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </span>
+          <span class="file-name" id="fileName">—</span>
+        </div>
+        <div class="file-row">
+          <span class="file-meta">Duration: <span id="fileDuration">—</span></span>
+          <span class="file-meta">Sample rate: <span id="fileSample">—</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Echo controls">
+      <h2 class="panel-title">Echo Settings</h2>
+      <div class="slider-row">
+        <label for="delaySlider">Delay (ms)</label>
+        <div class="slider-wrap">
+          <input type="range" id="delaySlider" min="10" max="500" value="120" step="1" />
+          <span class="slider-value" id="delayValue">120 ms</span>
+        </div>
+      </div>
+      <div class="slider-row">
+        <label for="intensitySlider">Intensity (%)</label>
+        <div class="slider-wrap">
+          <input type="range" id="intensitySlider" min="0" max="100" value="30" step="1" />
+          <span class="slider-value" id="intensityValue">30%</span>
+        </div>
+      </div>
+      <div class="slider-row">
+        <label for="feedbackSlider">Feedback (%)</label>
+        <div class="slider-wrap">
+          <input type="range" id="feedbackSlider" min="0" max="100" value="15" step="1" />
+          <span class="slider-value" id="feedbackValue">15%</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Playback controls">
+      <h2 class="panel-title">Playback</h2>
+      <div class="controls">
+        <button id="playBtn" class="btn btn-primary" aria-label="Play">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <span>Play</span>
+        </button>
+        <button id="pauseBtn" class="btn" aria-label="Pause" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          <span>Pause</span>
+        </button>
+        <button id="stopBtn" class="btn" aria-label="Stop">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+          <span>Stop</span>
+        </button>
+        <button id="downloadBtn" class="btn btn-ghost" aria-label="Download">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Download</span>
+        </button>
+      </div>
+      <div class="progress" id="progress" hidden>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-time"><span id="progressTime">0:00</span> / <span id="progressTotal">0:00</span></div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <p>Built with <span class="heart">♥</span> using Web Audio API</p>
+    </footer>
+  </div>
+
+  <script>(() => {
+  'use strict';
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $('fileInput');
+  const dropzone = $('dropzone');
+  const fileInfo = $('fileInfo');
+  const fileNameEl = $('fileName');
+  const fileDurationEl = $('fileDuration');
+  const fileSampleEl = $('fileSample');
+  const delaySlider = $('delaySlider');
+  const delayValue = $('delayValue');
+  const intensitySlider = $('intensitySlider');
+  const intensityValue = $('intensityValue');
+  const feedbackSlider = $('feedbackSlider');
+  const feedbackValue = $('feedbackValue');
+  const playBtn = $('playBtn');
+  const pauseBtn = $('pauseBtn');
+  const stopBtn = $('stopBtn');
+  const downloadBtn = $('downloadBtn');
+  const progress = $('progress');
+  const progressFill = $('progressFill');
+  const progressTime = $('progressTime');
+  const progressTotal = $('progressTotal');
+
+  // ---------- Audio context ----------
+  let audioCtx = null;
+  let source = null;
+  let convolver = null;
+  let gainNode = null;
+  let playTimer = null;
+
+  // ---------- Utilities ----------
+  const fmtTime = (s) => {
+    if (!isFinite(s) || s < 0) s = 0;
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const getSampleRate = (blob) => {
+    const arrayBuffer = new Uint8Array(blob.size);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataView = new DataView(reader.result);
+      const chunk = new Int16Array(dataView.buffer, 0, dataView.byteLength / 2);
+      const firstSample = chunk[0];
+      if (firstSample === 0x46464952 || firstSample === 0x494433) {
+        // WAV
+        let offset = 0;
+        while (offset < chunk.length && chunk[offset] !== 0x66 && chunk[offset] !== 0x61 && chunk[offset] !== 0x63 && chunk[offset] !== 0x74) offset++;
+        if (offset < chunk.length) {
+          const chunkLen = chunk[offset + 4] | (chunk[offset + 5] << 8) | (chunk[offset + 6] << 16) | (chunk[offset + 7] << 24);
+          offset += 8;
+          const fmtOffset = offset + 8;
+          const fmtLen = chunk[offset + 4] | (chunk[offset + 5] << 8) | (chunk[offset + 6] << 16) | (chunk[offset + 7] << 24);
+          offset += 8 + fmtLen;
+          const dataOffset = offset + 8;
+          const dataLen = chunk[offset + 4] | (chunk[offset + 5] << 8) | (chunk[offset + 6] << 16) | (chunk[offset + 7] << 24);
+          offset += 8 + dataLen;
+          const rate = chunk[offset] | (chunk[offset + 1] << 8) | (chunk[offset + 2] << 16) | (chunk[offset + 3] << 24);
+          return rate;
+        }
+      }
+    };
+    reader.readAsArrayBuffer(blob);
+    return 44100;
+  };
+
+  // ---------- File handling ----------
+  const handleFile = async (file) => {
+    if (!file.type.startsWith('audio/')) {
+      showToast('Please upload an audio file.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showToast('File too large. Maximum 20MB.');
+      return;
+    }
+
+    fileNameEl.textContent = file.name;
+    const sampleRate = getSampleRate(file);
+    fileSampleEl.textContent = `${sampleRate} Hz`;
+    const duration = file.duration || 0;
+    fileDurationEl.textContent = fmtTime(duration);
+
+    fileInfo.hidden = false;
+    fileInput.value = '';
+    dropzone.hidden = true;
+
+    await loadAudio(file);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.toggle('dragover', e.type === 'dragover');
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+  const handleFileInput = (e) => handleFile(e.target.files[0]);
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', handleDrag);
+  dropzone.addEventListener('dragleave', handleDrag);
+  dropzone.addEventListener('drop', handleDrop);
+  fileInput.addEventListener('change', handleFileInput);
+
+  // ---------- Audio loading ----------
+  let audioBuffer = null;
+  let duration = 0;
+
+  const loadAudio = async (file) => {
+    if (!audioCtx) initAudio();
+    const arrayBuffer = await file.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    duration = audioBuffer.duration;
+    progressTotal.textContent = fmtTime(duration);
+    resetPlayback();
+  };
+
+  const initAudio = () => {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (convolver) convolver.disconnect();
+    if (gainNode) gainNode.disconnect();
+    convolver = audioCtx.createConvolver();
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = 0;
+    convolver.gain.value = 0;
+    convolver.buffer = null;
+  };
+
+  // ---------- Convolver impulse response ----------
+  const generateImpulse = (delayMs, intensity, feedback) => {
+    const sampleRate = audioCtx.sampleRate || 44100;
+    const delaySamples = Math.round(delayMs * sampleRate / 1000);
+    const intensityDb = intensity > 0 ? Math.max(-90, Math.log10(intensity / 100)) * 20 : -120;
+    const feedbackDb = feedback > 0 ? Math.max(-90, Math.log10(feedback / 100)) * 20 : -120;
+
+    const bufferSize = sampleRate * 4;
+    const buffer = audioCtx.createBuffer(1, bufferSize, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Dry signal
+    data[0] = 1;
+
+    // Wet signal with delay and feedback
+    let current = 1;
+    for (let i = 1; i < delaySamples; i++) {
+      data[i] = current * Math.pow(0.99, i / 20);
+    }
+    for (let i = delaySamples; i < bufferSize; i++) {
+      const next = current * Math.pow(0.99, (i - delaySamples) / 20);
+      data[i] = next;
+      current = next;
+    }
+
+    // Apply gain
+    const gain = Math.pow(10, intensityDb / 20);
+    const feedbackGain = Math.pow(10, feedbackDb / 20);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] *= gain;
+    }
+
+    return buffer;
+  };
+
+  const setEcho = () => {
+    if (!audioCtx) initAudio();
+    const delayMs = parseFloat(delaySlider.value);
+    const intensity = parseFloat(intensitySlider.value);
+    const feedback = parseFloat(feedbackSlider.value);
+    convolver.buffer = generateImpulse(delayMs, intensity, feedback);
+  };
+
+  // ---------- Playback ----------
+  const resetPlayback = () => {
+    if (source) source.disconnect();
+    if (gainNode) gainNode.disconnect();
+    if (convolver) convolver.disconnect();
+    if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+    audioCtx = null;
+    source = null;
+    convolver = null;
+    gainNode = null;
+    progress.hidden = true;
+    playBtn.hidden = false;
+    pauseBtn.hidden = true;
+    stopBtn.hidden = false;
+    progressFill.style.width = '0%';
+    progressTime.textContent = '0:00';
+    progressTotal.textContent = '0:00';
+    duration = 0;
+    fileDurationEl.textContent = '—';
+  };
+
+  const startPlayback = () => {
+    if (!audioBuffer) return;
+    initAudio();
+    setEcho();
+    convolver.connect(audioCtx.destination);
+    gainNode.connect(convolver);
+    source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(gainNode);
+    source.start(0);
+
+    playBtn.hidden = true;
+    pauseBtn.hidden = false;
+    stopBtn.hidden = false;
+    progress.hidden = false;
+    progressFill.style.width = '0%';
+    progressTime.textContent = '0:00';
+    progressTotal.textContent = fmtTime(duration);
+    updateProgress(0);
+    playTimer = setInterval(updateProgress, 250);
+  };
+
+  const updateProgress = (currentTime) => {
+    if (!duration) return;
+    const pct = Math.min(100, (currentTime / duration) * 100);
+    progressFill.style.width = pct + '%';
+    progressTime.textContent = fmtTime(currentTime);
+  };
+
+  const stopPlayback = () => {
+    if (source) {
+      source.stop();
+      source.disconnect();
+      source = null;
+    }
+    if (playTimer) {
+      clearInterval(playTimer);
+      playTimer = null;
+    }
+    if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+    audioCtx = null;
+    gainNode.disconnect();
+    convolver.disconnect();
+    progressFill.style.width = '0%';
+    progressTime.textContent = '0:00';
+    progressTotal.textContent = '0:00';
+    playBtn.hidden = false;
+    pauseBtn.hidden = true;
+    stopBtn.hidden = true;
+  };
+
+  const togglePlayback = () => {
+    if (!source) startPlayback();
+    else if (source && source.state === 'started') stopPlayback();
+    else startPlayback();
+  };
+
+  // ---------- Download ----------
+  const downloadWav = async () => {
+    if (!audioBuffer) {
+      showToast('Upload an audio file first.');
+      return;
+    }
+    const sampleRate = audioBuffer.sampleRate;
+    const channels = audioBuffer.numberOfChannels;
+    const length = audioBuffer.length;
+    const bufferSize = length * 4;
+    const buffer = audioCtx.createBuffer(channels, length, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = audioBuffer.getChannelData(0)[i];
+
+    const wav = bufferToWav(buffer, sampleRate);
+    const blob = new Blob([wav], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileNameEl.textContent.replace(/\.[^.]+$/, '')}_echo.wav`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const bufferToWav = (buffer, sampleRate) => {
+    const channels = buffer.numberOfChannels;
+    const length = buffer.length;
+    const bytesPerSample = 2;
+    const bytesPerFrame = channels * bytesPerSample;
+    const size = length * bytesPerFrame + 44;
+    const data = new ArrayBuffer(size);
+    const view = new DataView(data);
+
+    // RIFF header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, size - 8, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, bytesPerSample, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * bytesPerSample, true);
+    view.setUint16(32, channels, true);
+    view.setUint16(34, length * bytesPerSample, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, length * bytesPerSample, true);
+
+    let offset = 44;
+    for (let c = 0; c < channels; c++) {
+      const channel = buffer.getChannelData(c);
+      for (let i = 0; i < length; i++) {
+        const sample = channel[i] * 0x7fff;
+        view.setInt16(offset, sample, true);
+        offset += bytesPerSample;
+      }
+    }
+    return data;
+  };
+
+  const writeString = (view, offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  // ---------- Toast ----------
+  let toastEl = null;
+  const showToast = (msg) => {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'toast';
+      toastEl.setAttribute('role', 'status');
+      toastEl.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.style.opacity = '1';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => {
+      toastEl.style.opacity = '0';
+      setTimeout(() => toastEl.remove(), 300);
+    }, 2200);
+  };
+
+  // ---------- Events ----------
+  delaySlider.addEventListener('input', () => {
+    delayValue.textContent = `${delaySlider.value} ms`;
+  });
+  intensitySlider.addEventListener('input', () => {
+    intensityValue.textContent = `${intensitySlider.value}%`;
+  });
+  feedbackSlider.addEventListener('input', () => {
+    feedbackValue.textContent = `${feedbackSlider.value}%`;
+  });
+
+  playBtn.addEventListener('click', togglePlayback);
+  pauseBtn.addEventListener('click', stopPlayback);
+  stopBtn.addEventListener('click', stopPlayback);
+  downloadBtn.addEventListener('click', downloadWav);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      togglePlayback();
+    } else if (e.key === 'd' || e.key === 'D') {
+      downloadWav();
+    }
+  });
+
+  // Initial state
+  resetPlayback();
+})();
+</script></script>
+</body>
+</html>

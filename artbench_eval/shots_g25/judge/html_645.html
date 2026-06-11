@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Rhythm Trainer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 400px;
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        select, button {
+            padding: 10px 15px;
+            font-size: 16px;
+            margin: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        #tapBtn {
+            background-color: #28a745;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            box-shadow: 0 6px 0 #1e7e34;
+        }
+        #tapBtn:active:not(:disabled) {
+            transform: translateY(6px);
+            box-shadow: none;
+        }
+        #tapBtn:disabled {
+            background-color: #88c796;
+            box-shadow: 0 6px 0 #6a9c75;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #555;
+            min-height: 24px;
+        }
+        .result {
+            margin-top: 15px;
+            font-size: 20px;
+            color: #d32f2f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Rhythm Trainer</h1>
+    
+    <div class="controls">
+        <label for="bpm">Speed (BPM): </label>
+        <select id="bpm">
+            <option value="60">60 BPM (Slow)</option>
+            <option value="90" selected>90 BPM (Medium)</option>
+            <option value="120">120 BPM (Fast)</option>
+        </select>
+    </div>
+
+    <div class="controls">
+        <button id="listenBtn" onclick="listenBeats()">1. Listen (4 Beats)</button>
+        <button id="startBtn" onclick="startPractice()">2. Start Practice</button>
+    </div>
+
+    <button id="tapBtn" onclick="recordTap()" disabled>TAP</button>
+
+    <div class="status" id="statusText">Select a speed and listen to the beat.</div>
+    <div class="result" id="resultText"></div>
+</div>
+
+<script>
+    // Audio Context for generating beeps
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    let expectedBeats = 4;
+    let userTaps = [];
+    let isPracticing = false;
+    let currentBPM = 90;
+
+    // Function to play a short beep sound
+    function playBeep(frequency = 440) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        
+        gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // Play the standard rhythm for the user to listen to
+    function listenBeats() {
+        currentBPM = parseInt(document.getElementById('bpm').value);
+        const intervalMs = (60 / currentBPM) * 1000;
+        
+        document.getElementById('listenBtn').disabled = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('statusText').innerText = "Listening...";
+        document.getElementById('resultText').innerText = "";
+
+        let beatCount = 0;
+        
+        // Play first beat immediately
+        playBeep(600); // Higher pitch for the first beat
+        beatCount++;
+
+        const intervalId = setInterval(() => {
+            if (beatCount >= expectedBeats) {
+                clearInterval(intervalId);
+                document.getElementById('listenBtn').disabled = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('statusText').innerText = "Ready to practice!";
+                return;
+            }
+            playBeep(440);
+            beatCount++;
+        }, intervalMs);
+    }
+
+    // Initialize practice mode
+    function startPractice() {
+        currentBPM = parseInt(document.getElementById('bpm').value);
+        userTaps = [];
+        isPracticing = true;
+        
+        document.getElementById('listenBtn').disabled = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('tapBtn').disabled = false;
+        document.getElementById('bpm').disabled = true;
+        
+        document.getElementById('statusText').innerText = `Tap the button ${expectedBeats} times to the rhythm!`;
+        document.getElementById('resultText').innerText = "";
+    }
+
+    // Record user taps and calculate score when finished
+    function recordTap() {
+        if (!isPracticing) return;
+        
+        // Visual/Audio feedback for tapping
+        playBeep(userTaps.length === 0 ? 600 : 440);
+        userTaps.push(performance.now());
+        
+        document.getElementById('statusText').innerText = `Taps: ${userTaps.length} / ${expectedBeats}`;
+
+        if (userTaps.length === expectedBeats) {
+            finishPractice();
+        }
+    }
+
+    // Calculate accuracy based on the intervals between taps
+    function finishPractice() {
+        isPracticing = false;
+        document.getElementById('tapBtn').disabled = true;
+        document.getElementById('listenBtn').disabled = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('bpm').disabled = false;
+
+        const targetIntervalMs = (60 / currentBPM) * 1000;
+        let totalAccuracy = 0;
+
+        // We evaluate the rhythm based on the intervals between the user's first tap and subsequent taps
+        const t0 = userTaps[0];
+        
+        for (let i = 1; i < expectedBeats; i++) {
+            const expectedTime = t0 + (targetIntervalMs * i);
+            const actualTime = userTaps[i];
+            const errorMs = Math.abs(expectedTime - actualTime);
+            
+            // Max acceptable error is half a beat. If error > half a beat, accuracy is 0 for that tap.
+            const maxError = targetIntervalMs / 2; 
+            let tapAccuracy = Math.max(0, 100 - ((errorMs / maxError) * 100));
+            
+            totalAccuracy += tapAccuracy;
+        }
+
+        // Average accuracy across the intervals
+        const finalScore = totalAccuracy / (expectedBeats - 1);
+        
+        document.getElementById('statusText').innerText = "Practice Complete!";
+        document.getElementById('resultText').innerText = `Accuracy Score: ${finalScore.toFixed(1)}%`;
+        
+        if (finalScore > 90) {
+            document.getElementById('resultText').style.color = "#28a745"; // Green for excellent
+        } else if (finalScore > 70) {
+            document.getElementById('resultText').style.color = "#ff9800"; // Orange for good
+        } else {
+            document.getElementById('resultText').style.color = "#d32f2f"; // Red for needs improvement
+        }
+    }
+</script>
+
+</body>
+</html>

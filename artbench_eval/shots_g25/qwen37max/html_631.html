@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Browser Screenshot Tool</title>
+<!-- html2canvas is used to rasterize the DOM into a canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f4f6fa;
+    color: #222;
+  }
+
+  /* ---------- Top control bar ---------- */
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; gap: 10px; align-items: center;
+    padding: 10px 16px;
+    background: #1f2937; color: #fff;
+    z-index: 9999;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  #toolbar button {
+    background: #3b82f6; color: #fff; border: 0;
+    padding: 8px 14px; border-radius: 6px; cursor: pointer;
+    font-size: 14px; transition: background .15s;
+  }
+  #toolbar button:hover { background: #2563eb; }
+  #toolbar .title { font-weight: 600; margin-right: 12px; }
+
+  /* ---------- Demo content (to have something to capture) ---------- */
+  .demo {
+    margin: 80px 24px 40px;
+    padding: 24px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .demo h1 { margin-top: 0; }
+  .demo .card {
+    display: inline-block; width: 180px; height: 120px;
+    margin: 8px; border-radius: 8px;
+    background: linear-gradient(135deg,#60a5fa,#a78bfa);
+    color: #fff; text-align: center; line-height: 120px;
+    font-weight: 600;
+  }
+
+  /* ---------- Area-selection overlay ---------- */
+  #selection-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.25);
+    cursor: crosshair;
+    z-index: 10000;
+    display: none;
+  }
+  #selection-box {
+    position: absolute;
+    border: 2px dashed #fff;
+    background: rgba(59,130,246,.15);
+    pointer-events: none;
+  }
+  #selection-hint {
+    position: fixed; top: 60px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,.75); color: #fff;
+    padding: 8px 16px; border-radius: 6px;
+    font-size: 13px;
+  }
+
+  /* ---------- Editor modal ---------- */
+  #editor-modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    display: none;
+    z-index: 10001;
+    align-items: center; justify-content: center;
+  }
+  #editor-container {
+    background: #fff;
+    border-radius: 10px;
+    width: 92vw; max-width: 1100px;
+    height: 88vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  #editor-toolbar {
+    display: flex; gap: 8px; align-items: center;
+    padding: 10px 14px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+  }
+  #editor-toolbar button, #editor-toolbar label {
+    background: #fff; border: 1px solid #cbd5e1;
+    padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; font-size: 13px;
+  }
+  #editor-toolbar button.active {
+    background: #3b82f6; color: #fff; border-color: #3b82f6;
+  }
+  #editor-toolbar input[type="color"] {
+    width: 34px; height: 30px; border: 1px solid #cbd5e1;
+    border-radius: 6px; cursor: pointer; padding: 2px;
+  }
+  #editor-toolbar input[type="number"] {
+    width: 60px; padding: 6px; border: 1px solid #cbd5e1;
+    border-radius: 6px;
+  }
+  #editor-toolbar .spacer { flex: 1; }
+  #editor-toolbar .primary {
+    background: #10b981; color: #fff; border-color: #10b981;
+  }
+  #editor-toolbar .danger {
+    background: #ef4444; color: #fff; border-color: #ef4444;
+  }
+  #canvas-wrap {
+    flex: 1; overflow: auto;
+    background: #e5e7eb;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #editor-canvas {
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+    cursor: crosshair;
+    max-width: 100%;
+    height: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ Top control bar ============ -->
+<div id="toolbar">
+  <span class="title">📸 Screenshot Tool</span>
+  <button id="btn-area">▢ Selected Area</button>
+  <button id="btn-visible">▣ Visible Window</button>
+  <button id="btn-full">▤ Entire Page</button>
+</div>
+
+<!-- ============ Demo content to capture ============ -->
+<div class="demo" id="demo-content">
+  <h1>Screenshot Tool Demo Page</h1>
+  <p>Use the buttons in the top bar to capture this page in three different modes.
+     After capture, an editor will open where you can annotate the image.</p>
+  <div>
+    <div class="card">Card 1</div>
+    <div class="card">Card 2</div>
+    <div class="card">Card 3</div>
+    <div class="card">Card 4</div>
+  </div>
+  <p style="margin-top:40px;">Scroll down to test the "Entire Page" capture mode…</p>
+  <div style="height:600px; background:linear-gradient(#fde68a,#fca5a5); border-radius:8px;
+              display:flex; align-items:center; justify-content:center; font-size:24px;">
+    Extra tall section (for full-page capture)
+  </div>
+</div>
+
+<!-- ============ Area-selection overlay ============ -->
+<div id="selection-overlay">
+  <div id="selection-hint">Drag to select an area · Press Esc to cancel</div>
+  <div id="selection-box"></div>
+</div>
+
+<!-- ============ Editor modal ============ -->
+<div id="editor-modal">
+  <div id="editor-container">
+    <div id="editor-toolbar">
+      <button data-tool="rect" class="active">▭ Rectangle</button>
+      <button data-tool="arrow">➤ Arrow</button>
+      <button data-tool="text">T Text</button>
+      <label>Color <input type="color" id="tool-color" value="#ef4444"></label>
+      <label>Width <input type="number" id="tool-width" value="3" min="1" max="20"></label>
+      <button id="btn-undo">↶ Undo</button>
+      <button id="btn-clear">✕ Clear</button>
+      <div class="spacer"></div>
+      <button id="btn-download" class="primary">⬇ Download PNG</button>
+      <button id="btn-close" class="danger">Close</button>
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="editor-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Screenshot Tool — core logic
+   ========================================================= */
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- 1. Capture modes ---------- */
+
+  // Hide our own UI so it doesn't appear in the screenshot
+  const hideUI = () => {
+    $('toolbar').style.visibility = 'hidden';
+    $('selection-overlay').style.display = 'none';
+  };
+  const showUI = () => { $('toolbar').style.visibility = 'visible'; };
+
+  // Capture the entire scrollable page
+  async function captureFullPage() {
+    hideUI();
+    try {
+      const canvas = await html2canvas(document.body, {
+        scrollX: 0, scrollY: -window.scrollY,
+        width: document.documentElement.scrollWidth,
+        height: document.documentElement.scrollHeight,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        useCORS: true, scale: window.devicePixelRatio || 1
+      });
+      openEditor(canvas);
+    } finally { showUI(); }
+  }
+
+  // Capture only the currently visible viewport
+  async function captureVisible() {
+    hideUI();
+    try {
+      const canvas = await html2canvas(document.body, {
+        x: window.scrollX, y: window.scrollY,
+        width: window.innerWidth, height: window.innerHeight,
+        windowWidth: window.innerWidth, windowHeight: window.innerHeight,
+        useCORS: true, scale: window.devicePixelRatio || 1
+      });
+      openEditor(canvas);
+    } finally { showUI(); }
+  }
+
+  // Let the user drag a rectangle, then capture that region
+  function startAreaSelection() {
+    const overlay = $('selection-overlay');
+    const box = $('selection-box');
+    overlay.style.display = 'block';
+    let startX = 0, startY = 0, dragging = false;
+
+    const onDown = (e) => {
+      dragging = true;
+      startX = e.clientX; startY = e.clientY;
+      box.style.left = startX + 'px';
+      box.style.top  = startY + 'px';
+      box.style.width = '0px'; box.style.height = '0px';
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const x = Math.min(e.clientX, startX);
+      const y = Math.min(e.clientY, startY);
+      const w = Math.abs(e.clientX - startX);
+      const h = Math.abs(e.clientY - startY);
+      box.style.left = x + 'px'; box.style.top = y + 'px';
+      box.style.width = w + 'px'; box.style.height = h + 'px';
+    };
+    const onUp = async (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const x = Math.min(e.clientX, startX);
+      const y = Math.min(e.clientY, startY);
+      const w = Math.abs(e.clientX - startX);
+      const h = Math.abs(e.clientY - startY);
+      cleanup();
+      if (w < 5 || h < 5) return; // ignore tiny drags
+
+      hideUI();
+      try {
+        const full = await html2canvas(document.body, {
+          x: window.scrollX, y: window.scrollY,
+          width: window.innerWidth, height: window.innerHeight,
+          windowWidth: window.innerWidth, windowHeight: window.innerHeight,
+          useCORS: true, scale: window.devicePixelRatio || 1
+        });
+        // Crop to the selected rectangle (account for devicePixelRatio)
+        const dpr = window.devicePixelRatio || 1;
+        const cropped = document.createElement('canvas');
+        cropped.width = w * dpr; cropped.height = h * dpr;
+        const ctx = cropped.getContext('2d');
+        ctx.drawImage(full,
+          x * dpr, y * dpr, w * dpr, h * dpr,
+          0, 0, w * dpr, h * dpr);
+        openEditor(cropped);
+      } finally { showUI(); }
+    };
+    const onCancel = (e) => {
+      if (e.key === 'Escape') { cleanup(); }
+    };
+    const cleanup = () => {
+      overlay.style.display = 'none';
+      overlay.removeEventListener('mousedown', onDown);
+      overlay.removeEventListener('mousemove', onMove);
+      overlay.removeEventListener('mouseup', onUp);
+      document.removeEventListener('keydown', onCancel);
+    };
+    overlay.addEventListener('mousedown', onDown);
+    overlay.addEventListener('mousemove', onMove);
+    overlay.addEventListener('mouseup', onUp);
+    document.addEventListener('keydown', onCancel);
+  }
+
+  $('btn-area').onclick   = startAreaSelection;
+  $('btn-visible').onclick = captureVisible;
+  $('btn-full').onclick    = captureFullPage;
+
+  /* ---------- 2. Editor ---------- */
+
+  const canvas = $('editor-canvas');
+  const ctx = canvas.getContext('2d');
+  let baseImage = null;        // the captured screenshot (Image)
+  let shapes = [];             // annotation history
+  let currentTool = 'rect';
+  let drawing = null;          // shape currently being dragged
+
+  function openEditor(sourceCanvas) {
+    // Convert the html2canvas output into an Image for fast redraws
+    const img = new Image();
+    img.onload = () => {
+      baseImage = img;
+      // Fit canvas to image but cap display size
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const maxDisplayW = window.innerWidth * 0.88;
+      const maxDisplayH = window.innerHeight * 0.78;
+      const scale = Math.min(1, maxDisplayW / img.width, maxDisplayH / img.height);
+      canvas.style.width  = (img.width  * scale) + 'px';
+      canvas.style.height = (img.height * scale) + 'px';
+      shapes = [];
+      redraw();
+      $('editor-modal').style.display = 'flex';
+    };
+    img.src = sourceCanvas.toDataURL('image/png');
+  }
+
+  function redraw() {
+    if (!baseImage) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(baseImage, 0, 0);
+    shapes.forEach(drawShape);
+    if (drawing) drawShape(drawing);
+  }
+
+  function drawShape(s) {
+    ctx.save();
+    ctx.strokeStyle = s.color;
+    ctx.fillStyle   = s.color;
+    ctx.lineWidth   = s.width;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    if (s.type === 'rect') {
+      ctx.strokeRect(s.x, s.y, s.w, s.h);
+    } else if (s.type === 'arrow') {
+      const headLen = Math.max(12, s.width * 4);
+      const dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+      const angle = Math.atan2(dy, dx);
+      ctx.beginPath();
+      ctx.moveTo(s.x1, s.y1);
+      ctx.lineTo(s.x2, s.y2);
+      ctx.stroke();
+      // Arrow head
+      ctx.beginPath();
+      ctx.moveTo(s.x2, s.y2);
+      ctx.lineTo(s.x2 - headLen * Math.cos(angle - Math.PI / 6),
+                 s.y2 - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(s.x2 - headLen * Math.cos(angle + Math.PI / 6),
+                 s.y2 - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    } else if (s.type === 'text') {
+      ctx.font = `${s.width * 6}px sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(s.text, s.x, s.y);
+    }
+    ctx.restore();
+  }
+
+  // Convert mouse event to canvas coordinates (handles CSS scaling)
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top)  * scaleY
+    };
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const p = getPos(e);
+    const color = $('tool-color').value;
+    const width = parseInt($('tool-width').value, 10) || 3;
+
+    if (currentTool === 'rect') {
+      drawing = { type: 'rect', x: p.x, y: p.y, w: 0, h: 0, color, width };
+    } else if (currentTool === 'arrow') {
+      drawing = { type: 'arrow', x1: p.x, y1: p.y, x2: p.x, y2: p.y, color, width };
+    } else if (currentTool === 'text') {
+      const text = prompt('Enter text:');
+      if (text) {
+        shapes.push({ type: 'text', x: p.x, y: p.y, text, color, width });
+        redraw();
+      }
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!drawing) return;
+    const p = getPos(e);
+    if (drawing.type === 'rect') {
+      drawing.w = p.x - drawing.x;
+      drawing.h = p.y - drawing.y;
+    } else if (drawing.type === 'arrow') {
+      drawing.x2 = p.x; drawing.y2 = p.y;
+    }
+    redraw();
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    if (!drawing) return;
+    // Normalize rectangles so width/height are positive
+    if (drawing.type === 'rect') {
+      if (drawing.w < 0) { drawing.x += drawing.w; drawing.w = -drawing.w; }
+      if (drawing.h < 0) { drawing.y += drawing.h; drawing.h = -drawing.h; }
+      if (drawing.w < 2 || drawing.h < 2) { drawing = null; return; }
+    }
+    shapes.push(drawing);
+    drawing = null;
+    redraw();
+  });
+
+  // Tool buttons
+  document.querySelectorAll('#editor-toolbar button[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#editor-toolbar button[data-tool]')
+              .forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTool = btn.dataset.tool;
+    });
+  });
+
+  $('btn-undo').onclick  = () => { shapes.pop(); redraw(); };
+  $('btn-clear').onclick = () => { shapes = []; redraw(); };
+  $('btn-close').onclick = () => { $('editor-modal').style.display = 'none'; };
+
+  $('btn-download').onclick = () => {
+    // Flatten to a fresh canvas so the download contains annotations
+    const out = document.createElement('canvas');
+    out.width = canvas.width; out.height = canvas.height;
+    out.getContext('2d').drawImage(canvas, 0, 0);
+    const link = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    link.download = `screenshot-${ts}.png`;
+    link.href = out.toDataURL('image/png');
+    link.click();
+  };
+})();
+</script>
+</body>
+</html>

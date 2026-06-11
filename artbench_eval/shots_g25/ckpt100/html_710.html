@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5-in-1 Payment System</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .brand-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .brand-tag {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .status:hover { transform: scale(1.05); }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .status.success { background: #10b981; color: #064e3b; }
+  .status.cancelled { background: #ef4444; color: #991b1b; }
+  .status.delivered { background: #f59e0b; color: #78350f; }
+  .status.expired { background: #94a3b8; color: #64748b; }
+  .status.pending { background: #fbbf24; color: #78350f; }
+  .amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  .amount::before {
+    content: "¥";
+    font-size: 18px;
+    color: #fbbf24;
+    margin-right: 4px;
+  }
+  .desc {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .jump-icon { font-size: 16px; }
+
+  /* Platform-specific colors */
+  .meituan .card { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
+  .jd .card { background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); }
+  .pinduoduo .card { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+  .didi .card { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
+  .ctrip .card { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+
+  .meituan .brand-logo { background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; }
+  .jd .brand-logo { background: linear-gradient(135deg, #10b981, #06b6d4); color: #fff; }
+  .pinduoduo .brand-logo { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; }
+  .didi .brand-logo { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; }
+  .ctrip .brand-logo { background: linear-gradient(135deg, #ec4899, #db2777); color: #fff; }
+
+  .meituan .brand-name { color: #fff; }
+  .jd .brand-name { color: #fff; }
+  .pinduoduo .brand-name { color: #fff; }
+  .didi .brand-name { color: #fff; }
+  .ctrip .brand-name { color: #fff; }
+
+  .meituan .status { background: #f59e0b; color: #fff; }
+  .jd .status { background: #10b981; color: #fff; }
+  .pinduoduo .status { background: #f97316; color: #fff; }
+  .didi .status { background: #0ea5e9; color: #fff; }
+  .ctrip .status { background: #ec4899; color: #fff; }
+
+  .meituan .amount { color: #fff; }
+  .jd .amount { color: #fff; }
+  .pinduoduo .amount { color: #fff; }
+  .didi .amount { color: #fff; }
+  .ctrip .amount { color: #fff; }
+
+  .meituan .desc { color: rgba(255, 255, 255, 0.75); }
+  .jd .desc { color: rgba(255, 255, 255, 0.75); }
+  .pinduoduo .desc { color: rgba(255, 255, 255, 0.75); }
+  .didi .desc { color: rgba(255, 255, 255, 0.75); }
+  .ctrip .desc { color: rgba(255, 255, 255, 0.75); }
+
+  .meituan .btn { background: #fff; color: #0f172a; }
+  .jd .btn { background: #fff; color: #0f172a; }
+  .pinduoduo .btn { background: #fff; color: #0f172a; }
+  .didi .btn { background: #fff; color: #0f172a; }
+  .ctrip .btn { background: #fff; color: #0f172a; }
+
+  .meituan .brand-tag { color: rgba(255, 255, 255, 0.7); }
+  .jd .brand-tag { color: rgba(255, 255, 255, 0.7); }
+  .pinduoduo .brand-tag { color: rgba(255, 255, 255, 0.7); }
+  .didi .brand-tag { color: rgba(255, 255, 255, 0.7); }
+  .ctrip .brand-tag { color: rgba(255, 255, 255, 0.7); }
+
+  .meituan .status:hover { background: #ef4444; }
+  .jd .status:hover { background: #06b6d4; }
+  .pinduoduo .status:hover { background: #ea580c; }
+  .didi .status:hover { background: #0284c7; }
+  .ctrip .status:hover { background: #db2777; }
+
+  @media (max-width: 640px) {
+    .container { grid-template-columns: 1fr; }
+    .card { padding: 20px; }
+    .amount { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container" id="cards">
+
+  <!-- Meituan -->
+  <div class="card meituan">
+    <div class="card-head">
+      <div class="brand">
+        <div class="brand-logo">美团</div>
+        <div>
+          <div class="brand-name">Meituan</div>
+          <div class="brand-tag">外卖 · 本地生活</div>
+        </div>
+      </div>
+      <div class="status" id="meituanStatus" data-status="pending">
+        <span class="status-dot"></span> <span id="meituanStatusText">待支付</span>
+      </div>
+    </div>
+    <div class="amount" id="meituanAmount">¥ 88.00</div>
+    <p class="desc">2025-03-14 20:30 · 订单号：MT202503140001</p>
+    <button class="btn" id="meituanJump" disabled>
+      <i class="fa-solid fa-arrow-up-right-from-square jump-icon"></i>
+      <span>跳转官方页面</span>
+    </button>
+  </div>
+
+  <!-- JD -->
+  <div class="card jd">
+    <div class="card-head">
+      <div class="brand">
+        <div class="brand-logo">JD</div>
+        <div>
+          <div class="brand-name">JD.com</div>
+          <div class="brand-tag">京东 · 电商</div>
+        </div>
+      </div>
+      <div class="status" id="jdStatus" data-status="pending">
+        <span class="status-dot"></span> <span id="jdStatusText">待支付</span>
+      </div>
+    </div>
+    <div class="amount" id="jdAmount">¥ 349.00</div>
+    <p class="desc">2025-03-14 20:30 · 订单号：JD202503140002</p>
+    <button class="btn" id="jdJump" disabled>
+      <i class="fa-solid fa-arrow-up-right-from-square jump-icon"></i>
+      <span>跳转官方页面</span>
+    </button>
+  </div>
+
+  <!-- Pinduoduo -->
+  <div class="card pinduoduo">
+    <div class="card-head">
+      <div class="brand">
+        <div class="brand-logo">拼多多</div>
+        <div>
+          <div class="brand-name">Pinduoduo</div>
+          <div class="brand-tag">拼购 · 电商</div>
+        </div>
+      </div>
+      <div class="status" id="pddStatus" data-status="pending">
+        <span class="status-dot"></span> <span id="pddStatusText">待支付</span>
+      </div>
+    </div>
+    <div class="amount" id="pddAmount">¥ 129.00</div>
+    <p class="desc">2025-03-14 20:30 · 订单号：PD202503140003</p>
+    <button class="btn" id="pddJump" disabled>
+      <i class="fa-solid fa-arrow-up-right-from-square jump-icon"></i>
+      <span>跳转官方页面</span>
+    </button>
+  </div>
+
+  <!-- DiDi -->
+  <div class="card didi">
+    <div class="card-head">
+      <div class="brand">
+        <div class="brand-logo">滴滴</div>
+        <div>
+          <div class="brand-name">DiDi</div>
+          <div class="brand-tag">出行 · 服务</div>
+        </div>
+      </div>
+      <div class="status" id="didiStatus" data-status="pending">
+        <span class="status-dot"></span> <span id="didiStatusText">待支付</span>
+      </div>
+    </div>
+    <div class="amount" id="didiAmount">¥ 28.00</div>
+    <p class="desc">2025-03-14 20:30 · 订单号：DD202503140004</p>
+    <button class="btn" id="didiJump" disabled>
+      <i class="fa-solid fa-arrow-up-right-from-square jump-icon"></i>
+      <span>跳转官方页面</span>
+    </button>
+  </div>
+
+  <!-- Ctrip -->
+  <div class="card ctrip">
+    <div class="card-head">
+      <div class="brand">
+        <div class="brand-logo">携程</div>
+        <div>
+          <div class="brand-name">Ctrip</div>
+          <div class="brand-tag">旅游 · 酒店</div>
+        </div>
+      </div>
+      <div class="status" id="ctripStatus" data-status="pending">
+        <span class="status-dot"></span> <span id="ctripStatusText">待支付</span>
+      </div>
+    </div>
+    <div class="amount" id="ctripAmount">¥ 680.00</div>
+    <p class="desc">2025-03-14 20:30 · 订单号：CT202503140005</p>
+    <button class="btn" id="ctripJump" disabled>
+      <i class="fa-solid fa-arrow-up-right-from-square jump-icon"></i>
+      <span>跳转官方页面</span>
+    </button>
+  </div>
+
+</div>
+
+<script>
+  const statuses = {
+    pending: { label: '待支付', color: 'pending' },
+    success:  { label: '支付成功', color: 'success' },
+    cancelled:{ label: '已取消', color: 'cancelled' },
+    delivered:{ label: '已送达', color: 'delivered' },
+    expired:  { label: '已过期', color: 'expired' }
+  };
+
+  function updateCard(cardId, newStatus) {
+    const el = document.getElementById(cardId);
+    const statusEl = document.getElementById(cardId + 'Status');
+    const statusText = document.getElementById(cardId + 'StatusText');
+    const amountEl = document.getElementById(cardId + 'Amount');
+    const jumpBtn = document.getElementById(cardId + 'Jump');
+
+    const state = statuses[newStatus];
+    statusEl.dataset.status = newStatus;
+    statusEl.className = 'status ' + state.color;
+    statusText.textContent = state.label;
+
+    // Amount animation
+    const current = parseFloat(amountEl.textContent.replace('¥', '').replace(',', ''));
+    const target = newStatus === 'success' ? 0 : current;
+    amountEl.textContent = '¥ ' + target.toFixed(2);
+
+    // Jump button
+    const isJumpable = newStatus === 'success' || newStatus === 'delivered';
+    jumpBtn.disabled = !isJumpable;
+
+    // Update all cards' jump buttons
+    ['meituan', 'jd', 'pdd', 'didi', 'ctrip'].forEach(id => {
+      const btn = document.getElementById(id + 'Jump');
+      const stateId = document.getElementById(id + 'Status').dataset.status;
+      btn.disabled = stateId !== 'success' && stateId !== 'delivered';
+    });
+  }
+
+  function simulateJump(cardId) {
+    const btn = document.getElementById(cardId + 'Jump');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-check jump-icon"></i> <span>跳转中…</span>';
+
+    setTimeout(() => {
+      btn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square jump-icon"></i> <span>跳转官方页面</span>';
+      btn.disabled = false;
+    }, 1200);
+  }
+
+  // Event listeners
+  document.getElementById('meituanStatus').addEventListener('click', () => {
+    const current = document.getElementById('meituanStatus').dataset.status;
+    const next = current === 'pending' ? 'success' : 'cancelled';
+    updateCard('meituan', next);
+  });
+  document.getElementById('jdStatus').addEventListener('click', () => {
+    const current = document.getElementById('jdStatus').dataset.status;
+    const next = current === 'pending' ? 'success' : 'cancelled';
+    updateCard('jd', next);
+  });
+  document.getElementById('pddStatus').addEventListener('click', () => {
+    const current = document.getElementById('pddStatus').dataset.status;
+    const next = current === 'pending' ? 'success' : 'cancelled';
+    updateCard('pdd', next);
+  });
+  document.getElementById('didiStatus').addEventListener('click', () => {
+    const current = document.getElementById('didiStatus').dataset.status;
+    const next = current === 'pending' ? 'delivered' : 'cancelled';
+    updateCard('didi', next);
+  });
+  document.getElementById('ctripStatus').addEventListener('click', () => {
+    const current = document.getElementById('ctripStatus').dataset.status;
+    const next = current === 'pending' ? 'success' : 'cancelled';
+    updateCard('ctrip', next);
+  });
+
+  document.getElementById('meituanJump').addEventListener('click', () => simulateJump('meituan'));
+  document.getElementById('jdJump').addEventListener('click', () => simulateJump('jd'));
+  document.getElementById('pddJump').addEventListener('click', () => simulateJump('pdd'));
+  document.getElementById('didiJump').addEventListener('click', () => simulateJump('didi'));
+  document.getElementById('ctripJump').addEventListener('click', () => simulateJump('ctrip'));
+
+  // Keyboard accessibility: Enter/Space on status
+  document.querySelectorAll('.status').forEach(el => {
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

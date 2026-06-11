@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Room Reservation System</title>
+    <style>/* ==================== CSS Reset & Base ==================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+    --radius: 8px;
+    --radius-lg: 12px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--gray-50);
+    color: var(--gray-800);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* ==================== Navigation ==================== */
+.navbar {
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+}
+
+.nav-brand {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.nav-links {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--gray-600);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    background: var(--gray-100);
+    color: var(--gray-800);
+}
+
+.nav-link.active {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+/* ==================== Container ==================== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* ==================== Page Header ==================== */
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.page-header p {
+    color: var(--gray-500);
+    font-size: 1rem;
+}
+
+/* ==================== Booking Section ==================== */
+.booking-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+.form-group input,
+.form-group select {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-size: 0.9375rem;
+    color: var(--gray-800);
+    background: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* ==================== Room Info ==================== */
+.room-info {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--primary-light);
+    border-radius: var(--radius);
+    border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.info-item {
+    font-size: 0.8125rem;
+    color: var(--gray-700);
+    margin-bottom: 0.25rem;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+/* ==================== Time Slots ==================== */
+#timeSlotSection {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+#timeSlotSection h3 {
+    font-size: 1.125rem;
+    margin-bottom: 0.75rem;
+    color: var(--gray-800);
+}
+
+.slot-legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.legend-box {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.legend-box.available {
+    background: var(--success-light);
+    border: 2px solid var(--success);
+}
+
+.legend-box.booked {
+    background: var(--danger-light);
+    border: 2px solid var(--danger);
+}
+
+.legend-box.selected {
+    background: var(--primary-light);
+    border: 2px solid var(--primary);
+}
+
+.time-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.time-slot {
+    padding: 0.75rem;
+    border-radius: var(--radius);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.time-slot.available {
+    background: var(--success-light);
+    border-color: var(--success);
+}
+
+.time-slot.available:hover {
+    background: #a7f3d0;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.time-slot.booked {
+    background: var(--danger-light);
+    border-color: var(--danger);
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.time-slot.selected {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+.slot-time {
+    font-weight: 700;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.slot-info {
+    font-size: 0.75rem;
+    color: var(--gray-600);
+}
+
+.slot-info.small {
+    font-size: 0.6875rem;
+    color: var(--gray-400);
+}
+
+/* ==================== Custom Time ==================== */
+.custom-time-section {
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+}
+
+.custom-time-section h4 {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-bottom: 0.75rem;
+}
+
+.custom-time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* ==================== Booking Summary ==================== */
+.booking-summary {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.booking-summary h3 {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+    color: var(--gray-800);
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    letter-spacing: 0.05em;
+}
+
+.summary-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+/* ==================== Buttons ==================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+}
+
+.btn-secondary:hover {
+    background: var(--gray-200);
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-large {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+    width: 100%;
+}
+
+.btn-small {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+}
+
+/* ==================== Today's Reservations ==================== */
+.today-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.today-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--gray-800);
+}
+
+.reservations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.reservation-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    transition: box-shadow 0.2s;
+}
+
+.reservation-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.time-badge {
+    background: var(--primary);
+    color: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius);
+    font-weight: 700;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.reservation-details {
+    flex: 1;
+}
+
+.reservation-title {
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 0.25rem;
+}
+
+.reservation-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8125rem;
+    color: var(--gray-500);
+    flex-wrap: wrap;
+}
+
+/* ==================== Stats Grid (Admin) ==================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.stat-label {
+    font-size: 0.8125rem;
+    color: var(--gray-500);
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+/* ==================== Admin Filters ==================== */
+.admin-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    min-width: 160px;
+}
+
+/* ==================== Admin Table ==================== */
+.table-container {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table thead {
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.admin-table th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-600);
+}
+
+.admin-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 0.875rem;
+}
+
+.admin-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.admin-table .row-cancelled {
+    opacity: 0.6;
+}
+
+.admin-table .row-cancelled td {
+    text-decoration: line-through;
+    text-decoration-color: var(--gray-400);
+}
+
+.text-small {
+    font-size: 0.75rem;
+    color: var(--gray-400);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-confirmed {
+    background: var(--success-light);
+    color: #065f46;
+}
+
+.status-cancelled {
+    background: var(--danger-light);
+    color: #991b1b;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.375rem;
+}
+
+.loading, .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--gray-400);
+    font-size: 0.9375rem;
+}
+
+/* ==================== Modal ==================== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.modal-large {
+    max-width: 700px;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.modal-header h3 {
+    font-size: 1.125rem;
+    color: var(--gray-800);
+}
+
+.modal-close {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--gray-400);
+    line-height: 1;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--gray-700);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--gray-200);
+    background: var(--gray-50);
+}
+
+/* ==================== Edit Form ==================== */
+.edit-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* ==================== Conflict Alert ==================== */
+.conflict-alert {
+    padding: 0.5rem;
+}
+
+.conflict-alert p {
+    margin-bottom: 0.75rem;
+    color: var(--gray-700);
+}
+
+.conflict-details {
+    background: var(--danger-light);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.conflict-details ul {
+    margin-left: 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.conflict-details li {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+/* ==================== Toast ==================== */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius);
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 2000;
+    max-width: 400px;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast.success {
+    background: var(--success);
+}
+
+.toast.error {
+    background: var(--danger);
+}
+
+.toast.info {
+    background: var(--primary);
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .navbar {
+        padding: 0 1rem;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .time-slots-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .admin-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .admin-table {
+        min-width: 800px;
+    }
+
+    .edit-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .custom-time-row {
+        grid-template-columns: 1fr;
+    }
+
+    .reservation-meta {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
+</style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">🏢 Meeting Room Reservation</div>
+        <div class="nav-links">
+            <a href="/" class="nav-link active">Book a Room</a>
+            <a href="/admin" class="nav-link">Admin Panel</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1>📅 Book a Meeting Room</h1>
+            <p>Select a room, date, and time slot to make a reservation</p>
+        </div>
+
+        <!-- Booking Form Section -->
+        <div class="booking-section">
+            <div class="form-grid">
+                <!-- Room Selection -->
+                <div class="form-group">
+                    <label for="roomSelect">🏠 Meeting Room</label>
+                    <select id="roomSelect" onchange="onRoomChange()">
+                        <option value="">-- Select a Room --</option>
+                    </select>
+                    <div id="roomInfo" class="room-info" style="display:none;"></div>
+                </div>
+
+                <!-- Date Selection -->
+                <div class="form-group">
+                    <label for="dateSelect">📆 Date</label>
+                    <input type="date" id="dateSelect" onchange="onDateChange()">
+                </div>
+
+                <!-- Name -->
+                <div class="form-group">
+                    <label for="reservedBy">👤 Your Name</label>
+                    <input type="text" id="reservedBy" placeholder="Enter your name">
+                </div>
+
+                <!-- Meeting Title -->
+                <div class="form-group">
+                    <label for="meetingTitle">📝 Meeting Title</label>
+                    <input type="text" id="meetingTitle" placeholder="Enter meeting title">
+                </div>
+            </div>
+
+            <!-- Time Slot Selection -->
+            <div id="timeSlotSection" style="display:none;">
+                <h3>⏰ Select Time Slot</h3>
+                <p class="slot-legend">
+                    <span class="legend-item"><span class="legend-box available"></span> Available</span>
+                    <span class="legend-item"><span class="legend-box booked"></span> Booked</span>
+                    <span class="legend-item"><span class="legend-box selected"></span> Selected</span>
+                </p>
+                <div id="timeSlots" class="time-slots-grid"></div>
+
+                <!-- Custom Time Selection -->
+                <div class="custom-time-section">
+                    <h4>Or set custom time range:</h4>
+                    <div class="custom-time-row">
+                        <div class="form-group">
+                            <label for="customStart">Start Time</label>
+                            <select id="customStart"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="customEnd">End Time</label>
+                            <select id="customEnd"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Summary & Submit -->
+            <div id="bookingSummary" class="booking-summary" style="display:none;">
+                <h3>📋 Booking Summary</h3>
+                <div id="summaryContent"></div>
+                <button class="btn btn-primary btn-large" onclick="submitReservation()">
+                    ✅ Confirm Reservation
+                </button>
+            </div>
+        </div>
+
+        <!-- Today's Reservations -->
+        <div class="today-section">
+            <h2>📌 Today's Reservations</h2>
+            <div id="todayReservations" class="reservations-list"></div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Conflict Modal -->
+    <div id="conflictModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Time Slot Conflict</h3>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="conflictMessage" class="modal-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Select Another Time</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Global State ====================
+        let rooms = [];
+        let selectedRoom = null;
+        let selectedDate = null;
+        let selectedStartTime = null;
+        let selectedEndTime = null;
+        let availabilityData = null;
+
+        // ==================== Initialization ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('dateSelect').value = today;
+            document.getElementById('dateSelect').min = today;
+            selectedDate = today;
+
+            // Populate time selects
+            populateTimeSelects();
+
+            // Load rooms
+            loadRooms();
+
+            // Load today's reservations
+            loadTodayReservations();
+
+            // Auto-refresh every 10 seconds for real-time updates
+            setInterval(loadTodayReservations, 10000);
+        });
+
+        // ==================== Load Data ====================
+
+        async function loadRooms() {
+            try {
+                const response = await fetch('/api/rooms');
+                rooms = await response.json();
+                const select = document.getElementById('roomSelect');
+                select.innerHTML = '<option value="">-- Select a Room --</option>';
+                rooms.forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room.id;
+                    option.textContent = `${room.name} (Capacity: ${room.capacity}) - ${room.location}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                showToast('Failed to load rooms', 'error');
+            }
+        }
+
+        async function loadTodayReservations() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const response = await fetch(`/api/reservations?date=${today}`);
+                const reservations = await response.json();
+                renderTodayReservations(reservations);
+            } catch (error) {
+                console.error('Failed to load today\'s reservations:', error);
+            }
+        }
+
+        // ==================== Event Handlers ====================
+
+        function onRoomChange() {
+            const roomId = document.getElementById('roomSelect').value;
+            selectedRoom = rooms.find(r => r.id === parseInt(roomId));
+
+            const roomInfo = document.getElementById('roomInfo');
+            if (selectedRoom) {
+                roomInfo.style.display = 'block';
+                roomInfo.innerHTML = `
+                    <div class="info-item"><strong>Location:</strong> ${selectedRoom.location}</div>
+                    <div class="info-item"><strong>Capacity:</strong> ${selectedRoom.capacity} people</div>
+                    <div class="info-item"><strong>Equipment:</strong> ${selectedRoom.equipment || 'None'}</div>
+                `;
+            } else {
+                roomInfo.style.display = 'none';
+            }
+
+            resetSelection();
+            checkAvailability();
+        }
+
+        function onDateChange() {
+            selectedDate = document.getElementById('dateSelect').value;
+            resetSelection();
+            checkAvailability();
+        }
+
+        function resetSelection() {
+            selectedStartTime = null;
+            selectedEndTime = null;
+            document.getElementById('timeSlotSection').style.display = 'none';
+            document.getElementById('bookingSummary').style.display = 'none';
+        }
+
+        // ==================== Availability Check ====================
+
+        async function checkAvailability() {
+            if (!selectedRoom || !selectedDate) {
+                document.getElementById('timeSlotSection').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `/api/availability?room_id=${selectedRoom.id}&date=${selectedDate}`
+                );
+                availabilityData = await response.json();
+                renderTimeSlots();
+                document.getElementById('timeSlotSection').style.display = 'block';
+            } catch (error) {
+                showToast('Failed to check availability', 'error');
+            }
+        }
+
+        // ==================== Render Time Slots ====================
+
+        function renderTimeSlots() {
+            const container = document.getElementById('timeSlots');
+            container.innerHTML = '';
+
+            if (!availabilityData) return;
+
+            const allSlots = [...availabilityData.available_slots, ...availabilityData.booked_slots];
+            allSlots.sort((a, b) => a.start.localeCompare(b.start));
+
+            allSlots.forEach(slot => {
+                const isBooked = slot.reserved_by !== undefined;
+                const div = document.createElement('div');
+                div.className = `time-slot ${isBooked ? 'booked' : 'available'}`;
+
+                if (isBooked) {
+                    div.innerHTML = `
+                        <div class="slot-time">${slot.start} - ${slot.end}</div>
+                        <div class="slot-info">🔒 ${slot.title || 'Reserved'}</div>
+                        <div class="slot-info small">${slot.reserved_by}</div>
+                    `;
+                    div.title = `Booked by ${slot.reserved_by}: ${slot.title || 'Reserved'}`;
+                } else {
+                    div.innerHTML = `
+                        <div class="slot-time">${slot.start} - ${slot.end}</div>
+                        <div class="slot-info">✅ Available</div>
+                    `;
+                    div.onclick = () => selectTimeSlot(slot.start, slot.end, div);
+                }
+
+                container.appendChild(div);
+            });
+        }
+
+        function selectTimeSlot(start, end, element) {
+            // Remove previous selection
+            document.querySelectorAll('.time-slot.selected').forEach(el => {
+                el.classList.remove('selected');
+                el.classList.add('available');
+            });
+
+            // Mark as selected
+            element.classList.remove('available');
+            element.classList.add('selected');
+
+            selectedStartTime = start;
+            selectedEndTime = end;
+
+            // Update custom time selects
+            document.getElementById('customStart').value = start;
+            document.getElementById('customEnd').value = end;
+
+            updateBookingSummary();
+        }
+
+        // ==================== Custom Time Selection ====================
+
+        function populateTimeSelects() {
+            const startSelect = document.getElementById('customStart');
+            const endSelect = document.getElementById('customEnd');
+
+            for (let hour = 8; hour < 20; hour++) {
+                for (let minute of [0, 30]) {
+                    const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                    startSelect.add(new Option(time, time));
+
+                    const endMinute = minute + 30;
+                    const endHour = endMinute >= 60 ? hour + 1 : hour;
+                    const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute % 60).padStart(2, '0')}`;
+                    endSelect.add(new Option(endTime, endTime));
+                }
+            }
+            // Add 20:00 as end time option
+            endSelect.add(new Option('20:00', '20:00'));
+
+            // Set defaults
+            startSelect.value = '09:00';
+            endSelect.value = '10:00';
+
+            startSelect.onchange = onCustomTimeChange;
+            endSelect.onchange = onCustomTimeChange;
+        }
+
+        function onCustomTimeChange() {
+            const start = document.getElementById('customStart').value;
+            const end = document.getElementById('customEnd').value;
+
+            if (start >= end) {
+                showToast('End time must be after start time', 'error');
+                return;
+            }
+
+            selectedStartTime = start;
+            selectedEndTime = end;
+
+            // Highlight matching slot if exists
+            document.querySelectorAll('.time-slot.selected').forEach(el => {
+                el.classList.remove('selected');
+                el.classList.add('available');
+            });
+
+            updateBookingSummary();
+        }
+
+        // ==================== Booking Summary ====================
+
+        function updateBookingSummary() {
+            if (!selectedRoom || !selectedDate || !selectedStartTime || !selectedEndTime) {
+                document.getElementById('bookingSummary').style.display = 'none';
+                return;
+            }
+
+            const summary = document.getElementById('summaryContent');
+            const dateObj = new Date(selectedDate + 'T00:00:00');
+            const dateStr = dateObj.toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            summary.innerHTML = `
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Room</span>
+                        <span class="summary-value">${selectedRoom.name}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Location</span>
+                        <span class="summary-value">${selectedRoom.location}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Date</span>
+                        <span class="summary-value">${dateStr}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Time</span>
+                        <span class="summary-value">${selectedStartTime} - ${selectedEndTime}</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('bookingSummary').style.display = 'block';
+        }
+
+        // ==================== Submit Reservation ====================
+
+        async function submitReservation() {
+            const reservedBy = document.getElementById('reservedBy').value.trim();
+            const title = document.getElementById('meetingTitle').value.trim();
+
+            if (!reservedBy) {
+                showToast('Please enter your name', 'error');
+                document.getElementById('reservedBy').focus();
+                return;
+            }
+            if (!title) {
+                showToast('Please enter a meeting title', 'error');
+                document.getElementById('meetingTitle').focus();
+                return;
+            }
+            if (!selectedRoom || !selectedDate || !selectedStartTime || !selectedEndTime) {
+                showToast('Please complete all selections', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/reservations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        room_id: selectedRoom.id,
+                        reserved_by: reservedBy,
+                        title: title,
+                        reservation_date: selectedDate,
+                        start_time: selectedStartTime,
+                        end_time: selectedEndTime
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('🎉 Reservation confirmed successfully!', 'success');
+                    // Reset form
+                    document.getElementById('reservedBy').value = '';
+                    document.getElementById('meetingTitle').value = '';
+                    resetSelection();
+                    // Refresh data
+                    checkAvailability();
+                    loadTodayReservations();
+                } else if (response.status === 409) {
+                    // Show conflict modal
+                    showConflictModal(result);
+                    // Refresh availability
+                    checkAvailability();
+                } else {
+                    showToast(result.error || 'Failed to create reservation', 'error');
+                }
+            } catch (error) {
+                showToast('Network error. Please try again.', 'error');
+            }
+        }
+
+        // ==================== Render Today's Reservations ====================
+
+        function renderTodayReservations(reservations) {
+            const container = document.getElementById('todayReservations');
+
+            if (reservations.length === 0) {
+                container.innerHTML = '<div class="empty-state">No reservations for today</div>';
+                return;
+            }
+
+            container.innerHTML = reservations.map(r => `
+                <div class="reservation-card">
+                    <div class="reservation-time">
+                        <span class="time-badge">${r.start_time} - ${r.end_time}</span>
+                    </div>
+                    <div class="reservation-details">
+                        <div class="reservation-title">${r.title}</div>
+                        <div class="reservation-meta">
+                            <span>👤 ${r.reserved_by}</span>
+                            <span>🏠 ${r.room_name}</span>
+                            <span>📍 ${r.location}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==================== UI Helpers ====================
+
+        function showConflictModal(data) {
+            const modal = document.getElementById('conflictModal');
+            const message = document.getElementById('conflictMessage');
+            message.innerHTML = `
+                <div class="conflict-alert">
+                    <p><strong>${data.message}</strong></p>
+                    ${data.conflict ? `
+                        <div class="conflict-details">
+                            <p><strong>Conflicting Reservation:</strong></p>
+                            <ul>
+                                <li>Room: ${data.conflict.room_name}</li>
+                                <li>Time: ${data.conflict.start_time} - ${data.conflict.end_time}</li>
+                                <li>Reserved by: ${data.conflict.reserved_by}</li>
+                                <li>Meeting: ${data.conflict.title}</li>
+                            </ul>
+                        </div>
+                    ` : ''}
+                    <p>Please select a different time slot or room.</p>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('conflictModal').style.display = 'none';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 4000);
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('conflictModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

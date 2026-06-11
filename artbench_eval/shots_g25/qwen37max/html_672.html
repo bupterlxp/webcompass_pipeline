@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SecondHand Market</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --card:#fff; --ink:#1f2330; --muted:#6b7280;
+    --brand:#4f46e5; --brand-2:#7c3aed; --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+    --border:#e5e7eb; --shadow:0 6px 20px rgba(20,20,40,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;
+         padding:14px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50;
+         box-shadow:0 2px 10px rgba(0,0,0,.1)}
+  header h1{margin:0;font-size:20px;letter-spacing:.3px}
+  header nav{display:flex;gap:6px;margin-left:24px;flex-wrap:wrap}
+  header nav button{background:rgba(255,255,255,.15);color:#fff;border:0;padding:8px 14px;
+                    border-radius:8px;cursor:pointer;font-size:14px;transition:.2s}
+  header nav button:hover,header nav button.active{background:#fff;color:var(--brand)}
+  .role-switch{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+  .role-switch select{padding:6px 10px;border-radius:6px;border:0;font-size:13px}
+  main{max-width:1200px;margin:0 auto;padding:24px}
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;
+           background:var(--card);padding:14px;border-radius:12px;box-shadow:var(--shadow)}
+  .toolbar input,.toolbar select{padding:9px 12px;border:1px solid var(--border);border-radius:8px;
+                                 font-size:14px;background:#fff}
+  .toolbar input{flex:1;min-width:180px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
+  .card{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);
+        cursor:pointer;transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column}
+  .card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(20,20,40,.1)}
+  .card .img{aspect-ratio:1/1;background:#eef0f5 center/cover no-repeat;position:relative}
+  .card .badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;
+               font-size:11px;padding:3px 8px;border-radius:20px}
+  .card .body{padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:6px}
+  .card .title{font-weight:600;font-size:15px;margin:0;
+               display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card .price{color:var(--brand);font-weight:700;font-size:18px}
+  .card .meta{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-top:auto}
+  .stars{color:var(--warn)}
+  .btn{background:var(--brand);color:#fff;border:0;padding:10px 18px;border-radius:8px;
+       cursor:pointer;font-size:14px;font-weight:500;transition:.2s}
+  .btn:hover{background:var(--brand-2)}
+  .btn.secondary{background:#eef0f5;color:var(--ink)}
+  .btn.secondary:hover{background:#dde1ea}
+  .btn.ok{background:var(--ok)}
+  .btn.warn{background:var(--warn)}
+  .btn.err{background:var(--err)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .detail{display:grid;grid-template-columns:1.2fr 1fr;gap:28px;background:var(--card);
+          padding:24px;border-radius:14px;box-shadow:var(--shadow)}
+  @media(max-width:800px){.detail{grid-template-columns:1fr}}
+  .gallery .main-img{width:100%;aspect-ratio:1/1;background:#eef0f5 center/cover no-repeat;
+                     border-radius:10px;margin-bottom:10px}
+  .gallery .thumbs{display:flex;gap:8px;overflow-x:auto}
+  .gallery .thumbs div{width:70px;height:70px;background:#eef0f5 center/cover no-repeat;
+                       border-radius:6px;cursor:pointer;flex-shrink:0;border:2px solid transparent}
+  .gallery .thumbs div.active{border-color:var(--brand)}
+  .info h2{margin:0 0 8px}
+  .info .price-big{font-size:28px;color:var(--brand);font-weight:700;margin:8px 0}
+  .info .row{display:flex;gap:16px;color:var(--muted);font-size:13px;margin:10px 0;flex-wrap:wrap}
+  .info .desc{background:#f9fafb;padding:14px;border-radius:8px;margin:14px 0;white-space:pre-wrap}
+  .seller-card{display:flex;gap:12px;align-items:center;padding:14px;background:#f9fafb;
+               border-radius:10px;margin-top:14px}
+  .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-2));
+          color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+  .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  form.post{background:var(--card);padding:24px;border-radius:14px;box-shadow:var(--shadow);
+            max-width:720px;margin:0 auto;display:grid;gap:14px}
+  form.post label{font-weight:500;font-size:14px;display:block;margin-bottom:4px}
+  form.post input,form.post select,form.post textarea{width:100%;padding:10px 12px;
+       border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit}
+  form.post textarea{min-height:110px;resize:vertical}
+  .img-uploads{display:flex;gap:8px;flex-wrap:wrap}
+  .img-uploads .thumb{width:80px;height:80px;background:#eef0f5 center/cover no-repeat;
+                      border-radius:6px;position:relative}
+  .img-uploads .thumb button{position:absolute;top:-6px;right:-6px;background:var(--err);color:#fff;
+                             border:0;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:12px}
+  .cart-item{display:grid;grid-template-columns:80px 1fr auto;gap:14px;align-items:center;
+             background:var(--card);padding:14px;border-radius:10px;box-shadow:var(--shadow);margin-bottom:12px}
+  .cart-item .img{width:80px;height:80px;background:#eef0f5 center/cover no-repeat;border-radius:8px}
+  .status-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500}
+  .status-pending{background:#fef3c7;color:#92400e}
+  .status-agreed{background:#d1fae5;color:#065f46}
+  .status-rejected{background:#fee2e2;color:#991b1b}
+  .status-paid{background:#dbeafe;color:#1e40af}
+  .chat{background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;
+        display:flex;flex-direction:column;height:520px;max-width:720px;margin:0 auto}
+  .chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;
+               justify-content:space-between;align-items:center}
+  .chat-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;
+             background:#f9fafb}
+  .msg{max-width:75%;padding:10px 14px;border-radius:14px;font-size:14px;word-wrap:break-word}
+  .msg.me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+  .msg.them{align-self:flex-start;background:#fff;border:1px solid var(--border);border-bottom-left-radius:4px}
+  .msg.system{align-self:center;background:#eef0f5;color:var(--muted);font-size:12px;padding:6px 12px}
+  .msg .offer{font-weight:700;font-size:16px;display:block;margin-top:4px}
+  .chat-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:#fff}
+  .chat-input input{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px}
+  .empty{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty h3{color:var(--ink);margin-bottom:8px}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:12px 20px;
+         border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:100;animation:slide .3s}
+  @keyframes slide{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .section-title{font-size:22px;margin:0 0 16px;display:flex;align-items:center;gap:10px}
+  .back{background:none;border:0;color:var(--brand);cursor:pointer;font-size:14px;padding:0}
+  .summary{background:#f9fafb;padding:16px;border-radius:10px;margin-top:16px}
+  .summary .line{display:flex;justify-content:space-between;padding:4px 0}
+  .summary .total{font-size:18px;font-weight:700;border-top:1px solid var(--border);
+                  padding-top:10px;margin-top:8px;color:var(--brand)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛍️ SecondHand Market</h1>
+  <nav id="nav">
+    <button data-view="home" class="active">Browse</button>
+    <button data-view="post">Sell Item</button>
+    <button data-view="cart">Cart <span id="cart-count"></span></button>
+    <button data-view="negotiations">Messages</button>
+    <button data-view="orders">Orders</button>
+  </nav>
+  <div class="role-switch">
+    <span>Acting as:</span>
+    <select id="user-select"></select>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<script>
+/* =========================================================
+   Data layer — localStorage-backed store with seed data
+   ========================================================= */
+const LS_KEY = 'shm_data_v1';
+
+const seed = () => {
+  const users = [
+    { id:'u1', name:'Alice Chen',   rating:4.8, sales:23 },
+    { id:'u2', name:'Bob Martinez', rating:4.5, sales:11 },
+    { id:'u3', name:'Carol Wang',   rating:4.9, sales:47 },
+    { id:'u4', name:'David Kim',    rating:4.2, sales:5  },
+  ];
+  const now = Date.now();
+  const day = 86400000;
+  const products = [
+    { id:'p1', title:'MacBook Pro 2019 — 16" i9, 32GB', description:'Excellent condition, minor scratch on bottom case. Includes original charger and box. Battery cycle count: 287.',
+      price:1200, images:['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600','https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600'],
+      category:'Electronics', condition:'Like New', sellerId:'u1', postedAt: now - 2*day, status:'active' },
+    { id:'p2', title:'Vintage Leather Armchair', description:'Genuine Italian leather, 1970s. Some patina that adds character. Very comfortable.',
+      price:350, images:['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600'],
+      category:'Furniture', condition:'Good', sellerId:'u3', postedAt: now - 5*day, status:'active' },
+    { id:'p3', title:'Canon EOS R6 + 24-105mm Lens', description:'Shutter count ~8k. Comes with 2 batteries, SD card, and camera bag.',
+      price:1850, images:['https://images.unsplash.com/photo-1606986628025-35d57e735ae0?w=600','https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600'],
+      category:'Electronics', condition:'Like New', sellerId:'u2', postedAt: now - 1*day, status:'active' },
+    { id:'p4', title:'Trek Mountain Bike — Size M', description:'Well maintained, new tires last month. Great for trails and commuting.',
+      price:480, images:['https://images.unsplash.com/photo-1532298229144-0ec0c57515c7?w=600'],
+      category:'Sports', condition:'Good', sellerId:'u4', postedAt: now - 10*day, status:'active' },
+    { id:'p5', title:'IKEA KALLAX Shelf Unit (white)', description:'4x4 cubes. Disassembled for easy transport. All hardware included.',
+      price:65, images:['https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=600'],
+      category:'Furniture', condition:'Good', sellerId:'u1', postedAt: now - 3*day, status:'active' },
+    { id:'p6', title:'Sony WH-1000XM4 Headphones', description:'Noise cancelling, black. Includes case and cable. Battery holds 25+ hours.',
+      price:180, images:['https://images.unsplash.com/photo-1583394838336-acd977736f90?w=600'],
+      category:'Electronics', condition:'Like New', sellerId:'u3', postedAt: now - 7*day, status:'active' },
+    { id:'p7', title:'Harry Potter Complete Box Set', description:'Hardcover, books 1-7. Read once, kept in smoke-free home.',
+      price:55, images:['https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600'],
+      category:'Books', condition:'Like New', sellerId:'u2', postedAt: now - 14*day, status:'active' },
+    { id:'p8', title:'Nike Air Jordan 1 — Size 10', description:'Worn twice. Comes with original box. No creasing.',
+      price:220, images:['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'],
+      category:'Fashion', condition:'Like New', sellerId:'u4', postedAt: now - 4*day, status:'active' },
+  ];
+  return { users, products, cart:{}, negotiations:[], orders:[], currentUserId:'u1' };
+};
+
+const load = () => {
+  const raw = localStorage.getItem(LS_KEY);
+  if(!raw){ const d = seed(); localStorage.setItem(LS_KEY, JSON.stringify(d)); return d; }
+  try { return JSON.parse(raw); } catch { const d = seed(); save(d); return d; }
+};
+const save = (d) => localStorage.setItem(LS_KEY, JSON.stringify(d));
+let DB = load();
+
+const uid = () => Math.random().toString(36).slice(2,10);
+const fmt$ = n => '$' + Number(n).toFixed(2);
+const fmtDate = t => {
+  const d = (Date.now()-t)/86400000;
+  if(d<1) return 'today';
+  if(d<2) return 'yesterday';
+  if(d<7) return Math.floor(d)+'d ago';
+  return new Date(t).toLocaleDateString();
+};
+const stars = r => '★'.repeat(Math.round(r)) + '☆'.repeat(5-Math.round(r));
+const currentUser = () => DB.users.find(u=>u.id===DB.currentUserId);
+const toast = (msg) => {
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2400);
+};
+
+/* =========================================================
+   Router
+   ========================================================= */
+let view = { name:'home', params:{} };
+const navigate = (name, params={}) => { view = {name, params}; render(); };
+
+document.getElementById('nav').addEventListener('click', e => {
+  if(e.target.dataset.view) navigate(e.target.dataset.view);
+});
+
+/* =========================================================
+   Render dispatcher
+   ========================================================= */
+const app = document.getElementById('app');
+function render(){
+  // update nav active
+  document.querySelectorAll('#nav button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.view===view.name);
+  });
+  // cart count
+  const cartItems = Object.values(DB.cart).filter(c=>c.buyerId===DB.currentUserId);
+  document.getElementById('cart-count').textContent = cartItems.length ? `(${cartItems.length})` : '';
+  // user selector
+  const sel = document.getElementById('user-select');
+  sel.innerHTML = DB.users.map(u=>`<option value="${u.id}" ${u.id===DB.currentUserId?'selected':''}>${u.name}</option>`).join('');
+
+  switch(view.name){
+    case 'home': renderHome(); break;
+    case 'detail': renderDetail(view.params.id); break;
+    case 'post': renderPost(); break;
+    case 'cart': renderCart(); break;
+    case 'negotiations': renderNegotiations(); break;
+    case 'negotiation': renderNegotiationChat(view.params.id); break;
+    case 'orders': renderOrders(); break;
+    default: renderHome();
+  }
+}
+
+document.getElementById('user-select').addEventListener('change', e=>{
+  DB.currentUserId = e.target.value; save(DB); render();
+  toast('Switched to '+currentUser().name);
+});
+
+/* =========================================================
+   HOME — listing with sort / filter / search
+   ========================================================= */
+let homeState = { sort:'time', category:'all', q:'' };
+
+function renderHome(){
+  let items = DB.products.filter(p=>p.status==='active');
+  if(homeState.category!=='all') items = items.filter(p=>p.category===homeState.category);
+  if(homeState.q) items = items.filter(p=>p.title.toLowerCase().includes(homeState.q.toLowerCase()));
+
+  const sellerRating = id => (DB.users.find(u=>u.id===id)||{}).rating || 0;
+  if(homeState.sort==='price-asc') items.sort((a,b)=>a.price-b.price);
+  else if(homeState.sort==='price-desc') items.sort((a,b)=>b.price-a.price);
+  else if(homeState.sort==='rating') items.sort((a,b)=>sellerRating(b.sellerId)-sellerRating(a.sellerId));
+  else items.sort((a,b)=>b.postedAt-a.postedAt);
+
+  const categories = ['all', ...new Set(DB.products.map(p=>p.category))];
+
+  app.innerHTML = `
+    <div class="toolbar">
+      <input id="search" placeholder="🔍 Search items..." value="${homeState.q}"/>
+      <select id="cat">
+        ${categories.map(c=>`<option value="${c}" ${c===homeState.category?'selected':''}>${c==='all'?'All categories':c}</option>`).join('')}
+      </select>
+      <select id="sort">
+        <option value="time" ${homeState.sort==='time'?'selected':''}>Newest first</option>
+        <option value="price-asc" ${homeState.sort==='price-asc'?'selected':''}>Price: low → high</option>
+        <option value="price-desc" ${homeState.sort==='price-desc'?'selected':''}>Price: high → low</option>
+        <option value="rating" ${homeState.sort==='rating'?'selected':''}>Seller rating</option>
+      </select>
+    </div>
+    ${items.length ? `<div class="grid">${items.map(cardHTML).join('')}</div>`
+      : `<div class="empty"><h3>No items found</h3><p>Try a different search or category.</p></div>`}
+  `;
+
+  document.getElementById('search').oninput = e => { homeState.q = e.target.value; renderHome(); };
+  document.getElementById('cat').onchange = e => { homeState.category = e.target.value; renderHome(); };
+  document.getElementById('sort').onchange = e => { homeState.sort = e.target.value; renderHome(); };
+  document.querySelectorAll('.card').forEach(c=>{
+    c.onclick = () => navigate('detail', {id:c.dataset.id});
+  });
+}
+
+function cardHTML(p){
+  const seller = DB.users.find(u=>u.id===p.sellerId);
+  return `
+    <div class="card" data-id="${p.id}">
+      <div class="img" style="background-image:url('${p.images[0]}')">
+        <span class="badge">${p.condition}</span>
+      </div>
+      <div class="body">
+        <p class="title">${p.title}</p>
+        <div class="price">${fmt$(p.price)}</div>
+        <div class="meta">
+          <span class="stars">${stars(seller.rating)} ${seller.rating}</span>
+          <span>${fmtDate(p.postedAt)}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* =========================================================
+   DETAIL
+   ========================================================= */
+function renderDetail(id){
+  const p = DB.products.find(x=>x.id===id);
+  if(!p){ app.innerHTML = '<div class="empty"><h3>Item not found</h3></div>'; return; }
+  const seller = DB.users.find(u=>u.id===p.sellerId);
+  const isOwner = p.sellerId === DB.currentUserId;
+  const inCart = DB.cart[p.id] && DB.cart[p.id].buyerId === DB.currentUserId;
+
+  app.innerHTML = `
+    <button class="back" id="back">← Back to listings</button>
+    <div class="detail" style="margin-top:12px">
+      <div class="gallery">
+        <div class="main-img" id="mainImg" style="background-image:url('${p.images[0]}')"></div>
+        <div class="thumbs">
+          ${p.images.map((img,i)=>`<div data-i="${i}" class="${i===0?'active':''}" style="background-image:url('${img}')"></div>`).join('')}
+        </div>
+      </div>
+      <div class="info">
+        <h2>${p.title}</h2>
+        <div class="price-big">${fmt$(p.price)}</div>
+        <div class="row">
+          <span>📦 ${p.condition}</span>
+          <span>🏷️ ${p.category}</span>
+          <span>🕒 Posted ${fmtDate(p.postedAt)}</span>
+        </div>
+        <div class="desc">${p.description}</div>
+        <div class="seller-card">
+          <div class="avatar">${seller.name[0]}</div>
+          <div>
+            <div style="font-weight:600">${seller.name}</div>
+            <div style="font-size:13px;color:var(--muted)">
+              <span class="stars">${stars(seller.rating)}</span> ${seller.rating} · ${seller.sales} sales
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          ${isOwner
+            ? `<button class="btn secondary" disabled>You own this listing</button>`
+            : inCart
+              ? `<button class="btn secondary" id="rmCart">Remove from cart</button>
+                 <button class="btn" id="goCart">View cart →</button>`
+              : `<button class="btn" id="addCart">Add to cart & negotiate</button>`
+          }
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back').onclick = () => navigate('home');
+  document.querySelectorAll('.thumbs div').forEach(t=>{
+    t.onclick = () => {
+      document.querySelectorAll('.thumbs div').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('mainImg').style.backgroundImage = `url('${p.images[t.dataset.i]}')`;
+    };
+  });
+  const addBtn = document.getElementById('addCart');
+  if(addBtn) addBtn.onclick = () => addToCart(p.id);
+  const rmBtn = document.getElementById('rmCart');
+  if(rmBtn) rmBtn.onclick = () => { delete DB.cart[p.id]; save(DB); toast('Removed from cart'); renderDetail(id); };
+  const goBtn = document.getElementById('goCart');
+  if(goBtn) goBtn.onclick = () => navigate('cart');
+}
+
+function addToCart(productId){
+  const p = DB.products.find(x=>x.id===productId);
+  // create a negotiation thread
+  const neg = {
+    id: uid(), productId, buyerId: DB.currentUserId, sellerId: p.sellerId,
+    messages:[{ from:'system', text:'Negotiation started. Make your offer!', time:Date.now() }],
+    originalPrice: p.price, currentOffer: null, status:'pending', createdAt: Date.now()
+  };
+  DB.negotiations.push(neg);
+  DB.cart[productId] = { buyerId: DB.currentUserId, negotiationId: neg.id, addedAt: Date.now() };
+  save(DB);
+  toast('Added to cart — now make an offer!');
+  navigate('negotiation', {id: neg.id});
+}
+
+/* =========================================================
+   POST ITEM
+   ========================================================= */
+let postImages = [];
+function renderPost(){
+  app.innerHTML = `
+    <h2 class="section-title">📤 List an item for sale</h2>
+    <form class="post" id="postForm">
+      <div>
+        <label>Title</label>
+        <input name="title" required placeholder="e.g. iPhone 13 Pro 256GB"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <label>Price ($)</label>
+          <input name="price" type="number" min="0" step="0.01" required/>
+        </div>
+        <div>
+          <label>Category</label>
+          <select name="category">
+            <option>Electronics</option><option>Furniture</option><option>Fashion</option>
+            <option>Books</option><option>Sports</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>Condition</label>
+        <select name="condition">
+          <option>Like New</option><option>Good</option><option>Fair</option><option>For Parts</option>
+        </select>
+      </div>
+      <div>
+        <label>Description</label>
+        <textarea name="description" required placeholder="Describe the item, its history, any flaws..."></textarea>
+      </div>
+      <div>
+        <label>Images (URLs or upload)</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="imgUrl" placeholder="Paste image URL and click Add"/>
+          <button type="button" class="btn secondary" id="addUrl">Add URL</button>
+          <label class="btn secondary" style="cursor:pointer">
+            Upload <input type="file" id="imgFile" accept="image/*" multiple style="display:none"/>
+          </label>
+        </div>
+        <div class="img-uploads" id="imgList"></div>
+      </div>
+      <button class="btn" type="submit">Publish listing</button>
+    </form>
+  `;
+  postImages = [];
+  const refreshImgs = () => {
+    document.getElementById('imgList').innerHTML = postImages.map((src,i)=>`
+      <div class="thumb" style="background-image:url('${src}')">
+        <button type="button" data-i="${i}">×</button>
+      </div>`).join('');
+    document.querySelectorAll('#imgList button').forEach(b=>{
+      b.onclick = () => { postImages.splice(+b.dataset.i,1); refreshImgs(); };
+    });
+  };
+  document.getElementById('addUrl').onclick = () => {
+    const v = document.getElementById('imgUrl').value.trim();
+    if(v){ postImages.push(v); document.getElementById('imgUrl').value=''; refreshImgs(); }
+  };
+  document.getElementById('imgFile').onchange = (e) => {
+    [...e.target.files].forEach(f=>{
+      const r = new FileReader();
+      r.onload = ev => { postImages.push(ev.target.result); refreshImgs(); };
+      r.readAsDataURL(f);
+    });
+  };
+
+  document.getElementById('postForm').onsubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    if(postImages.length===0){
+      postImages.push('https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=600');
+    }
+    const product = {
+      id: uid(),
+      title: fd.get('title'),
+      description: fd.get('description'),
+      price: parseFloat(fd.get('price')),
+      images: postImages.slice(),
+      category: fd.get('category'),
+      condition: fd.get('condition'),
+      sellerId: DB.currentUserId,
+      postedAt: Date.now(),
+      status: 'active'
+    };
+    DB.products.push(product);
+    save(DB);
+    toast('Listing published!');
+    navigate('detail', {id: product.id});
+  };
+}
+
+/* =========================================================
+   CART
+   ========================================================= */
+function renderCart(){
+  const items = Object.entries(DB.cart)
+    .filter(([_,c])=>c.buyerId===DB.currentUserId)
+    .map(([pid,c])=>({ product: DB.products.find(p=>p.id===pid), cart:c,
+                        neg: DB.negotiations.find(n=>n.id===c.negotiationId) }));
+
+  if(items.length===0){
+    app.innerHTML = `<div class="empty"><h3>Your cart is empty</h3>
+      <p>Browse items and add them to start negotiating.</p>
+      <button class="btn" onclick="navigate('home')">Browse items</button></div>`;
+    return;
+  }
+
+  const agreedItems = items.filter(i=>i.neg.status==='agreed');
+  const total = agreedItems.reduce((s,i)=>s+i.neg.currentOffer, 0);
+
+  app.innerHTML = `
+    <h2 class="section-title">🛒 Your cart</h2>
+    ${items.map(({product:p, neg})=>`
+      <div class="cart-item">
+        <div class="img" style="background-image:url('${p.images[0]}')"></div>
+        <div>
+          <div style="font-weight:600">${p.title}</div>
+          <div style="color:var(--muted);font-size:13px">Listed at ${fmt$(p.price)}</div>
+          <div style="margin-top:6px">
+            <span class="status-pill status-${neg.status}">
+              ${neg.status==='pending'?'⏳ Awaiting deal'
+                :neg.status==='agreed'?'✅ Deal at '+fmt$(neg.currentOffer)
+                :neg.status==='rejected'?'❌ Offer rejected'
+                :neg.status}
+            </span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <button class="btn secondary" data-neg="${neg.id}">💬 Open chat</button>
+          <button class="btn err" data-rm="${p.id}" style="padding:6px 12px;font-size:12px">Remove</button>
+        </div>
+      </div>
+    `).join('')}
+
+    ${agreedItems.length ? `
+      <div class="summary">
+        <div class="line"><span>Items ready to buy</span><span>${agreedItems.length}</span></div>
+        ${agreedItems.map(i=>`<div class="line"><span style="color:var(--muted);font-size:13px">· ${i.product.title}</span><span>${fmt$(i.neg.currentOffer)}</span></div>`).join('')}
+        <div class="line total"><span>Total</span><span>${fmt$(total)}</span></div>
+        <button class="btn ok" id="checkout" style="width:100%;margin-top:12px">💳 Pay ${fmt$(total)}</button>
+      </div>` : `
+      <div class="summary" style="text-align:center;color:var(--muted)">
+        Negotiate with sellers to reach a deal, then checkout will appear here.
+      </div>`}
+  `;
+
+  document.querySelectorAll('[data-neg]').forEach(b=>{
+    b.onclick = () => navigate('negotiation', {id: b.dataset.neg});
+  });
+  document.querySelectorAll('[data-rm]').forEach(b=>{
+    b.onclick = () => {
+      const pid = b.dataset.rm;
+      const negId = DB.cart[pid].negotiationId;
+      DB.negotiations = DB.negotiations.filter(n=>n.id!==negId);
+      delete DB.cart[pid];
+      save(DB); renderCart();
+    };
+  });
+  const co = document.getElementById('checkout');
+  if(co) co.onclick = checkout;
+}
+
+function checkout(){
+  const agreed = DB.negotiations.filter(n=>n.buyerId===DB.currentUserId && n.status==='agreed');
+  if(agreed.length===0) return;
+  const order = {
+    id: uid(),
+    buyerId: DB.currentUserId,
+    items: agreed.map(n=>{
+      const p = DB.products.find(x=>x.id===n.productId);
+      return { productId:n.productId, title:p.title, price:n.currentOffer, sellerId:n.sellerId };
+    }),
+    total: agreed.reduce((s,n)=>s+n.currentOffer,0),
+    createdAt: Date.now(),
+    status: 'paid'
+  };
+  DB.orders.push(order);
+  // mark products sold, remove from cart, close negotiations
+  agreed.forEach(n=>{
+    const p = DB.products.find(x=>x.id===n.productId);
+    if(p) p.status = 'sold';
+    n.status = 'paid';
+    delete DB.cart[n.productId];
+    // bump seller sales count
+    const seller = DB.users.find(u=>u.id===n.sellerId);
+    if(seller) seller.sales += 1;
+  });
+  save(DB);
+  toast('🎉 Payment successful! Order #'+order.id.slice(0,6));
+  navigate('orders');
+}
+
+/* =========================================================
+   NEGOTIATIONS LIST
+   ========================================================= */
+function renderNegotiations(){
+  const mine = DB.negotiations.filter(n=>n.buyerId===DB.currentUserId || n.sellerId===DB.currentUserId)
+                              .sort((a,b)=>b.createdAt-a.createdAt);
+  if(mine.length===0){
+    app.innerHTML = `<div class="empty"><h3>No messages yet</h3>
+      <p>Add items to your cart to start negotiating with sellers.</p></div>`;
+    return;
+  }
+  app.innerHTML = `
+    <h2 class="section-title">💬 Negotiations</h2>
+    ${mine.map(n=>{
+      const p = DB.products.find(x=>x.id===n.productId);
+      const other = DB.users.find(u=>u.id===(n.buyerId===DB.currentUserId?n.sellerId:n.buyerId));
+      const last = n.messages[n.messages.length-1];
+      return `
+        <div class="cart-item" style="cursor:pointer" data-id="${n.id}">
+          <div class="img" style="background-image:url('${p.images[0]}')"></div>
+          <div>
+            <div style="font-weight:600">${p.title}</div>
+            <div style="color:var(--muted);font-size:13px">With ${other.name}</div>
+            <div style="margin-top:6px;font-size:13px;color:var(--muted)">
+              ${last.from==='system'?'🔔 ':''}${last.text.slice(0,60)}${last.text.length>60?'...':''}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <span class="status-pill status-${n.status}">${n.status}</span>
+            ${n.currentOffer?`<div style="margin-top:6px;font-weight:600">${fmt$(n.currentOffer)}</div>`:''}
+          </div>
+        </div>`;
+    }).join('')}
+  `;
+  document.querySelectorAll('[data-id]').forEach(el=>{
+    el.onclick = () => navigate('negotiation', {id: el.dataset.id});
+  });
+}
+
+/* =========================================================
+   NEGOTIATION CHAT
+   ========================================================= */
+function renderNegotiationChat(id){
+  const n = DB.negotiations.find(x=>x.id===id);
+  if(!n){ app.innerHTML = '<div class="empty">Conversation not found.</div>'; return; }
+  const p = DB.products.find(x=>x.id===n.productId);
+  const me = DB.currentUserId;
+  const imBuyer = n.buyerId === me;
+  const other = DB.users.find(u=>u.id===(imBuyer?n.sellerId:n.buyerId));
+  const closed = n.status==='agreed' || n.status==='rejected' || n.status==='paid';
+
+  app.innerHTML = `
+    <button class="back" id="back">← Back</button>
+    <div class="chat" style="margin-top:12px">
+      <div class="chat-header">
+        <div>
+          <div style="font-weight:600">${p.title}</div>
+          <div style="font-size:12px;color:var(--muted)">
+            ${imBuyer?'Seller':'Buyer'}: ${other.name} · Listed ${fmt$(n.originalPrice)}
+            ${n.currentOffer?` · Current offer ${fmt$(n.currentOffer)}`:''}
+          </div>
+        </div>
+        <span class="status-pill status-${n.status}">${n.status}</span>
+      </div>
+      <div class="chat-body" id="chatBody">
+        ${n.messages.map(m=>{
+          if(m.from==='system') return `<div class="msg system">${m.text}</div>`;
+          const mine = m.from===me;
+          return `<div class="msg ${mine?'me':'them'}">
+            ${m.text||''}
+            ${m.offer!=null?`<span class="offer">${m.action==='offer'?'Offered':'Counter-offered'} ${fmt$(m.offer)}</span>`:''}
+            ${m.action==='accept'?'<span class="offer">✅ Accepted the deal</span>':''}
+            ${m.action==='reject'?'<span class="offer">❌ Rejected the offer</span>':''}
+          </div>`;
+        }).join('')}
+      </div>
+      ${closed ? `
+        <div class="chat-input" style="justify-content:center;color:var(--muted);font-size:13px">
+          ${n.status==='agreed'?(imBuyer?'Deal reached — go to cart to pay.':'Deal reached — awaiting buyer payment.')
+            :n.status==='paid'?'✅ Order completed.'
+            :'Negotiation closed.'}
+        </div>` : `
+        <div class="chat-input">
+          <input id="msgText" placeholder="${imBuyer?'Message or enter your offer below...':'Message the buyer...'}"/>
+          <input id="offerAmt" type="number" min="0" step="0.01" placeholder="$" style="width:90px"/>
+          ${imBuyer
+            ? `<button class="btn" id="sendOffer">Offer</button>`
+            : `<button class="btn warn" id="sendCounter">Counter</button>
+               <button class="btn ok" id="accept">Accept</button>
+               <button class="btn err" id="reject">Reject</button>`}
+          <button class="btn secondary" id="sendMsg">Send</button>
+        </div>`}
+    </div>
+  `;
+
+  document.getElementById('back').onclick = () => navigate(imBuyer?'cart':'negotiations');
+  const body = document.getElementById('chatBody');
+  body.scrollTop = body.scrollHeight;
+
+  if(closed) return;
+
+  const pushMsg = (m) => { n.messages.push({...m, time:Date.now()}); save(DB); renderNegotiationChat(id); };
+
+  document.getElementById('sendMsg').onclick = () => {
+    const t = document.getElementById('msgText').value.trim();
+    if(!t) return;
+    pushMsg({from:me, text:t});
+  };
+  document.getElementById('msgText').onkeydown = (e)=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('sendMsg').click(); }
+  };
+
+  if(imBuyer){
+    document.getElementById('sendOffer').onclick = () => {
+      const amt = parseFloat(document.getElementById('offerAmt').value);
+      const t = document.getElementById('msgText').value.trim();
+      if(!amt || amt<=0){ toast('Enter a valid offer amount'); return; }
+      n.currentOffer = amt;
+      n.status = 'pending';
+      pushMsg({from:me, text:t||'Here is my offer:', offer:amt, action:'offer'});
+    };
+  } else {
+    document.getElementById('sendCounter').onclick = () => {
+      const amt = parseFloat(document.getElementById('offerAmt').value);
+      const t = document.getElementById('msgText').value.trim();
+      if(!amt || amt<=0){ toast('Enter a counter-offer amount'); return; }
+      n.currentOffer = amt;
+      pushMsg({from:me, text:t||'How about this price?', offer:amt, action:'offer'});
+    };
+    document.getElementById('accept').onclick = () => {
+      if(n.currentOffer==null){ toast('No offer to accept yet'); return; }
+      n.status = 'agreed';
+      pushMsg({from:me, text:'Deal!', action:'accept'});
+      toast('✅ Deal reached!');
+    };
+    document.getElementById('reject').onclick = () => {
+      n.status = 'rejected';
+      pushMsg({from:me, text:'Sorry, I cannot accept that price.', action:'reject'});
+    };
+  }
+}
+
+/* =========================================================
+   ORDERS
+   ========================================================= */
+function renderOrders(){
+  const mine = DB.orders.filter(o=>o.buyerId===DB.currentUserId || o.items.some(i=>i.sellerId===DB.currentUserId))
+                        .sort((a,b)=>b.createdAt-a.createdAt);
+  if(mine.length===0){
+    app.innerHTML = `<div class="empty"><h3>No orders yet</h3>
+      <p>Completed deals will appear here.</p></div>`;
+    return;
+  }
+  app.innerHTML = `
+    <h2 class="section-title">📦 Orders</h2>
+    ${mine.map(o=>{
+      const imBuyer = o.buyerId===DB.currentUserId;
+      return `
+        <div class="cart-item" style="grid-template-columns:1fr auto">
+          <div>
+            <div style="font-weight:600">Order #${o.id.slice(0,6)} · ${new Date(o.createdAt).toLocaleString()}</div>
+            <div style="color:var(--muted);font-size:13px;margin-top:4px">
+              ${imBuyer?'You bought':'You sold'}:
+            </div>
+            ${o.items.map(i=>`<div style="font-size:14px;margin-top:4px">· ${i.title} — ${fmt$(i.price)}</div>`).join('')}
+          </div>
+          <div style="text-align:right">
+            <span class="status-pill status-paid">✅ ${imBuyer?'Paid':'Received'}</span>
+            <div style="font-weight:700;color:var(--brand);margin-top:6px">${fmt$(o.total)}</div>
+          </div>
+        </div>`;
+    }).join('')}
+  `;
+}
+
+/* expose navigate for inline onclick */
+window.navigate = navigate;
+
+/* initial render */
+render();
+</script>
+</body>
+</html>

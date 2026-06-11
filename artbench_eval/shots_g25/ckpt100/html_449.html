@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumen — A Personal Blog</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #0f172a;
+  --bg-elev: #1e293b;
+  --bg-elev-2: #273449;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --accent: #8b5cf6;
+  --accent-2: #ec4899;
+  --success: #10b981;
+  --danger: #ef4444;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.3);
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.2);
+  --transition: 0.25s ease;
+}
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(139,92,246,0.15), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(236,72,153,0.12), transparent 40%);
+  min-height: 100vh;
+  line-height: 1.6;
+  font-size: 16px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body.dark { --bg: #0b1220; --bg-elev: #162036; --bg-elev-2: #1e2a44; --border: #2a3a58; }
+button, input, select, textarea { font-family: inherit; font-size: 15px; }
+a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--accent-2); }
+h1, h2, h3, h4 { color: var(--text); margin: 0 0 0.5em; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.75rem, 3vw, 2.5rem); }
+h2 { font-size: clamp(1.3rem, 2.2vw, 1.75rem); }
+h3 { font-size: 1.15rem; }
+p { margin: 0 0 1em; }
+
+/* ---------- Layout ---------- */
+#app { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+.sidebar { position: sticky; top: 24px; }
+.sidebar-header { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius); background: var(--bg-elev); border: 1px solid var(--border); }
+.avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); }
+.sidebar-header .name { font-weight: 600; font-size: 15px; }
+.sidebar-header .handle { font-size: 13px; color: var(--text-dim); }
+.sidebar-header .followers { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.sidebar-header .followers i { color: var(--accent); }
+.sidebar-header .followers span { font-size: 12px; color: var(--text-dim); }
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+.sidebar-nav a {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  color: var(--text-dim); font-weight: 500;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+}
+.sidebar-nav a:hover { background: var(--bg-elev-2); color: var(--text); }
+.sidebar-nav a.active { background: var(--bg-elev-2); color: var(--text); border-color: var(--border); }
+
+.sidebar-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.sidebar-section h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 10px; }
+
+/* ---------- Sidebar widgets ---------- */
+.widget { padding: 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); }
+.widget h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 8px; }
+.widget ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.widget li { font-size: 13px; color: var(--text-dim); }
+.widget li strong { color: var(--text); font-weight: 500; }
+
+/* ---------- Main ---------- */
+.main { display: flex; flex-direction: column; min-width: 0; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.page-title { font-size: 1.25rem; }
+
+/* ---------- Cards ---------- */
+.card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.card-title { font-size: 1.1rem; margin-bottom: 12px; }
+.card-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.card-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---------- Article ---------- */
+.article { margin-bottom: 24px; }
+.article h2 { margin-bottom: 12px; }
+.article p { margin-bottom: 14px; }
+.article p:last-child { margin-bottom: 0; }
+
+/* ---------- Photo grid ---------- */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.photo { position: relative; aspect-ratio: 16/10; border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform var(--transition); }
+.photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.photo:hover img { transform: scale(1.05); }
+.photo .photo-tag { position: absolute; top: 10px; left: 10px; background: rgba(13, 20, 38, 0.75); color: var(--text); font-size: 11px; padding: 4px 8px; border-radius: 6px; letter-spacing: 0.02em; }
+
+/* ---------- Video ---------- */
+.video-card { margin-bottom: 24px; }
+.video-card iframe { width: 100%; aspect-ratio: 16/9; border-radius: var(--radius); border: 1px solid var(--border); background: #000; }
+
+/* ---------- Social circle ---------- */
+.social-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.social-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 999px; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text-dim); font-size: 14px; cursor: pointer; transition: all var(--transition); }
+.social-item:hover { border-color: var(--accent); color: var(--text); }
+.social-item .avatar-sm { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.social-item .name { font-size: 13px; }
+
+/* ---------- Login / Registration ---------- */
+.auth-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+.auth-card h2 { margin-bottom: 16px; }
+.auth-card p { margin-bottom: 16px; }
+.auth-card .form-group { margin-bottom: 14px; }
+.auth-card label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+.auth-card input[type="text"],
+.auth-card input[type="email"],
+.auth-card input[type="password"],
+.auth-card input[type="date"],
+.auth-card select,
+.auth-card textarea {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); transition: border-color var(--transition), box-shadow var(--transition);
+}
+.auth-card input:focus, .auth-card select:focus, .auth-card textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
+}
+.auth-card .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 20px; border-radius: var(--radius-sm); border: none; font-weight: 600; font-size: 14px;
+  transition: all var(--transition);
+}
+.auth-card .btn-primary { background: var(--accent); color: #fff; }
+.auth-card .btn-primary:hover { background: #7c3aed; transform: translateY(-1px); }
+.auth-card .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.auth-card .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.auth-card .btn-danger { background: var(--danger); color: #fff; }
+.auth-card .btn-danger:hover { background: #dc2626; }
+.auth-card .btn-block { width: 100%; }
+
+.auth-links { display: flex; justify-content: space-between; margin-top: 14px; font-size: 13px; }
+.auth-links a { color: var(--text-dim); }
+.auth-links a:hover { color: var(--accent); }
+
+/* ---------- Avatar / Follower ---------- */
+.avatar-card { text-align: center; margin-bottom: 20px; }
+.avatar-card .avatar { width: 140px; height: 140px; margin: 0 auto 16px; }
+.avatar-card h3 { font-size: 1.2rem; margin-bottom: 4px; }
+.avatar-card .handle { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+.avatar-card .followers { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.avatar-card .bio { color: var(--text-dim); font-size: 14px; }
+
+/* ---------- Inbox ---------- */
+.inbox { display: flex; flex-direction: column; gap: 16px; }
+.conversation { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.conversation-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.conversation-header .avatar-sm { width: 36px; height: 36px; }
+.conversation-header .name { font-weight: 500; }
+.conversation-header .status { font-size: 11px; color: var(--text-dim); }
+.conversation-header .status.online { color: var(--success); }
+.conversation-header .status.offline { color: var(--text-dim); }
+.conversation-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.conversation-body .message { display: flex; flex-direction: column; gap: 4px; }
+.conversation-body .message .meta { font-size: 11px; color: var(--text-dim); }
+.conversation-body .message .text { background: var(--bg-elev-2); border-radius: 10px; padding: 10px 12px; color: var(--text); border: 1px solid var(--border); max-width: 70%; }
+.conversation-body .message .text.me { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3); color: #fff; }
+.conversation-body .message .text.me::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #fff; margin-left: -28px; }
+
+.conversation-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.conversation-footer input { flex: 1; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; }
+.conversation-footer .btn-send { padding: 10px 18px; border-radius: var(--radius-sm); border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; }
+.conversation-footer .btn-send:hover { background: #7c3aed; }
+
+/* ---------- Message list ---------- */
+.message-list { display: flex; flex-direction: column; gap: 10px; }
+.message-item { padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); }
+.message-item:hover { background: var(--bg-elev-2); }
+.message-item.active { background: rgba(139,92,246,0.1); }
+
+/* ---------- Empty state ---------- */
+.empty { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+.empty i { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+
+/* ---------- Modal ---------- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(5, 10, 20, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity var(--transition); }
+.modal-overlay.visible { opacity: 1; pointer-events: auto; }
+.modal { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); max-width: 520px; width: 100%; max-height: 90vh; overflow: auto; position: relative; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h3 { margin: 0; }
+.modal-body { padding: 20px; }
+.modal-body textarea { width: 100%; min-height: 140px; resize: vertical; }
+.modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- Toast ---------- */
+.toast-container { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 200; pointer-events: none; }
+.toast { background: var(--bg-elev); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); padding: 12px 16px; min-width: 260px; max-width: 360px; box-shadow: var(--shadow); pointer-events: auto; animation: slideIn 0.3s ease; }
+.toast.error { border-left-color: var(--danger); }
+.toast.success { border-left-color: var(--success); }
+@keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ---------- Pagination ---------- */
+.pagination { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 24px; }
+.page-btn { min-width: 36px; height: 36px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); font-size: 14px; font-weight: 500; transition: all var(--transition); }
+.page-btn:hover:not(:disabled) { background: var(--bg-elev-2); border-color: var(--accent); color: var(--accent); }
+.page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Toast ---------- */
+.toast-container { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 200; pointer-events: none; }
+.toast { background: var(--bg-elev); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); padding: 12px 16px; min-width: 260px; max-width: 360px; box-shadow: var(--shadow); pointer-events: auto; animation: slideIn 0.3s ease; }
+.toast.error { border-left-color: var(--danger); }
+.toast.success { border-left-color: var(--success); }
+.toast.info { border-left-color: var(--accent-2); }
+.toast.fade-out { animation: slideOut 0.3s ease forwards; }
+@keyframes slideOut { to { transform: translateX(120%); opacity: 0; } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  #app { padding: 16px; }
+}
+@media (max-width: 520px) {
+  .card { padding: 16px; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .pagination { flex-wrap: wrap; }
+  .toast-container { left: 16px; right: 16px; }
+  .toast { min-width: 0; max-width: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Lumen</h1>
+      <p class="page-subtitle">A personal blog & journal</p>
+    </div>
+    <div class="page-actions">
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+      <button id="loginBtn" class="btn btn-ghost btn-sm" style="padding: 8px 14px; font-size: 13px;">Sign In</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div>
+          <div class="avatar" style="background: linear-gradient(135deg,#8b5cf6,#ec4899); color:#fff;">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <div class="name">Alex Morgan</div>
+          <div class="handle">@alex.lumen</div>
+        </div>
+        <div class="followers">
+          <i class="fa-solid fa-heart"></i>
+          <span id="followerCount">1,248</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="active" data-view="home"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="#" data-view="articles"><i class="fa-solid fa-newspaper"></i> Articles</a>
+        <a href="#" data-view="photos"><i class="fa-solid fa-camera"></i> Photos</a>
+        <a href="#" data-view="videos"><i class="fa-solid fa-film"></i> Videos</a>
+        <a href="#" data-view="social"><i class="fa-solid fa-users"></i> Social Circle</a>
+        <a href="#" data-view="messages"><i class="fa-solid fa-envelope"></i> Messages</a>
+      </nav>
+
+      <div class="sidebar-section">
+        <h3>Recent Articles</h3>
+        <ul class="widget">
+          <li><strong>Photography</strong> · 3 days ago</li>
+          <li><strong>Design Systems</strong> · 1 week ago</li>
+          <li><strong>Minimal CSS</strong> · 2 weeks ago</li>
+          <li><strong>Dark Mode</strong> · 3 weeks ago</li>
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Stats</h3>
+        <ul class="widget">
+          <li><strong>Posts</strong> · 42</li>
+          <li><strong>Followers</strong> · 1.2k</li>
+          <li><strong>Views</strong> · 89,420</li>
+          <li><strong>Friends</strong> · 14</li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- HOME -->
+      <section id="view-home" class="active">
+        <div class="card">
+          <h2>Featured Article</h2>
+          <p class="card-meta"><i class="fa-solid fa-user"></i> Alex Morgan · <i class="fa-solid fa-calendar"></i> 2025-03-14 · <i class="fa-solid fa-clock"></i> 5 min read</p>
+          <article class="article">
+            <h2>The Quiet Art of Slow Design</h2>
+            <p>In a world obsessed with speed and scale, the discipline of slowing down has become one of the most radical acts a designer can take. This essay explores how restraint, patience, and attention to detail shape the work we remember.</p>
+            <p>From the first sketch to the final pixel, every decision carries weight. The best work is rarely the loudest — it is the work that feels inevitable, as though it could not have been any other way.</p>
+            <p>Read the full piece →</p>
+          </article>
+        </div>
+
+        <div class="card">
+          <h2>Latest Articles</h2>
+          <div class="article-list" id="articleList"></div>
+        </div>
+      </section>
+
+      <!-- ARTICLES -->
+      <section id="view-articles" class="hidden">
+        <div class="card">
+          <h2>Articles</h2>
+          <div class="article-list" id="articleList"></div>
+        </div>
+      </section>
+
+      <!-- PHOTOS -->
+      <section id="view-photos" class="hidden">
+        <div class="card">
+          <h2>Photo Gallery</h2>
+          <div class="photo-grid" id="photoGrid"></div>
+        </div>
+      </section>
+
+      <!-- VIDEOS -->
+      <section id="view-videos" class="hidden">
+        <div class="card">
+          <h2>Videos</h2>
+          <div class="video-card">
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Sample video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>
+          <p class="card-meta"><i class="fa-solid fa-user"></i> Alex Morgan · <i class="fa-solid fa-calendar"></i> 2025-02-28</p>
+          <p class="card-meta"><i class="fa-solid fa-clock"></i> 12 min watch · <i class="fa-solid fa-eye"></i> 4,200 views</p>
+        </div>
+      </section>
+
+      <!-- SOCIAL -->
+      <section id="view-social" class="hidden">
+        <div class="card">
+          <h2>My Social Circle</h2>
+          <p class="card-meta"><i class="fa-solid fa-user-friends"></i> 14 friends</p>
+          <div class="social-list" id="socialList"></div>
+        </div>
+      </section>
+
+      <!-- MESSAGES -->
+      <section id="view-messages" class="hidden">
+        <div class="card">
+          <h2>Private Messages</h2>
+          <p class="card-meta"><i class="fa-solid fa-envelope-open"></i> Inbox</p>
+          <div class="message-list" id="messageList"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Compose Message</h3>
+      <button class="icon-btn" id="modalClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <textarea id="modalBody" placeholder="Write your message..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalSend">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Login Modal -->
+<div id="loginModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="loginTitle">Sign In</h3>
+      <button class="icon-btn" id="loginClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required />
+        </div>
+        <div class="auth-links">
+          <span>Don't have an account?</span>
+          <a id="goRegister">Register</a>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="loginSubmit">Sign In</button>
+    </div>
+  </div>
+</div>
+
+<div id="registerModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="registerTitle">Create Account</h3>
+      <button class="icon-btn" id="registerClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="regName">Full Name</label>
+          <input type="text" id="regName" placeholder="Alex Morgan" required />
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="At least 8 characters" required minlength="8" />
+        </div>
+        <div class="auth-links">
+          <span>Already have an account?</span>
+          <a id="goLogin">Sign In</a>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="registerSubmit">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Mock Data ----------
+const ARTICLES = [
+  { id: 1, title: 'The Quiet Art of Slow Design', excerpt: 'In a world obsessed with speed and scale, the discipline of slowing down has become one of the most radical acts a designer can take.', author: 'Alex Morgan', date: '2025-03-14', readTime: '5 min', tags: ['Design', 'Essay'] },
+  { id: 2, title: 'Design Systems That Actually Scale', excerpt: 'A practical guide to building components that grow with your team, not against it.', author: 'Alex Morgan', date: '2025-03-02', readTime: '8 min', tags: ['Engineering', 'Systems'] },
+  { id: 3, title: 'Minimal CSS in 2025', excerpt: 'Less is more — but only if you know what to keep and what to cut.', author: 'Alex Morgan', date: '2025-02-18', readTime: '6 min', tags: ['CSS', 'Frontend'] },
+  { id: 4, title: 'Why I Stopped Using Frameworks', excerpt: 'A case for building small, focused tools instead of big, opinionated ones.', author: 'Alex Morgan', date: '2025-02-04', readTime: '7 min', tags: ['JavaScript', 'Philosophy'] },
+  { id: 5, title: 'Dark Mode Done Right', excerpt: 'Beyond a color palette — the hidden details that make dark themes feel native.', author: 'Alex Morgan', date: '2025-01-22', readTime: '4 min', tags: ['UX', 'Dark Mode'] },
+  { id: 6, title: 'The Case for Handwritten Code', excerpt: 'When typing by hand is faster than pasting from a template.', author: 'Alex Morgan', date: '2025-01-10', readTime: '3 min', tags: ['Writing', 'Process'] },
+];
+
+const PHOTOS = [
+  { id: 1, title: 'Sunset over the hills', date: '2025-03-10', tags: ['Nature', 'Travel'] },
+  { id: 2, title: 'Coffee in the morning', date: '2025-03-05', tags: ['Life', 'Still Life'] },
+  { id: 3, title: 'Bookshelf at home', date: '2025-02-28', tags: ['Home', 'Reading'] },
+  { id: 4, title: 'Mountain trail hike', date: '2025-02-20', tags: ['Adventure', 'Nature'] },
+  { id: 5, title: 'Neon cityscape', date: '2025-02-12', tags: ['Urban', 'Photography'] },
+  { id: 6, title: 'Desert at dusk', date: '2025-02-01', tags: ['Nature', 'Travel'] },
+];
+
+const SOCIAL = [
+  { id: 1, name: 'Priya Shah', handle: '@priya', status: 'online' },
+  { id: 2, name: 'Jordan Lee', handle: '@jordan', status: 'online' },
+  { id: 3, name: 'Sofia Ramirez', handle: '@sofia', status: 'offline' },
+  { id: 4, name: 'Marcus Chen', handle: '@marcus', status: 'online' },
+  { id: 5, name: 'Hana Ito', handle: '@hana', status: 'online' },
+  { id: 6, name: 'Diego Alvarez', handle: '@diego', status: 'offline' },
+  { id: 7, name: 'Amara Okafor', handle: '@amara', status: 'online' },
+  { id: 8, name: 'Leo Park', handle: '@leo', status: 'offline' },
+];
+
+const MESSAGES = [
+  { id: 1, sender: 'Priya Shah', handle: '@priya', avatar: 'https://i.pravatar.cc/64?img=12', status: 'online', unread: 2, lastMessage: 'Hey! Did you see the new design system post?', time: '2 hours ago', color: 'var(--accent)' },
+  { id: 2, sender: 'Jordan Lee', handle: '@jordan', avatar: 'https://i.pravatar.cc/64?img=32', status: 'online', unread: 0, lastMessage: 'Thanks for the article — loved the section on minimal CSS.', time: '5 hours ago', color: 'var(--accent-2)' },
+  { id: 3, sender: 'Marcus Chen', handle: '@marcus', avatar: 'https://i.pravatar.cc/64?img=47', status: 'offline', unread: 1, lastMessage: 'Can we talk about the photography series?', time: 'Yesterday', color: 'var(--success)' },
+];
+
+const SAMPLE_PHOTO_URLS = [
+  'https://picsum.photos/seed/lumen1/800/600',
+  'https://picsum.photos/seed/lumen2/800/600',
+  'https://picsum.photos/seed/lumen3/800/600',
+  'https://picsum.photos/seed/lumen4/800/600',
+  'https://picsum.photos/seed/lumen5/800/600',
+  'https://picsum.photos/seed/lumen6/800/600',
+];
+
+// ---------- State ----------
+const state = {
+  view: 'home',
+  user: null,
+  messages: MESSAGES,
+  currentConversation: null,
+  page: 1,
+  pageSize: 3,
+};
+
+// ---------- Helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function toast(message, type = 'info') {
+  const container = $('#toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ---------- Rendering ----------
+function renderArticles() {
+  const list = $('#articleList');
+  const start = (state.page - 1) * state.pageSize;
+  const pageItems = ARTICLES.slice(start, start + state.pageSize);
+  if (pageItems.length === 0) {
+    list.innerHTML = '<p class="empty"><i class="fa-solid fa-newspaper"></i> No articles yet. Check back soon.</p>';
+    return;
+  }
+  list.innerHTML = pageItems.map(a => `
+    <article class="article">
+      <h2>${escapeHtml(a.title)}</h2>
+      <p class="card-meta"><i class="fa-solid fa-user"></i> ${escapeHtml(a.author)} · <i class="fa-solid fa-calendar"></i> ${formatDate(a.date)} · <i class="fa-solid fa-clock"></i> ${a.readTime}</p>
+      <p>${escapeHtml(a.excerpt)}</p>
+      <div style="display:flex;gap:10px;justify-content:space-between;margin-top:12px;">
+        <span>${a.tags.join(' · ')}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:6px 12px;">Read</button>
+      </div>
+    </article>
+  `).join('');
+  renderPagination();
+}
+
+function renderPagination() {
+  const total = Math.ceil(ARTICLES.length / state.pageSize);
+  if (total <= 1) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'pagination';
+  wrap.innerHTML = `
+    <button class="page-btn" data-page="prev" ${state.page === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>
+    ${Array.from({ length: total }, (_, i) => `
+      <button class="page-btn ${i + 1 === state.page ? 'active' : ''}" data-page="${i + 1}">${i + 1}</button>
+    `).join('')}
+    <button class="page-btn" data-page="next" ${state.page === total ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>
+  `;
+  wrap.addEventListener('click', e => {
+    const btn = e.target.closest('.page-btn');
+    if (!btn) return;
+    const p = btn.dataset.page;
+    if (p === 'prev') state.page = Math.max(1, state.page - 1);
+    else if (p === 'next') state.page = Math.min(total, state.page + 1);
+    else state.page = Number(p);
+    renderArticles();
+  });
+  $('#articleList').parentElement.insertBefore(wrap, $('#articleList').nextElementSibling);
+}
+
+function renderPhotos() {
+  const grid = $('#photoGrid');
+  if (PHOTOS.length === 0) {
+    grid.innerHTML = '<p class="empty"><i class="fa-solid fa-camera"></i> No photos yet.</p>';
+    return;
+  }
+  grid.innerHTML = PHOTOS.map((p, i) => `
+    <div class="photo" tabindex="0" style="background-image:url('${SAMPLE_PHOTO_URLS[i % SAMPLE_PHOTO_URLS.length]}');">
+      <span class="photo-tag">${p.tags.join(', ')}</span>
+    </div>
+  `).join('');
+}
+
+function renderSocial() {
+  const list = $('#socialList');
+  if (SOCIAL.length === 0) {
+    list.innerHTML = '<p class="empty"><i class="fa-solid fa-users"></i> No friends yet.</p>';
+    return;
+  }
+  list.innerHTML = SOCIAL.map(s => `
+    <div class="social-item" data-handle="${s.handle}" tabindex="0">
+      <div class="avatar-sm" style="background: linear-gradient(135deg,#8b5cf6,#ec4899); color:#fff;">
+        <i class="fa-solid fa-user"></i>
+      </div>
+      <div>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="handle">${escapeHtml(s.handle)}</div>
+      </div>
+      <span class="status ${s.status}">${s.status === 'online' ? 'Online' : 'Offline'}</span>
+    </div>
+  `).join('');
+}
+
+function renderMessages() {
+  const list = $('#messageList');
+  if (state.messages.length === 0) {
+    list.innerHTML = '<p class="empty"><i class="fa-solid fa-envelope"></i> No messages yet.</p>';
+    return;
+  }
+  list.innerHTML = state.messages.map(m => `
+    <div class="message-item ${m.unread ? 'active' : ''}" data-id="${m.id}">
+      <div class="avatar-sm" style="background: ${m.color}; color:#fff;">
+        <i class="fa-solid fa-user"></i>
+      </div>
+      <div>
+        <div class="name">${escapeHtml(m.sender)}</div>
+        <div class="handle">${escapeHtml(m.handle)}</div>
+      </div>
+      <div class="message-meta">${escapeHtml(m.lastMessage)} · ${formatTime(m.time)}</div>
+    </div>
+  `).join('');
+}
+
+function renderInbox() {
+  const conv = state.currentConversation;
+  if (!conv) {
+    $('#inboxTitle').textContent = 'Inbox';
+    $('#inboxSubtitle').textContent = 'Select a conversation to chat.';
+    $('#inboxBody').innerHTML = '';
+    $('#inboxFooter').style.display = 'none';
+    return;
+  }
+  $('#inboxTitle').textContent = `${conv.sender} · ${conv.handle}`;
+  $('#inboxSubtitle').textContent = 'Last message';
+  const body = $('#inboxBody');
+  body.innerHTML = conv.messages.map(m => `
+    <div class="message ${m.sender === 'me' ? 'me' : ''}">
+      <div class="meta">${m.sender === 'me' ? 'You' : conv.sender} · ${formatTime(m.time)}</div>
+      <div class="text">${escapeHtml(m.text)}</div>
+    </div>
+  `).join('');
+  $('#inboxFooter').style.display = 'flex';
+}
+
+// ---------- Navigation ----------
+function switchView(name) {
+  state.view = name;
+  $$('.sidebar-nav a').forEach(a => a.classList.toggle('active', a.dataset.view === name));
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (name === 'messages') renderMessages();
+  if (name === 'social') renderSocial();
+}
+
+// ---------- Modal ----------
+function openModal(title, bodyId, submit) {
+  $('#modalTitle').textContent = title;
+  $('#modalBody').value = '';
+  $('#modal').classList.remove('hidden');
+  setTimeout(() => $('#modalBody').focus(), 100);
+}
+function closeModal() { $('#modal').classList.add('hidden'); }
+
+// ---------- Login / Registration ----------
+function openLogin() {
+  $('#loginModal').classList.remove('hidden');
+  $('#loginEmail').value = '';
+  $('#loginPassword').value = '';
+}
+function closeLogin() { $('#loginModal').classList.add('hidden'); }
+function openRegister() {
+  $('#registerModal').classList.remove('hidden');
+  $('#regName').value = '';
+  $('#regEmail').value = '';
+  $('#regPassword').value = '';
+}
+function closeRegister() { $('#registerModal').classList.add('hidden'); }
+
+// ---------- Messages ----------
+function selectConversation(id) {
+  const conv = state.messages.find(m => m.id === id);
+  if (!conv) return;
+  state.currentConversation = conv;
+  renderInbox();
+  toast(`Chat with ${conv.sender}`, 'info');
+}
+
+function sendMessage(text) {
+  if (!state.currentConversation || !text.trim()) return;
+  const conv = state.currentConversation;
+  const now = new Date();
+  conv.messages.push({
+    sender: 'me',
+    text,
+    time: now.toISOString(),
+  });
+  conv.unread = 0;
+  renderInbox();
+  toast('Message sent', 'success');
+}
+
+function sendModalMessage() {
+  const text = $('#modalBody').value.trim();
+  if (!text) return;
+  if (!state.currentConversation) return;
+  state.currentConversation.messages.push({
+    sender: 'me',
+    text,
+    time: new Date().toISOString(),
+  });
+  closeModal();
+  renderInbox();
+  toast('Message sent', 'success');
+}
+
+// ---------- Theme ----------
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('lumen-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  toast('Theme toggled', 'info');
+}
+
+// ---------- Event wiring ----------
+document.addEventListener('DOMContentLoaded', () => {
+  // Theme
+  const saved = localStorage.getItem('lumen-theme');
+  if (saved === 'dark') document.body.classList.add('dark');
+  $('#themeToggle').addEventListener('click', toggleTheme);
+
+  // Nav
+  $$('.sidebar-nav a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      switchView(a.dataset.view);
+    });
+  });
+
+  // Article pagination
+  $('#articleList').addEventListener('click', e => {
+    const prev = e.target.closest('.page-btn');
+    if (prev) {
+      e.preventDefault();
+      const p = prev.dataset.page;
+      if (p === 'prev') state.page = Math.max(1, state.page - 1);
+      else if (p === 'next') state.page = Math.min(Math.ceil(ARTICLES.length / state.pageSize), state.page + 1);
+      else state.page = Number(p);
+      renderArticles();
+    }
+  });
+
+  // Social click
+  $('#socialList').addEventListener('click', e => {
+    const item = e.target.closest('.social-item');
+    if (item) {
+      const handle = item.dataset.handle;
+      toast(`Opening conversation with ${item.dataset.name}`, 'info');
+    }
+  });
+
+  // Message click
+  $('#messageList').addEventListener('click', e => {
+    const item = e.target.closest('.message-item');
+    if (item) selectConversation(Number(item.dataset.id));
+  });
+
+  // Inbox send
+  $('#inboxFooter').addEventListener('click', e => {
+    const input = $('#inboxInput');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    sendMessage(text);
+    input.value = '';
+  });
+
+  // Modal
+  $('#modalSend').addEventListener('click', sendModalMessage);
+  $('#modalClose').addEventListener('click', closeModal);
+  $('#modalCancel').addEventListener('click', closeModal);
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+  // Login
+  $('#loginBtn').addEventListener('click', openLogin);
+  $('#loginClose').addEventListener('click', closeLogin);
+  $('#goRegister').addEventListener('click', openRegister);
+  $('#registerClose').addEventListener('click', closeRegister);
+  $('#goLogin').addEventListener('click', openLogin);
+
+  $('#loginSubmit').addEventListener('click', () => {
+    const email = $('#loginEmail').value;
+    const password = $('#loginPassword').value;
+    if (!email || !password) { toast('Please fill in all fields', 'error'); return; }
+    state.user = { email, name: email.split('@')[0] };
+    closeLogin();
+    toast('Welcome back, ' + state.user.name + '!', 'success');
+  });
+
+  $('#registerSubmit').addEventListener('click', () => {
+    const name = $('#regName').value;
+    const email = $('#regEmail').value;
+    const password = $('#regPassword').value;
+    if (!name || !email || !password) { toast('Please fill in all fields', 'error'); return; }
+    state.user = { email, name };
+    closeRegister();
+    toast('Account created!', 'success');
+  });
+
+  // Keyboard: ESC closes modals
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (!$('#modal').classList.contains('hidden')) closeModal();
+      if (!$('#loginModal').classList.contains('hidden')) closeLogin();
+      if (!$('#registerModal').classList.contains('hidden')) closeRegister();
+    }
+  });
+
+  // Init
+  renderArticles();
+  renderPhotos();
+  renderSocial();
+  renderMessages();
+  renderInbox();
+});
+</script>
+</body>
+</html>

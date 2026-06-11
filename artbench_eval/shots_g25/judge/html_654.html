@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Geometric Proof System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .panel {
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        #left-panel {
+            flex: 2;
+            border-right: 1px solid #ccc;
+            background: #fff;
+        }
+        #middle-panel {
+            flex: 1.5;
+            border-right: 1px solid #ccc;
+            background: #fafafa;
+            overflow-y: auto;
+        }
+        #right-panel {
+            flex: 1.5;
+            background: #fff;
+            overflow-y: auto;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #2c3e50;
+        }
+        canvas {
+            border: 1px solid #bdc3c7;
+            background: #ecf0f1;
+            cursor: crosshair;
+            border-radius: 4px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.verify-btn {
+            background-color: #2ecc71;
+            margin-top: 20px;
+        }
+        button.verify-btn:hover {
+            background-color: #27ae60;
+        }
+        .fact-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .fact-list li {
+            background: #e8f4f8;
+            margin-bottom: 5px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            border-left: 4px solid #3498db;
+        }
+        .proof-step {
+            background: #fdfefe;
+            border: 1px solid #d0d3d4;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+        .proof-step:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        .proof-step-title {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .proof-step-reason {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 5px;
+            display: none;
+        }
+        .proof-step.active .proof-step-reason {
+            display: block;
+        }
+        .instructions {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Panel: Canvas for Drawing -->
+    <div id="left-panel" class="panel">
+        <h2>1. Draw Figure</h2>
+        <p class="instructions">Click on the canvas to add points. Points will be automatically connected to form a polygon. (Simulated drawing environment)</p>
+        <canvas id="geometryCanvas" width="500" height="400"></canvas>
+        <button id="clearCanvasBtn" style="margin-top: 10px; background-color: #e74c3c;">Clear Canvas</button>
+    </div>
+
+    <!-- Middle Panel: Input Conditions -->
+    <div id="middle-panel" class="panel">
+        <h2>2. Add Known Conditions</h2>
+        <p class="instructions">Define known facts (e.g., Side AB = Side CD).</p>
+        
+        <div class="control-group">
+            <label for="conditionType">Condition Type</label>
+            <select id="conditionType">
+                <option value="equal_sides">Equal Sides (e.g., AB = CD)</option>
+                <option value="equal_angles">Equal Angles (e.g., ABC = DEF)</option>
+                <option value="parallel">Parallel Lines (e.g., AB || CD)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="entity1">Entity 1 (e.g., AB or ABC)</label>
+            <input type="text" id="entity1" placeholder="AB" maxlength="3">
+        </div>
+
+        <div class="control-group">
+            <label for="entity2">Entity 2 (e.g., CD or DEF)</label>
+            <input type="text" id="entity2" placeholder="CD" maxlength="3">
+        </div>
+
+        <button id="addConditionBtn">Add Condition</button>
+
+        <h3>Known Facts</h3>
+        <ul id="factsList" class="fact-list">
+            <!-- Facts will be populated here -->
+        </ul>
+    </div>
+
+    <!-- Right Panel: Proof Tree -->
+    <div id="right-panel" class="panel">
+        <h2>3. Proof Step Tree</h2>
+        <p class="instructions">The system automatically derives new facts based on known conditions. Click a step to see the derivation rule.</p>
+        
+        <div id="proofTree">
+            <!-- Proof steps will be generated here -->
+        </div>
+
+        <button id="verifyBtn" class="verify-btn">Verify Proof Completeness</button>
+    </div>
+
+    <script>
+        // --- Canvas Drawing Logic ---
+        const canvas = document.getElementById('geometryCanvas');
+        const ctx = canvas.getContext('2d');
+        let points = [];
+        const pointLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+        canvas.addEventListener('click', (e) => {
+            if (points.length >= 26) return; // Max points
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            points.push({ x, y, label: pointLabels[points.length] });
+            drawGeometry();
+        });
+
+        document.getElementById('clearCanvasBtn').addEventListener('click', () => {
+            points = [];
+            drawGeometry();
+        });
+
+        function drawGeometry() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw lines
+            if (points.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = '#2980b9';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw points
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fill();
+                ctx.fillStyle = '#333';
+                ctx.font = '14px Arial';
+                ctx.fillText(p.label, p.x + 8, p.y - 8);
+            });
+        }
+
+        // --- Proof Engine Logic ---
+        let knownFacts = [];
+        let derivedSteps = [];
+
+        // Normalize line segments (AB is same as BA)
+        function normalizeLine(line) {
+            return line.split('').sort().join('');
+        }
+
+        document.getElementById('addConditionBtn').addEventListener('click', () => {
+            const type = document.getElementById('conditionType').value;
+            let e1 = document.getElementById('entity1').value.toUpperCase();
+            let e2 = document.getElementById('entity2').value.toUpperCase();
+
+            if (!e1 || !e2) {
+                alert("Please enter both entities.");
+                return;
+            }
+
+            if (type === 'equal_sides' || type === 'parallel') {
+                e1 = normalizeLine(e1);
+                e2 = normalizeLine(e2);
+            }
+
+            const fact = { type, e1, e2, isGiven: true, id: `fact_${Date.now()}` };
+            knownFacts.push(fact);
+            
+            updateFactsUI();
+            runProofEngine();
+        });
+
+        function updateFactsUI() {
+            const list = document.getElementById('factsList');
+            list.innerHTML = '';
+            knownFacts.filter(f => f.isGiven).forEach(f => {
+                const li = document.createElement('li');
+                let text = '';
+                if (f.type === 'equal_sides') text = `${f.e1} = ${f.e2}`;
+                if (f.type === 'equal_angles') text = `∠${f.e1} = ∠${f.e2}`;
+                if (f.type === 'parallel') text = `${f.e1} || ${f.e2}`;
+                li.textContent = `Given: ${text}`;
+                list.appendChild(li);
+            });
+        }
+
+        // A simplified forward-chaining inference engine
+        function runProofEngine() {
+            derivedSteps = [];
+            let currentFacts = [...knownFacts];
+            let addedNew = true;
+
+            // Simple rules for demonstration
+            while (addedNew) {
+                addedNew = false;
+                const newFacts = [];
+
+                for (let i = 0; i < currentFacts.length; i++) {
+                    for (let j = i + 1; j < currentFacts.length; j++) {
+                        const f1 = currentFacts[i];
+                        const f2 = currentFacts[j];
+
+                        // Rule 1: Transitivity of equal sides (If A=B and B=C, then A=C)
+                        if (f1.type === 'equal_sides' && f2.type === 'equal_sides') {
+                            let derived = null;
+                            if (f1.e2 === f2.e1 && f1.e1 !== f2.e2) derived = { e1: f1.e1, e2: f2.e2 };
+                            else if (f1.e2 === f2.e2 && f1.e1 !== f2.e1) derived = { e1: f1.e1, e2: f2.e1 };
+                            else if (f1.e1 === f2.e1 && f1.e2 !== f2.e2) derived = { e1: f1.e2, e2: f2.e2 };
+                            else if (f1.e1 === f2.e2 && f1.e2 !== f2.e1) derived = { e1: f1.e2, e2: f2.e1 };
+
+                            if (derived) {
+                                // Check if already exists
+                                const exists = currentFacts.some(f => f.type === 'equal_sides' && 
+                                    ((f.e1 === derived.e1 && f.e2 === derived.e2) || (f.e1 === derived.e2 && f.e2 === derived.e1)));
+                                
+                                if (!exists) {
+                                    const newFact = {
+                                        type: 'equal_sides',
+                                        e1: derived.e1,
+                                        e2: derived.e2,
+                                        isGiven: false,
+                                        reason: `Transitive property from ${f1.e1}=${f1.e2} and ${f2.e1}=${f2.e2}`
+                                    };
+                                    newFacts.push(newFact);
+                                    derivedSteps.push(newFact);
+                                    addedNew = true;
+                                }
+                            }
+                        }
+
+                        // Rule 2: Parallel lines imply alternate interior angles (Simplified mock logic)
+                        // If AB || CD, mock derive that angle ABC = BCD
+                        if (f1.type === 'parallel') {
+                            const ang1 = f1.e1[1] + f1.e1[0] + f1.e2[0]; // Mock angle generation
+                            const ang2 = f1.e1[0] + f1.e2[0] + f1.e2[1];
+                            
+                            const exists = currentFacts.some(f => f.type === 'equal_angles' && f.e1 === ang1 && f.e2 === ang2);
+                            if (!exists && !newFacts.some(f => f.type === 'equal_angles' && f.e1 === ang1)) {
+                                const newFact = {
+                                    type: 'equal_angles',
+                                    e1: ang1,
+                                    e2: ang2,
+                                    isGiven: false,
+                                    reason: `Alternate interior angles of parallel lines ${f1.e1} || ${f1.e2}`
+                                };
+                                newFacts.push(newFact);
+                                derivedSteps.push(newFact);
+                                addedNew = true;
+                            }
+                        }
+                    }
+                }
+                currentFacts = currentFacts.concat(newFacts);
+            }
+
+            renderProofTree();
+        }
+
+        function renderProofTree() {
+            const treeContainer = document.getElementById('proofTree');
+            treeContainer.innerHTML = '';
+
+            if (derivedSteps.length === 0) {
+                treeContainer.innerHTML = '<p style="color: #7f8c8d; font-size: 0.9rem;">No new steps derived yet. Add more conditions.</p>';
+                return;
+            }
+
+            derivedSteps.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'proof-step';
+                
+                let titleText = '';
+                if (step.type === 'equal_sides') titleText = `Step ${index + 1}: ${step.e1} = ${step.e2}`;
+                if (step.type === 'equal_angles') titleText = `Step ${index + 1}: ∠${step.e1} = ∠${step.e2}`;
+
+                stepDiv.innerHTML = `
+                    <div class="proof-step-title">${titleText}</div>
+                    <div class="proof-step-reason"><strong>Reason:</strong> ${step.reason}</div>
+                `;
+
+                // Toggle explanation on click
+                stepDiv.addEventListener('click', () => {
+                    stepDiv.classList.toggle('active');
+                });
+
+                treeContainer.appendChild(stepDiv);
+            });
+        }
+
+        document.getElementById('verifyBtn').addEventListener('click', () => {
+            if (derivedSteps.length > 0) {
+                alert(`Verification Complete! The system successfully derived ${derivedSteps.length} logical steps from the given conditions.`);
+            } else {
+                alert("Verification Failed. Not enough conditions to derive a proof. Please add more known facts.");
+            }
+        });
+
+        // Initialize empty canvas
+        drawGeometry();
+    </script>
+</body>
+</html>

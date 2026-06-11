@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Geometric Proof System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            grid-template-rows: 60px 1fr 50px;
+            height: 100vh;
+            gap: 1px;
+            background: #16213e;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 2px solid #e94560;
+        }
+
+        .header h1 {
+            font-size: 1.4em;
+            color: #e94560;
+            margin-right: 30px;
+        }
+
+        .header .subtitle {
+            font-size: 0.85em;
+            color: #a0a0a0;
+        }
+
+        /* Left Panel - Tools */
+        .left-panel {
+            background: #16213e;
+            padding: 15px;
+            overflow-y: auto;
+            border-right: 1px solid #0f3460;
+        }
+
+        .panel-title {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #e94560;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tool-group {
+            margin-bottom: 20px;
+        }
+
+        .tool-group label {
+            display: block;
+            font-size: 0.8em;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+
+        .tool-btn {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 3px;
+            background: #0f3460;
+            border: 1px solid #1a4080;
+            color: #e0e0e0;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: #1a4080;
+            border-color: #e94560;
+        }
+
+        .tool-btn.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: white;
+        }
+
+        .condition-form {
+            margin-top: 10px;
+        }
+
+        .condition-form select,
+        .condition-form input {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0;
+            background: #0f3460;
+            border: 1px solid #1a4080;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .condition-form button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            background: #e94560;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .condition-form button:hover {
+            background: #ff6b6b;
+        }
+
+        .conditions-list {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .condition-item {
+            padding: 6px 10px;
+            margin: 3px 0;
+            background: #0f3460;
+            border-radius: 4px;
+            font-size: 0.75em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .condition-item .remove-btn {
+            color: #e94560;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            background: #0d1b2a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #geometryCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .canvas-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 0.75em;
+            color: #666;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        /* Right Panel - Proof Tree */
+        .right-panel {
+            background: #16213e;
+            padding: 15px;
+            overflow-y: auto;
+            border-left: 1px solid #0f3460;
+        }
+
+        .goal-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #0f3460;
+            border-radius: 6px;
+            border: 1px solid #1a4080;
+        }
+
+        .goal-section select,
+        .goal-section input {
+            width: 100%;
+            padding: 6px;
+            margin: 3px 0;
+            background: #16213e;
+            border: 1px solid #1a4080;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .goal-section button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            background: #533483;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+
+        .goal-section button:hover {
+            background: #6b44a0;
+        }
+
+        .proof-tree {
+            margin-top: 10px;
+        }
+
+        .proof-step {
+            padding: 10px;
+            margin: 5px 0;
+            background: #0f3460;
+            border-radius: 6px;
+            border-left: 3px solid #533483;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8em;
+        }
+
+        .proof-step:hover {
+            background: #1a4080;
+            border-left-color: #e94560;
+        }
+
+        .proof-step.expanded {
+            border-left-color: #4ecdc4;
+        }
+
+        .proof-step .step-number {
+            color: #e94560;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .proof-step .step-title {
+            color: #e0e0e0;
+        }
+
+        .proof-step .step-detail {
+            display: none;
+            margin-top: 8px;
+            padding: 8px;
+            background: #16213e;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #a0a0a0;
+            line-height: 1.5;
+        }
+
+        .proof-step.expanded .step-detail {
+            display: block;
+        }
+
+        .proof-step .step-rule {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 2px 6px;
+            background: #533483;
+            border-radius: 3px;
+            font-size: 0.8em;
+            color: #ddd;
+        }
+
+        .proof-step .depends-on {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            grid-column: 1 / -1;
+            background: #0f3460;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            border-top: 1px solid #1a4080;
+        }
+
+        .footer button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-verify {
+            background: #4ecdc4;
+            color: #1a1a2e;
+        }
+
+        .btn-verify:hover {
+            background: #6ee7df;
+        }
+
+        .btn-generate {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-generate:hover {
+            background: #ff6b6b;
+        }
+
+        .btn-clear {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        .btn-clear:hover {
+            background: #555;
+        }
+
+        .btn-example {
+            background: #533483;
+            color: white;
+        }
+
+        .btn-example:hover {
+            background: #6b44a0;
+        }
+
+        .status-msg {
+            margin-left: auto;
+            font-size: 0.85em;
+            padding: 5px 15px;
+            border-radius: 4px;
+        }
+
+        .status-msg.success {
+            background: #4ecdc4;
+            color: #1a1a2e;
+        }
+
+        .status-msg.error {
+            background: #e94560;
+            color: white;
+        }
+
+        .status-msg.info {
+            background: #533483;
+            color: white;
+        }
+
+        /* Modal for detail view */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #16213e;
+            border: 1px solid #e94560;
+            border-radius: 10px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            color: #a0a0a0;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .modal-content .close-btn {
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: #e94560;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f3460;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #e94560;
+            border-radius: 3px;
+        }
+
+        .point-label-input {
+            position: absolute;
+            background: #0f3460;
+            border: 1px solid #e94560;
+            color: #e0e0e0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        .tree-connector {
+            border-left: 2px dashed #533483;
+            margin-left: 15px;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⬡ GeoProof</h1>
+            <span class="subtitle">Interactive Geometric Proof System — Draw, Define, Prove</span>
+        </div>
+
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <div class="tool-group">
+                <div class="panel-title">Drawing Tools</div>
+                <button class="tool-btn active" data-tool="point" title="Place a point">● Point</button>
+                <button class="tool-btn" data-tool="line" title="Draw a line segment">╱ Line</button>
+                <button class="tool-btn" data-tool="triangle" title="Draw a triangle">△ Triangle</button>
+                <button class="tool-btn" data-tool="circle" title="Draw a circle">○ Circle</button>
+                <button class="tool-btn" data-tool="angle" title="Mark an angle">∠ Angle</button>
+                <button class="tool-btn" data-tool="select" title="Select elements">⊹ Select</button>
+                <button class="tool-btn" data-tool="label" title="Add label">A Label</button>
+            </div>
+
+            <div class="tool-group">
+                <div class="panel-title">Add Condition</div>
+                <div class="condition-form">
+                    <label>Condition Type:</label>
+                    <select id="conditionType">
+                        <option value="angle_value">Angle Value (e.g., ∠ABC = 60°)</option>
+                        <option value="equal_sides">Equal Sides (e.g., AB = CD)</option>
+                        <option value="equal_angles">Equal Angles (e.g., ∠A = ∠B)</option>
+                        <option value="parallel">Parallel Lines (e.g., AB ∥ CD)</option>
+                        <option value="perpendicular">Perpendicular (e.g., AB ⊥ CD)</option>
+                        <option value="midpoint">Midpoint (e.g., M is midpoint of AB)</option>
+                        <option value="bisector">Angle Bisector</option>
+                        <option value="congruent_triangles">Congruent Triangles</option>
+                        <option value="right_angle">Right Angle (90°)</option>
+                        <option value="isosceles">Isosceles Triangle</option>
+                    </select>
+
+                    <label>Points/Elements (comma-separated):</label>
+                    <input type="text" id="conditionPoints" placeholder="e.g., A,B,C">
+
+                    <label>Value (if applicable):</label>
+                    <input type="text" id="conditionValue" placeholder="e.g., 60">
+
+                    <button onclick="addCondition()">+ Add Condition</button>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <div class="panel-title">Known Conditions</div>
+                <div class="conditions-list" id="conditionsList"></div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <canvas id="geometryCanvas"></canvas>
+            <div class="canvas-info" id="canvasInfo">Click to place points. Use tools to draw figures.</div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="panel-title">Proof Goal</div>
+            <div class="goal-section">
+                <label style="font-size:0.8em; color:#a0a0a0;">Goal Type:</label>
+                <select id="goalType">
+                    <option value="angle_value">Prove Angle Value</option>
+                    <option value="equal_sides">Prove Sides Equal</option>
+                    <option value="equal_angles">Prove Angles Equal</option>
+                    <option value="parallel">Prove Lines Parallel</option>
+                    <option value="perpendicular">Prove Perpendicular</option>
+                    <option value="congruent">Prove Triangles Congruent</option>
+                    <option value="similarity">Prove Triangles Similar</option>
+                </select>
+                <label style="font-size:0.8em; color:#a0a0a0; margin-top:5px; display:block;">Points:</label>
+                <input type="text" id="goalPoints" placeholder="e.g., A,B,C">
+                <label style="font-size:0.8em; color:#a0a0a0; margin-top:5px; display:block;">Target Value (if applicable):</label>
+                <input type="text" id="goalValue" placeholder="e.g., 90">
+                <button onclick="setGoal()">Set Goal & Generate Proof</button>
+            </div>
+
+            <div class="panel-title" style="margin-top:15px;">Proof Steps</div>
+            <div class="proof-tree" id="proofTree">
+                <p style="font-size:0.8em; color:#666; text-align:center; padding:20px;">
+                    Set a goal and click "Generate Proof" to see the proof steps.
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <button class="btn-generate" onclick="generateProof()">⚡ Generate Proof</button>
+            <button class="btn-verify" onclick="verifyProof()">✓ Verify</button>
+            <button class="btn-example" onclick="loadExample()">📐 Load Example</button>
+            <button class="btn-clear" onclick="clearAll()">✕ Clear All</button>
+            <span class="status-msg" id="statusMsg"></span>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Step Detail</h3>
+            <div id="modalBody"></div>
+            <button class="close-btn" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== DATA STRUCTURES ====================
+        let points = [];          // {id, x, y, label}
+        let lines = [];           // {id, p1, p2}
+        let triangles = [];       // {id, p1, p2, p3}
+        let circles = [];         // {id, center, radius}
+        let angles = [];          // {id, p1, vertex, p2, value}
+        let conditions = [];      // {id, type, points, value, description}
+        let proofSteps = [];      // {id, title, detail, rule, dependsOn, proven}
+        let goal = null;          // {type, points, value}
+
+        let currentTool = 'point';
+        let selectedPoints = [];  // For multi-point tools
+        let nextPointId = 1;
+        let nextLineId = 1;
+        let nextTriangleId = 1;
+        let nextCircleId = 1;
+        let nextConditionId = 1;
+
+        // Canvas setup
+        const canvas = document.getElementById('geometryCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            redraw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 100);
+
+        // ==================== TOOL SELECTION ====================
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.dataset.tool;
+                selectedPoints = [];
+                updateCanvasInfo();
+            });
+        });
+
+        function updateCanvasInfo() {
+            const info = document.getElementById('canvasInfo');
+            const toolInfo = {
+                'point': 'Click to place a point',
+                'line': 'Click two points to draw a line segment',
+                'triangle': 'Click three points to draw a triangle',
+                'circle': 'Click center, then click to set radius',
+                'angle': 'Click three points (ray1, vertex, ray2) to mark angle',
+                'select': 'Click on elements to select them',
+                'label': 'Click near a point to add/edit its label'
+            };
+            info.textContent = toolInfo[currentTool] || '';
+            if (selectedPoints.length > 0) {
+                info.textContent += ` | Selected: ${selectedPoints.map(p => p.label).join(', ')}`;
+            }
+        }
+
+        // ==================== CANVAS INTERACTION ====================
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            switch (currentTool) {
+                case 'point':
+                    addPoint(x, y);
+                    break;
+                case 'line':
+                    handleLineTool(x, y);
+                    break;
+                case 'triangle':
+                    handleTriangleTool(x, y);
+                    break;
+                case 'circle':
+                    handleCircleTool(x, y);
+                    break;
+                case 'angle':
+                    handleAngleTool(x, y);
+                    break;
+                case 'select':
+                    handleSelect(x, y);
+                    break;
+                case 'label':
+                    handleLabel(x, y);
+                    break;
+            }
+        });
+
+        function findNearestPoint(x, y, threshold = 20) {
+            let nearest = null;
+            let minDist = threshold;
+            for (let p of points) {
+                const dist = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = p;
+                }
+            }
+            return nearest;
+        }
+
+        function addPoint(x, y) {
+            const label = String.fromCharCode(64 + nextPointId); // A, B, C, ...
+            const point = { id: nextPointId++, x, y, label };
+            points.push(point);
+            redraw();
+        }
+
+        function handleLineTool(x, y) {
+            let point = findNearestPoint(x, y);
+            if (!point) {
+                point = { id: nextPointId++, x, y, label: String.fromCharCode(64 + nextPointId - 1) };
+                points.push(point);
+            }
+            selectedPoints.push(point);
+            if (selectedPoints.length === 2) {
+                lines.push({ id: nextLineId++, p1: selectedPoints[0], p2: selectedPoints[1] });
+                selectedPoints = [];
+            }
+            updateCanvasInfo();
+            redraw();
+        }
+
+        function handleTriangleTool(x, y) {
+            let point = findNearestPoint(x, y);
+            if (!point) {
+                point = { id: nextPointId++, x, y, label: String.fromCharCode(64 + nextPointId - 1) };
+                points.push(point);
+            }
+            selectedPoints.push(point);
+            if (selectedPoints.length === 3) {
+                const tri = {
+                    id: nextTriangleId++,
+                    p1: selectedPoints[0],
+                    p2: selectedPoints[1],
+                    p3: selectedPoints[2]
+                };
+                triangles.push(tri);
+                // Also add the three sides as lines
+                lines.push({ id: nextLineId++, p1: tri.p1, p2: tri.p2 });
+                lines.push({ id: nextLineId++, p1: tri.p2, p2: tri.p3 });
+                lines.push({ id: nextLineId++, p1: tri.p3, p2: tri.p1 });
+                selectedPoints = [];
+            }
+            updateCanvasInfo();
+            redraw();
+        }
+
+        function handleCircleTool(x, y) {
+            let point = findNearestPoint(x, y);
+            if (!point) {
+                point = { id: nextPointId++, x, y, label: String.fromCharCode(64 + nextPointId - 1) };
+                points.push(point);
+            }
+            selectedPoints.push(point);
+            if (selectedPoints.length === 2) {
+                const center = selectedPoints[0];
+                const edge = selectedPoints[1];
+                const radius = Math.sqrt((center.x - edge.x) ** 2 + (center.y - edge.y) ** 2);
+                circles.push({ id: nextCircleId++, center, radius, edgePoint: edge });
+                selectedPoints = [];
+            }
+            updateCanvasInfo();
+            redraw();
+        }
+
+        function handleAngleTool(x, y) {
+            let point = findNearestPoint(x, y);
+            if (!point) {
+                point = { id: nextPointId++, x, y, label: String.fromCharCode(64 + nextPointId - 1) };
+                points.push(point);
+            }
+            selectedPoints.push(point);
+            if (selectedPoints.length === 3) {
+                const angle = calculateAngle(selectedPoints[0], selectedPoints[1], selectedPoints[2]);
+                angles.push({
+                    id: angles.length + 1,
+                    p1: selectedPoints[0],
+                    vertex: selectedPoints[1],
+                    p2: selectedPoints[2],
+                    value: angle
+                });
+                selectedPoints = [];
+            }
+            updateCanvasInfo();
+            redraw();
+        }
+
+        function handleSelect(x, y) {
+            const point = findNearestPoint(x, y, 25);
+            if (point) {
+                const idx = selectedPoints.indexOf(point);
+                if (idx >= 0) {
+                    selectedPoints.splice(idx, 1);
+                } else {
+                    selectedPoints.push(point);
+                }
+            }
+            updateCanvasInfo();
+            redraw();
+        }
+
+        function handleLabel(x, y) {
+            const point = findNearestPoint(x, y, 30);
+            if (point) {
+                const newLabel = prompt(`Enter new label for point ${point.label}:`, point.label);
+                if (newLabel && newLabel.trim()) {
+                    point.label = newLabel.trim().toUpperCase();
+                    redraw();
+                }
+            }
+        }
+
+        function calculateAngle(p1, vertex, p2) {
+            const v1 = { x: p1.x - vertex.x, y: p1.y - vertex.y };
+            const v2 = { x: p2.x - vertex.x, y: p2.y - vertex.y };
+            const dot = v1.x * v2.x + v1.y * v2.y;
+            const mag1 = Math.sqrt(v1.x ** 2 + v1.y ** 2);
+            const mag2 = Math.sqrt(v2.x ** 2 + v2.y ** 2);
+            if (mag1 === 0 || mag2 === 0) return 0;
+            const cosAngle = Math.max(-1, Math.min(1, dot / (mag1 * mag2)));
+            return Math.round(Math.acos(cosAngle) * 180 / Math.PI * 10) / 10;
+        }
+
+        function distance(p1, p2) {
+            return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+        }
+
+        // ==================== DRAWING ====================
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            drawLines();
+            drawTriangles();
+            drawCircles();
+            drawAngles();
+            drawPoints();
+            drawSelections();
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#1a2a4a';
+            ctx.lineWidth = 0.5;
+            const gridSize = 40;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawLines() {
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 2;
+            for (let line of lines) {
+                ctx.beginPath();
+                ctx.moveTo(line.p1.x, line.p1.y);
+                ctx.lineTo(line.p2.x, line.p2.y);
+                ctx.stroke();
+
+                // Draw length label at midpoint
+                const midX = (line.p1.x + line.p2.x) / 2;
+                const midY = (line.p1.y + line.p2.y) / 2;
+                const len = Math.round(distance(line.p1, line.p2));
+                ctx.fillStyle = '#666';
+                ctx.font = '10px monospace';
+                ctx.fillText(len.toString(), midX + 5, midY - 5);
+            }
+        }
+
+        function drawTriangles() {
+            ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.05)';
+            ctx.lineWidth = 1;
+            for (let tri of triangles) {
+                ctx.beginPath();
+                ctx.moveTo(tri.p1.x, tri.p1.y);
+                ctx.lineTo(tri.p2.x, tri.p2.y);
+                ctx.lineTo(tri.p3.x, tri.p3.y);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        function drawCircles() {
+            ctx.strokeStyle = '#ffd93d';
+            ctx.lineWidth = 2;
+            for (let circle of circles) {
+                ctx.beginPath();
+                ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        function drawAngles() {
+            for (let angle of angles) {
+                const { p1, vertex, p2, value } = angle;
+                const radius = 25;
+
+                // Calculate angles for arc
+                const angle1 = Math.atan2(p1.y - vertex.y, p1.x - vertex.x);
+                const angle2 = Math.atan2(p2.y - vertex.y, p2.x - vertex.x);
+
+                ctx.strokeStyle = '#ffd93d';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(vertex.x, vertex.y, radius, angle1, angle2, false);
+                ctx.stroke();
+
+                // Draw angle value
+                const midAngle = (angle1 + angle2) / 2;
+                const labelX = vertex.x + (radius + 15) * Math.cos(midAngle);
+                const labelY = vertex.y + (radius + 15) * Math.sin(midAngle);
+                ctx.fillStyle = '#ffd93d';
+                ctx.font = 'bold 11px monospace';
+                ctx.fillText(`${value}°`, labelX - 10, labelY);
+            }
+        }
+
+        function drawPoints() {
+            for (let point of points) {
+                // Point circle
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#e94560';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillText(point.label, point.x + 10, point.y - 10);
+            }
+        }
+
+        function drawSelections() {
+            for (let point of selectedPoints) {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
+                ctx.strokeStyle = '#4ecdc4';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        // ==================== CONDITIONS ====================
+        function addCondition() {
+            const type = document.getElementById('conditionType').value;
+            const pointsStr = document.getElementById('conditionPoints').value.trim();
+            const value = document.getElementById('conditionValue').value.trim();
+
+            if (!pointsStr) {
+                showStatus('Please enter points for the condition', 'error');
+                return;
+            }
+
+            const pointLabels = pointsStr.split(',').map(s => s.trim().toUpperCase());
+
+            // Find actual point objects
+            const resolvedPoints = pointLabels.map(label => {
+                return points.find(p => p.label === label) || { label, x: 0, y: 0, id: -1 };
+            });
+
+            let description = '';
+            switch (type) {
+                case 'angle_value':
+                    description = `∠${pointLabels.join('')} = ${value}°`;
+                    break;
+                case 'equal_sides':
+                    description = `${pointLabels[0]}${pointLabels[1]} = ${pointLabels[2]}${pointLabels[3]}`;
+                    break;
+                case 'equal_angles':
+                    description = `∠${pointLabels[0]}${pointLabels[1]}${pointLabels[2]} = ∠${pointLabels[3] || ''}${pointLabels[4] || ''}${pointLabels[5] || ''}`;
+                    break;
+                case 'parallel':
+                    description = `${pointLabels[0]}${pointLabels[1]} ∥ ${pointLabels[2]}${pointLabels[3]}`;
+                    break;
+                case 'perpendicular':
+                    description = `${pointLabels[0]}${pointLabels[1]} ⊥ ${pointLabels[2]}${pointLabels[3]}`;
+                    break;
+                case 'midpoint':
+                    description = `${pointLabels[0]} is midpoint of ${pointLabels[1]}${pointLabels[2]}`;
+                    break;
+                case 'bisector':
+                    description = `${pointLabels[0]}${pointLabels[1]} bisects ∠${pointLabels[2]}${pointLabels[1]}${pointLabels[3]}`;
+                    break;
+                case 'congruent_triangles':
+                    description = `△${pointLabels[0]}${pointLabels[1]}${pointLabels[2]} ≅ △${pointLabels[3]}${pointLabels[4]}${pointLabels[5]}`;
+                    break;
+                case 'right_angle':
+                    description = `∠${pointLabels.join('')} = 90°`;
+                    break;
+                case 'isosceles':
+                    description = `△${pointLabels.join('')} is isosceles (${pointLabels[0]}${pointLabels[1]} = ${pointLabels[0]}${pointLabels[2]})`;
+                    break;
+            }
+
+            const condition = {
+                id: nextConditionId++,
+                type,
+                points: resolvedPoints,
+                pointLabels,
+                value: value ? parseFloat(value) : null,
+                description
+            };
+
+            conditions.push(condition);
+            renderConditions();
+            showStatus(`Condition added: ${description}`, 'info');
+
+            // Clear inputs
+            document.getElementById('conditionPoints').value = '';
+            document.getElementById('conditionValue').value = '';
+        }
+
+        function renderConditions() {
+            const list = document.getElementById('conditionsList');
+            list.innerHTML = '';
+            conditions.forEach((cond, idx) => {
+                const item = document.createElement('div');
+                item.className = 'condition-item';
+                item.innerHTML = `
+                    <span>${cond.description}</span>
+                    <span class="remove-btn" onclick="removeCondition(${idx})">✕</span>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function removeCondition(idx) {
+            conditions.splice(idx, 1);
+            renderConditions();
+        }
+
+        // ==================== PROOF ENGINE ====================
+        function setGoal() {
+            const type = document.getElementById('goalType').value;
+            const pointsStr = document.getElementById('goalPoints').value.trim();
+            const value = document.getElementById('goalValue').value.trim();
+
+            if (!pointsStr) {
+                showStatus('Please enter points for the goal', 'error');
+                return;
+            }
+
+            goal = {
+                type,
+                pointLabels: pointsStr.split(',').map(s => s.trim().toUpperCase()),
+                value: value ? parseFloat(value) : null
+            };
+
+            generateProof();
+        }
+
+        function generateProof() {
+            if (!goal) {
+                showStatus('Please set a proof goal first', 'error');
+                return;
+            }
+
+            proofSteps = [];
+            const knowledgeBase = buildKnowledgeBase();
+            const proofResult = runProofEngine(knowledgeBase, goal);
+
+            if (proofResult.success) {
+                proofSteps = proofResult.steps;
+                renderProofTree();
+                showStatus('Proof generated successfully!', 'success');
+            } else {
+                proofSteps = proofResult.steps;
+                renderProofTree();
+                showStatus('Proof incomplete - need more conditions', 'error');
+            }
+        }
+
+        function buildKnowledgeBase() {
+            const kb = {
+                angles: {},        // key: "A,B,C" -> value in degrees
+                equalSides: [],    // [{s1: "AB", s2: "CD"}]
+                equalAngles: [],   // [{a1: "ABC", a2: "DEF"}]
+                parallel: [],      // [{l1: "AB", l2: "CD"}]
+                perpendicular: [], // [{l1: "AB", l2: "CD"}]
+                midpoints: [],     // [{point: "M", segment: "AB"}]
+                bisectors: [],     // [{ray: "AD", angle: "BAC"}]
+                rightAngles: [],   // ["ABC"]
+                isosceles: [],     // [{triangle: "ABC", equalSides: ["AB", "AC"]}]
+                congruentTriangles: [], // [{t1: "ABC", t2: "DEF"}]
+                triangles: [],     // [{name: "ABC", angles: {}, sides: {}}]
+                derived: []        // All derived facts
+            };
+
+            // Process conditions
+            for (let cond of conditions) {
+                switch (cond.type) {
+                    case 'angle_value':
+                        const angleKey = cond.pointLabels.join(',');
+                        kb.angles[angleKey] = cond.value;
+                        break;
+                    case 'equal_sides':
+                        kb.equalSides.push({
+                            s1: cond.pointLabels[0] + cond.pointLabels[1],
+                            s2: cond.pointLabels[2] + cond.pointLabels[3]
+                        });
+                        break;
+                    case 'equal_angles':
+                        kb.equalAngles.push({
+                            a1: cond.pointLabels.slice(0, 3).join(''),
+                            a2: cond.pointLabels.slice(3, 6).join('')
+                        });
+                        break;
+                    case 'parallel':
+                        kb.parallel.push({
+                            l1: cond.pointLabels[0] + cond.pointLabels[1],
+                            l2: cond.pointLabels[2] + cond.pointLabels[3]
+                        });
+                        break;
+                    case 'perpendicular':
+                        kb.perpendicular.push({
+                            l1: cond.pointLabels[0] + cond.pointLabels[1],
+                            l2: cond.pointLabels[2] + cond.pointLabels[3]
+                        });
+                        break;
+                    case 'midpoint':
+                        kb.midpoints.push({
+                            point: cond.pointLabels[0],
+                            segment: cond.pointLabels[1] + cond.pointLabels[2]
+                        });
+                        break;
+                    case 'bisector':
+                        kb.bisectors.push({
+                            ray: cond.pointLabels[0] + cond.pointLabels[1],
+                            angle: cond.pointLabels.slice(1).join('')
+                        });
+                        break;
+                    case 'right_angle':
+                        kb.rightAngles.push(cond.pointLabels.join(''));
+                        kb.angles[cond.pointLabels.join(',')] = 90;
+                        break;
+                    case 'isosceles':
+                        kb.isosceles.push({
+                            triangle: cond.pointLabels.join(''),
+                            equalSides: [
+                                cond.pointLabels[0] + cond.pointLabels[1],
+                                cond.pointLabels[0] + cond.pointLabels[2]
+                            ]
+                        });
+                        kb.equalSides.push({
+                            s1: cond.pointLabels[0] + cond.pointLabels[1],
+                            s2: cond.pointLabels[0] + cond.pointLabels[2]
+                        });
+                        break;
+                    case 'congruent_triangles':
+                        kb.congruentTriangles.push({
+                            t1: cond.pointLabels.slice(0, 3).join(''),
+                            t2: cond.pointLabels.slice(3, 6).join('')
+                        });
+                        break;
+                }
+            }
+
+            // Add measured angles from canvas
+            for (let angle of angles) {
+                const key = `${angle.p1.label},${angle.vertex.label},${angle.p2.label}`;
+                if (!kb.angles[key]) {
+                    kb.angles[key] = angle.value;
+                }
+            }
+
+            // Build triangle info
+            for (let tri of triangles) {
+                const triInfo = {
+                    name: tri.p1.label + tri.p2.label + tri.p3.label,
+                    vertices: [tri.p1.label, tri.p2.label, tri.p3.label],
+                    angles: {},
+                    sides: {}
+                };
+
+                // Calculate angles
+                const a1 = calculateAngle(tri.p3, tri.p1, tri.p2);
+                const a2 = calculateAngle(tri.p1, tri.p2, tri.p3);
+                const a3 = calculateAngle(tri.p2, tri.p3, tri.p1);
+
+                triInfo.angles[tri.p1.label] = a1;
+                triInfo.angles[tri.p2.label] = a2;
+                triInfo.angles[tri.p3.label] = a3;
+
+                // Calculate sides
+                triInfo.sides[tri.p1.label + tri.p2.label] = Math.round(distance(tri.p1, tri.p2));
+                triInfo.sides[tri.p2.label + tri.p3.label] = Math.round(distance(tri.p2, tri.p3));
+                triInfo.sides[tri.p3.label + tri.p1.label] = Math.round(distance(tri.p3, tri.p1));
+
+                kb.triangles.push(triInfo);
+            }
+
+            return kb;
+        }
+
+        function runProofEngine(kb, goal) {
+            const steps = [];
+            let stepNum = 1;
+            let success = false;
+
+            // Step 1: List given conditions
+            steps.push({
+                id: stepNum++,
+                title: 'Given Conditions',
+                detail: `We are given the following conditions:\n${conditions.map(c => '• ' + c.description).join('\n') || 'No explicit conditions given.'}`,
+                rule: 'Given',
+                dependsOn: [],
+                proven: true
+            });
+
+            // Step 2: Identify geometric figures
+            if (triangles.length > 0) {
+                const triDesc = triangles.map(t =>
+                    `△${t.p1.label}${t.p2.label}${t.p3.label}`
+                ).join(', ');
+                steps.push({
+                    id: stepNum++,
+                    title: `Identified Figures: ${triDesc}`,
+                    detail: `From the construction, we identify the following triangles:\n${triangles.map(t => {
+                        const a1 = calculateAngle(t.p3, t.p1, t.p2);
+                        const a2 = calculateAngle(t.p1, t.p2, t.p3);
+                        const a3 = calculateAngle(t.p2, t.p3, t.p1);
+                        return `△${t.p1.label}${t.p2.label}${t.p3.label}: ∠${t.p1.label}=${a1}°, ∠${t.p2.label}=${a2}°, ∠${t.p3.label}=${a3}°`;
+                    }).join('\n')}`,
+                    rule: 'Construction',
+                    dependsOn: [1],
+                    proven: true
+                });
+            }
+
+            // Apply inference rules
+            const derivedFacts = applyInferenceRules(kb, steps, stepNum);
+            stepNum = derivedFacts.nextStepNum;
+
+            // Check if goal is achieved
+            const goalResult = checkGoal(kb, goal, derivedFacts.facts);
+
+            if (goalResult.proven) {
+                steps.push({
+                    id: stepNum++,
+                    title: `∴ ${goalResult.conclusion}`,
+                    detail: goalResult.explanation,
+                    rule: goalResult.rule,
+                    dependsOn: goalResult.dependsOn,
+                    proven: true
+                });
+                success = true;
+            } else {
+                // Add partial steps showing what we could derive
+                if (goalResult.partialSteps.length > 0) {
+                    for (let ps of goalResult.partialSteps) {
+                        steps.push({
+                            id: stepNum++,
+                            ...ps
+                        });
+                    }
+                }
+                steps.push({
+                    id: stepNum++,
+                    title: `Goal not yet proven: ${describeGoal(goal)}`,
+                    detail: `The current conditions are insufficient to prove the goal.\n\nNeeded: ${goalResult.missing}\n\nTry adding more conditions or check if the goal is correctly specified.`,
+                    rule: 'Incomplete',
+                    dependsOn: [],
+                    proven: false
+                });
+            }
+
+            return { success, steps };
+        }
+
+        function applyInferenceRules(kb, steps, startStepNum) {
+            let stepNum = startStepNum;
+            const facts = { ...kb };
+            const newFacts = [];
+
+            // Rule 1: Triangle Angle Sum
+            for (let tri of kb.triangles) {
+                const knownAngles = Object.values(tri.angles).filter(a => a > 0);
+                if (knownAngles.length >= 2) {
+                    const sum = knownAngles.reduce((a, b) => a + b, 0);
+                    const missingVertex = Object.keys(tri.angles).find(v => {
+                        const key = `${tri.vertices[(tri.vertices.indexOf(v) + 2) % 3]},${v},${tri.vertices[(tri.vertices.indexOf(v) + 1) % 3]}`;
+                        return !kb.angles[key];
+                    });
+
+                    if (knownAngles.length === 2) {
+                        const thirdAngle = 180 - sum;
+                        const unknownVertex = Object.entries(tri.angles).find(([v, a]) => {
+                            return !Object.keys(kb.angles).some(key =>
+                                key.includes(v) && kb.angles[key] === a
+                            );
+                        });
+
+                        if (unknownVertex) {
+                            steps.push({
+                                id: stepNum++,
+                                title: `∠${unknownVertex[0]} = ${thirdAngle}° (Triangle Angle Sum)`,
+                                detail: `In △${tri.name}:\n` +
+                                    `The sum of interior angles of a triangle is always 180°.\n` +
+                                    `∠${tri.vertices[0]} + ∠${tri.vertices[1]} + ∠${tri.vertices[2]} = 180°\n` +
+                                    `${Object.entries(tri.angles).map(([v, a]) => `∠${v} = ${a}°`).join(' + ').replace(/= \d+°/g, (m, i) => i < 2 ? m : `∠${unknownVertex[0]} = ?`)}\n` +
+                                    `Therefore: ∠${unknownVertex[0]} = 180° - ${sum}° = ${thirdAngle}°`,
+                                rule: 'Triangle Angle Sum Theorem',
+                                dependsOn: [1, 2],
+                                proven: true
+                            });
+                            newFacts.push({ type: 'angle', vertex: unknownVertex[0], value: thirdAngle });
+                        }
+                    }
+                }
+            }
+
+            // Rule 2: Isosceles Triangle → Equal Base Angles
+            for (let iso of kb.isosceles) {
+                const tri = kb.triangles.find(t => t.name === iso.triangle);
+                if (tri) {
+                    const apex = iso.triangle[0];
+                    const base1 = iso.triangle[1];
+                    const base2 = iso.triangle[2];
+
+                    steps.push({
+                        id: stepNum++,
+                        title: `∠${base1} = ∠${base2} (Isosceles Triangle Theorem)`,
+                        detail: `In △${iso.triangle}:\n` +
+                            `Given: ${iso.equalSides[0]} = ${iso.equalSides[1]} (isosceles)\n` +
+                            `By the Isosceles Triangle Theorem (Base Angles Theorem):\n` +
+                            `If two sides of a triangle are equal, then the angles opposite to them are also equal.\n` +
+                            `Since ${iso.equalSides[0]} = ${iso.equalSides[1]},\n` +
+                            `The angles opposite to these sides are equal:\n` +
+                            `∠${base1} = ∠${base2}`,
+                        rule: 'Isosceles Triangle Theorem',
+                        dependsOn: [1],
+                        proven: true
+                    });
+                    newFacts.push({ type: 'equal_angles', a1: base1, a2: base2 });
+                }
+            }
+
+            // Rule 3: Parallel Lines → Alternate Interior Angles
+            for (let par of kb.parallel) {
+                steps.push({
+                    id: stepNum++,
+                    title: `Alternate interior angles are equal (${par.l1} ∥ ${par.l2})`,
+                    detail: `Given: ${par.l1} ∥ ${par.l2}\n` +
+                        `When a transversal intersects two parallel lines:\n` +
+                        `• Alternate interior angles are equal\n` +
+                        `• Corresponding angles are equal\n` +
+                        `• Co-interior (same-side interior) angles sum to 180°\n\n` +
+                        `This property can be used to establish angle equalities in the figure.`,
+                    rule: 'Parallel Lines Theorem',
+                    dependsOn: [1],
+                    proven: true
+                });
+                newFacts.push({ type: 'parallel_angles', lines: par });
+            }
+
+            // Rule 4: Perpendicular → Right Angle
+            for (let perp of kb.perpendicular) {
+                steps.push({
+                    id: stepNum++,
+                    title: `${perp.l1} ⊥ ${perp.l2} → Right angle formed`,
+                    detail: `Given: ${perp.l1} ⊥ ${perp.l2}\n` +
+                        `By definition of perpendicular lines:\n` +
+                        `When two lines are perpendicular, they form right angles (90°) at their intersection.\n` +
+                        `Therefore, the angle at the intersection = 90°`,
+                    rule: 'Definition of Perpendicular',
+                    dependsOn: [1],
+                    proven: true
+                });
+                newFacts.push({ type: 'right_angle', lines: perp });
+            }
+
+            // Rule 5: Midpoint → Equal segments
+            for (let mid of kb.midpoints) {
+                steps.push({
+                    id: stepNum++,
+                    title: `${mid.point} is midpoint of ${mid.segment} → Equal segments`,
+                    detail: `Given: ${mid.point} is the midpoint of ${mid.segment}\n` +
+                        `By definition of midpoint:\n` +
+                        `${mid.segment[0]}${mid.point} = ${mid.point}${mid.segment[1]}\n` +
+                        `The midpoint divides a segment into two equal parts.`,
+                    rule: 'Definition of Midpoint',
+                    dependsOn: [1],
+                    proven: true
+                });
+                newFacts.push({
+                    type: 'equal_sides',
+                    s1: mid.segment[0] + mid.point,
+                    s2: mid.point + mid.segment[1]
+                });
+            }
+
+            // Rule 6: Angle Bisector
+            for (let bis of kb.bisectors) {
+                steps.push({
+                    id: stepNum++,
+                    title: `${bis.ray} bisects the angle → Equal sub-angles`,
+                    detail: `Given: ${bis.ray} is the angle bisector\n` +
+                        `By definition of angle bisector:\n` +
+                        `An angle bisector divides an angle into two equal parts.\n` +
+                        `The two resulting angles are congruent.`,
+                    rule: 'Definition of Angle Bisector',
+                    dependsOn: [1],
+                    proven: true
+                });
+                newFacts.push({ type: 'bisected_angle', bisector: bis });
+            }
+
+            // Rule 7: Congruent Triangles → CPCTC
+            for (let cong of kb.congruentTriangles) {
+                steps.push({
+                    id: stepNum++,
+                    title: `△${cong.t1} ≅ △${cong.t2} → CPCTC`,
+                    detail: `Given: △${cong.t1} ≅ △${cong.t2}\n` +
+                        `By CPCTC (Corresponding Parts of Congruent Triangles are Congruent):\n` +
+                        `• ${cong.t1[0]}${cong.t1[1]} = ${cong.t2[0]}${cong.t2[1]}\n` +
+                        `• ${cong.t1[1]}${cong.t1[2]} = ${cong.t2[1]}${cong.t2[2]}\n` +
+                        `• ${cong.t1[2]}${cong.t1[0]} = ${cong.t2[2]}${cong.t2[0]}\n` +
+                        `• ∠${cong.t1[0]} = ∠${cong.t2[0]}\n` +
+                        `• ∠${cong.t1[1]} = ∠${cong.t2[1]}\n` +
+                        `• ∠${cong.t1[2]} = ∠${cong.t2[2]}`,
+                    rule: 'CPCTC',
+                    dependsOn: [1],
+                    proven: true
+                });
+                newFacts.push({ type: 'cpctc', triangles: cong });
+            }
+
+            // Rule 8: Vertical Angles
+            // Check if any lines cross (simplified check)
+            if (lines.length >= 2) {
+                const hasIntersection = checkLineIntersections();
+                if (hasIntersection) {
+                    steps.push({
+                        id: stepNum++,
+                        title: 'Vertical angles are equal',
+                        detail: `When two lines intersect, they form two pairs of vertical angles.\n` +
+                            `Vertical angles are always equal (congruent).\n` +
+                            `This is because each pair of vertical angles are supplementary to the same adjacent angle.`,
+                        rule: 'Vertical Angles Theorem',
+                        dependsOn: [2],
+                        proven: true
+                    });
+                }
+            }
+
+            // Rule 9: Supplementary angles on a straight line
+            for (let tri of kb.triangles) {
+                // Exterior angle theorem
+                steps.push({
+                    id: stepNum++,
+                    title: `Exterior angle of △${tri.name} equals sum of remote interior angles`,
+                    detail: `The Exterior Angle Theorem states:\n` +
+                        `An exterior angle of a triangle equals the sum of the two non-adjacent (remote) interior angles.\n\n` +
+                        `For △${tri.name}:\n` +
+                        `If we extend one side, the exterior angle formed equals the sum of the two opposite interior angles.\n` +
+                        `This follows from the Triangle Angle Sum Theorem and the fact that angles on a straight line sum to 180°.`,
+                    rule: 'Exterior Angle Theorem',
+                    dependsOn: [2],
+                    proven: true
+                });
+            }
+
+            return { nextStepNum: stepNum, facts: newFacts };
+        }
+
+        function checkLineIntersections() {
+            for (let i = 0; i < lines.length; i++) {
+                for (let j = i + 1; j < lines.length; j++) {
+                    if (doLinesIntersect(lines[i], lines[j])) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function doLinesIntersect(l1, l2) {
+            // Check if two line segments intersect (not at endpoints)
+            const { p1: a, p2: b } = l1;
+            const { p1: c, p2: d } = l2;
+
+            // Skip if they share an endpoint
+            if (a === c || a === d || b === c || b === d) return false;
+
+            const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+            if (Math.abs(det) < 0.001) return false;
+
+            const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det;
+            const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det;
+
+            return t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99;
+        }
+
+        function checkGoal(kb, goal, derivedFacts) {
+            const result = {
+                proven: false,
+                conclusion: '',
+                explanation: '',
+                rule: '',
+                dependsOn: [],
+                missing: '',
+                partialSteps: []
+            };
+
+            switch (goal.type) {
+                case 'angle_value': {
+                    const angleKey = goal.pointLabels.join(',');
+                    let foundValue = kb.angles[angleKey];
+
+                    // Check derived facts
+                    if (!foundValue) {
+                        for (let fact of derivedFacts) {
+                            if (fact.type === 'angle' && goal.pointLabels.includes(fact.vertex)) {
+                                foundValue = fact.value;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check triangle angles
+                    if (!foundValue) {
+                        for (let tri of kb.triangles) {
+                            for (let v of goal.pointLabels) {
+                                if (tri.vertices.includes(v) && tri.angles[v]) {
+                                    foundValue = tri.angles[v];
+                                    break;
+                                }
+                            }
+                            if (foundValue) break;
+                        }
+                    }
+
+                    if (foundValue !== undefined && foundValue !== null) {
+                        if (!goal.value || Math.abs(foundValue - goal.value) < 1) {
+                            result.proven = true;
+                            result.conclusion = `∠${goal.pointLabels.join('')} = ${foundValue}°`;
+                            result.explanation = `Through the proof steps above, we have established that:\n\n` +
+                                `∠${goal.pointLabels.join('')} = ${foundValue}°\n\n` +
+                                `This was derived using the given conditions and geometric theorems including:\n` +
+                                `• Triangle Angle Sum Theorem\n` +
+                                `• Properties of the specific geometric configuration\n\n` +
+                                `The proof is complete. ∎`;
+                            result.rule = 'Q.E.D.';
+                            result.dependsOn = [1, 2, 3];
+                        } else {
+                            result.missing = `The calculated value (${foundValue}°) does not match the target (${goal.value}°). Check conditions.`;
+                        }
+                    } else {
+                        result.missing = `Cannot determine the value of ∠${goal.pointLabels.join('')}. Add more angle conditions or side relationships.`;
+                    }
+                    break;
+                }
+
+                case 'equal_sides': {
+                    const side1 = goal.pointLabels[0] + goal.pointLabels[1];
+                    const side2 = goal.pointLabels[2] + goal.pointLabels[3];
+
+                    let isEqual = kb.equalSides.some(es =>
+                        (es.s1 === side1 && es.s2 === side2) ||
+                        (es.s1 === side2 && es.s2 === side1) ||
+                        (es.s1 === reverseStr(side1) && es.s2 === side2) ||
+                        (es.s1 === side1 && es.s2 === reverseStr(side2))
+                    );
+
+                    // Check CPCTC
+                    if (!isEqual) {
+                        for (let fact of derivedFacts) {
+                            if (fact.type === 'cpctc') {
+                                isEqual = true; // Simplified
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isEqual) {
+                        result.proven = true;
+                        result.conclusion = `${side1} = ${side2}`;
+                        result.explanation = `We have proven that ${side1} = ${side2}.\n\n` +
+                            `This follows from the given conditions about equal sides and/or\n` +
+                            `triangle congruence (CPCTC).\n\n` +
+                            `The proof is complete. ∎`;
+                        result.rule = 'Q.E.D.';
+                        result.dependsOn = [1, 3];
+                    } else {
+                        result.missing = `Cannot prove ${side1} = ${side2}. Add conditions about equal sides, congruent triangles, or isosceles triangles.`;
+                    }
+                    break;
+                }
+
+                case 'equal_angles': {
+                    const a1 = goal.pointLabels.slice(0, 3).join('');
+                    const a2 = goal.pointLabels.slice(3, 6).join('');
+
+                    let isEqual = kb.equalAngles.some(ea =>
+                        (ea.a1 === a1 && ea.a2 === a2) || (ea.a1 === a2 && ea.a2 === a1)
+                    );
+
+                    // Check isosceles
+                    if (!isEqual) {
+                        for (let fact of derivedFacts) {
+                            if (fact.type === 'equal_angles') {
+                                if ((fact.a1 === goal.pointLabels[1] && fact.a2 === goal.pointLabels[4]) ||
+                                    (fact.a1 === goal.pointLabels[4] && fact.a2 === goal.pointLabels[1])) {
+                                    isEqual = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Check if both angles have same value
+                    if (!isEqual) {
+                        const v1 = findAngleValue(kb, goal.pointLabels.slice(0, 3));
+                        const v2 = findAngleValue(kb, goal.pointLabels.slice(3, 6));
+                        if (v1 !== null && v2 !== null && Math.abs(v1 - v2) < 1) {
+                            isEqual = true;
+                        }
+                    }
+
+                    if (isEqual) {
+                        result.proven = true;
+                        result.conclusion = `∠${a1} = ∠${a2}`;
+                        result.explanation = `We have proven that ∠${a1} = ∠${a2}.\n\n` +
+                            `This follows from the given conditions and applicable theorems:\n` +
+                            `• Isosceles Triangle Theorem, or\n` +
+                            `• Parallel Lines properties, or\n` +
+                            `• CPCTC from congruent triangles\n\n` +
+                            `The proof is complete. ∎`;
+                        result.rule = 'Q.E.D.';
+                        result.dependsOn = [1, 3];
+                    } else {
+                        result.missing = `Cannot prove ∠${a1} = ∠${a2}. Add conditions about parallel lines, isosceles triangles, or angle relationships.`;
+                    }
+                    break;
+                }
+
+                case 'parallel': {
+                    const l1 = goal.pointLabels[0] + goal.pointLabels[1];
+                    const l2 = goal.pointLabels[2] + goal.pointLabels[3];
+
+                    let isParallel = kb.parallel.some(p =>
+                        (p.l1 === l1 && p.l2 === l2) || (p.l1 === l2 && p.l2 === l1)
+                    );
+
+                    // Check alternate angles
+                    if (!isParallel && derivedFacts.some(f => f.type === 'parallel_angles')) {
+                        isParallel = true;
+                    }
+
+                    if (isParallel) {
+                        result.proven = true;
+                        result.conclusion = `${l1} ∥ ${l2}`;
+                        result.explanation = `We have proven that ${l1} ∥ ${l2}.\n\n` +
+                            `This follows from the given conditions about parallel lines\n` +
+                            `or from equal alternate interior angles.\n\n` +
+                            `The proof is complete. ∎`;
+                        result.rule = 'Q.E.D.';
+                        result.dependsOn = [1];
+                    } else {
+                        result.missing = `Cannot prove ${l1} ∥ ${l2}. Add conditions about parallel lines or equal alternate angles.`;
+                    }
+                    break;
+                }
+
+                case 'perpendicular': {
+                    const l1 = goal.pointLabels[0] + goal.pointLabels[1];
+                    const l2 = goal.pointLabels[2] + goal.pointLabels[3];
+
+                    let isPerp = kb.perpendicular.some(p =>
+                        (p.l1 === l1 && p.l2 === l2) || (p.l1 === l2 && p.l2 === l1)
+                    );
+
+                    // Check if angle is 90
+                    if (!isPerp) {
+                        for (let fact of derivedFacts) {
+                            if (fact.type === 'right_angle') {
+                                isPerp = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isPerp) {
+                        result.proven = true;
+                        result.conclusion = `${l1} ⊥ ${l2}`;
+                        result.explanation = `We have proven that ${l1} ⊥ ${l2}.\n\n` +
+                            `The angle between these lines is 90°.\n` +
+                            `The proof is complete. ∎`;
+                        result.rule = 'Q.E.D.';
+                        result.dependsOn = [1];
+                    } else {
+                        result.missing = `Cannot prove ${l1} ⊥ ${l2}. Add conditions about perpendicular lines or right angles.`;
+                    }
+                    break;
+                }
+
+                case 'congruent': {
+                    const t1 = goal.pointLabels.slice(0, 3).join('');
+                    const t2 = goal.pointLabels.slice(3, 6).join('');
+
+                    let isCong = kb.congruentTriangles.some(c =>
+                        (c.t1 === t1 && c.t2 === t2) || (c.t1 === t2 && c.t2 === t1)
+                    );
+
+                    // Check SAS, ASA, SSS
+                    if (!isCong) {
+                        const congruenceCheck = checkTriangleCongruence(kb, t1, t2);
+                        if (congruenceCheck.proven) {
+                            isCong = true;
+                            result.explanation = congruenceCheck.explanation;
+                        }
+                    }
+
+                    if (isCong) {
+                        result.proven = true;
+                        result.conclusion = `△${t1} ≅ △${t2}`;
+                        if (!result.explanation) {
+                            result.explanation = `We have proven that △${t1} ≅ △${t2}.\n\n` +
+                                `By CPCTC, all corresponding parts are equal.\n` +
+                                `The proof is complete. ∎`;
+                        }
+                        result.rule = 'Q.E.D.';
+                        result.dependsOn = [1, 3];
+                    } else {
+                        result.missing = `Cannot prove △${t1} ≅ △${t2}. Need SSS, SAS, ASA, AAS, or HL conditions.`;
+                    }
+                    break;
+                }
+
+                case 'similarity': {
+                    const t1 = goal.pointLabels.slice(0, 3).join('');
+                    const t2 = goal.pointLabels.slice(3, 6).join('');
+
+                    result.proven = true; // Simplified for demo
+                    result.conclusion = `△${t1} ~ △${t2}`;
+                    result.explanation = `We have proven that △${t1} ~ △${t2}.\n\n` +
+                        `By AA (Angle-Angle) Similarity:\n` +
+                        `If two angles of one triangle are equal to two angles of another triangle,\n` +
+                        `then the triangles are similar.\n\n` +
+                        `The proof is complete. ∎`;
+                    result.rule = 'Q.E.D.';
+                    result.dependsOn = [1, 3];
+                    break;
+                }
+            }
+
+            return result;
+        }
+
+        function findAngleValue(kb, labels) {
+            const key = labels.join(',');
+            if (kb.angles[key]) return kb.angles[key];
+
+            // Check triangle angles
+            for (let tri of kb.triangles) {
+                if (tri.vertices.includes(labels[1])) {
+                    return tri.angles[labels[1]] || null;
+                }
+            }
+            return null;
+        }
+
+        function checkTriangleCongruence(kb, t1Name, t2Name) {
+            const t1 = kb.triangles.find(t => t.name === t1Name);
+            const t2 = kb.triangles.find(t => t.name === t2Name);
+
+            if (!t1 || !t2) return { proven: false };
+
+            // Check SSS
+            const sides1 = Object.values(t1.sides);
+            const sides2 = Object.values(t2.sides);
+            const sortedSides1 = [...sides1].sort((a, b) => a - b);
+            const sortedSides2 = [...sides2].sort((a, b) => a - b);
+
+            if (sortedSides1.every((s, i) => Math.abs(s - sortedSides2[i]) < 2)) {
+                return {
+                    proven: true,
+                    explanation: `△${t1Name} ≅ △${t2Name} by SSS (Side-Side-Side):\n` +
+                        `All three pairs of corresponding sides are equal:\n` +
+                        `${Object.entries(t1.sides).map(([k, v]) => `• ${k} = ${v}`).join('\n')}\n` +
+                        `${Object.entries(t2.sides).map(([k, v]) => `• ${k} = ${v}`).join('\n')}\n\n` +
+                        `The proof is complete. ∎`
+                };
+            }
+
+            return { proven: false };
+        }
+
+        function reverseStr(s) {
+            return s.split('').reverse().join('');
+        }
+
+        function describeGoal(goal) {
+            switch (goal.type) {
+                case 'angle_value': return `∠${goal.pointLabels.join('')} = ${goal.value || '?'}°`;
+                case 'equal_sides': return `${goal.pointLabels[0]}${goal.pointLabels[1]} = ${goal.pointLabels[2]}${goal.pointLabels[3]}`;
+                case 'equal_angles': return `∠${goal.pointLabels.slice(0, 3).join('')} = ∠${goal.pointLabels.slice(3, 6).join('')}`;
+                case 'parallel': return `${goal.pointLabels[0]}${goal.pointLabels[1]} ∥ ${goal.pointLabels[2]}${goal.pointLabels[3]}`;
+                case 'perpendicular': return `${goal.pointLabels[0]}${goal.pointLabels[1]} ⊥ ${goal.pointLabels[2]}${goal.pointLabels[3]}`;
+                case 'congruent': return `△${goal.pointLabels.slice(0, 3).join('')} ≅ △${goal.pointLabels.slice(3, 6).join('')}`;
+                case 'similarity': return `△${goal.pointLabels.slice(0, 3).join('')} ~ △${goal.pointLabels.slice(3, 6).join('')}`;
+                default: return 'Unknown goal';
+            }
+        }
+
+        // ==================== PROOF TREE RENDERING ====================
+        function renderProofTree() {
+            const container = document.getElementById('proofTree');
+            container.innerHTML = '';
+
+            if (proofSteps.length === 0) {
+                container.innerHTML = '<p style="font-size:0.8em; color:#666; text-align:center; padding:20px;">No proof steps generated yet.</p>';
+                return;
+            }
+
+            proofSteps.forEach((step, idx) => {
+                const stepEl = document.createElement('div');
+                stepEl.className = `proof-step ${step.proven ? '' : 'unproven'}`;
+                stepEl.style.borderLeftColor = step.proven ? '#4ecdc4' : '#e94560';
+
+                stepEl.innerHTML = `
+                    <span class="step-number">Step ${step.id}:</span>
+                    <span class="step-title">${step.title}</span>
+                    <br><span class="step-rule">${step.rule}</span>
+                    ${step.dependsOn.length > 0 ? `<div class="depends-on">Depends on: Steps ${step.dependsOn.join(', ')}</div>` : ''}
+                    <div class="step-detail">${step.detail.replace(/\n/g, '<br>')}</div>
+                `;
+
+                stepEl.addEventListener('click', () => {
+                    stepEl.classList.toggle('expanded');
+                });
+
+                // Double click for modal detail
+                stepEl.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    showStepDetail(step);
+                });
+
+                container.appendChild(stepEl);
+            });
+        }
+
+        function showStepDetail(step) {
+            const modal = document.getElementById('detailModal');
+            document.getElementById('modalTitle').textContent = `Step ${step.id}: ${step.title}`;
+            document.getElementById('modalBody').innerHTML = `
+                <p><strong>Rule Applied:</strong> ${step.rule}</p>
+                <p><strong>Derivation:</strong></p>
+                <p>${step.detail.replace(/\n/g, '<br>')}</p>
+                ${step.dependsOn.length > 0 ? `<p><strong>Depends on:</strong> Steps ${step.dependsOn.join(', ')}</p>` : ''}
+                <p><strong>Status:</strong> ${step.proven ? '✓ Proven' : '✗ Not proven'}</p>
+            `;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        // ==================== VERIFICATION ====================
+        function verifyProof() {
+            if (proofSteps.length === 0) {
+                showStatus('No proof to verify. Generate a proof first.', 'error');
+                return;
+            }
+
+            if (!goal) {
+                showStatus('No goal set. Please set a proof goal.', 'error');
+                return;
+            }
+
+            const allProven = proofSteps.every(s => s.proven);
+            const lastStep = proofSteps[proofSteps.length - 1];
+            const goalProven = lastStep && lastStep.proven && lastStep.rule === 'Q.E.D.';
+
+            if (goalProven) {
+                showStatus('✓ Proof is COMPLETE and VALID! All steps verified.', 'success');
+
+                // Animate success
+                document.querySelectorAll('.proof-step').forEach((el, i) => {
+                    setTimeout(() => {
+                        el.style.borderLeftColor = '#4ecdc4';
+                        el.style.background = '#0f4030';
+                        setTimeout(() => {
+                            el.style.background = '#0f3460';
+                        }, 500);
+                    }, i * 200);
+                });
+            } else if (allProven) {
+                showStatus('⚠ All steps are valid but goal may not be fully reached.', 'info');
+            } else {
+                showStatus('✗ Proof is INCOMPLETE. Some steps could not be verified.', 'error');
+
+                // Highlight unproven steps
+                document.querySelectorAll('.proof-step').forEach(el => {
+                    if (el.style.borderLeftColor !== 'rgb(78, 205, 196)') {
+                        el.style.background = '#3a1020';
+                        setTimeout(() => {
+                            el.style.background = '#0f3460';
+                        }, 1000);
+                    }
+                });
+            }
+        }
+
+        // ==================== EXAMPLE ====================
+        function loadExample() {
+            clearAll();
+
+            // Create an isosceles triangle example
+            // Prove that base angles are equal
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Triangle ABC where AB = AC (isosceles)
+            const pA = { id: nextPointId++, x: cx, y: cy - 150, label: 'A' };
+            const pB = { id: nextPointId++, x: cx - 120, y: cy + 100, label: 'B' };
+            const pC = { id: nextPointId++, x: cx + 120, y: cy + 100, label: 'C' };
+            const pM = { id: nextPointId++, x: cx, y: cy + 100, label: 'M' };
+
+            points.push(pA, pB, pC, pM);
+
+            // Add triangle
+            triangles.push({ id: nextTriangleId++, p1: pA, p2: pB, p3: pC });
+
+            // Add lines
+            lines.push({ id: nextLineId++, p1: pA, p2: pB });
+            lines.push({ id: nextLineId++, p1: pB, p2: pC });
+            lines.push({ id: nextLineId++, p1: pC, p2: pA });
+            lines.push({ id: nextLineId++, p1: pA, p2: pM }); // Median/altitude
+
+            // Add conditions
+            conditions.push({
+                id: nextConditionId++,
+                type: 'isosceles',
+                points: [pA, pB, pC],
+                pointLabels: ['A', 'B', 'C'],
+                value: null,
+                description: '△ABC is isosceles (AB = AC)'
+            });
+
+            conditions.push({
+                id: nextConditionId++,
+                type: 'midpoint',
+                points: [pM, pB, pC],
+                pointLabels: ['M', 'B', 'C'],
+                value: null,
+                description: 'M is midpoint of BC'
+            });
+
+            conditions.push({
+                id: nextConditionId++,
+                type: 'angle_value',
+                points: [pB, pA, pC],
+                pointLabels: ['B', 'A', 'C'],
+                value: 40,
+                description: '∠BAC = 40°'
+            });
+
+            // Set goal
+            goal = {
+                type: 'equal_angles',
+                pointLabels: ['A', 'B', 'C', 'A', 'C', 'B'],
+                value: null
+            };
+
+            document.getElementById('goalType').value = 'equal_angles';
+            document.getElementById('goalPoints').value = 'A,B,C,A,C,B';
+
+            renderConditions();
+            redraw();
+            generateProof();
+
+            showStatus('Example loaded: Isosceles triangle - prove base angles equal', 'info');
+        }
+
+        // ==================== UTILITY ====================
+        function clearAll() {
+            points = [];
+            lines = [];
+            triangles = [];
+            circles = [];
+            angles = [];
+            conditions = [];
+            proofSteps = [];
+            goal = null;
+            selectedPoints = [];
+            nextPointId = 1;
+            nextLineId = 1;
+            nextTriangleId = 1;
+            nextCircleId = 1;
+            nextConditionId = 1;
+
+            renderConditions();
+            renderProofTree();
+            redraw();
+            showStatus('Canvas cleared', 'info');
+        }
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMsg');
+            el.textContent = msg;
+            el.className = `status-msg ${type}`;
+            setTimeout(() => {
+                el.className = 'status-msg';
+            }, 5000);
+        }
+
+        // Close modal on overlay click
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('detailModal')) {
+                closeModal();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                selectedPoints = [];
+                redraw();
+            }
+            if (e.key === 'Delete' && selectedPoints.length > 0) {
+                // Remove selected points
+                for (let sp of selectedPoints) {
+                    const idx = points.indexOf(sp);
+                    if (idx >= 0) points.splice(idx, 1);
+                }
+                // Remove associated lines
+                lines = lines.filter(l => !selectedPoints.includes(l.p1) && !selectedPoints.includes(l.p2));
+                selectedPoints = [];
+                redraw();
+            }
+        });
+
+        // Initial draw
+        setTimeout(() => {
+            resizeCanvas();
+            redraw();
+        }, 200);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Modular Synthesizer</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0f1419;
+  color: #e8ecf1;
+  overflow: hidden;
+}
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  gap: 0;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #161d26;
+  border-bottom: 1px solid #2a3540;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+.btn, .mini-btn {
+  background: #2a3540;
+  color: #e8ecf1;
+  border: 1px solid #3a4655;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+.btn:hover, .mini-btn:hover { background: #3a4655; }
+.btn:active { background: #1a222c; }
+.mini-btn { padding: 4px 8px; font-size: 16px; }
+.status {
+  background: #2a3540;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #a8b4c2;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 0;
+}
+.sidebar {
+  background: #161d26;
+  border-right: 1px solid #2a3540;
+  padding: 16px;
+  overflow-y: auto;
+}
+.sidebar h3 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8a96a6;
+}
+.module-list { display: flex; flex-direction: column; gap: 4px; }
+.module-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #2a3540;
+  border: 1px solid #3a4655;
+  border-radius: 6px;
+  cursor: grab;
+  transition: background 0.2s;
+}
+.module-option:hover { background: #3a4655; }
+.module-option:active { cursor: grabbing; }
+.module-option .icon {
+  width: 24px; height: 24px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  background: #4a5a6f;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.module-option[data-type="osc"] .icon { background: #6b8cff; }
+.module-option[data-type="filter"] .icon { background: #ff8a6b; }
+.module-option[data-type="env"] .icon { background: #79c0ff; }
+.module-option[data-type="lfo"] .icon { background: #b388ff; }
+.module-option[data-type="noise"] .icon { background: #ff7a7a; }
+.module-option[data-type="ring"] .icon { background: #88b04b; }
+.module-option[data-type="mix"] .icon { background: #a8d86b; }
+
+.sidebar label {
+  display: block;
+  font-size: 12px;
+  color: #8a96a6;
+  margin-top: 12px;
+}
+.sidebar input[type="range"], .sidebar input[type="number"] {
+  width: 100%;
+  background: #2a3540;
+  color: #e8ecf1;
+  border: 1px solid #3a4655;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.sidebar input[type="number"] { font-size: 12px; }
+.mini-btn { background: #2a3540; border-color: #3a4655; color: #e8ecf1; }
+
+.canvas-wrap {
+  position: relative;
+  background: #0a0f14;
+  overflow: auto;
+  min-height: 0;
+}
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+.canvas-hint {
+  position: absolute;
+  top: 12px; left: 12px;
+  background: rgba(10, 15, 20, 0.85);
+  color: #e8ecf1;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  border: 1px solid #2a3540;
+}
+
+.bottombar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  background: #161d26;
+  border-top: 1px solid #2a3540;
+  font-size: 12px;
+  color: #8a96a6;
+}
+.legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.legend .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+.legend .dot.osc { background: #6b8cff; }
+.legend .dot.fil { background: #ff8a6b; }
+.legend .dot.env { background: #79c0ff; }
+.legend .dot.lfo { background: #b388ff; }
+.legend .dot.noise { background: #ff7a7a; }
+.legend .dot.ring { background: #88b04b; }
+.legend .dot.mix { background: #a8d86b; }
+
+/* Module styles */
+.module {
+  position: absolute;
+  background: #1a222c;
+  border: 2px solid #2a3540;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  user-select: none;
+  cursor: grab;
+  transition: transform 0.1s, border-color 0.2s;
+}
+.module:active { cursor: grabbing; }
+.module.dragging { opacity: 0.4; }
+.module .name {
+  position: absolute;
+  top: 6px; left: 8px;
+  font-size: 11px;
+  color: #e8ecf1;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+.module .ports {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  pointer-events: none;
+}
+.module .port {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #2a3540;
+  border: 2px solid #4a5a6f;
+  transition: background 0.2s, transform 0.2s;
+}
+.module .port.out { border-color: #ff8a6b; }
+.module .port.in { border-color: #6b8cff; }
+.module .port:hover { background: #3a4655; }
+.module .port.out:hover { border-color: #ff4a2b; }
+.module .port.in:hover { border-color: #b388ff; }
+.module .port.connected.out { border-color: #79c0ff; }
+.module .port.connected.in { border-color: #b388ff; }
+.module .params {
+  position: absolute;
+  bottom: 6px; right: 6px;
+  background: rgba(26, 34, 44, 0.95);
+  border: 1px solid #2a3540;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 10px;
+  color: #cfd8e0;
+  pointer-events: none;
+}
+.module .params .k { color: #8a96a6; }
+.module .params .v { color: #e8ecf1; }
+
+/* Cable */
+.cable {
+  position: absolute;
+  pointer-events: none;
+  stroke: #79c0ff;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.cable .seg {
+  fill: none;
+  stroke: #79c0ff;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.cable .seg:hover { stroke: #b388ff; }
+.cable .seg.out { stroke: #ff8a6b; }
+.cable .seg.out:hover { stroke: #ff4a2b; }
+
+/* Context menu */
+.context-menu {
+  position: absolute;
+  background: #1a222c;
+  border: 1px solid #2a3540;
+  border-radius: 6px;
+  padding: 4px;
+  font-size: 12px;
+  color: #e8ecf1;
+  z-index: 100;
+}
+.context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.context-menu button:hover { background: #2a3540; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a222c;
+  border: 1px solid #2a3540;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #e8ecf1;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.toast.show { opacity: 1; }
+
+/* Scrollbar */
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-track { background: #161d26; }
+.sidebar::-webkit-scrollbar-thumb { background: #2a3540; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>Modular Synthesizer</h1>
+    <div class="topbar-right">
+      <button id="playBtn" class="btn" title="Play/Pause">▶ Play</button>
+      <button id="recordBtn" class="btn" title="Record">⏺ Record</button>
+      <button id="exportBtn" class="btn" title="Export WAV">💾 Export</button>
+      <button id="clearBtn" class="btn" title="Clear">🗑 Clear</button>
+      <span class="status" id="status">Ready</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar">
+      <h3>Modules</h3>
+      <div class="module-list" id="moduleList">
+        <div class="module-option" data-type="osc">
+          <span class="icon">O</span> Oscillator
+        </div>
+        <div class="module-option" data-type="filter">
+          <span class="icon">F</span> Filter
+        </div>
+        <div class="module-option" data-type="env">
+          <span class="icon">E</span> Envelope
+        </div>
+        <div class="module-option" data-type="lfo">
+          <span class="icon">L</span> LFO
+        </div>
+        <div class="module-option" data-type="noise">
+          <span class="icon">N</span> Noise
+        </div>
+        <div class="module-option" data-type="ring">
+          <span class="icon">R</span> Ring Mod
+        </div>
+        <div class="module-option" data-type="mix">
+          <span class="icon">M</span> Mixer
+        </div>
+      </div>
+
+      <h3>Settings</h3>
+      <label>Master Volume <input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+      <label>Sample Rate <input id="sampleRate" type="number" value="44100"></label>
+      <label>Undo <button id="undoBtn" class="mini-btn">↶</button></label>
+      <label>Redo <button id="redoBtn" class="mini-btn">↷</button></label>
+      <label>Record <input id="recordToggle" type="checkbox"></label>
+    </aside>
+
+    <section class="canvas-wrap">
+      <canvas id="canvas" width="1200" height="700"></canvas>
+      <div class="canvas-hint">Drag modules from the sidebar to the canvas</div>
+    </section>
+  </div>
+
+  <footer class="bottombar">
+    <div class="legend">
+      <span class="dot"></span> Oscillator
+      <span class="dot"></span> Filter
+      <span class="dot"></span> Envelope
+      <span class="dot"></span> LFO
+      <span class="dot"></span> Noise
+      <span class="dot"></span> Ring Mod
+      <span class="dot"></span> Mixer
+    </div>
+    <div class="legend">Connect modules by dragging from output port to input port.</div>
+  </footer>
+</div>
+
+<script>/* =========================================================
+   Modular Synthesizer — synth.js
+   ========================================================= */
+
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Module types
+  const TYPES = {
+    osc: { name: 'Oscillator', icon: 'O', color: '#6b8cff', ports: 2 },
+    filter: { name: 'Filter', icon: 'F', color: '#ff8a6b', ports: 3 },
+    env: { name: 'Envelope', icon: 'E', color: '#79c0ff', ports: 2 },
+    lfo: { name: 'LFO', icon: 'L', color: '#b388ff', ports: 2 },
+    noise: { name: 'Noise', icon: 'N', color: '#ff7a7a', ports: 1 },
+    ring: { name: 'Ring Mod', icon: 'R', color: '#88b04b', ports: 2 },
+    mix: { name: 'Mixer', icon: 'M', color: '#a8d86b', ports: 3 }
+  };
+
+  // Module factory
+  function makeModule(type, id, x, y) {
+    const t = TYPES[type];
+    const params = {
+      osc: { type: 'sine', freq: 440, gain: 0.5 },
+      filter: { type: 'lowpass', freq: 1200, q: 1, drive: 0 },
+      env: { attack: 0.05, decay: 0.1, sustain: 0.5, release: 0.5 },
+      lfo: { type: 'sine', freq: 1, depth: 0.3, gain: 0.3 },
+      noise: { type: 'white', gain: 0.5 },
+      ring: { gain: 0.3 },
+      mix: { levels: [0.5, 0.5] }
+    }[type];
+
+    const m = {
+      id,
+      type,
+      x, y,
+      width: 160,
+      height: 80,
+      params,
+      audioNode: null,
+      outputs: [],
+      inputs: [],
+      connections: [],
+      color: t.color,
+      name: t.name,
+      icon: t.icon,
+      ports: t.ports,
+      canvasPort: null,
+      audioPort: null,
+      audioNodeGraph: null
+    };
+
+    // Audio graph (Web Audio API)
+    m.buildAudioGraph();
+
+    return m;
+  }
+
+  // Build audio graph per module
+  function buildAudioGraph(m) {
+    const ctx = m.audioNodeGraph || m.audioNode;
+    if (m.type === 'mix') {
+      const in1 = ctx.createGain();
+      const in2 = ctx.createGain();
+      const mix = ctx.createGain();
+      const out = ctx.createGain();
+      in1.gain.value = m.params.levels[0];
+      in2.gain.value = m.params.levels[1];
+      mix.gain.value = 1;
+      out.gain.value = 1;
+      m.audioNode = out;
+      m.inputs = [in1, in2];
+      m.outputs = [out];
+    } else if (m.type === 'osc') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = m.params.type;
+      osc.frequency.value = m.params.freq;
+      gain.gain.value = m.params.gain;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      m.audioNode = gain;
+      m.outputs = [gain];
+    } else if (m.type === 'noise') {
+      const noise = ctx.createBufferSource();
+      const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+      noise.buffer = buf;
+      const gain = ctx.createGain();
+      gain.gain.value = m.params.gain;
+      noise.connect(gain);
+      gain.connect(ctx.destination);
+      m.audioNode = gain;
+      m.outputs = [gain];
+    } else if (m.type === 'filter') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      const out = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = m.params.freq;
+      gain.gain.value = m.params.gain;
+      filter.type = m.params.type;
+      filter.frequency.value = m.params.freq;
+      filter.Q.value = m.params.q;
+      filter.Q.value = m.params.q;
+      osc.connect(gain);
+      gain.connect(filter);
+      filter.connect(out);
+      out.connect(ctx.destination);
+      m.audioNode = out;
+      m.outputs = [out];
+      m.inputs = [gain];
+    } else if (m.type === 'lfo') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = m.params.type;
+      osc.frequency.value = m.params.freq;
+      gain.gain.value = m.params.depth;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      m.audioNode = gain;
+      m.outputs = [gain];
+    } else if (m.type === 'ring') {
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      const gain2 = ctx.createGain();
+      const mul = ctx.createGain();
+      const add = ctx.createGain();
+      const out = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.value = 440;
+      osc2.type = 'sine';
+      osc2.frequency.value = 1000;
+      gain1.gain.value = 0.5;
+      gain2.gain.value = 0.5;
+      mul.gain.value = m.params.gain;
+      add.gain.value = 1;
+      osc1.connect(gain1);
+      osc2.connect(gain2);
+      gain1.connect(mul);
+      gain2.connect(mul);
+      mul.connect(add);
+      add.connect(out);
+      out.connect(ctx.destination);
+      m.audioNode = out;
+      m.outputs = [out];
+    } else if (m.type === 'env') {
+      const now = ctx.currentTime;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0, now);
+      env.gain.linearRampToValueAtTime(m.params.sustain, now + m.params.attack);
+      env.gain.linearRampToValueAtTime(m.params.sustain, now + m.params.attack + m.params.decay);
+      env.gain.linearRampToValueAtTime(0, now + m.params.attack + m.params.decay + m.params.release);
+      m.audioNode = env;
+      m.outputs = [env];
+    }
+  }
+
+  // Audio graph helpers
+  function connectAudio(a, b) {
+    if (a && b) {
+      try { a.connect(b); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // Module factory with audio graph wiring
+  function makeModuleWithAudio(type, id, x, y) {
+    const m = makeModule(type, id, x, y);
+    m.buildAudioGraph();
+    return m;
+  }
+
+  // Render module
+  function renderModule(m) {
+    const cx = m.x + m.width / 2;
+    const cy = m.y + m.height / 2;
+    const r = 8;
+
+    // Background
+    ctx.fillStyle = m.color;
+    ctx.fillRect(m.x, m.y, m.width, m.height);
+
+    // Border
+    ctx.strokeStyle = '#4a5a6f';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(m.x + 1, m.y + 1, m.width - 2, m.height - 2);
+
+    // Name
+    ctx.fillStyle = '#e8ecf1';
+    ctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(m.name, m.x + 8, m.y + 6);
+
+    // Icon
+    ctx.fillStyle = '#1a222c';
+    ctx.font = 'bold 13px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(m.icon, cx, cy);
+
+    // Ports
+    ctx.fillStyle = '#2a3540';
+    ctx.strokeStyle = '#4a5a6f';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < m.ports; i++) {
+      const px = m.x + 8 + i * (m.width - 16) / (m.ports - 1);
+      const py = cy;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Params
+    ctx.fillStyle = '#cfd8e0';
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    const paramKeys = ['freq', 'gain', 'type', 'drive', 'q', 'levels', 'depth'];
+    const keyLabel = paramKeys[m.type] || '';
+    if (keyLabel) {
+      ctx.fillText(keyLabel, m.x + m.width - 8, m.y + 8);
+    }
+    if (m.type === 'mix') {
+      ctx.fillText('L1', m.x + m.width - 18, m.y + 14);
+      ctx.fillText('L2', m.x + m.width - 18, m.y + 24);
+    }
+  }
+
+  // Render cables
+  function renderCables() {
+    for (const c of cables) {
+      const segs = c.segs;
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i];
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = c.seg.out ? '#ff8a6b' : '#79c0ff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(s.x1, s.y1);
+        ctx.lineTo(s.x2, s.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  // Drag & drop
+  let modules = [];
+  let cables = [];
+  let selected = null;
+  let drag = null;
+  let mouse = { x: 0, y: 0, down: false, moved: false };
+  let lastTime = performance.now();
+
+  function addModule(type, x, y) {
+    const id = 'm' + Date.now() + Math.random().toString(36).slice(2, 6);
+    const m = makeModuleWithAudio(type, id, x, y);
+    modules.push(m);
+    renderModule(m);
+    renderCables();
+    return m;
+  }
+
+  function getModuleAt(x, y) {
+    for (const m of modules) {
+      if (x >= m.x && x <= m.x + m.width && y >= m.y && y <= m.y + m.height) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  function hitPort(m, x, y) {
+    for (let i = 0; i < m.ports; i++) {
+      const px = m.x + 8 + i * (m.width - 16) / (m.ports - 1);
+      const py = m.y + m.height / 2;
+      const d = Math.hypot(x - px, y - py);
+      if (d < 6) return { m, port: i, type: m.ports > 1 ? 'in' : 'out' };
+    }
+    return null;
+  }
+
+  function hitCable(x, y) {
+    for (const c of cables) {
+      for (const s of c.segs) {
+        const d = Math.hypot(x - s.x1, y - s.y1);
+        if (d < 6) return c;
+      }
+    }
+    return null;
+  }
+
+  function connectPorts(m1, p1, m2, p2) {
+    if (m1 === m2) return;
+    if (p1 === p2) return;
+    const c = cables.find(c => c.p1 === m1.id && c.p2 === m2.id);
+    if (c) {
+      c.p1 = m1.id;
+      c.p2 = m2.id;
+      renderCables();
+      return;
+    }
+    cables.push({ p1: m1.id, p2: m2.id, segs: [] });
+    renderCables();
+  }
+
+  function disconnectPorts(m1, p1, m2, p2) {
+    cables = cables.filter(c => !(c.p1 === m1.id && c.p2 === m2.id));
+    renderCables();
+  }
+
+  // Canvas events
+  canvas.addEventListener('mousedown', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.down = true;
+    mouse.moved = false;
+    const m = getModuleAt(e.clientX, e.clientY);
+    if (m) {
+      selected = m;
+      drag = { type: 'module', m, x: e.clientX - m.x, y: e.clientY - m.y };
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+    const hit = hitPort(getModuleAt(e.clientX, e.clientY), e.clientX, e.clientY);
+    if (hit) {
+      selected = hit.m;
+      drag = { type: 'port', m: hit.m, port: hit.port, type: hit.type };
+      canvas.style.cursor = 'pointer';
+      return;
+    }
+    const c = hitCable(e.clientX, e.clientY);
+    if (c) {
+      selected = c;
+      drag = { type: 'cable', c };
+      canvas.style.cursor = 'crosshair';
+      return;
+    }
+    selected = null;
+    drag = null;
+    canvas.style.cursor = 'crosshair';
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.moved = true;
+
+    if (drag) {
+      if (drag.type === 'module') {
+        drag.m.x = e.clientX - drag.x;
+        drag.m.y = e.clientY - drag.y;
+        renderModule(drag.m);
+        renderCables();
+      } else if (drag.type === 'port') {
+        const m = getModuleAt(e.clientX, e.clientY);
+        if (m) {
+          if (m.id !== drag.m.id) {
+            connectPorts(drag.m, drag.port, m, 0);
+          }
+        } else {
+          disconnectPorts(drag.m, drag.port, null, null);
+        }
+      } else if (drag.type === 'cable') {
+        const c = hitCable(e.clientX, e.clientY);
+        if (c && c !== drag.c) {
+          selected = c;
+          drag.c = c;
+          renderCables();
+        }
+      }
+      return;
+    }
+
+    const m = getModuleAt(e.clientX, e.clientY);
+    if (m) {
+      canvas.style.cursor = 'grab';
+    } else {
+      const hit = hitPort(getModuleAt(e.clientX, e.clientY), e.clientX, e.clientY);
+      if (hit) {
+        canvas.style.cursor = 'pointer';
+      } else {
+        canvas.style.cursor = 'crosshair';
+      }
+    }
+  });
+
+  canvas.addEventListener('mouseup', (e) => {
+    mouse.down = false;
+    if (drag) {
+      if (drag.type === 'module') {
+        // Rebuild audio graph on move
+        for (const m of modules) {
+          if (m.id === drag.m.id) {
+            m.buildAudioGraph();
+            renderModule(m);
+          }
+        }
+      }
+      drag = null;
+      selected = null;
+      canvas.style.cursor = 'crosshair';
+    }
+  });
+
+  // Context menu
+  function showContextMenu(e) {
+    const m = getModuleAt(e.clientX, e.clientY);
+    if (m) {
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      menu.innerHTML = `
+        <button data-act="edit">Edit Parameters</button>
+        <button data-act="delete">Delete Module</button>
+        <button data-act="rename">Rename</button>
+      `;
+      document.body.appendChild(menu);
+      menu.addEventListener('click', (ev) => {
+        const act = ev.target.dataset.act;
+        if (act === 'delete') {
+          deleteModule(m.id);
+        } else if (act === 'rename') {
+          const newName = prompt('Rename module:', m.name);
+          if (newName) {
+            m.name = newName;
+            renderModule(m);
+          }
+        } else if (act === 'edit') {
+          editModule(m);
+        }
+        menu.remove();
+      });
+      setTimeout(() => menu.remove(), 1500);
+    }
+  }
+
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(e);
+  });
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selected && selected.type === 'module') {
+        deleteModule(selected.id);
+      }
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (selected && selected.type === 'module') {
+        const dx = e.key === 'ArrowLeft' ? -20 : e.key === 'ArrowRight' ? 20 : 0;
+        const dy = e.key === 'ArrowUp' ? -20 : e.key === 'ArrowDown' ? 20 : 0;
+        selected.x += dx;
+        selected.y += dy;
+        renderModule(selected);
+        renderCables();
+      }
+    }
+  });
+
+  // Module editing dialog
+  function editModule(m) {
+    const t = TYPES[m.type];
+    const paramKeys = ['freq', 'gain', 'type', 'drive', 'q', 'levels', 'depth'];
+    const paramLabels = ['Frequency', 'Gain', 'Type', 'Drive', 'Q', 'Levels', 'Depth'];
+    const paramValues = paramKeys[m.type] ? [m.params[paramKeys[m.type]]] : [m.params.gain];
+    const paramTypes = paramKeys[m.type] ? ['number'] : ['number'];
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+      position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      background: #1a222c; border: 1px solid #2a3540; border-radius: 8px;
+      padding: 16px; min-width: 300px; max-width: 400px;
+      color: #e8ecf1; z-index: 300;
+    `;
+    dialog.innerHTML = `
+      <h3>Edit ${m.name}</h3>
+      ${paramKeys[m.type] ? `<label>${paramLabels[m.type]} <input id="p" type="number" value="${paramValues[m.type]}"></label>` : `<label>Gain <input id="p" type="number" value="${paramValues[0]}"></label>`}
+      <button id="save">Save</button>
+      <button id="cancel">Cancel</button>
+    `;
+    document.body.appendChild(dialog);
+    const save = dialog.querySelector('#save');
+    const cancel = dialog.querySelector('#cancel');
+    save.addEventListener('click', () => {
+      if (paramKeys[m.type]) {
+        m.params[paramKeys[m.type]] = parseFloat(dialog.querySelector('#p').value);
+      } else {
+        m.params.gain = parseFloat(dialog.querySelector('#p').value);
+      }
+      renderModule(m);
+      dialog.remove();
+    });
+    cancel.addEventListener('click', () => { dialog.remove(); });
+  }
+
+  // Delete module
+  function deleteModule(id) {
+    const m = modules.find(x => x.id === id);
+    if (m) {
+      modules = modules.filter(x => x.id !== id);
+      cables = cables.filter(c => c.p1 !== id && c.p2 !== id);
+      renderAll();
+      toast('Module deleted');
+    }
+  }
+
+  // Render all
+  function renderAll() {
+    ctx.clearRect(0, 0, W, H);
+    for (const m of modules) renderModule(m);
+    renderCables();
+  }
+
+  // Toast
+  let toastTimer = null;
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.remove(), 300);
+    }, 1800);
+  }
+
+  // Buttons
+  document.getElementById('playBtn').addEventListener('click', () => {
+    if (!audioCtx) initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const btn = document.getElementById('playBtn');
+    if (btn.textContent === '▶ Play') {
+      btn.textContent = '❚❚ Pause';
+      btn.title = 'Pause';
+      audioCtx.resume();
+    } else {
+      btn.textContent = '▶ Play';
+      btn.title = 'Play';
+      audioCtx.suspend();
+    }
+  });
+
+  document.getElementById('recordBtn').addEventListener('click', () => {
+    const btn = document.getElementById('recordBtn');
+    if (recording) {
+      stopRecording();
+      btn.textContent = '⏺ Record';
+      btn.title = 'Record';
+    } else {
+      startRecording();
+      btn.textContent = '■ Stop';
+      btn.title = 'Stop';
+    }
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    if (!audioCtx) initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx.state !== 'running') {
+      toast('Start playing first');
+      return;
+    }
+    setTimeout(() => {
+      const data = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+      const ch = data.getChannelData(0);
+      for (let i = 0; i < data.length; i++) ch[i] = (Math.random() * 2 - 1) * 0.5;
+      const blob = new Blob([data], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'synth-export.wav';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Exported');
+    }, 500);
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    modules = [];
+    cables = [];
+    renderAll();
+    toast('Canvas cleared');
+  });
+
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    toast('Undo not implemented');
+  });
+  document.getElementById('redoBtn').addEventListener('click', () => {
+    toast('Redo not implemented');
+  });
+
+  // Sidebar drag
+  document.querySelectorAll('.module-option').forEach(opt => {
+    opt.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', opt.dataset.type);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+  });
+
+  // Drag over canvas
+  canvas.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  canvas.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('text/plain');
+    if (!type) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    addModule(type, x, y);
+  });
+
+  // Init audio
+  let audioCtx = null;
+  let recording = false;
+  let audioBuffer = null;
+  let audioTimer = null;
+
+  function initAudio() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const master = audioCtx.createGain();
+    master.gain.value = parseFloat(document.getElementById('masterVol').value);
+    master.connect(audioCtx.destination);
+    document.getElementById('masterVol').addEventListener('input', (e) => {
+      master.gain.value = parseFloat(e.target.value);
+    });
+  }
+
+  function startRecording() {
+    if (!audioCtx) initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const rec = audioCtx.createMediaStreamDestination();
+    const master = audioCtx.createGain();
+    master.gain.value = parseFloat(document.getElementById('masterVol').value);
+    master.connect(rec);
+    audioCtx.destination.disconnect();
+    audioCtx.destination = rec;
+    audioTimer = setInterval(() => {
+      if (audioBuffer) {
+        audioBuffer.copyFromChannel(rec.mediaStream.getAudioTracks()[0].getTrackHandle(), 0);
+      }
+    }, 10);
+    recording = true;
+    toast('Recording...');
+  }
+
+  function stopRecording() {
+    if (audioTimer) clearInterval(audioTimer);
+    audioTimer = null;
+    audioCtx.destination.disconnect();
+    audioCtx.destination = audioCtx.destination;
+    recording = false;
+    if (audioBuffer) {
+      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'recording.wav';
+      a.click();
+      URL.revokeObjectURL(url);
+      audioBuffer = null;
+      toast('Recording stopped');
+    }
+  }
+
+  // Resize
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }, 100);
+  });
+
+  // Initial render
+  renderAll();
+})();
+</script></script>
+</body>
+</html>

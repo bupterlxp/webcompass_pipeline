@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Karaoke Lyrics Sync Tool</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#171a2e; --panel2:#1f2340;
+    --text:#e8ecff; --muted:#8a90b8; --accent:#7c5cff;
+    --accent2:#22d3ee; --active:#ffd166; --done:#6ee7b7;
+    --border:#2a2f55;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 20% -10%,#2a1e5c 0%,transparent 60%),
+               radial-gradient(900px 500px at 110% 10%,#0b4a5a 0%,transparent 55%),
+               var(--bg);
+    color:var(--text);min-height:100vh;
+  }
+  header{padding:22px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px}
+  header h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header .badge{font-size:11px;padding:3px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border)}
+  main{display:grid;grid-template-columns:360px 1fr;gap:18px;padding:18px;max-width:1400px;margin:0 auto}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .panel h2{font-size:13px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px}
+  .drop{
+    border:1.5px dashed var(--border);border-radius:12px;padding:14px;text-align:center;
+    color:var(--muted);cursor:pointer;transition:.2s;background:rgba(255,255,255,.02)
+  }
+  .drop:hover,.drop.drag{border-color:var(--accent);color:var(--text);background:rgba(124,92,255,.08)}
+  .drop small{display:block;margin-top:4px;opacity:.7}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button{
+    background:var(--panel2);color:var(--text);border:1px solid var(--border);
+    padding:8px 12px;border-radius:10px;cursor:pointer;font-size:13px;transition:.15s
+  }
+  button:hover{border-color:var(--accent);transform:translateY(-1px)}
+  button.primary{background:linear-gradient(135deg,var(--accent),#5b8cff);border-color:transparent}
+  button.ghost{background:transparent}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .controls{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+  .offset-display{
+    font-variant-numeric:tabular-nums;font-size:22px;font-weight:600;
+    text-align:center;padding:10px;border-radius:10px;background:rgba(0,0,0,.25);
+    border:1px solid var(--border);margin-top:8px
+  }
+  .offset-display small{display:block;font-size:11px;color:var(--muted);font-weight:400;letter-spacing:1px}
+  .meta{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
+  .meta b{color:var(--text);font-weight:500}
+  audio{width:100%;margin-top:10px;border-radius:10px}
+  /* Lyrics stage */
+  .stage{
+    position:relative;min-height:520px;max-height:75vh;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:30px 20px;text-align:center;
+  }
+  .lyrics-viewport{
+    position:relative;width:100%;height:460px;overflow:hidden;
+    mask-image:linear-gradient(180deg,transparent 0,#000 18%,#000 82%,transparent 100%);
+  }
+  .lyrics-track{
+    position:absolute;left:0;right:0;top:50%;transform:translateY(0);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1);
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+  }
+  .line{
+    font-size:22px;color:#6a7099;transition:color .25s,transform .25s,font-weight .25s;
+    max-width:90%;line-height:1.5;white-space:pre-wrap;word-break:break-word;
+  }
+  .line.past{color:#9aa0c7}
+  .line.active{color:var(--text);font-weight:600;transform:scale(1.08)}
+  .line .word{position:relative;display:inline-block}
+  .line.active .word{color:#3a3f66}
+  .line.active .word .fill{
+    position:absolute;left:0;top:0;bottom:0;width:0%;
+    background:linear-gradient(90deg,var(--active),#ff9a6c);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    transition:width .08s linear;pointer-events:none;white-space:pre;
+  }
+  .line.active .word.done{color:var(--active)}
+  .empty{color:var(--muted);font-size:14px}
+  .progress{
+    height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:14px;overflow:hidden;width:100%
+  }
+  .progress>div{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .1s linear}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--panel2);border:1px solid var(--border);padding:10px 16px;
+    border-radius:10px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:99
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+  .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0006;border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎤 Karaoke Lyrics Sync Studio</h1>
+  <span class="badge">LRC · Word-level highlight · Offset · Export</span>
+</header>
+
+<main>
+  <!-- LEFT: Controls -->
+  <section class="panel">
+    <h2>1 · Audio</h2>
+    <label class="drop" id="audioDrop">
+      <div>🎵 Drop or click to load audio</div>
+      <small>MP3 / WAV / OGG / M4A</small>
+      <input type="file" id="audioInput" accept="audio/*" hidden />
+    </label>
+    <audio id="audio" controls></audio>
+    <div class="meta" id="audioMeta">No audio loaded.</div>
+
+    <h2 style="margin-top:18px">2 · Lyrics (LRC)</h2>
+    <label class="drop" id="lrcDrop">
+      <div>📝 Drop or click to load .lrc</div>
+      <small>Supports standard &amp; enhanced (word-level) LRC</small>
+      <input type="file" id="lrcInput" accept=".lrc,.txt" hidden />
+    </label>
+    <div class="meta" id="lrcMeta">No lyrics loaded.</div>
+
+    <h2 style="margin-top:18px">3 · Timing Offset</h2>
+    <div class="controls">
+      <button data-delta="-200">−200 ms</button>
+      <button data-delta="200">+200 ms</button>
+      <button data-delta="-50">−50 ms</button>
+      <button data-delta="50">+50 ms</button>
+    </div>
+    <div class="offset-display">
+      <span id="offsetVal">+0 ms</span>
+      <small>LYRICS OFFSET</small>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" id="resetOffset">Reset offset</button>
+      <button class="ghost" id="resyncBtn" title="Press SPACE on each line start to re-stamp">Manual re-sync</button>
+    </div>
+
+    <h2 style="margin-top:18px">4 · Export</h2>
+    <div class="row">
+      <button class="primary" id="exportBtn">⬇ Export modified LRC</button>
+    </div>
+    <div class="hint">
+      Shortcuts: <span class="kbd">Space</span> play/pause · <span class="kbd">←/→</span> ±5s · <span class="kbd">↑/↓</span> offset ±50ms
+    </div>
+  </section>
+
+  <!-- RIGHT: Stage -->
+  <section class="panel">
+    <h2>Live Lyrics</h2>
+    <div class="stage">
+      <div class="lyrics-viewport">
+        <div class="lyrics-track" id="track">
+          <div class="empty">Load an audio file and an LRC file to begin.</div>
+        </div>
+      </div>
+      <div class="progress"><div id="progressBar"></div></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   Karaoke Sync Engine
+   ========================================================= */
+const $ = (s)=>document.querySelector(s);
+const audio = $('#audio');
+const track = $('#track');
+const progressBar = $('#progressBar');
+const offsetVal = $('#offsetVal');
+const toastEl = $('#toast');
+
+let state = {
+  lines: [],          // [{time, text, words:[{time,text}]}]
+  meta: {},           // {ti, ar, al, offset}
+  offset: 0,          // user offset in ms
+  fileOffset: 0,      // offset tag from LRC
+  activeIndex: -1,
+  resyncMode: false,
+  resyncIndex: 0,
+  lrcFilename: 'lyrics.lrc',
+};
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1800);
+}
+
+/* ---------- File drop wiring ---------- */
+function wireDrop(dropEl, inputEl, handler){
+  dropEl.addEventListener('click', ()=>inputEl.click());
+  ['dragenter','dragover'].forEach(ev=>dropEl.addEventListener(ev,e=>{
+    e.preventDefault(); dropEl.classList.add('drag');
+  }));
+  ['dragleave','drop'].forEach(ev=>dropEl.addEventListener(ev,e=>{
+    e.preventDefault(); dropEl.classList.remove('drag');
+  }));
+  dropEl.addEventListener('drop', e=>{
+    const f = e.dataTransfer.files[0]; if(f) handler(f);
+  });
+  inputEl.addEventListener('change', e=>{
+    const f = e.target.files[0]; if(f) handler(f);
+  });
+}
+
+wireDrop($('#audioDrop'), $('#audioInput'), loadAudio);
+wireDrop($('#lrcDrop'),   $('#lrcInput'),   loadLRC);
+
+/* ---------- Audio ---------- */
+function loadAudio(file){
+  const url = URL.createObjectURL(file);
+  audio.src = url;
+  $('#audioMeta').innerHTML = `<b>File:</b> ${file.name}<br><b>Size:</b> ${(file.size/1024/1024).toFixed(2)} MB`;
+  toast('Audio loaded');
+}
+
+/* ---------- LRC Parser ----------
+   Supports:
+     [mm:ss.xx] text
+     [mm:ss.xx] word1<mm:ss.xx> word2<mm:ss.xx> word3   (enhanced)
+     ID tags: [ti:...] [ar:...] [al:...] [offset:...]
+----------------------------------- */
+function parseLRC(text){
+  const lines = text.split(/\r?\n/);
+  const meta = {};
+  const out = [];
+  const lineRe = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+  const wordRe = /<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>/g;
+
+  const toSec = (m,s,ms)=> Number(m)*60 + Number(s) + (Number(ms||0) / ( (ms||'').length===3?1000:100 ));
+
+  for(const raw of lines){
+    // ID tags
+    const id = raw.match(/^\s*\[([a-zA-Z#]+):(.*)\]\s*$/);
+    if(id && !/\d{1,3}:\d{2}/.test(raw)){
+      meta[id[1].toLowerCase()] = id[2].trim();
+      continue;
+    }
+    // Find all timestamps in line
+    const stamps = [];
+    let m; lineRe.lastIndex=0;
+    while((m = lineRe.exec(raw)) !== null){
+      stamps.push({ t: toSec(m[1],m[2],m[3]), idx: m.index, len: m[0].length });
+    }
+    if(!stamps.length) continue;
+
+    // Text after last timestamp
+    const last = stamps[stamps.length-1];
+    let textPart = raw.slice(last.idx + last.len);
+
+    // Parse word-level timestamps inside textPart
+    const words = [];
+    let wLast = 0, wMatch; wordRe.lastIndex=0;
+    const wStamps = [];
+    while((wMatch = wordRe.exec(textPart)) !== null){
+      wStamps.push({ t: toSec(wMatch[1],wMatch[2],wMatch[3]), idx: wMatch.index, len: wMatch[0].length });
+    }
+    if(wStamps.length){
+      // Text before first word-stamp belongs to the line start
+      const pre = textPart.slice(0, wStamps[0].idx);
+      if(pre.trim()) words.push({ time: last.t, text: pre });
+      for(let i=0;i<wStamps.length;i++){
+        const ws = wStamps[i];
+        const next = wStamps[i+1];
+        const seg = textPart.slice(ws.idx + ws.len, next ? next.idx : textPart.length);
+        if(seg.length) words.push({ time: ws.t, text: seg });
+      }
+    }
+
+    const plainText = textPart.replace(wordRe,'').trim();
+    // Each timestamp prefix creates a line (for multi-time tags)
+    for(const s of stamps){
+      out.push({
+        time: s.t,
+        text: plainText,
+        words: words.length ? words.map(w=>({ time: w.time - last.t + s.t, text: w.text })) : null
+      });
+    }
+  }
+  out.sort((a,b)=>a.time-b.time);
+  return { meta, lines: out };
+}
+
+function loadLRC(file){
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const { meta, lines } = parseLRC(e.target.result);
+    state.meta = meta;
+    state.lines = lines;
+    state.fileOffset = Number(meta.offset||0);
+    state.offset = 0;
+    state.activeIndex = -1;
+    state.lrcFilename = file.name.replace(/\.[^.]+$/,'') + '.lrc';
+    renderLines();
+    updateOffsetUI();
+    $('#lrcMeta').innerHTML =
+      `<b>Title:</b> ${meta.ti||'—'}<br>`+
+      `<b>Artist:</b> ${meta.ar||'—'}<br>`+
+      `<b>Album:</b> ${meta.al||'—'}<br>`+
+      `<b>Lines:</b> ${lines.length} · <b>File offset:</b> ${state.fileOffset} ms`;
+    toast(`Loaded ${lines.length} lyric lines`);
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+/* ---------- Render ---------- */
+function renderLines(){
+  track.innerHTML = '';
+  if(!state.lines.length){
+    track.innerHTML = '<div class="empty">No lyrics loaded.</div>';
+    return;
+  }
+  state.lines.forEach((ln,i)=>{
+    const div = document.createElement('div');
+    div.className = 'line';
+    div.dataset.index = i;
+    if(ln.words && ln.words.length){
+      ln.words.forEach((w,wi)=>{
+        const span = document.createElement('span');
+        span.className = 'word';
+        span.dataset.wi = wi;
+        const fill = document.createElement('span');
+        fill.className = 'fill';
+        fill.textContent = w.text;
+        span.appendChild(fill);
+        span.appendChild(document.createTextNode(w.text));
+        div.appendChild(span);
+      });
+    } else {
+      div.textContent = ln.text || '♪';
+    }
+    track.appendChild(div);
+  });
+}
+
+/* ---------- Sync loop ---------- */
+function currentOffsetSec(){
+  return (state.offset + state.fileOffset) / 1000;
+}
+
+function updateSync(){
+  if(!audio.duration) return;
+  const t = audio.currentTime + currentOffsetSec();
+  // progress
+  progressBar.style.width = (audio.currentTime / audio.duration * 100).toFixed(2) + '%';
+
+  // find active line
+  let idx = -1;
+  for(let i=0;i<state.lines.length;i++){
+    if(state.lines[i].time <= t) idx = i; else break;
+  }
+  if(idx !== state.activeIndex){
+    state.activeIndex = idx;
+    const nodes = track.querySelectorAll('.line');
+    nodes.forEach((n,i)=>{
+      n.classList.remove('active','past');
+      if(i < idx) n.classList.add('past');
+      else if(i === idx) n.classList.add('active');
+    });
+    // scroll
+    if(idx >= 0 && nodes[idx]){
+      const vp = track.parentElement;
+      const nodeTop = nodes[idx].offsetTop;
+      const target = -nodeTop; // center via translateY (track top is 50%)
+      track.style.transform = `translateY(${target}px)`;
+    }
+  }
+  // word-level fill
+  if(idx >= 0){
+    const line = state.lines[idx];
+    const nextTime = state.lines[idx+1] ? state.lines[idx+1].time : (line.time + 5);
+    const lineDur = Math.max(0.1, nextTime - line.time);
+    const lineProgress = Math.min(1, Math.max(0, (t - line.time) / lineDur));
+    const activeNode = track.querySelector('.line.active');
+    if(activeNode){
+      if(line.words && line.words.length){
+        const wordNodes = activeNode.querySelectorAll('.word');
+        line.words.forEach((w,wi)=>{
+          const wn = wordNodes[wi]; if(!wn) return;
+          const wStart = w.time - line.time;
+          const wEnd = (line.words[wi+1] ? line.words[wi+1].time : nextTime) - line.time;
+          const wDur = Math.max(0.05, wEnd - wStart);
+          const localT = t - line.time;
+          let pct = 0;
+          if(localT >= wEnd) pct = 100;
+          else if(localT > wStart) pct = ((localT - wStart)/wDur)*100;
+          wn.querySelector('.fill').style.width = pct.toFixed(1)+'%';
+          wn.classList.toggle('done', pct >= 99.5);
+        });
+      } else {
+        // character-level fallback: wrap chars once
+        if(!activeNode.dataset.split){
+          const chars = (line.text||'♪').split('');
+          activeNode.innerHTML = '';
+          chars.forEach(ch=>{
+            const s = document.createElement('span');
+            s.className = 'word';
+            const f = document.createElement('span');
+            f.className = 'fill'; f.textContent = ch;
+            s.appendChild(f);
+            s.appendChild(document.createTextNode(ch));
+            activeNode.appendChild(s);
+          });
+          activeNode.dataset.split = '1';
+        }
+        const wordNodes = activeNode.querySelectorAll('.word');
+        const n = wordNodes.length;
+        wordNodes.forEach((wn,i)=>{
+          const startP = i/n, endP = (i+1)/n;
+          let pct = 0;
+          if(lineProgress >= endP) pct = 100;
+          else if(lineProgress > startP) pct = ((lineProgress-startP)/(endP-startP))*100;
+          wn.querySelector('.fill').style.width = pct.toFixed(1)+'%';
+          wn.classList.toggle('done', pct >= 99.5);
+        });
+      }
+    }
+  }
+}
+
+audio.addEventListener('timeupdate', updateSync);
+audio.addEventListener('seeked', ()=>{
+  // force re-render of active line chars
+  const a = track.querySelector('.line.active'); if(a) delete a.dataset.split;
+  state.activeIndex = -2; updateSync();
+});
+
+/* ---------- Offset controls ---------- */
+document.querySelectorAll('button[data-delta]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    state.offset += Number(b.dataset.delta);
+    updateOffsetUI(); updateSync();
+  });
+});
+$('#resetOffset').addEventListener('click', ()=>{
+  state.offset = 0; updateOffsetUI(); updateSync();
+});
+function updateOffsetUI(){
+  const total = state.offset + state.fileOffset;
+  offsetVal.textContent = (total>=0?'+':'') + total + ' ms';
+}
+
+/* ---------- Manual re-sync ----------
+   Press the resync button, then press SPACE at the moment
+   each line should start. Advances line by line.
+----------------------------------- */
+$('#resyncBtn').addEventListener('click', ()=>{
+  if(!state.lines.length) return toast('Load lyrics first');
+  state.resyncMode = !state.resyncMode;
+  state.resyncIndex = 0;
+  $('#resyncBtn').textContent = state.resyncMode ? '■ Stop re-sync' : 'Manual re-sync';
+  if(state.resyncMode){
+    audio.pause(); audio.currentTime = 0;
+    toast('Re-sync: press SPACE when each line is sung');
+    highlightResyncLine();
+  }
+});
+function highlightResyncLine(){
+  const nodes = track.querySelectorAll('.line');
+  nodes.forEach(n=>n.style.outline='');
+  if(state.resyncIndex < nodes.length){
+    nodes[state.resyncIndex].style.outline = '2px solid var(--accent2)';
+    nodes[state.resyncIndex].scrollIntoView({block:'center',behavior:'smooth'});
+  }
+}
+function stampResync(){
+  if(!state.resyncMode) return;
+  if(state.resyncIndex >= state.lines.length){
+    state.resyncMode = false;
+    $('#resyncBtn').textContent = 'Manual re-sync';
+    toast('Re-sync complete — export your LRC');
+    return;
+  }
+  state.lines[state.resyncIndex].time = audio.currentTime;
+  state.resyncIndex++;
+  highlightResyncLine();
+}
+
+/* ---------- Export ---------- */
+function fmtTime(sec){
+  if(sec < 0) sec = 0;
+  const m = Math.floor(sec/60);
+  const s = Math.floor(sec%60);
+  const cs = Math.floor((sec - Math.floor(sec))*100);
+  return `[${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}]`;
+}
+function buildLRC(){
+  const out = [];
+  if(state.meta.ti) out.push(`[ti:${state.meta.ti}]`);
+  if(state.meta.ar) out.push(`[ar:${state.meta.ar}]`);
+  if(state.meta.al) out.push(`[al:${state.meta.al}]`);
+  // Bake offset into file offset tag
+  const totalOffset = state.offset + state.fileOffset;
+  out.push(`[offset:${totalOffset}]`);
+  out.push('');
+  for(const ln of state.lines){
+    let text = ln.text;
+    if(ln.words && ln.words.length){
+      text = ln.words.map(w => `<${fmtTime(w.time).slice(1,-1)}>${w.text}`).join('');
+      // strip leading bracket artifact: we want <mm:ss.xx>word
+      text = ln.words.map(w => {
+        const t = w.time;
+        const m = Math.floor(t/60), s=Math.floor(t%60), cs=Math.floor((t-Math.floor(t))*100);
+        return `<${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}>${w.text}`;
+      }).join('');
+    }
+    out.push(`${fmtTime(ln.time)}${text}`);
+  }
+  return out.join('\n');
+}
+$('#exportBtn').addEventListener('click', ()=>{
+  if(!state.lines.length) return toast('Nothing to export');
+  const blob = new Blob([buildLRC()], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = state.lrcFilename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('LRC exported');
+});
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName === 'INPUT') return;
+  if(e.code === 'Space'){
+    e.preventDefault();
+    if(state.resyncMode) stampResync();
+    else audio.paused ? audio.play() : audio.pause();
+  } else if(e.code === 'ArrowLeft'){
+    audio.currentTime = Math.max(0, audio.currentTime - 5);
+  } else if(e.code === 'ArrowRight'){
+    audio.currentTime = Math.min(audio.duration||0, audio.currentTime + 5);
+  } else if(e.code === 'ArrowUp'){
+    e.preventDefault(); state.offset += 50; updateOffsetUI(); updateSync();
+  } else if(e.code === 'ArrowDown'){
+    e.preventDefault(); state.offset -= 50; updateOffsetUI(); updateSync();
+  }
+});
+
+/* ---------- Demo LRC (optional auto-load for quick preview) ---------- */
+const DEMO_LRC =
+`[ti:Demo Song]
+[ar:Karaoke Studio]
+[al:Showcase]
+[offset:0]
+
+[00:00.50]♪ Instrumental intro ♪
+[00:04.00]Welcome to the <00:04.20>karaoke <00:04.70>sync <00:05.00>studio
+[00:06.50]Upload <00:06.80>your <00:07.00>audio <00:07.30>and <00:07.50>LRC <00:07.90>file
+[00:09.00]Watch <00:09.30>the <00:09.50>words <00:09.90>light <00:10.30>up <00:10.60>in <00:10.80>time
+[00:12.00]Adjust <00:12.40>offset <00:12.90>until <00:13.20>it <00:13.40>feels <00:13.80>right
+[00:15.00]Then <00:15.30>export <00:15.70>your <00:16.00>perfect <00:16.50>lyrics
+[00:18.00]♪ ♪ ♪`;
+
+// Auto-load demo lyrics so the UI isn't empty on first open
+(function loadDemo(){
+  const { meta, lines } = parseLRC(DEMO_LRC);
+  state.meta = meta; state.lines = lines;
+  state.lrcFilename = 'demo.lrc';
+  renderLines();
+  $('#lrcMeta').innerHTML =
+    `<b>Title:</b> ${meta.ti||'—'}<br>`+
+    `<b>Artist:</b> ${meta.ar||'—'}<br>`+
+    `<b>Lines:</b> ${lines.length} · <i>Demo loaded — drop your own LRC to replace</i>`;
+})();
+</script>
+</body>
+</html>

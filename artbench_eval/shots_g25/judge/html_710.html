@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro 5-in-1 Universal Payment System</title>
+    <style>
+        :root {
+            --meituan: #FFC300;
+            --jd: #E2231A;
+            --pdd: #E02E24;
+            --didi: #FC9153;
+            --ctrip: #0066CC;
+            --bg-color: #f4f5f7;
+            --text-main: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 15px 0;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #888;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #333;
+            border-bottom: 3px solid #333;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 20px;
+            flex: 1;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header / Title */
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-radius: 8px;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Status Display */
+        .status-box {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Action Grid */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: #fff;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-status { background: #607d8b; }
+        .btn-cancel { background: #f44336; }
+        .btn-delivery { background: #2196f3; }
+        .btn-expire { background: #9e9e9e; }
+        .btn-success { background: #4caf50; }
+        .btn-jump { background: #333; grid-column: span 2; }
+
+        /* Platform Specific Colors */
+        .theme-meituan .header { background: var(--meituan); color: #333; }
+        .theme-jd .header { background: var(--jd); }
+        .theme-pdd .header { background: var(--pdd); }
+        .theme-didi .header { background: var(--didi); }
+        .theme-ctrip .header { background: var(--ctrip); }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('meituan')">Meituan</div>
+        <div class="tab" onclick="switchTab('jd')">JD</div>
+        <div class="tab" onclick="switchTab('pdd')">Pinduoduo</div>
+        <div class="tab" onclick="switchTab('didi')">DiDi</div>
+        <div class="tab" onclick="switchTab('ctrip')">Ctrip</div>
+    </div>
+
+    <!-- Dynamic Content Container -->
+    <div id="app-content"></div>
+</div>
+
+<script>
+    // Platform Configuration Data
+    const platforms = {
+        meituan: { id: 'meituan', name: 'Meituan Pay', desc: 'Food Delivery & Local Services', url: 'https://www.meituan.com' },
+        jd: { id: 'jd', name: 'JD Pay', desc: 'Authentic Electronics & Goods', url: 'https://www.jd.com' },
+        pdd: { id: 'pdd', name: 'Pinduoduo Pay', desc: 'Together, More Savings', url: 'https://www.pinduoduo.com' },
+        didi: { id: 'didi', name: 'DiDi Pay', desc: 'More than a journey', url: 'https://www.didiglobal.com' },
+        ctrip: { id: 'ctrip', name: 'Ctrip Pay', desc: 'Travel the World', url: 'https://www.ctrip.com' }
+    };
+
+    // State Management
+    let currentPlatform = 'meituan';
+    let orderStatus = 'Pending Payment';
+
+    // Initialize App
+    function init() {
+        renderContent();
+    }
+
+    // Switch Tabs
+    function switchTab(platformId) {
+        currentPlatform = platformId;
+        orderStatus = 'Pending Payment'; // Reset status on switch
+        
+        // Update Tab UI
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+            if(tab.innerText.toLowerCase().includes(platformId) || 
+              (platformId === 'pdd' && tab.innerText === 'Pinduoduo')) {
+                tab.classList.add('active');
+            }
+        });
+
+        renderContent();
+    }
+
+    // Update Status Logic
+    function updateStatus(newStatus) {
+        orderStatus = newStatus;
+        document.getElementById('status-display').innerText = `Status: ${orderStatus}`;
+        
+        // Optional: Add visual feedback based on status
+        const statusBox = document.getElementById('status-display');
+        statusBox.style.color = 
+            newStatus === 'Payment Success' ? '#4caf50' : 
+            newStatus === 'Order Cancelled' ? '#f44336' : 
+            newStatus === 'Order Expired' ? '#9e9e9e' : 
+            newStatus === 'Order Delivered' ? '#2196f3' : '#333';
+    }
+
+    // Check Status Alert
+    function checkStatus() {
+        alert(`Current System Status: [ ${orderStatus} ]\nAll details have been synchronized with the server.`);
+    }
+
+    // Jump to Official Page
+    function jumpToOfficial() {
+        const url = platforms[currentPlatform].url;
+        window.open(url, '_blank');
+    }
+
+    // Render Content HTML
+    function renderContent() {
+        const data = platforms[currentPlatform];
+        const contentDiv = document.getElementById('app-content');
+        
+        contentDiv.innerHTML = `
+            <div class="content active theme-${data.id}">
+                <div class="header">
+                    <h2>${data.name}</h2>
+                    <p>${data.desc}</p>
+                </div>
+
+                <div class="status-box" id="status-display">
+                    Status: ${orderStatus}
+                </div>
+
+                <div class="action-grid">
+                    <button class="btn-status" onclick="checkStatus()">Check Status</button>
+                    <button class="btn-success" onclick="updateStatus('Payment Success')">Payment Success</button>
+                    <button class="btn-delivery" onclick="updateStatus('Order Delivered')">Order Delivery</button>
+                    <button class="btn-cancel" onclick="updateStatus('Order Cancelled')">Order Cancellation</button>
+                    <button class="btn-expire" onclick="updateStatus('Order Expired')">Order Expiration</button>
+                    <button class="btn-jump" onclick="jumpToOfficial()">Jump to Official Page</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Run initialization
+    init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Terrain Destruction Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+    #hud { position: absolute; top: 10px; left: 10px; color: white; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="hud">FPS: <span id="fps">0</span> | Water Level: <span id="waterLevel">0</span></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/noise-js@1.0.0/dist/noise.min.js"></script>
+  <script>// main.js - Terrain Destruction Game
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const hud = document.getElementById('hud');
+const fpsDisplay = document.getElementById('fps');
+const waterLevelDisplay = document.getElementById('waterLevel');
+
+// Set canvas to window size
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Game state
+let gameRunning = true;
+let lastTime = 0;
+let fps = 0;
+let frameCount = 0;
+
+// Physics
+const gravity = 0.5;
+const friction = 0.98;
+const waterSpeed = 0.5; // Water slows movement
+const waterDampening = 0.8;
+
+// Player
+const player = {
+  x: canvas.width / 2,
+  y: canvas.height / 2,
+  width: 20,
+  height: 20,
+  speed: 5,
+  color: '#00FF00',
+  waterLevel: 0,
+  moving: false
+};
+
+// Enemy
+const enemy = {
+  x: canvas.width / 2 + 100,
+  y: canvas.height / 2,
+  width: 20,
+  height: 20,
+  speed: 3,
+  color: '#FF0000',
+  direction: 1,
+  waterLevel: 0
+};
+
+// Bullets
+let bullets = [];
+const bulletSpeed = 10;
+
+// Water containers
+let waterContainers = [];
+const waterContainerSize = 30;
+const waterContainerCount = 10;
+
+// Terrain
+const terrainWidth = canvas.width;
+const terrainHeight = canvas.height * 0.7;
+const terrainResolution = 100;
+let terrain = [];
+let terrainHeightMap = [];
+
+// Perlin Noise
+const noise = new Noise();
+const noiseScale = 0.02;
+
+// Fluid simulation
+let waterParticles = [];
+const waterParticleCount = 100;
+let waterLevel = 0;
+
+// Shaders
+let vertexShaderSource = `
+attribute vec2 a_position;
+attribute vec2 a_texCoord;
+attribute vec4 a_color;
+
+varying vec2 v_texCoord;
+varying vec4 v_color;
+
+void main() {
+  gl_Position = vec4(a_position, 0.0, 1.0);
+  v_texCoord = a_texCoord;
+  v_color = a_color;
+}
+`;
+
+let fragmentShaderSource = `
+precision mediump float;
+
+uniform sampler2D u_texture;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+varying vec2 v_texCoord;
+varying vec4 v_color;
+
+void main() {
+  vec2 uv = v_texCoord;
+  vec4 color = texture2D(u_texture, uv);
+
+  // Simple terrain color
+  float height = texture2D(u_texture, uv).r;
+  float intensity = 0.5 + 0.5 * height;
+  color = vec4(intensity, intensity, intensity, 1.0);
+
+  // Water effect
+  float waterHeight = 0.3;
+  if (height > waterHeight) {
+    color = vec4(0.0, 0.0, 1.0, 1.0);
+  }
+
+  gl_FragColor = color;
+}
+`;
+
+// Initialize WebGL
+let gl;
+let program;
+let positionBuffer;
+let texCoordBuffer;
+let colorBuffer;
+let texture;
+let time = 0;
+
+function initWebGL() {
+  const gl = canvas.getContext('webgl');
+  if (!gl) {
+    alert('WebGL not supported');
+    return;
+  }
+
+  // Create shader program
+  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+  const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+  program = gl.createProgram();
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    alert('Shader linking failed');
+  }
+
+  gl.useProgram(program);
+
+  // Create buffers
+  positionBuffer = gl.createBuffer();
+  texCoordBuffer = gl.createBuffer();
+  colorBuffer = gl.createBuffer();
+
+  // Create texture
+  texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  // Initialize terrain
+  generateTerrain();
+  renderTerrain();
+}
+
+function createShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
+}
+
+function generateTerrain() {
+  terrain = [];
+  terrainHeightMap = [];
+
+  for (let x = 0; x < terrainResolution; x++) {
+    terrain.push([]);
+    terrainHeightMap.push([]);
+    for (let y = 0; y < terrainResolution; y++) {
+      // Perlin noise for height
+      const noiseValue = noise.noise2D(x * noiseScale, y * noiseScale);
+      const height = noiseValue * 100 + 50; // Scale to reasonable height
+      terrain[x].push(height);
+      terrainHeightMap[x].push(height);
+    }
+  }
+
+  // Create water containers
+  for (let i = 0; i < waterContainerCount; i++) {
+    const x = Math.random() * (terrainWidth - waterContainerSize);
+    const y = Math.random() * (terrainHeight - waterContainerSize);
+    waterContainers.push({ x, y, width: waterContainerSize, height: waterContainerSize, broken: false });
+  }
+}
+
+function renderTerrain() {
+  const imageData = new ImageData(terrainResolution, terrainResolution);
+  const data = imageData.data;
+
+  for (let x = 0; x < terrainResolution; x++) {
+    for (let y = 0; y < terrainResolution; y++) {
+      const height = terrain[x][y];
+      const index = (y * terrainResolution + x) * 4;
+      const intensity = Math.max(0, Math.min(1, (height - 50) / 100));
+      data[index] = intensity * 255; // R
+      data[index + 1] = intensity * 255; // G
+      data[index + 2] = intensity * 255; // B
+      data[index + 3] = 255; // A
+    }
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, terrainResolution, terrainResolution, 0, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
+
+  // Render terrain
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(terrainResolution * terrainResolution * 2), gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(terrainResolution * terrainResolution * 2), gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(terrainResolution * terrainResolution * 4), gl.STATIC_DRAW);
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+  gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), canvas.width, canvas.height);
+  gl.uniform1f(gl.getUniformLocation(program, 'u_time'), time);
+
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+
+  gl.drawArrays(gl.TRIANGLES, 0, terrainResolution * terrainResolution * 2);
+}
+
+function update() {
+  if (!gameRunning) return;
+
+  // Update time
+  time += 0.016;
+
+  // Update water level
+  waterLevel = 0;
+  for (let container of waterContainers) {
+    if (container.broken) {
+      waterLevel += 10;
+    }
+  }
+
+  // Update player
+  player.moving = false;
+  if (keys['w']) player.y -= player.speed;
+  if (keys['s']) player.y += player.speed;
+  if (keys['a']) player.x -= player.speed;
+  if (keys['d']) player.x += player.speed;
+
+  // Check water effect
+  player.waterLevel = Math.max(0, Math.min(1, waterLevel / 100));
+  player.speed *= (1 - player.waterLevel * waterSpeed);
+
+  // Update enemy
+  enemy.x += enemy.direction * enemy.speed;
+  if (enemy.x < 0 || enemy.x > canvas.width) enemy.direction *= -1;
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const bullet = bullets[i];
+    bullet.x += bullet.dx;
+    bullet.y += bullet.dy;
+
+    // Check collision with terrain
+    const bulletX = Math.floor(bullet.x / 20);
+    const bulletY = Math.floor(bullet.y / 20);
+    if (bulletX >= 0 && bulletX < terrainResolution && bulletY >= 0 && bulletY < terrainResolution) {
+      const terrainHeight = terrain[bulletX][bulletY];
+      if (bullet.y > terrainHeight - 10) {
+        // Impact: deform terrain
+        terrain[bulletX][bulletY] = Math.max(0, terrain[bulletX][bulletY] - 10);
+        // Create water if container is hit
+        for (let container of waterContainers) {
+          if (container.x < bullet.x && container.x + container.width > bullet.x &&
+              container.y < bullet.y && container.y + container.height > bullet.y) {
+            container.broken = true;
+            // Add water particles
+            for (let i = 0; i < 10; i++) {
+              waterParticles.push({
+                x: bullet.x + (Math.random() - 0.5) * 20,
+                y: bullet.y + (Math.random() - 0.5) * 20,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                life: 100
+              });
+            }
+          }
+        }
+        bullets.splice(i, 1);
+      }
+    }
+
+    // Remove bullets that are off screen
+    if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+      bullets.splice(i, 1);
+    }
+  }
+
+  // Update water particles
+  for (let i = waterParticles.length - 1; i >= 0; i--) {
+    const particle = waterParticles[i];
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+    particle.life--;
+    if (particle.life <= 0) {
+      waterParticles.splice(i, 1);
+    }
+  }
+
+  // Render
+  render();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Render terrain
+  renderTerrain();
+
+  // Render water particles
+  ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+  for (let particle of waterParticles) {
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Render player
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
+
+  // Render enemy
+  ctx.fillStyle = enemy.color;
+  ctx.fillRect(enemy.x - enemy.width / 2, enemy.y - enemy.height / 2, enemy.width, enemy.height);
+
+  // Render bullets
+  ctx.fillStyle = 'yellow';
+  for (let bullet of bullets) {
+    ctx.fillRect(bullet.x, bullet.y, 5, 5);
+  }
+
+  // Render water containers
+  ctx.strokeStyle = 'blue';
+  ctx.lineWidth = 2;
+  for (let container of waterContainers) {
+    if (!container.broken) {
+      ctx.strokeRect(container.x, container.y, container.width, container.height);
+    }
+  }
+
+  // HUD
+  fpsDisplay.textContent = Math.floor(fps);
+  waterLevelDisplay.textContent = Math.floor(waterLevel);
+}
+
+function draw() {
+  update();
+  render();
+  requestAnimationFrame(draw);
+}
+
+// Key states
+const keys = {};
+
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+});
+
+window.addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+// Mouse for shooting
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  bullets.push({
+    x: player.x,
+    y: player.y,
+    dx: (x - player.x) / 100,
+    dy: (y - player.y) / 100
+  });
+});
+
+// Resize canvas
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+// Start game
+initWebGL();
+draw();
+</script></script>
+</body>
+</html>

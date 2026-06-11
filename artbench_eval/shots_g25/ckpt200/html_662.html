@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Timeline Bookmark Tool</title>
+<style>/* ---------- Design tokens ---------- */
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e5e9f2;
+  --border-strong: #d0d7e3;
+  --text: #1a1f36;
+  --text-muted: #6b7280;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-soft: #eef2ff;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05);
+  --shadow-md: 0 4px 12px rgba(16,24,40,.08);
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --transition: 180ms cubic-bezier(.4,0,.2,1);
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; line-height: 1.25; }
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+/* ---------- App shell ---------- */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo {
+  width: 40px; height: 40px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
+  color: white;
+  display: grid; place-items: center;
+  box-shadow: var(--shadow-md);
+}
+.brand h1 { font-size: 16px; font-weight: 700; }
+.subtitle { margin: 0; font-size: 12px; color: var(--text-muted); }
+.topbar-actions { display: flex; gap: 8px; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+  white-space: nowrap;
+}
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--surface-2); border-color: var(--border-strong); }
+
+/* ---------- Workspace ---------- */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: auto auto;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+.panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.panel-video { grid-column: 1; grid-row: 1 / span 2; min-height: 0; }
+.panel-bookmarks, .panel-editor { grid-column: 2; min-height: 0; }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.panel-head h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.panel-sub { font-size: 12px; color: var(--text-muted); }
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* ---------- Video panel ---------- */
+.video-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #1a1f36, #312e81);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+.video-bg {
+  position: absolute; inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform var(--transition);
+  will-change: transform;
+}
+.video-play {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.18);
+  display: grid; place-items: center;
+  transition: background var(--transition), transform var(--transition);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+.video-play:hover { background: rgba(255,255,255,.32); transform: translate(-50%, -50%) scale(1.05); }
+.video-play svg { transition: transform var(--transition); }
+.video-stage:hover .video-play svg { transform: translateY(2px); }
+
+.video-progress {
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: rgba(255,255,255,.15);
+  pointer-events: none;
+  z-index: 5;
+}
+.video-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--primary), #7c3aed);
+  border-radius: 2px;
+  transition: width var(--transition);
+}
+.video-seek {
+  position: absolute;
+  left: 0; bottom: 42px;
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,.15);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.video-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform var(--transition);
+}
+.video-seek::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.video-seek::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: none;
+}
+.video-time {
+  position: absolute;
+  left: 16px; right: 16px;
+  bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(255,255,255,.85);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ---------- Bookmarks list ---------- */
+.bookmarks-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+.bookmarks-list::-webkit-scrollbar { width: 8px; }
+.bookmarks-list::-webkit-scrollbar-track { background: transparent; }
+.bookmarks-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+.empty-state {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state svg { opacity: .4; margin-bottom: 12px; }
+.empty-state p { margin: 0; font-size: 13px; }
+
+.bookmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--surface);
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  cursor: pointer;
+  position: relative;
+}
+.bookmark:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.bookmark.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+.bookmark .thumb {
+  width: 40px; height: 24px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+.bookmark .thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.bookmark .meta { flex: 1; min-width: 0; }
+.bookmark .title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bookmark .time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.bookmark .actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.bookmark:hover .actions { opacity: 1; }
+.bookmark .actions .icon {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: var(--text-muted);
+  transition: background var(--transition), color var(--transition);
+}
+.bookmark .actions .icon:hover { background: var(--surface-2); color: var(--danger); }
+.bookmark .actions .icon.edit:hover { color: var(--warning); background: #fef3c7; }
+
+/* ---------- Editor ---------- */
+.editor-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.editor-empty {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+.editor-empty p { margin: 8px 0 0; font-size: 13px; }
+
+.editor-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.editor-card .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.editor-card .card-head h3 { font-size: 14px; font-weight: 600; }
+.editor-card .card-head .time { font-size: 12px; color: var(--text-muted); }
+.editor-card textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.5;
+  transition: border-color var(--transition), background var(--transition);
+}
+.editor-card textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--surface);
+}
+.thumb-preview {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+.thumb-preview label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.thumb-preview input[type="file"] {
+  display: none;
+}
+.thumb-preview .thumb {
+  width: 80px; height: 56px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.thumb-preview .thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- Footer ---------- */
+.panel-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.thumb-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.thumb-preview { display: flex; gap: 12px; align-items: center; }
+.thumb-preview .thumb { width: 48px; height: 36px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .panel-video { grid-column: 1; grid-row: 1; }
+  .panel-bookmarks, .panel-editor { grid-column: 1; grid-row: 2; }
+  .topbar-actions .btn span:not(.btn-primary) { display: none; }
+  .btn span:not(.btn-primary) { display: inline; }
+}
+@media (max-width: 480px) {
+  .topbar { padding: 12px 16px; }
+  .brand h1 { font-size: 14px; }
+  .subtitle { font-size: 11px; }
+  .video-time { font-size: 11px; }
+  .bookmark { padding: 8px 10px; gap: 8px; }
+  .bookmark .title { font-size: 12px; }
+  .bookmark .time { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="23 7 16 12 23 17 23 7"></polygon>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
+      </div>
+      <div>
+        <h1>Timeline Marker</h1>
+        <p class="subtitle">Add bookmarks, notes & thumbnails to your video</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="addBtn" class="btn btn-primary" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Add Bookmark
+      </button>
+      <button id="exportBtn" class="btn btn-ghost" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export
+      </button>
+      <button id="importBtn" class="btn btn-ghost" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Import
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="panel panel-video" aria-label="Video player">
+      <div class="video-stage">
+        <div class="video-bg" id="videoBg">
+          <div class="video-play" id="videoPlay">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          </div>
+        </div>
+        <div class="video-progress" id="videoProgress">
+          <div class="video-progress-fill" id="videoProgressFill"></div>
+        </div>
+        <input type="range" id="videoSeek" class="video-seek" min="0" max="100" value="0" aria-label="Seek video" />
+        <div class="video-time">
+          <span id="videoTimeCurrent">0:00</span>
+          <span id="videoTimeTotal">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel panel-bookmarks" aria-label="Bookmarks">
+      <div class="panel-head">
+        <h2>Bookmarks</h2>
+        <span class="badge" id="badgeCount">0</span>
+      </div>
+      <div class="bookmarks-list" id="bookmarksList">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <p>No bookmarks yet. Click the timeline or press <kbd>Add Bookmark</kbd> to get started.</p>
+        </div>
+      </div>
+      <div class="panel-foot">
+        <label class="thumb-label">Thumbnail</label>
+        <input type="file" id="thumbInput" accept="image/*" />
+      </div>
+    </aside>
+
+    <section class="panel panel-editor" aria-label="Bookmark editor">
+      <div class="panel-head">
+        <h2>Editor</h2>
+        <span class="panel-sub">Editing: none</span>
+      </div>
+      <div class="editor-body" id="editorBody">
+        <div class="editor-empty">
+          <p>Select a bookmark to edit its note or thumbnail.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>/* =========================================================
+   Video Timeline Bookmark Tool
+   ========================================================= */
+(function () {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    bookmarks: [],
+    currentId: null,
+    videoEl: null,
+    videoBgEl: null,
+    videoPlayEl: null,
+    videoSeekEl: null,
+    videoTimeCurrentEl: null,
+    videoTimeTotalEl: null,
+    videoProgressFillEl: null,
+    videoProgressEl: null,
+    thumbInputEl: null,
+    editorBodyEl: null,
+    bookmarksListEl: null,
+    badgeCountEl: null,
+    videoBgImg: null,
+    videoBgLoaded: false,
+  };
+
+  // ---------- DOM ----------
+  function $id(id) { return document.getElementById(id); }
+
+  function initDOM() {
+    state.videoEl = $id('videoBg');
+    state.videoPlayEl = $id('videoPlay');
+    state.videoSeekEl = $id('videoSeek');
+    state.videoTimeCurrentEl = $id('videoTimeCurrent');
+    state.videoTimeTotalEl = $id('videoTimeTotal');
+    state.videoProgressFillEl = $id('videoProgressFill');
+    state.videoProgressEl = $id('videoProgress');
+    state.thumbInputEl = $id('thumbInput');
+    state.editorBodyEl = $id('editorBody');
+    state.bookmarksListEl = $id('bookmarksList');
+    state.badgeCountEl = $id('badgeCount');
+    state.videoBgImg = state.videoEl.style.backgroundImage;
+    state.videoBgLoaded = false;
+  }
+
+  // ---------- Storage ----------
+  const STORAGE_KEY = 'tlb.bookmarks.v1';
+
+  function loadBookmarks() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveBookmarks() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.bookmarks));
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- Helpers ----------
+  function formatTime(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function uid() {
+    return 'b_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  }
+
+  function findBookmark(id) {
+    return state.bookmarks.find(b => b.id === id);
+  }
+
+  // ---------- Video control ----------
+  function playVideo() {
+    if (state.videoEl) state.videoEl.play();
+  }
+  function pauseVideo() {
+    if (state.videoEl) state.videoEl.pause();
+  }
+  function togglePlay() {
+    if (state.videoEl) {
+      if (state.videoEl.paused) playVideo(); else pauseVideo();
+    }
+  }
+
+  function updateVideoUI() {
+    if (!state.videoEl) return;
+    const t = state.videoEl.currentTime;
+    const d = state.videoEl.duration || 0;
+    const pct = d > 0 ? (t / d) * 100 : 0;
+    state.videoTimeCurrentEl.textContent = formatTime(t);
+    state.videoTimeTotalEl.textContent = formatTime(d);
+    state.videoSeekEl.value = pct;
+    state.videoProgressFillEl.style.width = pct + '%';
+    state.videoProgressEl.style.width = pct + '%';
+  }
+
+  function seekFromEvent(e) {
+    if (!state.videoEl) return;
+    const rect = state.videoEl.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const pct = (clientX - rect.left) / rect.width;
+    const duration = state.videoEl.duration || 0;
+    const t = Math.max(0, Math.min(duration, pct * duration));
+    state.videoEl.currentTime = t;
+  }
+
+  function onVideoSeek(e) {
+    if (!state.videoEl) return;
+    const pct = e.target.value / 100;
+    const duration = state.videoEl.duration || 0;
+    state.videoEl.currentTime = pct * duration;
+  }
+
+  function onVideoTimeupdate() {
+    if (!state.videoEl) return;
+    updateVideoUI();
+  }
+
+  function onVideoSeekend() {
+    if (!state.videoEl) return;
+    updateVideoUI();
+  }
+
+  // ---------- Render ----------
+  function renderBookmarks() {
+    const list = state.bookmarksListEl;
+    const items = state.bookmarks;
+
+    if (items.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <p>No bookmarks yet. Click the timeline or press <kbd>Add Bookmark</kbd> to get started.</p>
+        </div>`;
+      state.badgeCountEl.textContent = '0';
+      state.badgeCountEl.style.background = '';
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    items.forEach(b => {
+      const el = document.createElement('div');
+      el.className = 'bookmark' + (b.id === state.currentId ? ' active' : '');
+      el.dataset.id = b.id;
+      el.innerHTML = `
+        <div class="thumb">
+          ${b.thumbnail ? `<img src="${b.thumbnail}" alt="" loading="lazy" />` : ''}
+        </div>
+        <div class="meta">
+          <div class="title">${escapeHtml(b.title)}</div>
+          <div class="time">${formatTime(b.time)}</div>
+        </div>
+        <div class="actions">
+          <button class="icon edit" title="Edit" aria-label="Edit" data-action="edit">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+          <button class="icon del" title="Delete" aria-label="Delete" data-action="delete">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          </button>
+        </div>`;
+      el.addEventListener('click', e => {
+        const btn = e.target.closest('[data-action]');
+        if (btn) {
+          const action = btn.dataset.action;
+          if (action === 'edit') openEditor(b.id);
+          else if (action === 'delete') deleteBookmark(b.id);
+          return;
+        }
+        openEditor(b.id);
+      });
+      frag.appendChild(el);
+    });
+    list.innerHTML = '';
+    list.appendChild(frag);
+    state.badgeCountEl.textContent = items.length;
+    state.badgeCountEl.style.background = items.length > 0 ? 'var(--primary-soft)' : '';
+  }
+
+  function renderEditor() {
+    const card = state.editorBodyEl;
+    const b = findBookmark(state.currentId);
+    if (!b) {
+      card.innerHTML = `
+        <div class="editor-empty">
+          <p>Select a bookmark to edit its note or thumbnail.</p>
+        </div>`;
+      return;
+    }
+    card.innerHTML = `
+      <div class="editor-card">
+        <div class="card-head">
+          <h3>Edit Bookmark</h3>
+          <div class="time">${formatTime(b.time)}</div>
+        </div>
+        <textarea id="editorNote" placeholder="Write a note about this bookmark...">${escapeHtml(b.note || '')}</textarea>
+        <div class="thumb-preview">
+          <label>Thumbnail</label>
+          <div class="thumb">
+            ${b.thumbnail ? `<img src="${b.thumbnail}" alt="" />` : ''}
+          </div>
+          <input type="file" id="editorThumb" accept="image/*" />
+        </div>
+        <div class="editor-card-actions">
+          <button id="saveBtn" class="btn btn-primary" type="button">Save</button>
+          <button id="cancelBtn" class="btn btn-ghost" type="button">Cancel</button>
+        </div>
+      </div>`;
+    const note = card.querySelector('#editorNote');
+    const thumb = card.querySelector('#editorThumb');
+    const save = card.querySelector('#saveBtn');
+    const cancel = card.querySelector('#cancelBtn');
+    note.value = b.note || '';
+    thumb.value = '';
+    save.addEventListener('click', () => saveBookmark(b.id));
+    cancel.addEventListener('click', () => {
+      state.currentId = null;
+      renderEditor();
+    });
+    thumb.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        b.thumbnail = ev.target.result;
+        renderBookmarks();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // ---------- Actions ----------
+  function addBookmark() {
+    const time = state.videoEl.currentTime;
+    const b = {
+      id: uid(),
+      title: `Bookmark ${state.bookmarks.length + 1}`,
+      time,
+      note: '',
+      thumbnail: '',
+    };
+    state.bookmarks.push(b);
+    saveBookmarks();
+    renderBookmarks();
+    renderEditor();
+    state.currentId = b.id;
+    openEditor(b.id);
+  }
+
+  function deleteBookmark(id) {
+    const idx = state.bookmarks.findIndex(b => b.id === id);
+    if (idx < 0) return;
+    state.bookmarks.splice(idx, 1);
+    saveBookmarks();
+    renderBookmarks();
+    if (state.currentId === id) {
+      state.currentId = null;
+      renderEditor();
+    }
+  }
+
+  function openEditor(id) {
+    state.currentId = id;
+    renderEditor();
+  }
+
+  function saveBookmark(id) {
+    const b = findBookmark(id);
+    if (!b) return;
+    b.title = (state.editorBodyEl.querySelector('#editorNote')?.value || '').trim();
+    b.note = state.editorBodyEl.querySelector('#editorNote')?.value || '';
+    saveBookmarks();
+    renderBookmarks();
+    renderEditor();
+  }
+
+  // ---------- Events ----------
+  function bindEvents() {
+    $id('addBtn').addEventListener('click', addBookmark);
+    $id('exportBtn').addEventListener('click', exportProject);
+    $id('importBtn').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (!Array.isArray(data) || !data.every(isBookmark)) {
+              alert('Invalid import file. Expected an array of bookmark objects.');
+              return;
+            }
+            state.bookmarks = data;
+            saveBookmarks();
+            renderBookmarks();
+            renderEditor();
+          } catch (err) {
+            alert('Failed to parse import file.');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+
+    // Video events
+    state.videoEl.addEventListener('play', () => { state.videoPlayEl.style.background = 'rgba(255,255,255,.35)'; });
+    state.videoEl.addEventListener('pause', () => { state.videoPlayEl.style.background = 'rgba(255,255,255,.18)'; });
+    state.videoEl.addEventListener('timeupdate', onVideoTimeupdate);
+    state.videoEl.addEventListener('seeked', onVideoSeekend);
+    state.videoEl.addEventListener('ended', () => {
+      if (state.bookmarks.length) {
+        state.videoEl.currentTime = state.bookmarks[0].time;
+        state.videoEl.play();
+      }
+    });
+
+    // Seek
+    state.videoSeekEl.addEventListener('input', onVideoSeek);
+    state.videoSeekEl.addEventListener('change', onVideoSeek);
+    state.videoSeekEl.addEventListener('click', seekFromEvent);
+    state.videoSeekEl.addEventListener('mousedown', e => { e.preventDefault(); });
+    state.videoSeekEl.addEventListener('touchstart', e => { e.preventDefault(); });
+
+    // Timeline click
+    state.videoEl.addEventListener('click', e => {
+      const rect = state.videoEl.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const duration = state.videoEl.duration || 0;
+      const t = Math.max(0, Math.min(duration, x * duration));
+      state.videoEl.currentTime = t;
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === 'Escape') {
+        state.currentId = null;
+        renderEditor();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (state.currentId) {
+          deleteBookmark(state.currentId);
+        }
+      }
+    });
+  }
+
+  function isBookmark(obj) {
+    return obj && typeof obj === 'object' &&
+      'id' in obj && typeof obj.id === 'string' &&
+      'title' in obj && typeof obj.title === 'string' &&
+      'time' in obj && typeof obj.time === 'number' &&
+      'note' in obj && typeof obj.note === 'string' &&
+      'thumbnail' in obj && typeof obj.thumbnail === 'string';
+  }
+
+  // ---------- Export ----------
+  function exportProject() {
+    const data = state.bookmarks.map(b => ({
+      id: b.id,
+      title: b.title,
+      time: b.time,
+      note: b.note,
+      thumbnail: b.thumbnail,
+      createdAt: b.createdAt || Date.now(),
+    }));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bookmarks-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Init ----------
+  function init() {
+    initDOM();
+    state.bookmarks = loadBookmarks();
+    state.bookmarks.forEach(b => {
+      b.createdAt = b.createdAt || Date.now();
+    });
+    renderBookmarks();
+    renderEditor();
+    bindEvents();
+    if (state.videoEl) {
+      state.videoEl.addEventListener('loadedmetadata', () => {
+        state.videoBgLoaded = true;
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script></script>
+</body>
+</html>

@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Timeline Editor</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white; border-radius: 10px;
+}
+.brand h1 { margin: 0; font-size: 16px; font-weight: 700; }
+.tagline { margin: 0; color: #6b7280; font-size: 12px; }
+
+.actions { display: flex; gap: 8px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: #111827; color: #fff; border-color: #111827; }
+.btn-primary:hover:not(:disabled) { background: #1f2937; border-color: #1f2937; }
+.btn-accent { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+.btn-accent:hover:not(:disabled) { background: #0284c7; border-color: #0284c7; }
+
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+.panel-left {
+  border-right: 1px solid #e5e7eb;
+  min-width: 0;
+}
+.panel-main { min-width: 0; }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.panel-header h2 { margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #374151; }
+.timeline-meta { display: flex; gap: 12px; font-size: 12px; color: #6b7280; }
+.badge {
+  display: inline-grid; place-items: center;
+  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.media-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.media-list::-webkit-scrollbar { width: 8px; }
+.media-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+.media-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.media-item:hover { background: #f3f4f6; border-color: #9ca3af; }
+.media-item:active { cursor: grabbing; }
+.media-item.dragging { opacity: 0.4; }
+.media-thumb {
+  width: 44px; height: 28px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 6px;
+  display: grid; place-items: center;
+  color: white; font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.media-info { flex: 1; min-width: 0; }
+.media-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-meta { font-size: 11px; color: #6b7280; }
+
+.drop-zone {
+  margin-top: 8px;
+  padding: 14px;
+  text-align: center;
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #f9fafb;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: #6366f1;
+  background: #f5f3ff;
+  color: #4f46e5;
+}
+.drop-zone svg { margin-bottom: 6px; opacity: 0.8; }
+.drop-zone p { margin: 0; font-size: 13px; font-weight: 600; }
+.drop-zone span { font-size: 12px; }
+
+/* Timeline */
+.timeline {
+  position: relative;
+  height: 240px;
+  overflow: hidden;
+  background: #111827;
+  border-bottom: 1px solid #000;
+  flex-shrink: 0;
+}
+.timeline-ruler {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  pointer-events: none;
+}
+.ruler-label {
+  position: absolute;
+  left: 0; top: 0;
+  padding: 8px 6px 0;
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 700;
+  text-align: right;
+  pointer-events: none;
+}
+.ruler-grid {
+  position: absolute;
+  left: 0; top: 0; right: 0;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 0;
+  pointer-events: none;
+}
+.ruler-grid .tick {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: #374151;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.ruler-grid .tick.major {
+  width: 2px;
+  background: #6b7280;
+  opacity: 0.7;
+}
+.ruler-grid .tick.minor {
+  width: 1px;
+  background: #1f2937;
+  opacity: 0.3;
+}
+.ruler-grid .tick.major.minor {
+  background: #374151;
+  opacity: 0.6;
+}
+
+.clips-layer {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+.clip {
+  position: absolute;
+  top: 0; bottom: 0;
+  cursor: grab;
+  user-select: none;
+  pointer-events: auto;
+  transition: transform 0.15s ease;
+  z-index: 2;
+}
+.clip:hover { filter: brightness(0.95); }
+.clip.dragging { opacity: 0.4; }
+.clip .clip-thumb {
+  position: absolute;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1;
+}
+.clip .clip-thumb svg { width: 14px; height: 14px; }
+.clip .clip-meta {
+  position: absolute;
+  bottom: 8px; left: 8px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.clip .clip-handle {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 10px;
+  background: rgba(0,0,0,0.5);
+  cursor: ew-resize;
+  pointer-events: auto;
+  z-index: 3;
+}
+.clip .clip-handle:hover { background: rgba(0,0,0,0.8); }
+.clip .clip-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 8px; height: 8px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.playhead {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 3px;
+  background: #ef4444;
+  z-index: 4;
+  pointer-events: none;
+}
+.playhead::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: -4px;
+  width: 8px; height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 0 rgba(239,68,68,0.5);
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+
+.preview-wrap {
+  flex: 1;
+  overflow: hidden;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.preview-label {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  background: rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.preview {
+  flex: 1;
+  position: relative;
+  background: #0b1220;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.preview canvas, .preview video {
+  width: 100%; height: 100%;
+  display: block;
+  max-height: 100%;
+  max-width: 100%;
+}
+.preview-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  color: #94a3b8;
+  padding: 24px;
+}
+.preview-empty svg { opacity: 0.5; }
+.preview-empty p { margin: 0; font-size: 13px; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f3f4f6; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .panel-left { display: none; }
+}
+@media (max-width: 500px) {
+  .app-header { padding: 10px 12px; }
+  .brand h1 { font-size: 14px; }
+  .tagline { display: none; }
+  .btn span { display: none; }
+  .btn { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="6" width="20" height="12" rx="2"/>
+          <path d="M6 10l6 5 6-5"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Timeline Editor</h1>
+        <p class="tagline">Drag clips to arrange your video</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-play" class="btn btn-primary" disabled>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Play
+      </button>
+      <button id="btn-export" class="btn btn-accent" disabled>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export
+      </button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="panel panel-left" aria-label="Media library">
+      <div class="panel-header">
+        <h2>Media Library</h2>
+        <span id="media-count" class="badge">0</span>
+      </div>
+      <div id="media-list" class="media-list"></div>
+      <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Drop files here">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <p>Drop video or audio files here</p>
+        <span>or press <strong>Ctrl/Cmd + V</strong></span>
+      </div>
+    </aside>
+
+    <main class="panel panel-main">
+      <div class="panel-header">
+        <h2>Timeline</h2>
+        <div class="timeline-meta">
+          <span id="timeline-duration">0s</span>
+          <span id="timeline-clips">0 clips</span>
+        </div>
+      </div>
+
+      <div id="timeline" class="timeline" aria-label="Timeline">
+        <div class="timeline-ruler" id="ruler"></div>
+        <div id="clips-layer" class="clips-layer"></div>
+        <div id="playhead" class="playhead" aria-hidden="true"></div>
+      </div>
+
+      <div class="preview-wrap">
+        <div class="preview-label">Preview</div>
+        <div id="preview" class="preview" aria-label="Video preview">
+          <div class="preview-empty">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="3" y="6" width="18" height="12" rx="2"/>
+              <path d="M7 10l5 5 5-5"/>
+            </svg>
+            <p>No clips on timeline yet</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    media: [],          // { id, name, type, duration, url }
+    clips: [],          // { id, mediaId, startTime, duration }
+    currentTime: 0,
+    isPlaying: false,
+    playInterval: null,
+    previewCanvas: null,
+    previewCtx: null,
+    previewStream: null,
+    previewRecorder: null,
+    previewBlob: null,
+    previewUrl: null,
+    previewStarted: false,
+  };
+
+  const MAX_DURATION = 60; // seconds
+  const CLIP_DURATION = 3; // default clip duration
+
+  // ---------- DOM ----------
+  const $ = (sel) => document.querySelector(sel);
+  const mediaList = $('#media-list');
+  const mediaCount = $('#media-count');
+  const clipsLayer = $('#clips-layer');
+  const ruler = $('#ruler');
+  const playhead = $('#playhead');
+  const timeline = $('#timeline');
+  const preview = $('#preview');
+  const btnPlay = $('#btn-play');
+  const btnExport = $('#btn-export');
+  const timelineDuration = $('#timeline-duration');
+  const timelineClips = $('#timeline-clips');
+
+  // ---------- Utilities ----------
+  const uid = () => Math.random().toString(36).slice(2, 10);
+
+  const formatTime = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const getMediaById = (id) => state.media.find(m => m.id === id);
+
+  // ---------- Rendering ----------
+  function renderMediaList() {
+    mediaList.innerHTML = '';
+    state.media.forEach(m => {
+      const el = document.createElement('div');
+      el.className = 'media-item';
+      el.draggable = true;
+      el.dataset.id = m.id;
+      el.innerHTML = `
+        <div class="media-thumb" title="${m.name}">${escapeHtml(m.name.split('.')[0].slice(0, 10) || 'Media')}</div>
+        <div class="media-info">
+          <div class="media-name">${escapeHtml(m.name)}</div>
+          <div class="media-meta">${m.type} · ${formatTime(m.duration)}</div>
+        </div>
+      `;
+      el.addEventListener('dragstart', onMediaDragStart);
+      el.addEventListener('dragend', onMediaDragEnd);
+      mediaList.appendChild(el);
+    });
+    mediaCount.textContent = state.media.length;
+  }
+
+  function renderTimeline() {
+    clipsLayer.innerHTML = '';
+    const totalDuration = getTotalDuration();
+    const totalSeconds = totalDuration || 0;
+    const maxW = timeline.clientWidth - 40;
+    const secPerPx = maxW / totalSeconds;
+
+    // Ruler
+    const labels = ['0:00'];
+    for (let i = 1; i <= 10; i++) {
+      const t = (i * totalSeconds) / 10;
+      labels.push(formatTime(t));
+    }
+    const labelEl = document.createElement('div');
+    labelEl.className = 'ruler-label';
+    labelEl.textContent = labels[0];
+    ruler.appendChild(labelEl);
+
+    for (let i = 0; i <= 10; i++) {
+      const tick = document.createElement('div');
+      tick.className = 'tick';
+      tick.style.left = (40 + (i * maxW) / 10) + 'px';
+      if (i % 2 === 0) tick.classList.add('major');
+      else tick.classList.add('minor');
+      ruler.appendChild(tick);
+    }
+
+    // Clips
+    state.clips.forEach(c => {
+      const m = getMediaById(c.mediaId);
+      if (!m) return;
+      const clipEl = document.createElement('div');
+      clipEl.className = 'clip';
+      clipEl.dataset.id = c.id;
+      clipEl.style.left = (40 + c.startTime * secPerPx) + 'px';
+      clipEl.style.width = (c.duration * secPerPx) + 'px';
+      clipEl.innerHTML = `
+        <div class="clip-thumb">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10l5 5 5-5"/></svg>
+        </div>
+        <div class="clip-meta">${escapeHtml(m.name.split('.')[0])}</div>
+        <div class="clip-handle"></div>
+      `;
+      clipEl.addEventListener('dragstart', onClipDragStart);
+      clipEl.addEventListener('dragend', onClipDragEnd);
+      clipEl.addEventListener('click', (e) => {
+        if (e.target.closest('.clip-handle')) return;
+        // Open media
+      });
+      clipsLayer.appendChild(clipEl);
+    });
+
+    // Playhead
+    updatePlayhead();
+
+    // Meta
+    timelineDuration.textContent = totalSeconds > 0 ? formatTime(totalSeconds) : '0s';
+    timelineClips.textContent = state.clips.length + ' clips';
+    btnPlay.disabled = state.clips.length === 0;
+    btnExport.disabled = state.clips.length === 0 || totalSeconds === 0;
+  }
+
+  function getTotalDuration() {
+    let total = 0;
+    state.clips.forEach(c => { total += c.duration; });
+    return total;
+  }
+
+  function updatePlayhead() {
+    const totalSeconds = getTotalDuration();
+    if (totalSeconds <= 0) return;
+    const maxW = timeline.clientWidth - 40;
+    const secPerPx = maxW / totalSeconds;
+    const x = 40 + state.currentTime * secPerPx;
+    playhead.style.left = x + 'px';
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // ---------- Timeline interactions ----------
+  function onClipDragStart(e) {
+    const clip = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+    const id = clip.dataset.id;
+    const c = state.clips.find(x => x.id === id);
+    if (!c) return;
+    e.dataTransfer.setData('text/clip-id', id);
+    e.dataTransfer.setData('text/clip-start', c.startTime);
+    e.dataTransfer.setData('text/clip-duration', c.duration);
+    clip.classList.add('dragging');
+  }
+  function onClipDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+  }
+
+  // ---------- Drag & Drop ----------
+  function onMediaDragStart(e) {
+    e.dataTransfer.effectAllowed = 'copy';
+    const id = e.currentTarget.dataset.id;
+    e.dataTransfer.setData('text/media-id', id);
+  }
+  function onMediaDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = e.dataTransfer.getData('text/media-id');
+    if (id) {
+      const m = getMediaById(id);
+      if (m) {
+        const clip = {
+          id: uid(),
+          mediaId: id,
+          startTime: 0,
+          duration: m.duration,
+        };
+        state.clips.push(clip);
+        renderTimeline();
+      }
+    }
+    // Also handle clip repositioning
+    const clipId = e.dataTransfer.getData('text/clip-id');
+    if (clipId) {
+      const clip = state.clips.find(x => x.id === clipId);
+      if (clip) {
+        const newStart = parseFloat(e.dataTransfer.getData('text/clip-start'));
+        const newDur = parseFloat(e.dataTransfer.getData('text/clip-duration'));
+        clip.startTime = newStart;
+        clip.duration = newDur;
+        renderTimeline();
+      }
+    }
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    document.querySelectorAll('.media-item').forEach(el => {
+      if (el !== e.target && el !== e.currentTarget) el.classList.add('dragging');
+    });
+  }
+  function onDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      document.querySelectorAll('.media-item').forEach(el => el.classList.remove('dragging'));
+    }
+  }
+  function onDragEnd(e) {
+    document.querySelectorAll('.media-item').forEach(el => el.classList.remove('dragging'));
+  }
+
+  // ---------- Playback ----------
+  function startPlayback() {
+    if (state.isPlaying) return;
+    state.isPlaying = true;
+    btnPlay.textContent = 'Pause';
+    btnPlay.disabled = true;
+    state.currentTime = 0;
+    updatePlayhead();
+    state.playInterval = setInterval(() => {
+      state.currentTime += 0.05;
+      updatePlayhead();
+      if (state.currentTime >= getTotalDuration()) {
+        stopPlayback();
+      }
+    }, 50);
+  }
+
+  function stopPlayback() {
+    state.isPlaying = false;
+    btnPlay.textContent = 'Play';
+    btnPlay.disabled = false;
+    clearInterval(state.playInterval);
+    state.playInterval = null;
+    state.currentTime = 0;
+    updatePlayhead();
+  }
+
+  // ---------- Preview rendering ----------
+  function setupPreview() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 720;
+    preview.appendChild(canvas);
+    state.previewCanvas = canvas;
+    state.previewCtx = canvas.getContext('2d');
+  }
+
+  function startRecording() {
+    if (state.previewStarted) return;
+    if (!state.previewCanvas) setupPreview();
+    const stream = state.previewCanvas.captureStream(30);
+    state.previewStream = stream;
+    const mime = navigator.mediaDevices && navigator.mediaDevices.getSupportedConstraints && navigator.mediaDevices.getSupportedConstraints().mozCaptureStream ? 'video/webm;codecs=vp8,opus' : 'video/webm';
+    state.previewRecorder = new MediaRecorder(stream, { mimeType: mime });
+    state.previewRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size) {
+        if (!state.previewBlob) state.previewBlob = new Blob([], { type: 'video/webm' });
+        state.previewBlob = new Blob([state.previewBlob, e.data], { type: 'video/webm' });
+      }
+    };
+    state.previewRecorder.onstop = () => {
+      state.previewStarted = true;
+      btnExport.disabled = false;
+    };
+    state.previewRecorder.start(100);
+  }
+
+  function stopRecording() {
+    if (state.previewRecorder) {
+      state.previewRecorder.stop();
+      state.previewRecorder = null;
+    }
+    if (state.previewStream) {
+      state.previewStream.getTracks().forEach(t => t.stop());
+      state.previewStream = null;
+    }
+  }
+
+  function drawFrame(t) {
+    const ctx = state.previewCtx;
+    const W = state.previewCanvas.width;
+    const H = state.previewCanvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0, 0, W, H);
+
+    const total = getTotalDuration();
+    if (total <= 0) return;
+
+    // Draw clips
+    state.clips.forEach(c => {
+      const start = c.startTime;
+      const dur = c.duration;
+      const x1 = (start / total) * W;
+      const x2 = (start + dur) / total * W;
+      const y1 = H * 0.2;
+      const y2 = H * 0.8;
+      const grad = ctx.createLinearGradient(x1, y1, x1, y2);
+      grad.addColorStop(0, '#6366f1');
+      grad.addColorStop(1, '#8b5cf6');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x1, y1, Math.max(0, x2 - x1), y2 - y1);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x1, y1, Math.max(0, x2 - x1), y2 - y1);
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(escapeHtml(getMediaById(c.mediaId)?.name.split('.')[0] || ''), x1 + (x2 - x1) / 2, y1 + 18);
+    });
+
+    // Playhead
+    const x = (state.currentTime / total) * W;
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, H * 0.2);
+    ctx.lineTo(x, H * 0.8);
+    ctx.stroke();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(x, H * 0.5, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Time stamp
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(formatTime(state.currentTime), 20, H - 10);
+  }
+
+  // ---------- Export ----------
+  function exportVideo() {
+    if (!state.previewBlob) return;
+    const url = URL.createObjectURL(state.previewBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'timeline-output.webm';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- File upload ----------
+  function handleFiles(files) {
+    const accepted = [];
+    for (const f of files) {
+      if (!f.type.startsWith('video/') && !f.type.startsWith('audio/')) continue;
+      if (f.size > 100 * 1024 * 1024) continue;
+      accepted.push(f);
+    }
+    accepted.forEach(f => {
+      const id = uid();
+      const url = URL.createObjectURL(f);
+      state.media.push({
+        id, name: f.name, type: f.type, duration: f.duration || 0,
+        url,
+      });
+    });
+    renderMediaList();
+  }
+
+  // ---------- Event wiring ----------
+  document.addEventListener('dragover', onDragOver);
+  document.addEventListener('dragleave', onDragLeave);
+  document.addEventListener('drop', onDrop);
+  document.addEventListener('dragend', onDragEnd);
+
+  $('#drop-zone').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('file-input').click();
+  });
+  $('#drop-zone').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      e.preventDefault();
+      const items = (e.clipboardData || []).items;
+      for (const item of items) {
+        if (item.type.startsWith('video/') || item.type.startsWith('audio/')) {
+          const blob = item.getAsFile();
+          if (blob) handleFiles([blob]);
+        }
+      }
+    }
+  });
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.multiple = true;
+  fileInput.accept = 'video/*,audio/*';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+  fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  btnPlay.addEventListener('click', startPlayback);
+  btnPlay.addEventListener('click', stopPlayback);
+  btnExport.addEventListener('click', exportVideo);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (state.isPlaying) stopPlayback(); else startPlayback();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (state.previewStarted) exportVideo();
+    }
+  });
+
+  // ---------- Resize handling ----------
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderTimeline, 150);
+  });
+
+  // ---------- Init ----------
+  function init() {
+    renderMediaList();
+    renderTimeline();
+  }
+  init();
+})();
+</script></script>
+</body>
+</html>

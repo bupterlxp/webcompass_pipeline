@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batch Image Annotation Tool</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<style>
+  .annotation-panel {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f7f7f7;
+    margin: 10px 0;
+  }
+  .annotation-panel h5 {
+    margin: 0 0 8px;
+  }
+  .annotation-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .annotation-input input[type="text"],
+  .annotation-input textarea {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  .annotation-input textarea {
+    min-height: 40px;
+    resize: vertical;
+  }
+  .annotation-input button {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .annotation-input button:hover {
+    background: #eef2ff;
+  }
+  .annotation-input button.remove {
+    background: #ff5555;
+    color: white;
+  }
+  .annotation-input button.remove:hover {
+    background: #c0392b;
+  }
+  .canvas-wrap {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .canvas-wrap canvas {
+    display: block;
+  }
+  .canvas-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .btn-group {
+    display: flex;
+    gap: 8px;
+  }
+  .image-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .image-item {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .image-item:hover {
+    border-color: #666;
+  }
+  .image-item img {
+    width: 100%;
+    display: block;
+  }
+  .image-item.selected {
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,.2);
+  }
+  .image-meta {
+    padding: 6px 10px;
+    font-size: 12px;
+    background: #f0f0f0;
+    border-radius: 4px;
+  }
+  .image-meta strong {
+    color: #000;
+  }
+  .progress {
+    margin-top: 10px;
+    overflow: hidden;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: #007bff;
+    width: 0%;
+    transition: width .3s;
+  }
+  .alert {
+    margin-bottom: 10px;
+  }
+  .file-drop {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .file-drop:hover {
+    border-color: #007bff;
+    background: #eef4ff;
+  }
+  .file-drop.dragover {
+    border-color: #007bff;
+    background: #eef4ff;
+  }
+  .image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+  }
+  .image-grid .image-item {
+    grid-column: span 1;
+  }
+  @media (max-width: 768px) {
+    .image-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container mt-4">
+  <h1 class="mb-4">Batch Image Annotation Tool</h1>
+  <div class="alert alert-info" role="alert">
+    <strong>Instructions:</strong> Upload images, add annotations with text and position, then download annotated versions.
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title">Upload Images</h4>
+          <div id="dropZone" class="file-drop">
+            <i class="bi bi-cloud-arrow-up" style="font-size: 36px; color: #007bff; margin-bottom: 8px;"></i>
+            <p><strong>Drag & drop images here</strong></p>
+            <p class="text-muted">or</p>
+            <button type="button" class="btn btn-primary" id="browseBtn">Browse Files</button>
+            <input type="file" id="fileInput" accept="image/*" multiple hidden>
+          </div>
+          <div class="image-list" id="imageList"></div>
+          <div class="progress" id="progressBar">
+            <div class="progress-bar" id="progressBarFill" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title">Annotations</h4>
+          <div class="image-grid" id="imageGrid"></div>
+          <div class="annotation-panel" id="annotationPanel">
+            <h5>Annotations</h5>
+            <div class="annotation-input" id="annotationInput">
+              <input type="text" id="annotationText" placeholder="Annotation text..." value="Annotation 1">
+              <button type="button" id="addAnnotationBtn" class="btn btn-success btn-sm">Add</button>
+            </div>
+            <div class="annotation-input" id="annotationInput2">
+              <input type="text" id="annotationText2" placeholder="Annotation text..." value="Annotation 2">
+              <button type="button" id="addAnnotationBtn2" class="btn btn-success btn-sm">Add</button>
+            </div>
+            <div class="annotation-input" id="annotationInput3">
+              <input type="text" id="annotationText3" placeholder="Annotation text..." value="Annotation 3">
+              <button type="button" id="addAnnotationBtn3" class="btn btn-success btn-sm">Add</button>
+            </div>
+            <div class="annotation-input" id="annotationInput4">
+              <input type="text" id="annotationText4" placeholder="Annotation text..." value="Annotation 4">
+              <button type="button" id="addAnnotationBtn4" class="btn btn-success btn-sm">Add</button>
+            </div>
+          </div>
+          <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="canvas" width="600" height="400"></canvas>
+          </div>
+          <div class="canvas-actions">
+            <button type="button" class="btn btn-secondary" id="clearCanvasBtn">Clear Canvas</button>
+            <button type="button" class="btn btn-success" id="downloadBtn">Download Annotated Image</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title">Batch Download</h4>
+          <button type="button" class="btn btn-primary" id="batchDownloadBtn">Batch Download Annotated Images</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+const state = {
+  images: [],          // { id, file, name, dataUrl, annotations: [{x,y,text}] }
+  currentImageId: null,
+  annotations: [],
+  canvas: null,
+  ctx: null,
+  nextId: 1,
+};
+
+const canvasEl = document.getElementById('canvas');
+const ctx = canvasEl.getContext('2d');
+state.canvas = canvasEl;
+state.ctx = ctx;
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function generateId() {
+  return 'id_' + state.nextId++;
+}
+
+function addImage(file) {
+  return loadImage(file).then((img) => {
+    const id = generateId();
+    const name = file.name || 'image_' + Date.now();
+    const dataUrl = img.src;
+    state.images.push({ id, file, name, dataUrl, annotations: [] });
+    renderImageList();
+    renderImageGrid();
+    renderAnnotationPanel();
+    return id;
+  });
+}
+
+function renderImageList() {
+  const list = document.getElementById('imageList');
+  list.innerHTML = '';
+  state.images.forEach((img) => {
+    const li = document.createElement('div');
+    li.className = 'image-item' + (state.currentImageId === img.id ? ' selected' : '');
+    li.innerHTML = `
+      <img src="${img.dataUrl}" alt="${img.name}" loading="lazy">
+      <div class="image-meta">
+        <strong>${img.name}</strong>
+        <span class="text-muted">(${img.annotations.length} annotations)</span>
+      </div>
+    `;
+    li.addEventListener('click', () => selectImage(img.id));
+    list.appendChild(li);
+  });
+}
+
+function renderImageGrid() {
+  const grid = document.getElementById('imageGrid');
+  grid.innerHTML = '';
+  state.images.forEach((img) => {
+    const item = document.createElement('div');
+    item.className = 'image-item' + (state.currentImageId === img.id ? ' selected' : '');
+    item.innerHTML = `
+      <img src="${img.dataUrl}" alt="${img.name}" loading="lazy">
+      <div class="image-meta">
+        <strong>${img.name}</strong>
+        <span class="text-muted">(${img.annotations.length} annotations)</span>
+      </div>
+    `;
+    item.addEventListener('click', () => selectImage(img.id));
+    grid.appendChild(item);
+  });
+}
+
+function renderAnnotationPanel() {
+  const panel = document.getElementById('annotationPanel');
+  const current = state.images.find((i) => i.id === state.currentImageId);
+  if (!current) {
+    panel.innerHTML = '<p class="text-muted">No image selected. Add an image to begin.</p>';
+    return;
+  }
+  panel.innerHTML = '';
+  current.annotations.forEach((a, idx) => {
+    const row = document.createElement('div');
+    row.className = 'annotation-input';
+    row.innerHTML = `
+      <input type="text" value="${a.text}" placeholder="Annotation text" data-index="${idx}">
+      <button type="button" class="btn btn-danger btn-sm remove" data-remove="${idx}">Remove</button>
+    `;
+    row.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove')) {
+        removeAnnotation(idx);
+      }
+    });
+    panel.appendChild(row);
+  });
+}
+
+function selectImage(id) {
+  state.currentImageId = id;
+  renderImageList();
+  renderImageGrid();
+  renderAnnotationPanel();
+  renderCanvas();
+}
+
+function removeAnnotation(idx) {
+  const current = state.images.find((i) => i.id === state.currentImageId);
+  if (!current) return;
+  current.annotations.splice(idx, 1);
+  renderAnnotationPanel();
+  renderCanvas();
+}
+
+function addAnnotation(text) {
+  if (!state.currentImageId) return;
+  const current = state.images.find((i) => i.id === state.currentImageId);
+  if (!current) return;
+  current.annotations.push({ x: 50, y: 50, text });
+  renderAnnotationPanel();
+  renderCanvas();
+}
+
+function renderCanvas() {
+  const current = state.images.find((i) => i.id === state.currentImageId);
+  if (!current) {
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    return;
+  }
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvasEl.width, canvasEl.height);
+    current.annotations.forEach((a) => {
+      ctx.fillStyle = '#007bff';
+      ctx.strokeStyle = 'rgba(255,255,255,.8)';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.lineWidth = 1;
+      ctx.strokeText(a.text, a.x, a.y);
+      ctx.fillText(a.text, a.x, a.y);
+    });
+  };
+  img.src = current.dataUrl;
+}
+
+document.getElementById('browseBtn').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  files.forEach((file) => addImage(file));
+  e.target.value = '';
+});
+
+document.getElementById('dropZone').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  document.getElementById('dropZone').classList.add('dragover');
+});
+document.getElementById('dropZone').addEventListener('dragleave', () => {
+  document.getElementById('dropZone').classList.remove('dragover');
+});
+document.getElementById('dropZone').addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  const files = Array.from(e.dataTransfer.files);
+  files.forEach((file) => addImage(file));
+});
+
+document.getElementById('addAnnotationBtn').addEventListener('click', () => {
+  const text = document.getElementById('annotationText').value.trim();
+  if (text) addAnnotation(text);
+});
+document.getElementById('addAnnotationBtn2').addEventListener('click', () => {
+  const text = document.getElementById('annotationText2').value.trim();
+  if (text) addAnnotation(text);
+});
+document.getElementById('addAnnotationBtn3').addEventListener('click', () => {
+  const text = document.getElementById('annotationText3').value.trim();
+  if (text) addAnnotation(text);
+});
+document.getElementById('addAnnotationBtn4').addEventListener('click', () => {
+  const text = document.getElementById('annotationText4').value.trim();
+  if (text) addAnnotation(text);
+});
+
+document.getElementById('clearCanvasBtn').addEventListener('click', () => {
+  if (!state.currentImageId) return;
+  const current = state.images.find((i) => i.id === state.currentImageId);
+  if (!current) return;
+  current.annotations = [];
+  renderAnnotationPanel();
+  renderCanvas();
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if (!state.currentImageId) return;
+  const current = state.images.find((i) => i.id === state.currentImageId);
+  if (!current) return;
+  const link = document.createElement('a');
+  link.download = current.name.replace(/\.[^.]+$/, '') + '_annotated.png';
+  link.href = canvasEl.toDataURL('image/png');
+  link.click();
+});
+
+document.getElementById('batchDownloadBtn').addEventListener('click', () => {
+  if (state.images.length === 0) {
+    alert('No images to download.');
+    return;
+  }
+  state.images.forEach((img) => {
+    const link = document.createElement('a');
+    link.download = img.name.replace(/\.[^.]+$/, '') + '_annotated.png';
+    link.href = canvasEl.toDataURL('image/png');
+    link.click();
+  });
+  alert('Batch download started.');
+});
+
+// Initialize
+renderImageList();
+renderImageGrid();
+renderAnnotationPanel();
+renderCanvas();
+</script>
+</body>
+</html>

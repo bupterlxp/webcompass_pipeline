@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chunked File Upload</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.app h1 {
+  font-size: 28px;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hint {
+  color: #6b7280;
+  margin: 0 0 24px;
+  font-size: 15px;
+}
+
+.dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  padding: 48px 24px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone:hover,
+.dropzone.dragover {
+  border-color: #6366f1;
+  background: #f5f3ff;
+}
+
+.dropzone:focus-visible {
+  outline: 3px solid #6366f1;
+  outline-offset: 4px;
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropzone-content svg {
+  color: #93c5fd;
+  margin-bottom: 8px;
+}
+
+.dropzone-content p {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+}
+
+.dropzone-content span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.progress {
+  margin-top: 24px;
+  padding: 16px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.progress-bar {
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  transition: width 0.3s ease;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #111827;
+}
+
+.completed, .error {
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.success-icon, .error-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.success-icon { color: #10b981; }
+.error-icon { color: #ef4444; }
+
+.completed h2, .error p {
+  margin: 0 0 8px;
+  color: #111827;
+}
+
+.completed p, .error p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.error { background: #fef2f2; color: #991b1b; }
+.error-icon { color: #ef4444; }
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1>Chunked File Upload</h1>
+    <p class="hint">Drag and drop a file below, or click to select. Chunks are uploaded in parallel.</p>
+
+    <div class="dropzone" id="dropzone" tabindex="0">
+      <div class="dropzone-content">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-linecap="round"/>
+          <polyline points="17 8 12 3 7 8" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="12" y1="3" x2="12" y2="15" stroke-linecap="round"/>
+        </svg>
+        <p><strong>Drop files here</strong> or click to browse</p>
+        <span>Supports any file type · Max 500MB</span>
+      </div>
+      <input type="file" id="fileInput" hidden />
+    </div>
+
+    <div class="progress" id="progress" hidden>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-info">
+        <span id="progressText">0% complete</span>
+        <span id="progressCount">0 / 0 chunks</span>
+      </div>
+    </div>
+
+    <div class="completed" id="completed" hidden>
+      <div class="success-icon">✓</div>
+      <h2>Upload Complete!</h2>
+      <p id="completedPath"></p>
+    </div>
+
+    <div class="error" id="error" hidden>
+      <div class="error-icon">✕</div>
+      <p id="errorMessage"></p>
+    </div>
+  </div>
+
+  <script>(function () {
+  'use strict';
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const progress = document.getElementById('progress');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const progressCount = document.getElementById('progressCount');
+  const completed = document.getElementById('completed');
+  const completedPath = document.getElementById('completedPath');
+  const error = document.getElementById('error');
+  const errorMessage = document.getElementById('errorMessage');
+
+  const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
+  const SERVER_URL = 'http://localhost:3000';
+  const UPLOAD_URL = `${SERVER_URL}/upload`;
+
+  let id = null;
+  let fileName = null;
+  let chunkIndex = 0;
+  let chunkTotal = 0;
+  let isUploading = false;
+
+  function getChunks(file) {
+    const size = file.size;
+    chunkTotal = Math.ceil(size / CHUNK_SIZE);
+    const chunks = [];
+    for (let i = 0; i < chunkTotal; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, size);
+      chunks.push({
+        start,
+        end,
+        blob: file.slice(start, end),
+        index: i
+      });
+    }
+    return chunks;
+  }
+
+  function readFileAsArrayBuffer(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+  }
+
+  async function uploadChunk(index, blob) {
+    const fd = new FormData();
+    fd.append('file', blob);
+    fd.append('chunkIndex', index);
+    fd.append('chunkTotal', chunkTotal);
+    fd.append('fileName', fileName);
+
+    const res = await fetch(UPLOAD_URL, {
+      method: 'POST',
+      body: fd
+    });
+
+    if (!res.ok) {
+      throw new Error(`Upload failed: ${res.status}`);
+    }
+    return res.json();
+  }
+
+  async function handleFile(file) {
+    if (!file) return;
+    if (file.size === 0) {
+      showError('File is empty');
+      return;
+    }
+    if (file.size > 500 * 1024 * 1024) {
+      showError('File exceeds 500MB limit');
+      return;
+    }
+
+    id = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    fileName = file.name;
+
+    const chunks = getChunks(file);
+    chunkIndex = 0;
+
+    progress.hidden = false;
+    completed.hidden = true;
+    error.hidden = true;
+
+    const totalSize = file.size;
+    const startTime = Date.now();
+
+    for (const chunk of chunks) {
+      if (isUploading) {
+        const result = await uploadChunk(chunk.index, chunk.blob);
+        const elapsed = Date.now() - startTime;
+        const remaining = (chunks.length - chunkIndex - 1) * (totalSize / chunks.length);
+        const eta = remaining > 0 ? Math.ceil(remaining / (elapsed / chunkIndex)) : 0;
+        progressText.textContent = `${Math.round(((chunkIndex + 1) / chunkTotal) * 100)}% complete`;
+        progressCount.textContent = `${chunkIndex + 1} / ${chunkTotal} chunks`;
+        progressFill.style.width = `${Math.round(((chunkIndex + 1) / chunkTotal) * 100)}%`;
+      }
+      chunkIndex++;
+    }
+
+    // Finalize: check status
+    const status = await fetch(`${SERVER_URL}/status/${id}`);
+    const statusJson = await status.json();
+    if (statusJson.completed) {
+      completedPath.textContent = `Final file: ${fileName}`;
+      completed.hidden = false;
+    } else {
+      showError('Upload did not complete successfully');
+    }
+  }
+
+  function showError(msg) {
+    errorMessage.textContent = msg;
+    error.hidden = false;
+  }
+
+  function hideError() {
+    error.hidden = true;
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleFile(file);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('dragover');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+})();
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

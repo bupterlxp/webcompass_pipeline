@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Simulation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #fff;
+    cursor: crosshair;
+    user-select: none;
+  }
+  #canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #overlay {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    pointer-events: none;
+    font-size: 14px;
+    line-height: 1.6;
+    z-index: 10;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+  #overlay .label { color: #cfe2ff; }
+  #overlay .value { color: #fff; font-weight: 700; }
+  #overlay .sub { color: #a8d5ff; font-size: 12px; }
+  #controls {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 10;
+    pointer-events: none;
+    font-size: 13px;
+    color: #cfe2ff;
+  }
+  #controls .seg { display: inline-block; margin-right: 12px; }
+  #controls .seg label { display: block; margin-bottom: 4px; color: #fff; font-size: 11px; }
+  #controls input[type="range"] { width: 140px; accent-color: #ffd27a; }
+  #controls .seg .val { color: #fff; font-weight: 700; }
+  #controls .seg .val .sub { color: #a8d5ff; font-size: 11px; }
+  #fullscreen-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    transition: background 0.2s, transform 0.2s;
+  }
+  #fullscreen-btn:hover { background: rgba(255,255,255,0.2); }
+  #fullscreen-btn:active { transform: scale(0.96); }
+  #fullscreen-btn.active { background: #ffd27a; border-color: #ffd27a; }
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 50;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.85);
+    border: 1px solid rgba(255,226,255,0.4);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #fff;
+    transform: translate(-50%, -140%);
+    opacity: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  #tooltip.visible { opacity: 1; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="overlay">
+  <div class="label">Date</div>
+  <div class="value" id="dateVal">—</div>
+  <div class="sub">—</div>
+</div>
+
+<div id="overlay" style="top:64px;left:16px;">
+  <div class="label">Time</div>
+  <div class="value" id="timeVal">00:00:00</div>
+  <div class="sub" id="timeSub">Midnight</div>
+</div>
+
+<div id="overlay" style="top:112px;left:16px;">
+  <div class="label">Sun</div>
+  <div class="value" id="sunVal">—</div>
+  <div class="sub" id="sunSub">—</div>
+</div>
+
+<div id="controls">
+  <div class="seg">
+    <label for="speed">Speed</label>
+    <input type="range" id="speed" min="0.1" max="10" step="0.1" value="1">
+    <span class="val"><span id="speedVal">1.0×</span><span class="sub">real time</span></span>
+  </div>
+  <div class="seg">
+    <label for="lat">Latitude</label>
+    <input type="range" id="lat" min="-90" max="90" step="1" value="40">
+    <span class="val"><span id="latVal">40°</span><span class="sub">N</span></span>
+  </div>
+  <div class="seg">
+    <label for="lon">Longitude</label>
+    <input type="range" id="lon" min="-180" max="180" step="1" value="0">
+    <span class="val"><span id="lonVal">0°</span><span class="sub">E</span></span>
+  </div>
+  <div class="seg">
+    <label for="season">Season</label>
+    <input type="range" id="season" min="0" max="3" step="1" value="0">
+    <span class="val"><span id="seasonVal">Spring</span><span class="sub">Equinox</span></span>
+  </div>
+  <div class="seg">
+    <label for="stars">Stars</label>
+    <input type="range" id="stars" min="0" max="1" step="0.1" value="0.3">
+    <span class="val"><span id="starsVal">30%</span></span>
+  </div>
+  <button id="fullscreenBtn" title="Toggle fullscreen">⛶</button>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const dateVal = document.getElementById('dateVal');
+const timeVal = document.getElementById('timeVal');
+const timeSub = document.getElementById('timeSub');
+const sunVal = document.getElementById('sunVal');
+const sunSub = document.getElementById('sunSub');
+const speedVal = document.getElementById('speedVal');
+const latVal = document.getElementById('latVal');
+const lonVal = document.getElementById('lonVal');
+const seasonVal = document.getElementById('seasonVal');
+const starsVal = document.getElementById('starsVal');
+const tooltip = document.getElementById('tooltip');
+const fsBtn = document.getElementById('fullscreenBtn');
+
+let W = 0, H = 0, DPR = 1;
+let rafId = null;
+let t = 0;           // seconds since start
+let speed = 1.0;     // multiplier
+let lat = 40;        // degrees N
+let lon = 0;         // degrees E
+let season = 0;      // 0=spring, 1=summer, 2=autumn, 3=winter
+let starsEnabled = true;
+let starsOpacity = 0.3;
+let mouseDown = false;
+let mouseX = 0, mouseY = 0;
+
+// ---------- Utilities ----------
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function fmtTime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+function fmtTimeShort(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return `${pad(h)}:${pad(m)}`;
+}
+function fmtDate(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+// ---------- Sun position ----------
+// Simplified solar geometry
+function sunPosition(t) {
+  // t in seconds, 0 = midnight, 86400 = next midnight
+  const day = t % 86400;
+  const dayFract = day / 86400;
+
+  // Approximate solar declination based on season
+  const decl = [ 23.5, 23.5, -23.5, -23.5 ][season] * (1 - 2 * (season % 2)) * 0.5;
+  // Small adjustment based on day of year
+  const dayOfYear = Math.floor((dayFract * 365.25 + 0.25) % 365.25);
+  const eqn = 23.5 * Math.sin(0.9856 * dayOfYear * Math.PI / 180);
+  const declFinal = decl + eqn * 0.2;
+
+  // Hour angle (degrees from noon)
+  const ha = (dayFract * 360 - 180) * 0.0174533; // to radians
+  const haDeg = dayFract * 360 - 180;
+
+  // Altitude (zenith angle)
+  const latRad = lat * Math.PI / 180;
+  const declRad = declFinal * Math.PI / 180;
+  const altRad = Math.asin(Math.sin(latRad) * Math.sin(declRad) + Math.cos(latRad) * Math.cos(declRad) * Math.cos(ha));
+  const alt = Math.max(0, Math.min(90, Math.round(altRad * 180 / Math.PI)));
+
+  // Azimuth (from North, clockwise)
+  const azRad = Math.acos((Math.sin(declRad) - Math.sin(latRad) * Math.sin(altRad)) / (Math.cos(latRad) * Math.cos(altRad)));
+  const az = (Math.cos(ha) >= 0) ? Math.round(azRad * 180 / Math.PI) : 360 - Math.round(azRad * 180 / Math.PI);
+
+  // Screen position (center = eye, horizon = 0)
+  const eyeX = W / 2;
+  const eyeY = H / 2;
+  const dist = 2000;
+  const screenX = eyeX + Math.tan(altRad) * Math.cos(azRad) * dist;
+  const screenY = eyeY + Math.tan(altRad) * Math.sin(azRad) * dist;
+
+  return { alt, az, screenX, screenY };
+}
+
+// ---------- Color palette ----------
+function skyColor(dayFract) {
+  // dayFract: 0 = midnight, 1 = next midnight
+  const t = dayFract * 24; // hours
+
+  if (t < 3.5 || t > 20.5) {
+    // Night
+    const night = (t - 3.5) / (24 - 7); // 0..1
+    const r = 15 + 20 * Math.sin(night * Math.PI + 0.3);
+    const g = 20 + 25 * Math.sin(night * Math.PI + 0.7);
+    const b = 35 + 20 * Math.sin(night * Math.PI + 1.1);
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+  }
+
+  // Day
+  const day = (t - 3.5) / (24 - 7);
+  const r2 = 180 + 100 * Math.sin(day * Math.PI * 2 + 0.5);
+  const g2 = 220 + 120 * Math.sin(day * Math.PI * 2 + 0.2);
+  const b2 = 240 + 140 * Math.sin(day * Math.PI * 2 + 0.8);
+  return `rgb(${Math.round(r2)}, ${Math.round(g2)}, ${Math.round(b2)})`;
+}
+
+function sunColor(alt) {
+  if (alt < 0) return '#4a4a4a';
+  if (alt < 10) return '#ff7a5c';
+  if (alt < 20) return '#ffd27a';
+  if (alt < 30) return '#fff2b0';
+  return '#ffffff';
+}
+
+function sunGlowColor(alt) {
+  if (alt < 0) return '#1a1a1a';
+  if (alt < 10) return '#ff7a5c';
+  if (alt < 20) return '#ffd27a';
+  return '#ffffff';
+}
+
+// ---------- Starfield ----------
+function starColor() {
+  return `rgba(255, 255, 255, ${0.3 + starsOpacity * 0.7})`;
+}
+
+// ---------- Rendering ----------
+function render() {
+  const dayFract = t % 86400 / 86400;
+  const { alt, az, screenX, screenY } = sunPosition(t);
+
+  // Sky gradient
+  const skyTop = skyColor(dayFract);
+  const skyBot = skyColor(dayFract);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, skyTop);
+  g.addColorStop(1, skyBot);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Horizon line
+  const horizonY = H * 0.55;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, horizonY);
+  ctx.lineTo(W, horizonY);
+  ctx.stroke();
+
+  // Stars
+  if (starsEnabled && starsOpacity > 0) {
+    ctx.fillStyle = starColor();
+    for (let i = 0; i < 120; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * horizonY;
+      const r = Math.random() * 1.2 + 0.2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Sun
+  const sunR = 36;
+  ctx.fillStyle = sunColor(alt);
+  ctx.beginPath();
+  ctx.arc(screenX, screenY, sunR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sun glow
+  const glowR = sunR + 120;
+  ctx.fillStyle = sunGlowColor(alt);
+  ctx.beginPath();
+  ctx.arc(screenX, screenY, glowR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sun rays
+  if (alt > 0) {
+    ctx.strokeStyle = sunColor(alt);
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const x1 = screenX + Math.cos(a) * 60;
+      const y1 = screenY + Math.sin(a) * 60;
+      ctx.beginPath();
+      ctx.moveTo(screenX, screenY);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  }
+
+  // Labels
+  ctx.font = 'bold 18px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`Alt: ${alt.toFixed(0)}°`, 32, 32);
+  ctx.fillText(`Az: ${az.toFixed(0)}°`, 32, 64);
+  ctx.fillText(`Day: ${dayFract.toFixed(2)}`, 32, 96);
+
+  // Tooltip on mouse
+  if (mouseDown) {
+    const dx = mouseX - screenX;
+    const dy = mouseY - screenY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 140) {
+      tooltip.textContent = `Alt ${alt.toFixed(0)}° · Az ${az.toFixed(0)}°`;
+      tooltip.style.left = mouseX + 'px';
+      tooltip.style.top = mouseY + 'px';
+      tooltip.classList.add('visible');
+    } else {
+      tooltip.classList.remove('visible');
+    }
+  } else {
+    tooltip.classList.remove('visible');
+  }
+}
+
+// ---------- Animation loop ----------
+function loop() {
+  render();
+  t += speed;
+  updateUI();
+  rafId = requestAnimationFrame(loop);
+}
+
+function updateUI() {
+  const dayFract = t % 86400 / 86400;
+  const d = new Date(t * 1000 + Date.now() - (Date.now() % 86400000));
+  dateVal.textContent = fmtDate(d);
+  timeVal.textContent = fmtTime(t);
+  timeSub.textContent = fmtTimeShort(t);
+
+  const { alt, az } = sunPosition(t);
+  sunVal.textContent = `${alt.toFixed(0)}°`;
+  sunSub.textContent = `${az.toFixed(0)}°`;
+
+  speedVal.textContent = speed.toFixed(1) + '×';
+  latVal.textContent = `${lat}°`;
+  lonVal.textContent = `${lon}°`;
+  seasonVal.textContent = ['Spring', 'Summer', 'Autumn', 'Winter'][season];
+  starsVal.textContent = `${Math.round(starsOpacity * 100)}%`;
+}
+
+// ---------- Input ----------
+function onWheel(e) {
+  const delta = -e.deltaY * 0.002;
+  t += delta;
+}
+
+function onMove(e) {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+}
+
+function onDown(e) {
+  mouseDown = true;
+  onMove(e);
+}
+
+function onUp() {
+  mouseDown = false;
+}
+
+function onDrag(e) {
+  if (!mouseDown) return;
+  const dx = e.clientX - mouseX;
+  const dy = e.clientY - mouseY;
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  // Pan the sun (rotate view)
+  lon = (lon + dx / 10) % 360;
+  lat = Math.max(-89, Math.min(89, lat - dy / 10));
+}
+
+function onSpeedChange(e) {
+  speed = parseFloat(e.target.value);
+  speedVal.textContent = speed.toFixed(1) + '×';
+}
+function onLatChange(e) {
+  lat = parseFloat(e.target.value);
+  latVal.textContent = `${lat}°`;
+}
+function onLonChange(e) {
+  lon = parseFloat(e.target.value);
+  lonVal.textContent = `${lon}°`;
+}
+function onSeasonChange(e) {
+  season = parseInt(e.target.value);
+  seasonVal.textContent = ['Spring', 'Summer', 'Autumn', 'Winter'][season];
+}
+function onStarsChange(e) {
+  starsOpacity = parseFloat(e.target.value);
+  starsVal.textContent = `${Math.round(starsOpacity * 100)}%`;
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    canvas.requestFullscreen?.();
+  } else {
+    document.exitFullscreen?.();
+  }
+}
+
+// ---------- Init ----------
+function init() {
+  resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('wheel', onWheel, { passive: false });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mousedown', onDown);
+  window.addEventListener('mouseup', onUp);
+  window.addEventListener('touchstart', (e) => {
+    mouseDown = true;
+    mouseX = e.touches[0].clientX;
+    mouseY = e.touches[0].clientY;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (!mouseDown) return;
+    mouseX = e.touches[0].clientX;
+    mouseY = e.touches[0].clientY;
+    onDrag(e);
+  }, { passive: true });
+  window.addEventListener('touchend', onUp);
+
+  document.getElementById('speed').addEventListener('input', onSpeedChange);
+  document.getElementById('lat').addEventListener('input', onLatChange);
+  document.getElementById('lon').addEventListener('input', onLonChange);
+  document.getElementById('season').addEventListener('input', onSeasonChange);
+  document.getElementById('stars').addEventListener('input', onStarsChange);
+  fsBtn.addEventListener('click', toggleFullscreen);
+
+  updateUI();
+  rafId = requestAnimationFrame(loop);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

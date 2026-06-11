@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geometric Calculator</title>
+<style>
+  :root { --accent: #4a6cf7; --accent-2: #0ea5e9; --bg: #f6f8fc; --surface: #ffffff; --text: #1e293b; --muted: #64748b; --border: #e2e8f0; --danger: #ef4444; --success: #10b981; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #e0ecff 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #d6ecff 0%, transparent 55%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  .app { max-width: 1200px; margin: 0 auto; padding: 24px; display: grid; gap: 24px; }
+  h1, h2, h3 { margin: 0 0 8px; color: var(--text); letter-spacing: -0.01em; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 16px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.04); }
+  .panel h2 { margin-bottom: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74,108,247,.15);
+  }
+  .field input.invalid { border-color: var(--danger); }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: 10px; border: 1px solid transparent; font-weight: 600; font-size: 14px; cursor: pointer; transition: transform .15s, background .2s, border-color .2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost { background: transparent; color: var(--accent); border-color: var(--border); }
+  .btn-ghost:hover { background: rgba(74,108,247,.08); }
+  .btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .btn-danger:hover { background: rgba(239,68,68,.08); }
+  .btn-icon { width: 36px; height: 36px; padding: 0; border-radius: 10px; }
+  .btn-icon:hover { background: rgba(74,108,247,.1); }
+  .result { background: #f8fafc; border-left: 3px solid var(--accent); padding: 14px 16px; border-radius: 8px; margin-bottom: 12px; }
+  .result .k { font-weight: 700; color: var(--text); font-size: 14px; }
+  .result .v { font-size: 18px; font-weight: 700; color: var(--accent-2); }
+  .result .k { display: block; margin-bottom: 2px; }
+  .formula { background: #f1f5f9; padding: 12px 14px; border-radius: 10px; font-size: 13px; color: var(--text); border-left: 3px solid var(--accent); line-height: 1.6; }
+  .formula.show { background: #fff; border-left-color: var(--accent-2); }
+  .formula-code { font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace; font-size: 13px; color: var(--muted); }
+  .canvas-wrap { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  canvas { display: block; width: 100%; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+  .legend-dot.area { background: #34d399; }
+  .legend-dot.perimeter { background: #f59e0b; }
+  .legend-dot.volume { background: #8b5cf6; }
+  .legend-dot.surface { background: #ec4899; }
+  .legend-dot.radius { background: #0ea5e9; }
+  .legend-dot.height { background: #ef4444; }
+  .legend-dot.base { background: #10b981; }
+  .legend-dot.apothem { background: #f472b6; }
+  .legend-dot.solid { background: #6366f1; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+  .empty-state svg { margin: 16px auto; opacity: .5; }
+  .share { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--accent); margin-top: 12px; }
+  .share button { background: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; color: var(--text); }
+  .share button:hover { border-color: var(--accent); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.2); opacity: 0; transition: opacity .3s, transform .3s; z-index: 1000; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .tabs { display: flex; gap: 4px; padding: 4px; background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+  .tab { flex: 1; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; transition: background .2s, color .2s; }
+  .tab.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  .shape-preview { display: flex; flex-direction: column; gap: 12px; }
+  .shape-preview canvas { cursor: grab; }
+  .shape-preview canvas:active { cursor: grabbing; }
+  .shape-info { display: flex; flex-wrap: wrap; gap: 10px; }
+  .shape-info .chip { padding: 6px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--border); font-size: 13px; font-weight: 600; color: var(--text); }
+  .shape-info .chip.dim { background: #f1f5f9; }
+  .shape-info .chip.dim .v { color: var(--accent-2); }
+  .shape-info .chip.dim .k { color: var(--muted); font-weight: 500; }
+  .shape-info .chip.dim .k::before { content: "="; margin-right: 4px; }
+  .shape-info .chip.dim .v::after { content: " " var(--unit); }
+  .shape-info .chip.dim .unit { font-style: italic; color: var(--muted); font-size: 11px; }
+
+  @media (max-width: 720px) {
+    .app { padding: 16px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    h1 { font-size: 22px; }
+    .canvas-wrap { height: 300px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Shape selector -->
+  <div class="panel">
+    <h2>Choose a Shape</h2>
+    <div class="shape-preview">
+      <div class="canvas-wrap" id="previewWrap">
+        <canvas id="preview"></canvas>
+      </div>
+      <div class="shape-info">
+        <div class="legend"><span><span class="legend-dot solid"></span>3D</span><span><span class="legend-dot radius"></span>Radius</span><span><span class="legend-dot height"></span>Height</span><span><span class="legend-dot base"></span>Base</span><span><span class="legend-dot apothem"></span>Apothem</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parameters -->
+  <div class="panel">
+    <h2>Parameters</h2>
+    <div class="grid-2">
+      <div class="field">
+        <label for="shapeSelect">Shape</label>
+        <select id="shapeSelect">
+          <option value="circle">Circle</option>
+          <option value="triangle">Triangle</option>
+          <option value="rectangle">Rectangle</option>
+          <option value="polygon">Regular Polygon</option>
+          <option value="sphere">Sphere</option>
+          <option value="cylinder">Cylinder</option>
+          <option value="cone">Cone</option>
+          <option value="prism">Prism</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="formulaToggle">Formulas</label>
+        <button id="formulaToggle" class="btn btn-ghost" aria-label="Toggle formulas">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span id="formulaLabel">Show</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="paramsContainer"></div>
+    <div class="shape-info">
+      <button id="clearBtn" class="btn btn-ghost">Reset</button>
+      <button id="copyBtn" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy Results
+      </button>
+      <button id="shareBtn" class="btn btn-ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel">
+    <h2>Results</h2>
+    <div id="resultsContainer"></div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ---------- Shape definitions ----------
+const SHAPES = {
+  circle: {
+    label: "Circle",
+    solid: false,
+    params: [{ k: "radius", unit: "r", hint: "Radius of the circle" }],
+    area: (r) => Math.PI * r * r,
+    perimeter: (r) => 2 * Math.PI * r,
+    volume: null,
+    surface: (r) => 2 * Math.PI * r * r,
+    formulaArea: "A = π · r²",
+    formulaPerimeter: "P = 2πr",
+    formulaVolume: null,
+    formulaSurface: "A = 2πr²",
+    draw: (ctx, w, h, r, color, fill) => {
+      const x = w / 2, y = h / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("r", x - r * 0.35, y - r * 0.15);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Circle", x, y - r - 14);
+    }
+  },
+  triangle: {
+    label: "Triangle",
+    solid: false,
+    params: [{ k: "base", unit: "b", hint: "Base length" }, { k: "height", unit: "h", hint: "Height" }],
+    area: (b, h) => 0.5 * b * h,
+    perimeter: (b, h) => {
+      // equilateral for simplicity; in real use, side length needed
+      const s = b; // assume equilateral
+      return 3 * s;
+    },
+    volume: null,
+    surface: (b, h) => {
+      const s = b;
+      const slant = Math.sqrt(h * h + (b / 2) * (b / 2));
+      return b * s + 2 * b * slant;
+    },
+    formulaArea: "A = ½bh",
+    formulaPerimeter: "P = 3b",
+    formulaVolume: null,
+    formulaSurface: "A = b² + 2bs",
+    draw: (ctx, w, h, b, h, color, fill) => {
+      const x = w / 2, y = h / 2;
+      const pts = [
+        [x - b / 2, y + h],
+        [x + b / 2, y + h],
+        [x, y - h]
+      ];
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      pts.forEach(([x, y]) => ctx.lineTo(x, y));
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("b", x, y + h + 10);
+      ctx.fillText("h", x, y - h - 10);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Triangle", x, y - h - 30);
+    }
+  },
+  rectangle: {
+    label: "Rectangle",
+    solid: false,
+    params: [{ k: "length", unit: "l", hint: "Length" }, { k: "width", unit: "w", hint: "Width" }],
+    area: (l, w) => l * w,
+    perimeter: (l, w) => 2 * (l + w),
+    volume: null,
+    surface: (l, w) => 2 * (l * w + l * l + w * w),
+    formulaArea: "A = lw",
+    formulaPerimeter: "P = 2(l + w)",
+    formulaVolume: null,
+    formulaSurface: "A = 2(lw + l² + w²)",
+    draw: (ctx, w, h, l, w, color, fill) => {
+      const x = w / 2, y = h / 2;
+      const pts = [
+        [x - l / 2, y - w / 2],
+        [x + l / 2, y - w / 2],
+        [x + l / 2, y + w / 2],
+        [x - l / 2, y + w / 2]
+      ];
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => {
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("l", x, y - w / 2 - 10);
+      ctx.fillText("w", x, y + w / 2 + 10);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Rectangle", x, y - w / 2 - 30);
+    }
+  },
+  polygon: {
+    label: "Regular Polygon",
+    solid: false,
+    params: [{ k: "side", unit: "s", hint: "Side length" }, { k: "sides", unit: "n", hint: "Number of sides (3–12)" }],
+    area: (s, n) => (n * s * s) / (4 * Math.tan(Math.PI / n)),
+    perimeter: (s, n) => n * s,
+    volume: null,
+    surface: (s, n) => n * (s * s) / (4 * Math.tan(Math.PI / n)),
+    formulaArea: "A = (n·s²)/(4·tan(π/n))",
+    formulaPerimeter: "P = ns",
+    formulaVolume: null,
+    formulaSurface: "A = ns²/(4·tan(π/n))",
+    draw: (ctx, w, h, s, n, color, fill) => {
+      const x = w / 2, y = h / 2;
+      const r = s / (2 * Math.sin(Math.PI / n));
+      const angle = -Math.PI / 2;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const a = angle + i * (2 * Math.PI / n);
+        const px = x + r * Math.cos(a);
+        const py = y + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("s", x, y - r - 10);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Regular Polygon", x, y - r - 30);
+    }
+  },
+  sphere: {
+    label: "Sphere",
+    solid: true,
+    params: [{ k: "radius", unit: "r", hint: "Radius" }],
+    area: (r) => 4 * Math.PI * r * r,
+    perimeter: null,
+    volume: (r) => (4 / 3) * Math.PI * r * r * r,
+    surface: null,
+    formulaArea: "A = 4πr²",
+    formulaPerimeter: null,
+    formulaVolume: "V = 4/3πr³",
+    formulaSurface: null,
+    draw: (ctx, w, h, r, color, fill) => {
+      const x = w / 2, y = h / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("r", x - r * 0.35, y - r * 0.15);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Sphere", x, y - r - 14);
+    }
+  },
+  cylinder: {
+    label: "Cylinder",
+    solid: true,
+    params: [{ k: "radius", unit: "r", hint: "Base radius" }, { k: "height", unit: "h", hint: "Height" }],
+    area: (r, h) => 2 * Math.PI * r * (r + h),
+    perimeter: null,
+    volume: (r, h) => Math.PI * r * r * h,
+    surface: null,
+    formulaArea: "A = 2πr(r + h)",
+    formulaPerimeter: null,
+    formulaVolume: "V = πr²h",
+    formulaSurface: null,
+    draw: (ctx, w, h, r, h, color, fill) => {
+      const x = w / 2, y = h / 2;
+      const topY = y - h / 2, botY = y + h / 2;
+      ctx.beginPath();
+      ctx.arc(x, topY, r, 0, Math.PI * 2);
+      ctx.arc(x, botY, r, Math.PI, 0);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("r", x - r * 0.35, topY - r * 0.15);
+      ctx.fillText("h", x - r * 0.15, topY - 10);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Cylinder", x, topY - r - 30);
+    }
+  },
+  cone: {
+    label: "Cone",
+    solid: true,
+    params: [{ k: "radius", unit: "r", hint: "Base radius" }, { k: "height", unit: "h", hint: "Height" }],
+    area: (r, h) => Math.PI * r * (r + Math.sqrt(r * r + h * h)),
+    perimeter: null,
+    volume: (r, h) => (1 / 3) * Math.PI * r * r * h,
+    surface: null,
+    formulaArea: "A = πr(r + √(r²+h²))",
+    formulaPerimeter: null,
+    formulaVolume: "V = 1/3πr²h",
+    formulaSurface: null,
+    draw: (ctx, w, h, r, h, color, fill) => {
+      const x = w / 2, y = h / 2;
+      const topY = y - h / 2, botY = y + h / 2;
+      ctx.beginPath();
+      ctx.arc(x, topY, r, 0, Math.PI * 2);
+      ctx.lineTo(x, botY);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("r", x - r * 0.35, topY - r * 0.15);
+      ctx.fillText("h", x - r * 0.15, topY - 10);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Cone", x, topY - r - 30);
+    }
+  },
+  prism: {
+    label: "Prism",
+    solid: true,
+    params: [{ k: "base", unit: "b", hint: "Base side length" }, { k: "height", unit: "h", hint: "Height" }],
+    area: (b, h) => 2 * b * b + 4 * b * h,
+    perimeter: null,
+    volume: (b, h) => b * b * h,
+    surface: null,
+    formulaArea: "A = 2b² + 4bh",
+    formulaPerimeter: null,
+    formulaVolume: "V = b²h",
+    formulaSurface: null,
+    draw: (ctx, w, h, b, h, color, fill) => {
+      const x = w / 2, y = h / 2;
+      const pts = [
+        [x - b / 2, y - h / 2],
+        [x + b / 2, y - h / 2],
+        [x + b / 2, y + h / 2],
+        [x - b / 2, y + h / 2]
+      ];
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => {
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText("b", x, y - h / 2 - 10);
+      ctx.fillText("h", x, y + h / 2 + 10);
+      ctx.font = "bold 13px Arial";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Prism", x, y - h / 2 - 30);
+    }
+  }
+};
+
+// ---------- State ----------
+const state = {
+  shape: "circle",
+  params: {},
+  formulasVisible: true,
+  unit: "m"
+};
+
+// ---------- Helpers ----------
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d = 2) => n === null || isNaN(n) ? "—" : n.toFixed(d);
+const fmtBig = (n) => n === null || isNaN(n) ? "—" : n.toExponential(2);
+const toast = (msg, type = "info") => {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.className = "toast show " + (type === "error" ? "error" : "success");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 2500);
+};
+const validate = (key, v) => {
+  const p = SHAPES[state.shape].params.find(x => x.k === key);
+  if (!p) return true;
+  const min = parseFloat(p.hint.split(" ")[0]) || 0;
+  if (v <= min) return false;
+  return true;
+};
+
+// ---------- Render parameters ----------
+function renderParams() {
+  const container = $("#paramsContainer");
+  container.innerHTML = "";
+  const shape = SHAPES[state.shape];
+  shape.params.forEach(p => {
+    const field = document.createElement("div");
+    field.className = "field";
+    field.innerHTML = `
+      <label>${p.k}</label>
+      <input type="number" step="any" min="0.01" placeholder="Enter value" data-key="${p.k}" />
+      <span class="hint">${p.hint}</span>
+    `;
+    container.appendChild(field);
+  });
+  bindInputs(container);
+}
+
+function bindInputs(container) {
+  container.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const key = e.target.dataset.key;
+      const v = parseFloat(e.target.value);
+      if (isNaN(v) || v < 0) {
+        e.target.classList.add("invalid");
+        return;
+      }
+      e.target.classList.remove("invalid");
+      state.params[key] = v;
+      update();
+    });
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp") { e.target.value = parseFloat(e.target.value || 0) + 0.1; e.target.dispatchEvent(new Event("input")); }
+      if (e.key === "ArrowDown") { e.target.value = parseFloat(e.target.value || 0) - 0.1; e.target.dispatchEvent(new Event("input")); }
+    });
+  });
+}
+
+// ---------- Update UI ----------
+function update() {
+  const shape = SHAPES[state.shape];
+  const ctx = $("#preview").getContext("2d");
+  const wrap = $("#previewWrap");
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  const scale = Math.min(w / 300, h / 300);
+
+  // Clear
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw shape
+  const color = "#4a6cf7";
+  const fill = "rgba(74,108,247,0.12)";
+  const dim = {};
+  shape.params.forEach(p => {
+    dim[p.k] = state.params[p.k] || 0;
+  });
+
+  // Determine max dimension for scaling
+  let maxDim = 0;
+  Object.values(dim).forEach(v => { if (v > maxDim) maxDim = v; });
+  const r = Math.max(60, Math.min(w, h) * 0.35);
+  const s = r / (maxDim || 1);
+
+  shape.draw(ctx, w, h, dim.radius || r * s, dim.height || r * s, color, fill);
+
+  // Update results
+  renderResults(shape, dim);
+}
+
+// ---------- Results ----------
+function renderResults(shape, dim) {
+  const container = $("#resultsContainer");
+  container.innerHTML = "";
+
+  const area = shape.area ? fmt(shape.area(...Object.values(dim))) : null;
+  const perimeter = shape.perimeter ? fmt(shape.perimeter(...Object.values(dim))) : null;
+  const volume = shape.volume ? fmtBig(shape.volume(...Object.values(dim))) : null;
+  const surface = shape.surface ? fmtBig(shape.surface(...Object.values(dim))) : null;
+
+  const items = [
+    { k: "Area", v: area, unit: "m²", type: "area" },
+    { k: "Perimeter", v: perimeter, unit: "m", type: "perimeter" },
+    { k: "Volume", v: volume, unit: "m³", type: "volume" },
+    { k: "Surface Area", v: surface, unit: "m²", type: "surface" }
+  ].filter(x => x.v !== null);
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>No results yet. Enter parameters above.</div>`;
+    return;
+  }
+
+  items.forEach(it => {
+    const el = document.createElement("div");
+    el.className = "result";
+    el.innerHTML = `<div class="k">${it.k}</div><div class="v">${it.v}${it.unit}</div>`;
+    container.appendChild(el);
+  });
+
+  // Formulas
+  const formulas = [];
+  if (shape.formulaArea) formulas.push({ k: "Area", v: shape.formulaArea, type: "area" });
+  if (shape.formulaPerimeter) formulas.push({ k: "Perimeter", v: shape.formulaPerimeter, type: "perimeter" });
+  if (shape.formulaVolume) formulas.push({ k: "Volume", v: shape.formulaVolume, type: "volume" });
+  if (shape.formulaSurface) formulas.push({ k: "Surface Area", v: shape.formulaSurface, type: "surface" });
+
+  if (formulas.length > 0) {
+    const show = state.formulasVisible;
+    formulas.forEach(f => {
+      const el = document.createElement("div");
+      el.className = "formula" + (show ? " show" : "");
+      el.innerHTML = `<div class="formula-code">${f.v}</div>`;
+      container.appendChild(el);
+    });
+  }
+}
+
+// ---------- Shape selector ----------
+$("#shapeSelect").addEventListener("change", (e) => {
+  state.shape = e.target.value;
+  state.params = {};
+  renderParams();
+  update();
+});
+
+$("#formulaToggle").addEventListener("click", () => {
+  state.formulasVisible = !state.formulasVisible;
+  $("#formulaToggle").classList.toggle("active", state.formulasVisible);
+  $("#formulaLabel").textContent = state.formulasVisible ? "Hide" : "Show";
+  update();
+});
+
+$("#clearBtn").addEventListener("click", () => {
+  state.params = {};
+  $("#paramsContainer").querySelectorAll("input").forEach(i => { i.value = ""; i.classList.remove("invalid"); });
+  update();
+  toast("Parameters reset");
+});
+
+$("#copyBtn").addEventListener("click", async () => {
+  const shape = SHAPES[state.shape];
+  const dim = {};
+  shape.params.forEach(p => { dim[p.k] = state.params[p.k] || 0; });
+  const area = shape.area ? fmt(shape.area(...Object.values(dim))) : null;
+  const perimeter = shape.perimeter ? fmt(shape.perimeter(...Object.values(dim))) : null;
+  const volume = shape.volume ? fmtBig(shape.volume(...Object.values(dim))) : null;
+  const surface = shape.surface ? fmtBig(shape.surface(...Object.values(dim))) : null;
+
+  const lines = [
+    `Shape: ${shape.label}`,
+    `Parameters: ${shape.params.map(p => `${p.k} = ${state.params[p.k] || 0}`).join(", ")}`,
+    `Area: ${area} m²`,
+    `Perimeter: ${perimeter} m`,
+    `Volume: ${volume} m³`,
+    `Surface Area: ${surface} m²`
+  ].filter(l => l.includes(":") && l.split(":")[1].trim() !== "null" && l.split(":")[1].trim() !== "—");
+
+  if (lines.length === 0) { toast("Nothing to copy", "error"); return; }
+  await navigator.clipboard.writeText(lines.join("\n"));
+  toast("Results copied to clipboard");
+});
+
+$("#shareBtn").addEventListener("click", async () => {
+  const shape = SHAPES[state.shape];
+  const dim = {};
+  shape.params.forEach(p => { dim[p.k] = state.params[p.k] || 0; });
+  const area = shape.area ? fmt(shape.area(...Object.values(dim))) : null;
+  const perimeter = shape.perimeter ? fmt(shape.perimeter(...Object.values(dim))) : null;
+  const volume = shape.volume ? fmtBig(shape.volume(...Object.values(dim))) : null;
+  const surface = shape.surface ? fmtBig(shape.surface(...Object.values(dim))) : null;
+
+  const text = [
+    `Geometric Calculator · ${shape.label}`,
+    `r = ${dim.radius || 0} m`,
+    `Area = ${area} m²`,
+    `Perimeter = ${perimeter} m`,
+    `Volume = ${volume} m³`,
+    `Surface Area = ${surface} m²`
+  ].join("\n");
+
+  const shareData = { title: "Geometric Calculator", text };
+  if (navigator.share) {
+    navigator.share(shareData).catch(() => {});
+  } else {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Link ready (copy manually)");
+    } catch {
+      toast("Share not supported", "error");
+    }
+  }
+});
+
+// ---------- Resize ----------
+function resizeCanvas() {
+  const wrap = $("#previewWrap");
+  const canvas = $("#preview");
+  canvas.width = wrap.clientWidth * devicePixelRatio;
+  canvas.height = wrap.clientHeight * devicePixelRatio;
+  canvas.style.width = wrap.clientWidth + "px";
+  canvas.style.height = wrap.clientHeight + "px";
+  update();
+}
+window.addEventListener("resize", resizeCanvas);
+
+// ---------- Init ----------
+renderParams();
+resizeCanvas();
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Menu Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>/* styles.css not found in result */</style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <div class="brand">
+                <div class="logo">🍽️</div>
+                <h1>MenuHub</h1>
+            </div>
+            <nav class="main-nav">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('search') }}">Search</a>
+            </nav>
+            <div class="user-info">
+                {% if current_user.is_authenticated %}
+                    <span class="greet">Hi, {{ current_user.username }}!</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-ghost">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-outline">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="alert alert-{{ msg[1] }}">{{ msg[0] }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <p>&copy; 2025 MenuHub. Built for chefs & managers.</p>
+        </div>
+    </footer>
+</body>
+</html>

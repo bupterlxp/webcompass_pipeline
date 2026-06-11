@@ -1,0 +1,70 @@
+<html>
+    <head><meta charset="UTF-8"><title>SEO Report — {report['url']}</title>
+    <style>
+        body {{ font-family: system-ui, sans-serif; max-width: 900px; margin: 40px auto; color: #1f2937; }}
+        h1, h2, h3 {{ color: #0f172a; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 16px 0; }}
+        th, td {{ border: 1px solid #e5e7eb; padding: 10px; text-align: left; }}
+        th {{ background: #f3f4f6; font-weight: bold; }}
+        .ok {{ color: #16a34a; }}
+        .warn {{ color: #d97706; }}
+        .bad {{ color: #dc2626; }}
+        .meta {{ background: #f9fafb; padding: 12px; border-radius: 6px; margin: 8px 0; }}
+        .kw {{ background: #f3f4f6; }}
+        .kw strong {{ color: #94a3b8; }}
+    </style>
+    </head>
+    <body>
+        <h1>SEO Analysis Report</h1>
+        <p><strong>URL:</strong> <a href="{report['url']}" target="_blank">{report['url']}</a></p>
+        <p><strong>Date:</strong> {time.strftime('%Y-%m-%d %H:%M')}</p>
+        <p><strong>Status:</strong> <span class="ok">{report['status']}</span></p>
+
+        <h2>1. Meta Information</h2>
+        <div class="meta">
+            <p><strong>Page Title:</strong> <code>{report['title']}</code></p>
+            <p><strong>Meta Description:</strong> <code>{report['description']}</code></p>
+            <p><strong>Meta Title Length:</strong> {report['meta_title_length']} (ideal: 50–60)</p>
+            <p><strong>Meta Description Length:</strong> {report['meta_description_length']} (ideal: 150–160)</p>
+        </div>
+
+        <h2>2. Keyword Density</h2>
+        <table class="kw">
+            <thead><tr><th>Keyword</th><th>Count</th><th>Density</th></tr></thead>
+            <tbody>
+            {''.join(f'<tr><td><strong>{k}</strong></td><td>{c}</td><td>{c/len(report["text_content"].split())*100:.2f}%</td></tr>' for k, c in report['keyword_density'])}
+            </tbody>
+        </table>
+
+        <h2>3. Heading Structure</h2>
+        <table>
+            <tr><th>H1</th><td>{report['h1_count']}</td></tr>
+            <tr><th>H2</th><td>{report['h2_count']}</td></tr>
+            <tr><th>H3</th><td>{report['h3_count']}</td></tr>
+        </table>
+
+        <h2>4. Links</h2>
+        <table>
+            <tr><th>Internal</th><td>{report['internal_links_count']}</td></tr>
+            <tr><th>External</th><td>{report['external_links_count']}</td></tr>
+            <tr><th>Broken</th><td>{report['broken_links_count']}</td></tr>
+        </table>
+
+        <h2>5. Images</h2>
+        <table>
+            <tr><th>Total</th><td>{report['image_count']}</td></tr>
+            <tr><th>With alt</th><td>{report['image_alt_count']}</td></tr>
+            <tr><th>Alt density</th><td>{report['image_alt_density']:.1f}%</td></tr>
+        </table>
+
+        <h2>6. Technical</h2>
+        <table>
+            <tr><th>Canonical</th><td>{report['canonical']}</td></tr>
+            <tr><th>Robots</th><td>{report['robots']}</td></tr>
+            <tr><th>Page Speed</th><td>{report['speed_hint']}</td></tr>
+            <tr><th>Mobile</th><td>{report['mobile_hint']}</td></tr>
+        </table>
+
+        <p style="font-size: 0.9em; color: #64748b;">Tip: Use the <a href="https://www.semrush.com/" target="_blank">SEMrush</a> or <a href="https://www.ahrefs.com/" target="_blank">Ahrefs</a> tools for advanced audits.</p>
+    </body>
+    </html>

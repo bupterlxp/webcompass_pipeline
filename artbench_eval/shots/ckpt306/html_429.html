@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starship: Gravitational Escape</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  body { margin: 0; overflow: hidden; background: #000; }
+  canvas { display: block; }
+  #hud {
+    position: absolute; top: 10px; left: 10px; color: #fff;
+    font-family: 'Segoe UI', sans-serif; font-size: 16px;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8);
+    pointer-events: none;
+  }
+  #hud .bar {
+    display: inline-block; width: 180px; height: 14px;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    margin-right: 10px;
+  }
+  #hud .bar-fill {
+    height: 100%; background: #ff6b6b; width: 0%;
+  }
+  #hud .bar-label { display: block; font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div>Speed: <span id="speed">0.0</span>  ·  Time: <span id="time">0.0</span>  ·  Score: <span id="score">0</span></div>
+  <div class="bar"><div class="bar-fill" id="barFill"></div><div class="bar-label">Velocity</div></div>
+  <div>W / Up: accelerate · S / Down: brake · Mouse: look</div>
+</div>
+
+<script>
+// ---------- Game State ----------
+const state = {
+  camera: new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000),
+  scene: new THREE.Scene(),
+  renderer: new THREE.WebGLRenderer({ antialias: true }),
+  player: null,
+  planets: [],
+  stars: [],
+  target: null,
+  dt: 0,
+  score: 0,
+  time: 0,
+  speed: 0,
+  maxSpeed: 0,
+  minSpeed: 0,
+  distanceToTarget: 0,
+  targetReached: false,
+  lastTime: performance.now()
+};
+
+// ---------- Setup ----------
+state.renderer.setSize(window.innerWidth, window.innerHeight);
+state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(state.renderer.domElement);
+
+state.camera.position.set(0, 0, 10);
+
+// Soft white background
+state.scene.background = new THREE.Color(0x05070f);
+
+// Stars
+const starCount = 1200;
+for (let i = 0; i < starCount; i++) {
+  const s = new THREE.SphereGeometry(0.05, 4, 4);
+  const m = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
+  const o = new THREE.Object3D();
+  o.position.set(
+    (Math.random() - 0.5) * 300,
+    (Math.random() - 0.5) * 300,
+    (Math.random() - 0.5) * 300
+  );
+  o.scale.setScalar(1 + Math.random() * 0.6);
+  o.userData = { star: true };
+  state.scene.add(o);
+  state.stars.push(o);
+}
+
+// Planets
+const planetCount = 6;
+const planetColors = ['#ff9a56', '#4a90e2', '#8a2be2', '#32cd32', '#ff6b6b', '#ffd166'];
+for (let i = 0; i < planetCount; i++) {
+  const r = 1 + i * 1.2;
+  const p = new THREE.Object3D();
+  p.position.set(
+    (Math.random() - 0.5) * 200,
+    (Math.random() - 0.5) * 200,
+    (Math.random() - 0.5) * 200
+  );
+  p.position.normalize().multiplyScalar(r);
+  const geo = new THREE.SphereGeometry(1.2, 32, 32);
+  const mat = new THREE.MeshBasicMaterial({ color: planetColors[i % planetColors.length] });
+  const mesh = new THREE.Mesh(geo, mat);
+  p.add(mesh);
+  p.userData = { mass: 1 + i, radius: 1.2, name: 'Planet ' + (i + 1) };
+  state.scene.add(p);
+  state.planets.push(p);
+}
+
+// Target star (far away)
+state.target = new THREE.Object3D();
+state.target.position.set(0, 0, 200);
+state.target.userData = { target: true };
+state.scene.add(state.target);
+
+// Player ship
+const shipGeo = new THREE.SphereGeometry(0.4, 16, 16);
+const shipMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+state.player = new THREE.Mesh(shipGeo, shipMat);
+state.scene.add(state.player);
+state.player.userData = { thrust: 0, forward: new THREE.Vector3() };
+
+// Lights
+const ambient = new THREE.AmbientLight(0x404060, 0.6);
+state.scene.add(ambient);
+const sun = new THREE.PointLight(0xfff6d5, 1.2, 300);
+sun.position.set(100, 80, 50);
+state.scene.add(sun);
+
+// ---------- Input ----------
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  if (keys[e.key]) return;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  keys[e.key] = true;
+  if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+    state.player.userData.thrust = 0.00002;
+  } else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+    state.player.userData.thrust = -0.00002;
+  }
+});
+window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+window.addEventListener('blur', () => { keys = {}; });
+
+// ---------- Mouse look ----------
+let yaw = 0, pitch = 0;
+state.camera.position.set(0, 0, 10);
+state.camera.lookAt(0, 0, 0);
+
+const mouse = new THREE.Vector2();
+window.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+window.addEventListener('touchmove', (e) => {
+  if (e.touches[0]) {
+    mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+  }
+}, { passive: false });
+
+// ---------- Resize ----------
+window.addEventListener('resize', () => {
+  state.camera.aspect = window.innerWidth / window.innerHeight;
+  state.camera.updateProjectionMatrix();
+  state.renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- Update ----------
+function update(dt) {
+  state.dt = dt;
+
+  // Mouse look
+  const sens = 0.0015;
+  yaw += mouse.x * sens;
+  pitch = THREE.MathUtils.clamp(pitch + mouse.y * sens, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+
+  // Forward vector
+  const f = new THREE.Vector3();
+  f.setFromSpherical(new THREE.Spherical(1, yaw, pitch));
+  state.player.userData.forward.copy(f);
+
+  // Thrust
+  const thrust = state.player.userData.thrust;
+  const forward = state.player.userData.forward.clone().multiplyScalar(thrust * dt * 400);
+
+  // Apply thrust
+  const vel = state.player.position.clone().sub(state.player.userData.lastPos || state.player.position).multiplyScalar(1 / dt);
+  state.player.userData.lastPos = state.player.position.clone();
+  state.player.userData.vel = vel;
+  state.player.position.add(forward);
+
+  // Gravity from planets
+  const gravity = new THREE.Vector3();
+  for (const p of state.planets) {
+    const d = p.position.clone().sub(state.player.position).length();
+    if (d < p.userData.radius + 0.4) {
+      // collision: slow down
+      state.player.userData.thrust = -0.00005;
+    }
+    if (d > 0.01) {
+      const dir = p.position.clone().sub(state.player.position).normalize();
+      gravity.add(dir.multiplyScalar(p.userData.mass / (d * d)));
+    }
+  }
+  state.player.userData.vel.add(gravity.multiplyScalar(dt * 10));
+
+  // Update player orientation
+  const dir = state.player.userData.vel.clone().normalize();
+  const up = new THREE.Vector3(0, 1, 0);
+  const right = new THREE.Vector3().crossVectors(dir, up).normalize();
+  const look = new THREE.Matrix4().makeBasis(right, up, dir);
+  state.player.applyMatrix4(look);
+
+  // Target distance
+  const t = state.target.position.clone().sub(state.player.position);
+  state.distanceToTarget = t.length();
+
+  // Score
+  state.speed = state.player.userData.vel.length();
+  state.maxSpeed = Math.max(state.maxSpeed, state.speed);
+  state.minSpeed = Math.min(state.minSpeed, state.speed);
+  state.score = state.speed * state.time;
+  state.time += dt;
+
+  // HUD
+  document.getElementById('speed').textContent = state.speed.toFixed(2);
+  document.getElementById('time').textContent = state.time.toFixed(1);
+  document.getElementById('score').textContent = Math.round(state.score);
+  const pct = Math.min(100, (state.speed / 0.5) * 100);
+  document.getElementById('barFill').style.width = pct + '%';
+
+  // Target reached?
+  if (!state.targetReached && state.distanceToTarget < 1.5) {
+    state.targetReached = true;
+    alert('You reached the target star! Final Score: ' + Math.round(state.score));
+  }
+
+  // Move camera smoothly toward player
+  state.camera.position.lerp(state.player.position, 0.08);
+  state.camera.lookAt(state.player.position);
+
+  // Move stars
+  for (const s of state.stars) {
+    s.position.x += (Math.random() - 0.5) * 0.02 * dt;
+    s.position.y += (Math.random() - 0.5) * 0.02 * dt;
+    s.position.z += (Math.random() - 0.5) * 0.02 * dt;
+  }
+}
+
+// ---------- Loop ----------
+function loop(now) {
+  const dt = Math.min(0.05, (now - state.lastTime) / 1000);
+  state.lastTime = now;
+  update(dt);
+  state.renderer.render(state.scene, state.camera);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

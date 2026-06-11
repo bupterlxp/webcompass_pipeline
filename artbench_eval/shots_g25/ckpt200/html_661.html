@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lab Instrument System — Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>/* styles.css not found in result */</style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>Lab Instrument System</h2>
+        <p class="subtitle">Sign in to continue</p>
+        <form method="POST" class="form" role="form">
+            {{ form.hidden_tag() }}
+            <div class="field">
+                <label for="{{ form.username.id }}">{{ form.username.label.text }}</label>
+                {{ form.username(class="input") }}
+                {% if form.username.errors %}
+                    <span class="error">{{ form.username.errors[0] }}</span>
+                {% endif %}
+            </div>
+            <div class="field">
+                <label for="{{ form.password.id }}">{{ form.password.label.text }}</label>
+                {{ form.password(class="input") }}
+                {% if form.password.errors %}
+                    <span class="error">{{ form.password.errors[0] }}</span>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+        </form>
+        <p class="hint">Demo accounts: <strong>admin / admin123</strong> or <strong>user / user123</strong></p>
+    </div>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

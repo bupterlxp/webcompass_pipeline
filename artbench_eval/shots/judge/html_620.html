@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Graphic Video Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        canvas {
+            background: #ffffff;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: block;
+            width: 100%;
+            max-width: 640px;
+            height: 360px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        button, select, input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        .element-list {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            width: 100%;
+        }
+        .element-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align: center; margin-top: 0;">Dynamic Graphic Video Generator</h2>
+    
+    <!-- Canvas for rendering graphics and animations -->
+    <canvas id="videoCanvas" width="640" height="360"></canvas>
+
+    <div class="controls">
+        <button onclick="addShape('rectangle')">+ Add Rectangle</button>
+        <button onclick="addShape('circle')">+ Add Circle</button>
+        <button class="success" onclick="playPreview()">▶ Play Preview</button>
+        <button class="danger" onclick="stopPreview()">■ Stop</button>
+        <button class="success" onclick="exportVideo()">💾 Export Video (WebM)</button>
+    </div>
+
+    <div class="element-list" id="elementList">
+        <!-- Dynamic list of added elements will appear here -->
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('videoCanvas');
+    const ctx = canvas.getContext('2d');
+    const elementListDiv = document.getElementById('elementList');
+
+    // State management
+    let elements = [];
+    let isPlaying = false;
+    let animationStartTime = 0;
+    let animationFrameId;
+    
+    // Video Export variables
+    let mediaRecorder;
+    let recordedChunks = [];
+
+    // Add a new shape to the scene
+    function addShape(type) {
+        const id = Date.now();
+        const newElement = {
+            id: id,
+            type: type,
+            x: 100,
+            y: 180,
+            size: 50,
+            color: '#' + Math.floor(Math.random()*16777215).toString(16),
+            animation: 'moveRight', // moveRight, scaleUp, fadeIn
+            delay: 0, // in seconds
+            duration: 2 // in seconds
+        };
+        elements.push(newElement);
+        renderElementList();
+        drawStatic();
+    }
+
+    // Remove a shape
+    function removeShape(id) {
+        elements = elements.filter(el => el.id !== id);
+        renderElementList();
+        drawStatic();
+    }
+
+    // Update shape properties from UI
+    function updateShape(id, field, value) {
+        const el = elements.find(e => e.id === id);
+        if (el) {
+            el[field] = field === 'color' || field === 'animation' ? value : parseFloat(value);
+            drawStatic();
+        }
+    }
+
+    // Render the UI list of elements
+    function renderElementList() {
+        elementListDiv.innerHTML = '<h3>Elements Timeline</h3>';
+        if (elements.length === 0) {
+            elementListDiv.innerHTML += '<p style="color: #666;">No elements added yet.</p>';
+            return;
+        }
+
+        elements.forEach((el, index) => {
+            const div = document.createElement('div');
+            div.className = 'element-item';
+            div.innerHTML = `
+                <strong>${el.type.toUpperCase()}</strong>
+                <input type="color" value="${el.color}" onchange="updateShape(${el.id}, 'color', this.value)">
+                <select onchange="updateShape(${el.id}, 'animation', this.value)">
+                    <option value="moveRight" ${el.animation === 'moveRight' ? 'selected' : ''}>Move Right</option>
+                    <option value="scaleUp" ${el.animation === 'scaleUp' ? 'selected' : ''}>Scale Up</option>
+                    <option value="fadeIn" ${el.animation === 'fadeIn' ? 'selected' : ''}>Fade In</option>
+                </select>
+                <label>Delay (s): <input type="number" step="0.5" min="0" value="${el.delay}" style="width: 60px;" onchange="updateShape(${el.id}, 'delay', this.value)"></label>
+                <label>Duration (s): <input type="number" step="0.5" min="0.5" value="${el.duration}" style="width: 60px;" onchange="updateShape(${el.id}, 'duration', this.value)"></label>
+                <button class="danger" onclick="removeShape(${el.id})">X</button>
+            `;
+            elementListDiv.appendChild(div);
+        });
+    }
+
+    // Draw static frame (when not playing)
+    function drawStatic() {
+        if (isPlaying) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        elements.forEach(el => drawElement(el, 1)); // Draw at final state
+    }
+
+    // Draw a single element based on progress (0 to 1)
+    function drawElement(el, progress) {
+        ctx.save();
+        
+        let currentX = el.x;
+        let currentY = el.y;
+        let currentSize = el.size;
+        let currentAlpha = 1;
+
+        // Apply animation effects based on progress
+        if (el.animation === 'moveRight') {
+            currentX = el.x + (progress * 400); // Move 400px to the right
+        } else if (el.animation === 'scaleUp') {
+            currentSize = el.size * (0.1 + progress * 1.5); // Scale from 10% to 160%
+        } else if (el.animation === 'fadeIn') {
+            currentAlpha = progress;
+        }
+
+        ctx.globalAlpha = currentAlpha;
+        ctx.fillStyle = el.color;
+        ctx.beginPath();
+
+        if (el.type === 'rectangle') {
+            ctx.rect(currentX, currentY - currentSize/2, currentSize * 1.5, currentSize);
+        } else if (el.type === 'circle') {
+            ctx.arc(currentX, currentY, currentSize, 0, Math.PI * 2);
+        }
+
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Animation Loop
+    function animate(timestamp) {
+        if (!isPlaying) return;
+        if (!animationStartTime) animationStartTime = timestamp;
+        
+        const elapsedSeconds = (timestamp - animationStartTime) / 1000;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let allFinished = true;
+
+        elements.forEach(el => {
+            // Calculate progress for this specific element based on its delay and duration
+            let progress = 0;
+            if (elapsedSeconds >= el.delay) {
+                progress = (elapsedSeconds - el.delay) / el.duration;
+                if (progress > 1) progress = 1;
+                if (progress < 1) allFinished = false;
+            } else {
+                allFinished = false;
+            }
+
+            if (elapsedSeconds >= el.delay) {
+                drawElement(el, progress);
+            }
+        });
+
+        if (allFinished && elapsedSeconds > 0.5) {
+            // Stop automatically if all animations are done
+            stopPreview();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        } else {
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    }
+
+    // Play the preview
+    function playPreview() {
+        stopPreview();
+        isPlaying = true;
+        animationStartTime = 0;
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // Stop the preview
+    function stopPreview() {
+        isPlaying = false;
+        cancelAnimationFrame(animationFrameId);
+        drawStatic();
+    }
+
+    // Export Video using MediaRecorder API
+    function exportVideo() {
+        if (elements.length === 0) {
+            alert("Please add some elements first!");
+            return;
+        }
+
+        // Capture stream from canvas (30 fps)
+        const stream = canvas.captureStream(30);
+        recordedChunks = [];
+        
+        try {
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+        } catch (e) {
+            mediaRecorder = new MediaRecorder(stream); // Fallback
+        }
+
+        mediaRecorder.ondataavailable = function(event) {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = function() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'dynamic_graphic_video.webm';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+            alert("Video exported successfully!");
+        };
+
+        // Start recording and playing
+        mediaRecorder.start();
+        playPreview();
+    }
+
+    // Initialize with one default shape
+    addShape('circle');
+</script>
+
+</body>
+</html>

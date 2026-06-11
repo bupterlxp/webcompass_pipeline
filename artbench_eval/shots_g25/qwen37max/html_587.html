@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Video Subtitle Studio</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #1a1a2e; color: #eee; min-height: 100vh;
+}
+.app { max-width: 1400px; margin: 0 auto; padding: 20px; }
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px; background: #16213e; border-radius: 10px; margin-bottom: 20px;
+}
+h1 { font-size: 1.5rem; }
+.upload-area { display: flex; gap: 15px; align-items: center; }
+button {
+  background: #0f3460; color: #fff; border: none; padding: 10px 18px;
+  border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s;
+}
+button:hover:not(:disabled) { background: #e94560; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.danger { background: #c0392b; }
+
+main { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+.preview-panel, .editor-panel {
+  background: #16213e; padding: 20px; border-radius: 10px;
+}
+.video-wrapper {
+  background: #000; border-radius: 8px; overflow: hidden;
+  aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+}
+video { width: 100%; height: 100%; }
+
+.timeline { margin-top: 15px; }
+.time-display { font-family: monospace; margin-bottom: 8px; font-size: 14px; }
+.timeline-track {
+  position: relative; height: 40px; background: #0f3460;
+  border-radius: 6px; cursor: pointer; overflow: hidden;
+}
+.timeline-progress {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: rgba(233, 69, 96, 0.3); pointer-events: none;
+}
+.timeline-markers { position: absolute; inset: 0; }
+.timeline-marker {
+  position: absolute; top: 0; height: 100%;
+  background: rgba(46, 204, 113, 0.5); border: 1px solid #2ecc71;
+  cursor: pointer; transition: 0.2s;
+}
+.timeline-marker:hover, .timeline-marker.active {
+  background: rgba(46, 204, 113, 0.8);
+}
+.timeline-cursor {
+  position: absolute; top: 0; width: 2px; height: 100%;
+  background: #e94560; pointer-events: none;
+}
+
+.controls { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+
+.subtitle-list {
+  max-height: 300px; overflow-y: auto; margin-bottom: 15px;
+}
+.subtitle-item {
+  background: #0f3460; padding: 10px; border-radius: 6px;
+  margin-bottom: 8px; cursor: pointer; border-left: 4px solid #2ecc71;
+}
+.subtitle-item.active { border-left-color: #e94560; background: #1e3a6f; }
+.subtitle-item .meta { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+.style-editor { background: #0f3460; padding: 15px; border-radius: 8px; }
+.style-editor h3 { margin-bottom: 12px; }
+.style-editor label {
+  display: block; margin-bottom: 10px; font-size: 13px;
+}
+.style-editor input, .style-editor select, .style-editor textarea {
+  width: 100%; padding: 8px; margin-top: 4px;
+  background: #16213e; color: #fff; border: 1px solid #2a4a7f;
+  border-radius: 4px; font-family: inherit;
+}
+.style-editor textarea { resize: vertical; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.status {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #0f3460; padding: 12px 20px; border-radius: 6px;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.status.show { display: block; }
+.status.error { background: #c0392b; }
+.status.success { background: #27ae60; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🎬 Video Subtitle Studio</h1>
+    <div class="upload-area" id="uploadArea">
+      <input type="file" id="videoInput" accept="video/*" hidden>
+      <button id="uploadBtn">📁 Upload Video</button>
+      <span id="videoName">No video loaded</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="preview-panel">
+      <div class="video-wrapper">
+        <video id="video" controls></video>
+      </div>
+
+      <div class="timeline">
+        <div class="time-display">
+          <span id="currentTime">0.00</span> / <span id="duration">0.00</span>s
+        </div>
+        <div class="timeline-track" id="timelineTrack">
+          <div class="timeline-progress" id="timelineProgress"></div>
+          <div class="timeline-markers" id="timelineMarkers"></div>
+          <div class="timeline-cursor" id="timelineCursor"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="playBtn">▶ Play</button>
+        <button id="addSubBtn" disabled>➕ Add Subtitle at Current Time</button>
+        <button id="exportBtn" disabled>💾 Export Video</button>
+      </div>
+    </section>
+
+    <section class="editor-panel">
+      <h2>Subtitles</h2>
+      <div id="subtitleList" class="subtitle-list"></div>
+
+      <div id="styleEditor" class="style-editor" style="display:none;">
+        <h3>Edit Subtitle</h3>
+        <label>Text
+          <textarea id="subText" rows="2"></textarea>
+        </label>
+        <div class="row">
+          <label>Start (s) <input type="number" id="subStart" step="0.1"></label>
+          <label>End (s) <input type="number" id="subEnd" step="0.1"></label>
+        </div>
+        <div class="row">
+          <label>Font
+            <select id="subFont"></select>
+          </label>
+          <label>Size <input type="number" id="subSize" value="36" min="10" max="200"></label>
+        </div>
+        <div class="row">
+          <label>Text Color <input type="color" id="subColor" value="#FFFFFF"></label>
+          <label>BG Color <input type="color" id="subBg" value="#000000"></label>
+        </div>
+        <label>BG Opacity: <span id="opacityVal">0.6</span>
+          <input type="range" id="subOpacity" min="0" max="1" step="0.05" value="0.6">
+        </label>
+        <label>Position
+          <select id="subPosition">
+            <option value="bottom">Bottom</option>
+            <option value="center">Center</option>
+            <option value="top">Top</option>
+          </select>
+        </label>
+        <div class="row">
+          <button id="saveSubBtn">✓ Save</button>
+          <button id="deleteSubBtn" class="danger">🗑 Delete</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="status" class="status"></div>
+</div>
+<script>const state = {
+  video: null,
+  filename: null,
+  duration: 0,
+  subtitles: [],
+  currentSubId: null,
+  fonts: []
+};
+
+const $ = id => document.getElementById(id);
+
+function showStatus(msg, type = "info") {
+  const s = $("status");
+  s.textContent = msg;
+  s.className = "status show " + type;
+  setTimeout(() => s.className = "status", 3500);
+}
+
+async function loadFonts() {
+  const res = await fetch("/fonts");
+  state.fonts = await res.json();
+  const sel = $("subFont");
+  sel.innerHTML = state.fonts.map(f => `<option value="${f}">${f}</option>`).join("");
+}
+
+$("uploadBtn").onclick = () => $("videoInput").click();
+
+$("videoInput").onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  showStatus("Uploading...");
+  const fd = new FormData();
+  fd.append("video", file);
+  try {
+    const res = await fetch("/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    state.filename = data.filename;
+    state.duration = data.duration;
+    $("video").src = data.url;
+    $("videoName").textContent = file.name;
+    $("duration").textContent = data.duration.toFixed(2);
+    $("addSubBtn").disabled = false;
+    $("exportBtn").disabled = false;
+    showStatus("Video loaded!", "success");
+  } catch (err) {
+    showStatus("Upload failed: " + err.message, "error");
+  }
+};
+
+const video = $("video");
+video.ontimeupdate = () => {
+  $("currentTime").textContent = video.currentTime.toFixed(2);
+  const pct = (video.currentTime / state.duration) * 100;
+  $("timelineProgress").style.width = pct + "%";
+  $("timelineCursor").style.left = pct + "%";
+  highlightActiveSubtitle();
+};
+
+$("playBtn").onclick = () => {
+  if (video.paused) video.play(); else video.pause();
+};
+
+$("timelineTrack").onclick = e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  video.currentTime = pct * state.duration;
+};
+
+$("addSubBtn").onclick = () => {
+  const start = video.currentTime;
+  const end = Math.min(start + 3, state.duration);
+  const sub = {
+    id: Date.now(),
+    text: "New subtitle",
+    start, end,
+    style: {
+      font: state.fonts[0] || "default.ttf",
+      fontSize: 36,
+      textColor: "#FFFFFF",
+      bgColor: "#000000",
+      bgOpacity: 0.6,
+      position: "bottom"
+    }
+  };
+  state.subtitles.push(sub);
+  renderSubtitles();
+  selectSubtitle(sub.id);
+};
+
+function renderSubtitles() {
+  const list = $("subtitleList");
+  list.innerHTML = state.subtitles.map(s => `
+    <div class="subtitle-item ${s.id === state.currentSubId ? 'active' : ''}"
+         data-id="${s.id}">
+      <div>${escapeHtml(s.text)}</div>
+      <div class="meta">${s.start.toFixed(2)}s → ${s.end.toFixed(2)}s</div>
+    </div>
+  `).join("") || "<p style='color:#888'>No subtitles yet.</p>";
+
+  list.querySelectorAll(".subtitle-item").forEach(el => {
+    el.onclick = () => selectSubtitle(parseInt(el.dataset.id));
+  });
+
+  renderTimelineMarkers();
+}
+
+function renderTimelineMarkers() {
+  const container = $("timelineMarkers");
+  container.innerHTML = state.subtitles.map(s => {
+    const left = (s.start / state.duration) * 100;
+    const width = ((s.end - s.start) / state.duration) * 100;
+    return `<div class="timeline-marker ${s.id === state.currentSubId ? 'active' : ''}"
+                 style="left:${left}%;width:${width}%" data-id="${s.id}"></div>`;
+  }).join("");
+  container.querySelectorAll(".timeline-marker").forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      selectSubtitle(parseInt(el.dataset.id));
+      video.currentTime = state.subtitles.find(s => s.id === parseInt(el.dataset.id)).start;
+    };
+  });
+}
+
+function selectSubtitle(id) {
+  state.currentSubId = id;
+  const sub = state.subtitles.find(s => s.id === id);
+  if (!sub) return;
+  $("styleEditor").style.display = "block";
+  $("subText").value = sub.text;
+  $("subStart").value = sub.start.toFixed(2);
+  $("subEnd").value = sub.end.toFixed(2);
+  $("subFont").value = sub.style.font;
+  $("subSize").value = sub.style.fontSize;
+  $("subColor").value = sub.style.textColor;
+  $("subBg").value = sub.style.bgColor;
+  $("subOpacity").value = sub.style.bgOpacity;
+  $("opacityVal").textContent = sub.style.bgOpacity;
+  $("subPosition").value = sub.style.position;
+  renderSubtitles();
+}
+
+function highlightActiveSubtitle() {
+  const t = video.currentTime;
+  const active = state.subtitles.find(s => t >= s.start && t <= s.end);
+  document.querySelectorAll(".timeline-marker").forEach(el => {
+    const id = parseInt(el.dataset.id);
+    el.classList.toggle("active", active && active.id === id);
+  });
+}
+
+["subText","subStart","subEnd","subFont","subSize","subColor","subBg","subOpacity","subPosition"]
+  .forEach(id => $(id).oninput = updateCurrentSubtitle);
+
+function updateCurrentSubtitle() {
+  const sub = state.subtitles.find(s => s.id === state.currentSubId);
+  if (!sub) return;
+  sub.text = $("subText").value;
+  sub.start = parseFloat($("subStart").value) || 0;
+  sub.end = parseFloat($("subEnd").value) || state.duration;
+  sub.style = {
+    font: $("subFont").value,
+    fontSize: parseInt($("subSize").value),
+    textColor: $("subColor").value,
+    bgColor: $("subBg").value,
+    bgOpacity: parseFloat($("subOpacity").value),
+    position: $("subPosition").value
+  };
+  $("opacityVal").textContent = sub.style.bgOpacity.toFixed(2);
+  renderSubtitles();
+}
+
+$("saveSubBtn").onclick = () => {
+  showStatus("Subtitle saved", "success");
+};
+
+$("deleteSubBtn").onclick = () => {
+  state.subtitles = state.subtitles.filter(s => s.id !== state.currentSubId);
+  state.currentSubId = null;
+  $("styleEditor").style.display = "none";
+  renderSubtitles();
+};
+
+$("exportBtn").onclick = async () => {
+  if (!state.filename) return;
+  showStatus("Rendering video... this may take a while");
+  $("exportBtn").disabled = true;
+  try {
+    const res = await fetch("/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: state.filename, subtitles: state.subtitles })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showStatus("Export complete! Downloading...", "success");
+    const a = document.createElement("a");
+    a.href = data.url;
+    a.download = data.filename;
+    a.click();
+  } catch (err) {
+    showStatus("Export failed: " + err.message, "error");
+  } finally {
+    $("exportBtn").disabled = false;
+  }
+};
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+loadFonts();
+</script></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Segmentation Labeling Tool</title>
+    <!-- Load Wavesurfer.js and Regions plugin -->
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        #waveform {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background-color: #0056b3; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        input[type="text"] {
+            padding: 6px;
+            width: 90%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .instructions {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Audio Segmentation Labeling Tool</h2>
+
+    <div class="card">
+        <div class="controls">
+            <input type="file" id="audioUpload" accept="audio/*" />
+            <button id="playPauseBtn" disabled>Play / Pause</button>
+        </div>
+        
+        <p class="instructions"><strong>Instructions:</strong> Upload an audio file. Click and drag on the waveform below to create a time segment. You can resize or move segments after creating them.</p>
+        
+        <div id="waveform"></div>
+    </div>
+
+    <div class="card">
+        <h3>Segment Labels</h3>
+        <button id="exportBtn" class="success">Export to JSON</button>
+        
+        <table id="segmentsTable">
+            <thead>
+                <tr>
+                    <th>Start Time (s)</th>
+                    <th>End Time (s)</th>
+                    <th>Label</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="segmentsBody">
+                <!-- Segment rows will appear here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let wavesurfer;
+        let wsRegions;
+        const segmentsData = {}; // Store segment data by region ID
+
+        // Initialize Wavesurfer
+        function initWaveSurfer() {
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#4a90e2',
+                progressColor: '#0056b3',
+                cursorColor: '#333',
+                barWidth: 2,
+                height: 128,
+                normalize: true
+            });
+
+            // Initialize Regions plugin
+            wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+
+            // Enable drag to create regions
+            wsRegions.enableDragSelection({
+                color: 'rgba(0, 123, 255, 0.2)'
+            });
+
+            // Event: Region Created
+            wsRegions.on('region-created', (region) => {
+                segmentsData[region.id] = {
+                    start: region.start,
+                    end: region.end,
+                    label: ''
+                };
+                renderTable();
+            });
+
+            // Event: Region Updated (moved/resized)
+            wsRegions.on('region-updated', (region) => {
+                if (segmentsData[region.id]) {
+                    segmentsData[region.id].start = region.start;
+                    segmentsData[region.id].end = region.end;
+                    renderTable();
+                }
+            });
+        }
+
+        // Handle Audio Upload
+        document.getElementById('audioUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (!wavesurfer) initWaveSurfer();
+                
+                const objectUrl = URL.createObjectURL(file);
+                wavesurfer.load(objectUrl);
+                
+                document.getElementById('playPauseBtn').disabled = false;
+                
+                // Clear previous regions
+                wsRegions.clearRegions();
+                for (let key in segmentsData) delete segmentsData[key];
+                renderTable();
+            }
+        });
+
+        // Play/Pause Button
+        document.getElementById('playPauseBtn').addEventListener('click', () => {
+            if (wavesurfer) wavesurfer.playPause();
+        });
+
+        // Render the Segments Table
+        function renderTable() {
+            const tbody = document.getElementById('segmentsBody');
+            tbody.innerHTML = '';
+
+            // Sort regions by start time
+            const sortedIds = Object.keys(segmentsData).sort((a, b) => segmentsData[a].start - segmentsData[b].start);
+
+            sortedIds.forEach(id => {
+                const data = segmentsData[id];
+                const tr = document.createElement('tr');
+
+                tr.innerHTML = `
+                    <td>${data.start.toFixed(3)}</td>
+                    <td>${data.end.toFixed(3)}</td>
+                    <td><input type="text" placeholder="Enter label..." value="${data.label}" onchange="updateLabel('${id}', this.value)"></td>
+                    <td>
+                        <button class="danger" onclick="deleteRegion('${id}')">Delete</button>
+                        <button onclick="playRegion('${id}')">Play</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Update Label in data store
+        window.updateLabel = function(id, value) {
+            if (segmentsData[id]) {
+                segmentsData[id].label = value;
+            }
+        };
+
+        // Delete Region
+        window.deleteRegion = function(id) {
+            const regions = wsRegions.getRegions();
+            const region = regions.find(r => r.id === id);
+            if (region) {
+                region.remove();
+            }
+            delete segmentsData[id];
+            renderTable();
+        };
+
+        // Play specific region
+        window.playRegion = function(id) {
+            const regions = wsRegions.getRegions();
+            const region = regions.find(r => r.id === id);
+            if (region) {
+                region.play();
+            }
+        };
+
+        // Export to JSON
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (Object.keys(segmentsData).length === 0) {
+                alert("No segments to export!");
+                return;
+            }
+
+            // Format data for export
+            const exportData = Object.values(segmentsData)
+                .sort((a, b) => a.start - b.start)
+                .map(seg => ({
+                    start_time: parseFloat(seg.start.toFixed(3)),
+                    end_time: parseFloat(seg.end.toFixed(3)),
+                    label: seg.label
+                }));
+
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'audio_segments.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Initialize on load
+        initWaveSurfer();
+    </script>
+</body>
+</html>

@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sandbox Shooter Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1d23; color: #e4e6eb; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  #topbar { background: #242831; padding: 8px 14px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #333842; }
+  #topbar h1 { font-size: 15px; font-weight: 600; color: #7cc4ff; margin-right: 14px; }
+  .btn { background: #3a4050; color: #e4e6eb; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background .15s; }
+  .btn:hover { background: #4a5166; }
+  .btn.primary { background: #2d7dd2; }
+  .btn.primary:hover { background: #3a8ee0; }
+  .btn.danger { background: #c0392b; }
+  .btn.danger:hover { background: #d44637; }
+  .btn.success { background: #27ae60; }
+  .btn.success:hover { background: #2ecc71; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  #mode-indicator { margin-left: auto; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .mode-edit { background: #2d7dd2; }
+  .mode-test { background: #e67e22; }
+  #main { flex: 1; display: flex; overflow: hidden; }
+  #toolbar { width: 180px; background: #242831; padding: 12px; border-right: 1px solid #333842; overflow-y: auto; }
+  #toolbar h3 { font-size: 11px; text-transform: uppercase; color: #8a92a6; margin: 10px 0 6px; letter-spacing: .5px; }
+  .tool { padding: 8px 10px; margin-bottom: 4px; background: #2e333f; border-radius: 4px; cursor: grab; font-size: 13px; display: flex; align-items: center; gap: 8px; border: 2px solid transparent; }
+  .tool:hover { background: #3a4050; }
+  .tool.active { border-color: #7cc4ff; background: #2d4a6b; }
+  .tool-icon { width: 18px; height: 18px; display: inline-block; border-radius: 3px; }
+  #canvas-wrap { flex: 1; position: relative; background: #0f1115; overflow: hidden; }
+  canvas { display: block; cursor: crosshair; }
+  #properties { width: 260px; background: #242831; padding: 14px; border-left: 1px solid #333842; overflow-y: auto; }
+  #properties h3 { font-size: 13px; margin-bottom: 10px; color: #7cc4ff; }
+  .prop-row { margin-bottom: 10px; }
+  .prop-row label { display: block; font-size: 11px; color: #8a92a6; margin-bottom: 3px; text-transform: uppercase; }
+  .prop-row input, .prop-row select { width: 100%; padding: 5px 7px; background: #1a1d23; border: 1px solid #333842; color: #e4e6eb; border-radius: 3px; font-size: 13px; }
+  .prop-row input[type=range] { padding: 0; }
+  .empty-msg { color: #6a7182; font-size: 12px; font-style: italic; text-align: center; padding: 20px 0; }
+  #status { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,.6); padding: 6px 10px; border-radius: 4px; font-size: 12px; pointer-events: none; }
+  #hud { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); padding: 8px 12px; border-radius: 4px; font-size: 13px; display: none; }
+  #hud div { margin: 2px 0; }
+  .bar { display: inline-block; width: 100px; height: 8px; background: #333; border-radius: 4px; overflow: hidden; vertical-align: middle; margin-left: 6px; }
+  .bar > div { height: 100%; transition: width .2s; }
+  #result { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,.85); padding: 30px 50px; border-radius: 8px; text-align: center; display: none; }
+  #result h2 { font-size: 32px; margin-bottom: 14px; }
+  .win { color: #2ecc71; }
+  .lose { color: #e74c3c; }
+  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+  #modal-box { background: #242831; padding: 20px; border-radius: 6px; width: 500px; max-width: 90%; }
+  #modal-box h3 { margin-bottom: 10px; }
+  #modal-box textarea { width: 100%; height: 180px; background: #1a1d23; color: #e4e6eb; border: 1px solid #333842; padding: 8px; font-family: monospace; font-size: 11px; border-radius: 3px; }
+  #modal-box .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>🎯 Sandbox Shooter Editor</h1>
+  <button class="btn" id="btn-objective">🎯 Objective</button>
+  <button class="btn" id="btn-clear">🗑 Clear</button>
+  <button class="btn" id="btn-save">💾 Save</button>
+  <button class="btn" id="btn-load">📂 Load</button>
+  <button class="btn" id="btn-share">🔗 Share</button>
+  <button class="btn" id="btn-import">📥 Import</button>
+  <button class="btn success" id="btn-test">▶ Test Level</button>
+  <button class="btn danger" id="btn-stop" style="display:none">■ Stop</button>
+  <span id="mode-indicator" class="mode-edit">EDIT MODE</span>
+</div>
+
+<div id="main">
+  <div id="toolbar">
+    <h3>Tools</h3>
+    <div class="tool active" data-tool="select"><span class="tool-icon" style="background:#8a92a6"></span>Select / Move</div>
+    <h3>Entities</h3>
+    <div class="tool" data-tool="spawn"><span class="tool-icon" style="background:#2ecc71"></span>Player Spawn</div>
+    <div class="tool" data-tool="goal"><span class="tool-icon" style="background:#f1c40f"></span>Goal Point</div>
+    <div class="tool" data-tool="enemy"><span class="tool-icon" style="background:#e74c3c"></span>Enemy</div>
+    <div class="tool" data-tool="obstacle"><span class="tool-icon" style="background:#7f8c8d"></span>Obstacle</div>
+    <div class="tool" data-tool="prop_health"><span class="tool-icon" style="background:#e91e63"></span>Health Pack</div>
+    <div class="tool" data-tool="prop_ammo"><span class="tool-icon" style="background:#3498db"></span>Ammo Box</div>
+    <h3>Tip</h3>
+    <div style="font-size:11px;color:#8a92a6;line-height:1.5">
+      Click a tool, then click on the canvas to place. Drag entities to move. Press <b>Del</b> to remove.
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="status">Ready</div>
+    <div id="hud">
+      <div>❤ HP <span class="bar"><div id="hp-bar" style="background:#e74c3c;width:100%"></div></span> <span id="hp-text">100</span></div>
+      <div>🔫 Ammo <span id="ammo-text">30</span></div>
+      <div>🎯 <span id="obj-text">Kill all enemies</span></div>
+    </div>
+    <div id="result"><h2 id="result-title"></h2><p id="result-msg"></p><button class="btn primary" style="margin-top:14px" onclick="stopTest()">Back to Editor</button></div>
+  </div>
+
+  <div id="properties">
+    <h3>Properties</h3>
+    <div id="prop-content"><div class="empty-msg">Select an entity to edit its properties</div></div>
+  </div>
+</div>
+
+<div id="modal">
+  <div id="modal-box">
+    <h3 id="modal-title">Modal</h3>
+    <div id="modal-body"></div>
+    <div class="actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   SANDBOX SHOOTER EDITOR
+   ========================================================= */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+
+function resizeCanvas() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* ---------- STATE ---------- */
+const state = {
+  mode: 'edit',
+  tool: 'select',
+  entities: [],
+  selected: null,
+  nextId: 1,
+  levelSize: { w: 2400, h: 1600 },
+  camera: { x: 0, y: 0 },
+  objective: { type: 'kill_all', params: { time: 60 } },
+  drag: null,       // { entityId, offsetX, offsetY }
+  placing: null,    // preview while placing
+  mouse: { x: 0, y: 0, worldX: 0, worldY: 0, down: false }
+};
+
+/* ---------- ENTITY FACTORY ---------- */
+function makeEntity(type, x, y) {
+  const base = { id: state.nextId++, type, x, y };
+  switch (type) {
+    case 'spawn': return { ...base, w: 30, h: 30 };
+    case 'goal':  return { ...base, w: 40, h: 40 };
+    case 'enemy': return { ...base, w: 28, h: 28, hp: 50, maxHp: 50, speed: 80, damage: 10, range: 260, ai: 'chase', fireRate: 1.2, color: '#e74c3c' };
+    case 'obstacle': return { ...base, w: 60, h: 60, destructible: false, hp: 100, color: '#7f8c8d' };
+    case 'prop_health': return { ...base, w: 24, h: 24, amount: 30 };
+    case 'prop_ammo':   return { ...base, w: 24, h: 24, amount: 20 };
+  }
+}
+
+/* ---------- COORDINATE HELPERS ---------- */
+function screenToWorld(sx, sy) {
+  return { x: sx + state.camera.x, y: sy + state.camera.y };
+}
+function worldToScreen(wx, wy) {
+  return { x: wx - state.camera.x, y: wy - state.camera.y };
+}
+function snap(v, grid = 10) { return Math.round(v / grid) * grid; }
+
+function entityAt(wx, wy) {
+  for (let i = state.entities.length - 1; i >= 0; i--) {
+    const e = state.entities[i];
+    if (wx >= e.x - e.w/2 && wx <= e.x + e.w/2 && wy >= e.y - e.h/2 && wy <= e.y + e.h/2) return e;
+  }
+  return null;
+}
+
+/* ---------- TOOLBAR ---------- */
+document.querySelectorAll('.tool').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    state.tool = el.dataset.tool;
+    state.selected = null;
+    renderProperties();
+    setStatus('Tool: ' + el.textContent.trim());
+  });
+});
+
+/* ---------- CANVAS EVENTS (EDITOR) ---------- */
+canvas.addEventListener('mousedown', e => {
+  if (state.mode !== 'edit') return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const w = screenToWorld(sx, sy);
+  state.mouse.down = true;
+
+  if (state.tool === 'select') {
+    const hit = entityAt(w.x, w.y);
+    state.selected = hit;
+    if (hit) {
+      state.drag = { entityId: hit.id, offsetX: w.x - hit.x, offsetY: w.y - hit.y };
+    }
+    renderProperties();
+  } else {
+    // Place new entity
+    const ent = makeEntity(state.tool, snap(w.x), snap(w.y));
+    // Only one spawn / one goal allowed
+    if (state.tool === 'spawn' || state.tool === 'goal') {
+      state.entities = state.entities.filter(x => x.type !== state.tool);
+    }
+    state.entities.push(ent);
+    state.selected = ent;
+    renderProperties();
+    setStatus('Placed ' + state.tool);
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const w = screenToWorld(sx, sy);
+  state.mouse.x = sx; state.mouse.y = sy;
+  state.mouse.worldX = w.x; state.mouse.worldY = w.y;
+
+  if (state.mode === 'edit' && state.drag) {
+    const ent = state.entities.find(x => x.id === state.drag.entityId);
+    if (ent) {
+      ent.x = snap(w.x - state.drag.offsetX);
+      ent.y = snap(w.y - state.drag.offsetY);
+      renderProperties();
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  state.mouse.down = false;
+  state.drag = null;
+});
+
+canvas.addEventListener('wheel', e => {
+  if (state.mode !== 'edit') return;
+  e.preventDefault();
+  if (e.shiftKey) state.camera.x += e.deltaY;
+  else state.camera.y += e.deltaY;
+  state.camera.x = Math.max(0, Math.min(state.levelSize.w - canvas.width, state.camera.x));
+  state.camera.y = Math.max(0, Math.min(state.levelSize.h - canvas.height, state.camera.y));
+}, { passive: false });
+
+window.addEventListener('keydown', e => {
+  if (state.mode !== 'edit') return;
+  if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected) {
+    state.entities = state.entities.filter(x => x.id !== state.selected.id);
+    state.selected = null;
+    renderProperties();
+    setStatus('Deleted');
+  }
+});
+
+/* ---------- PROPERTIES PANEL ---------- */
+function renderProperties() {
+  const box = document.getElementById('prop-content');
+  if (!state.selected) {
+    box.innerHTML = '<div class="empty-msg">Select an entity to edit its properties</div>';
+    return;
+  }
+  const e = state.selected;
+  let html = `<div class="prop-row"><label>Type</label><input value="${e.type}" disabled></div>`;
+  html += `<div class="prop-row"><label>X</label><input type="number" data-k="x" value="${e.x}"></div>`;
+  html += `<div class="prop-row"><label>Y</label><input type="number" data-k="y" value="${e.y}"></div>`;
+
+  if (e.type === 'enemy') {
+    html += numRow('HP', 'hp', e.hp, 1, 500);
+    html += numRow('Speed', 'speed', e.speed, 10, 300);
+    html += numRow('Damage', 'damage', e.damage, 1, 100);
+    html += numRow('Range', 'range', e.range, 50, 800);
+    html += numRow('Fire Rate (s)', 'fireRate', e.fireRate, 0.2, 5, 0.1);
+    html += `<div class="prop-row"><label>AI Behavior</label>
+      <select data-k="ai">
+        <option value="chase" ${e.ai==='chase'?'selected':''}>Chase Player</option>
+        <option value="patrol" ${e.ai==='patrol'?'selected':''}>Patrol (stationary guard)</option>
+        <option value="stationary" ${e.ai==='stationary'?'selected':''}>Stationary Turret</option>
+      </select></div>`;
+    html += `<div class="prop-row"><label>Color</label><input type="color" data-k="color" value="${e.color}"></div>`;
+  } else if (e.type === 'obstacle') {
+    html += numRow('Width', 'w', e.w, 20, 400);
+    html += numRow('Height', 'h', e.h, 20, 400);
+    html += `<div class="prop-row"><label>Destructible</label>
+      <select data-k="destructible">
+        <option value="false" ${!e.destructible?'selected':''}>No</option>
+        <option value="true" ${e.destructible?'selected':''}>Yes</option>
+      </select></div>`;
+    html += numRow('HP (if destructible)', 'hp', e.hp, 1, 1000);
+    html += `<div class="prop-row"><label>Color</label><input type="color" data-k="color" value="${e.color}"></div>`;
+  } else if (e.type === 'prop_health' || e.type === 'prop_ammo') {
+    html += numRow('Amount', 'amount', e.amount, 1, 200);
+  }
+
+  box.innerHTML = html;
+  box.querySelectorAll('[data-k]').forEach(inp => {
+    inp.addEventListener('input', ev => {
+      const k = ev.target.dataset.k;
+      let v = ev.target.value;
+      if (ev.target.type === 'number' || ev.target.type === 'range') v = parseFloat(v);
+      if (v === 'true') v = true;
+      if (v === 'false') v = false;
+      state.selected[k] = v;
+      if (k === 'hp' && state.selected.type === 'enemy') state.selected.maxHp = v;
+    });
+  });
+}
+function numRow(label, key, val, min, max, step = 1) {
+  return `<div class="prop-row"><label>${label}</label><input type="number" data-k="${key}" value="${val}" min="${min}" max="${max}" step="${step}"></div>`;
+}
+
+/* ---------- RENDERING ---------- */
+function drawGrid() {
+  const grid = 40;
+  ctx.strokeStyle = '#1e222a';
+  ctx.lineWidth = 1;
+  const startX = -state.camera.x % grid;
+  const startY = -state.camera.y % grid;
+  for (let x = startX; x < canvas.width; x += grid) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = startY; y < canvas.height; y += grid) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+  // Level bounds
+  const tl = worldToScreen(0, 0);
+  const br = worldToScreen(state.levelSize.w, state.levelSize.h);
+  ctx.strokeStyle = '#4a5166';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+}
+
+function drawEntity(e, ghost = false) {
+  const s = worldToScreen(e.x, e.y);
+  ctx.save();
+  if (ghost) ctx.globalAlpha = 0.5;
+
+  if (e.type === 'spawn') {
+    ctx.fillStyle = '#2ecc71';
+    ctx.beginPath(); ctx.arc(s.x, s.y, e.w/2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('P', s.x, s.y);
+  } else if (e.type === 'goal') {
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(s.x - e.w/2, s.y - e.h/2, e.w, e.h);
+    ctx.fillStyle = '#000'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('★', s.x, s.y);
+  } else if (e.type === 'enemy') {
+    ctx.fillStyle = e.color || '#e74c3c';
+    ctx.beginPath(); ctx.arc(s.x, s.y, e.w/2, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+    // HP bar
+    if (!ghost && e.hp !== undefined) {
+      const bw = 30, bh = 4;
+      ctx.fillStyle = '#333'; ctx.fillRect(s.x - bw/2, s.y - e.h/2 - 8, bw, bh);
+      ctx.fillStyle = '#2ecc71'; ctx.fillRect(s.x - bw/2, s.y - e.h/2 - 8, bw * (e.hp / (e.maxHp||e.hp)), bh);
+    }
+    // AI icon
+    ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    const aiLabel = { chase: 'C', patrol: 'P', stationary: 'S' }[e.ai] || '?';
+    ctx.fillText(aiLabel, s.x, s.y + 3);
+  } else if (e.type === 'obstacle') {
+    ctx.fillStyle = e.color || '#7f8c8d';
+    ctx.fillRect(s.x - e.w/2, s.y - e.h/2, e.w, e.h);
+    if (e.destructible) {
+      ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2;
+      ctx.strokeRect(s.x - e.w/2, s.y - e.h/2, e.w, e.h);
+    } else {
+      ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2;
+      ctx.strokeRect(s.x - e.w/2, s.y - e.h/2, e.w, e.h);
+    }
+  } else if (e.type === 'prop_health') {
+    ctx.fillStyle = '#e91e63';
+    ctx.fillRect(s.x - e.w/2, s.y - e.h/2, e.w, e.h);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('+', s.x, s.y);
+  } else if (e.type === 'prop_ammo') {
+    ctx.fillStyle = '#3498db';
+    ctx.fillRect(s.x - e.w/2, s.y - e.h/2, e.w, e.h);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('A', s.x, s.y);
+  }
+
+  // Selection highlight
+  if (!ghost && state.selected && state.selected.id === e.id && state.mode === 'edit') {
+    ctx.strokeStyle = '#7cc4ff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(s.x - e.w/2 - 4, s.y - e.h/2 - 4, e.w + 8, e.h + 8);
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function render() {
+  ctx.fillStyle = '#0f1115';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+
+  state.entities.forEach(e => drawEntity(e));
+
+  // Placement preview
+  if (state.mode === 'edit' && state.tool !== 'select') {
+    const preview = makeEntity(state.tool, snap(state.mouse.worldX), snap(state.mouse.worldY));
+    drawEntity(preview, true);
+  }
+
+  // Test-mode dynamic entities (bullets, player, runtime enemies)
+  if (state.mode === 'test' && runtime) renderRuntime();
+}
+
+/* ---------- TEST MODE RUNTIME ---------- */
+let runtime = null;
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup',   e => { keys[e.key.toLowerCase()] = false; });
+
+function startTest() {
+  const spawn = state.entities.find(e => e.type === 'spawn');
+  if (!spawn) { alert('Place a Player Spawn first!'); return; }
+  if (state.entities.filter(e => e.type === 'enemy').length === 0 && state.objective.type === 'kill_all') {
+    if (!confirm('No enemies placed. Objective is "Kill All". Continue anyway?')) return;
+  }
+
+  runtime = {
+    player: { x: spawn.x, y: spawn.y, r: 14, hp: 100, maxHp: 100, ammo: 30, speed: 200, angle: 0, fireCd: 0 },
+    enemies: state.entities.filter(e => e.type === 'enemy').map(e => ({
+      ...e, maxHp: e.hp, fireCd: Math.random() * e.fireRate, vx: 0, vy: 0
+    })),
+    obstacles: state.entities.filter(e => e.type === 'obstacle').map(e => ({ ...e })),
+    props: state.entities.filter(e => e.type === 'prop_health' || e.type === 'prop_ammo').map(e => ({ ...e, taken: false })),
+    bullets: [],
+    goal: state.entities.find(e => e.type === 'goal'),
+    time: 0,
+    startTime: performance.now(),
+    result: null
+  };
+
+  state.mode = 'test';
+  document.getElementById('mode-indicator').textContent = 'TEST MODE';
+  document.getElementById('mode-indicator').className = 'mode-test';
+  document.getElementById('btn-test').style.display = 'none';
+  document.getElementById('btn-stop').style.display = '';
+  document.getElementById('hud').style.display = 'block';
+  updateObjectiveText();
+  canvas.style.cursor = 'none';
+}
+
+function stopTest() {
+  state.mode = 'edit';
+  runtime = null;
+  document.getElementById('mode-indicator').textContent = 'EDIT MODE';
+  document.getElementById('mode-indicator').className = 'mode-edit';
+  document.getElementById('btn-test').style.display = '';
+  document.getElementById('btn-stop').style.display = 'none';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  canvas.style.cursor = 'crosshair';
+}
+
+function updateObjectiveText() {
+  const o = state.objective;
+  let t = '';
+  if (o.type === 'kill_all') t = 'Kill all enemies';
+  else if (o.type === 'survive') t = `Survive ${o.params.time}s`;
+  else if (o.type === 'reach') t = 'Reach the goal';
+  document.getElementById('obj-text').textContent = t;
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (state.mode !== 'test' || !runtime) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const w = screenToWorld(sx, sy);
+  runtime.player.angle = Math.atan2(w.y - runtime.player.y, w.x - runtime.player.x);
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (state.mode !== 'test' || !runtime || runtime.result) return;
+  if (runtime.player.ammo > 0 && runtime.player.fireCd <= 0) {
+    const p = runtime.player;
+    runtime.bullets.push({
+      x: p.x + Math.cos(p.angle) * 20,
+      y: p.y + Math.sin(p.angle) * 20,
+      vx: Math.cos(p.angle) * 600,
+      vy: Math.sin(p.angle) * 600,
+      life: 1.5, from: 'player', damage: 25
+    });
+    p.ammo--;
+    p.fireCd = 0.15;
+  }
+});
+
+function circleRectCollide(cx, cy, cr, rx, ry, rw, rh) {
+  const nx = Math.max(rx, Math.min(cx, rx + rw));
+  const ny = Math.max(ry, Math.min(cy, ry + rh));
+  const dx = cx - nx, dy = cy - ny;
+  return dx*dx + dy*dy < cr*cr;
+}
+
+function lineRectHit(x1, y1, x2, y2, rx, ry, rw, rh) {
+  // Simple: check if segment intersects rectangle (sampled)
+  const steps = 8;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    if (x >= rx && x <= rx + rw && y >= ry && y <= ry + rh) return true;
+  }
+  return false;
+}
+
+function hasLineOfSight(ax, ay, bx, by) {
+  for (const o of runtime.obstacles) {
+    if (lineRectHit(ax, ay, bx, by, o.x - o.w/2, o.y - o.h/2, o.w, o.h)) return false;
+  }
+  return true;
+}
+
+function updateRuntime(dt) {
+  if (!runtime || runtime.result) return;
+  runtime.time += dt;
+  const p = runtime.player;
+  p.fireCd -= dt;
+
+  // Movement
+  let mx = 0, my = 0;
+  if (keys['w']) my -= 1;
+  if (keys['s']) my += 1;
+  if (keys['a']) mx -= 1;
+  if (keys['d']) mx += 1;
+  const len = Math.hypot(mx, my) || 1;
+  const nx = p.x + (mx/len) * p.speed * dt;
+  const ny = p.y + (my/len) * p.speed * dt;
+
+  // Collide with obstacles (axis-separated)
+  let canX = true, canY = true;
+  for (const o of runtime.obstacles) {
+    if (circleRectCollide(nx, p.y, p.r, o.x - o.w/2, o.y - o.h/2, o.w, o.h)) canX = false;
+    if (circleRectCollide(p.x, ny, p.r, o.x - o.w/2, o.y - o.h/2, o.w, o.h)) canY = false;
+  }
+  if (canX) p.x = Math.max(p.r, Math.min(state.levelSize.w - p.r, nx));
+  if (canY) p.y = Math.max(p.r, Math.min(state.levelSize.h - p.r, ny));
+
+  // Camera follow
+  state.camera.x = Math.max(0, Math.min(state.levelSize.w - canvas.width, p.x - canvas.width/2));
+  state.camera.y = Math.max(0, Math.min(state.levelSize.h - canvas.height, p.y - canvas.height/2));
+
+  // Pick up props
+  for (const pr of runtime.props) {
+    if (pr.taken) continue;
+    if (Math.hypot(pr.x - p.x, pr.y - p.y) < p.r + pr.w/2) {
+      pr.taken = true;
+      if (pr.type === 'prop_health') p.hp = Math.min(p.maxHp, p.hp + pr.amount);
+      else if (pr.type === 'prop_ammo') p.ammo += pr.amount;
+    }
+  }
+
+  // Enemy AI
+  for (const en of runtime.enemies) {
+    if (en.hp <= 0) continue;
+    const dx = p.x - en.x, dy = p.y - en.y;
+    const dist = Math.hypot(dx, dy);
+    const los = hasLineOfSight(en.x, en.y, p.x, p.y);
+
+    if (en.ai === 'chase' && los && dist < en.range * 1.5) {
+      // Move toward player, stop at range
+      if (dist > en.range * 0.7) {
+        const vx = (dx/dist) * en.speed * dt;
+        const vy = (dy/dist) * en.speed * dt;
+        let blocked = false;
+        for (const o of runtime.obstacles) {
+          if (circleRectCollide(en.x + vx, en.y + vy, en.w/2, o.x - o.w/2, o.y - o.h/2, o.w, o.h)) { blocked = true; break; }
+        }
+        if (!blocked) { en.x += vx; en.y += vy; }
+      }
+    } else if (en.ai === 'patrol') {
+      // Slight wander
+      en.wanderT = (en.wanderT || 0) + dt;
+      const wx = Math.cos(en.wanderT * 0.8 + en.id) * en.speed * 0.3 * dt;
+      const wy = Math.sin(en.wanderT * 0.6 + en.id) * en.speed * 0.3 * dt;
+      let blocked = false;
+      for (const o of runtime.obstacles) {
+        if (circleRectCollide(en.x + wx, en.y + wy, en.w/2, o.x - o.w/2, o.y - o.h/2, o.w, o.h)) { blocked = true; break; }
+      }
+      if (!blocked) { en.x += wx; en.y += wy; }
+    }
+    // stationary: no movement
+
+    // Shooting
+    en.fireCd -= dt;
+    if (los && dist < en.range && en.fireCd <= 0) {
+      const ang = Math.atan2(dy, dx);
+      runtime.bullets.push({
+        x: en.x + Math.cos(ang) * 18, y: en.y + Math.sin(ang) * 18,
+        vx: Math.cos(ang) * 380, vy: Math.sin(ang) * 380,
+        life: 1.5, from: 'enemy', damage: en.damage
+      });
+      en.fireCd = en.fireRate;
+    }
+  }
+
+  // Bullets
+  for (const b of runtime.bullets) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    // Obstacle collision
+    for (const o of runtime.obstacles) {
+      if (b.x >= o.x - o.w/2 && b.x <= o.x + o.w/2 && b.y >= o.y - o.h/2 && b.y <= o.y + o.h/2) {
+        b.life = 0;
+        if (o.destructible) { o.hp -= b.damage; if (o.hp <= 0) o._dead = true; }
+      }
+    }
+    if (b.from === 'player') {
+      for (const en of runtime.enemies) {
+        if (en.hp <= 0) continue;
+        if (Math.hypot(b.x - en.x, b.y - en.y) < en.w/2) {
+          en.hp -= b.damage; b.life = 0; break;
+        }
+      }
+    } else if (b.from === 'enemy') {
+      if (Math.hypot(b.x - p.x, b.y - p.y) < p.r) {
+        p.hp -= b.damage; b.life = 0;
+      }
+    }
+  }
+  runtime.bullets = runtime.bullets.filter(b => b.life > 0);
+  runtime.obstacles = runtime.obstacles.filter(o => !o._dead);
+  runtime.enemies = runtime.enemies.filter(e => e.hp > 0 || (e._deathT = (e._deathT||0) + dt) < 0.3);
+
+  // HUD
+  document.getElementById('hp-bar').style.width = (p.hp / p.maxHp * 100) + '%';
+  document.getElementById('hp-text').textContent = Math.max(0, Math.ceil(p.hp));
+  document.getElementById('ammo-text').textContent = p.ammo;
+
+  // Win/lose
+  if (p.hp <= 0) return endTest(false, 'You were defeated!');
+  const o = state.objective;
+  if (o.type === 'kill_all' && runtime.enemies.filter(e => e.hp > 0).length === 0) return endTest(true, 'All enemies eliminated!');
+  if (o.type === 'survive' && runtime.time >= o.params.time) return endTest(true, `Survived ${o.params.time} seconds!`);
+  if (o.type === 'reach' && runtime.goal) {
+    if (Math.hypot(p.x - runtime.goal.x, p.y - runtime.goal.y) < runtime.goal.w/2 + p.r) return endTest(true, 'Reached the goal!');
+  }
+}
+
+function endTest(win, msg) {
+  runtime.result = win ? 'win' : 'lose';
+  const r = document.getElementById('result');
+  r.style.display = 'block';
+  document.getElementById('result-title').textContent = win ? 'VICTORY' : 'DEFEATED';
+  document.getElementById('result-title').className = win ? 'win' : 'lose';
+  document.getElementById('result-msg').textContent = msg;
+}
+
+function renderRuntime() {
+  const p = runtime.player;
+  // Player
+  const ps = worldToScreen(p.x, p.y);
+  ctx.save();
+  ctx.translate(ps.x, ps.y);
+  ctx.rotate(p.angle);
+  ctx.fillStyle = '#2ecc71';
+  ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1e8449';
+  ctx.fillRect(p.r - 4, -3, 12, 6); // gun
+  ctx.restore();
+
+  // Bullets
+  for (const b of runtime.bullets) {
+    const bs = worldToScreen(b.x, b.y);
+    ctx.fillStyle = b.from === 'player' ? '#f1c40f' : '#ff6b6b';
+    ctx.beginPath(); ctx.arc(bs.x, bs.y, 3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Crosshair
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(state.mouse.x - 8, state.mouse.y); ctx.lineTo(state.mouse.x + 8, state.mouse.y);
+  ctx.moveTo(state.mouse.x, state.mouse.y - 8); ctx.lineTo(state.mouse.x, state.mouse.y + 8);
+  ctx.stroke();
+}
+
+/* ---------- GAME LOOP ---------- */
+let lastT = performance.now();
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000);
+  lastT = t;
+  if (state.mode === 'test') updateRuntime(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------- TOP BAR ACTIONS ---------- */
+document.getElementById('btn-test').onclick = startTest;
+document.getElementById('btn-stop').onclick = stopTest;
+window.stopTest = stopTest;
+
+document.getElementById('btn-clear').onclick = () => {
+  if (confirm('Clear all entities?')) {
+    state.entities = []; state.selected = null; renderProperties();
+  }
+};
+
+document.getElementById('btn-save').onclick = () => {
+  const data = serialize();
+  localStorage.setItem('sandbox_shooter_level', data);
+  setStatus('Saved to local storage');
+};
+
+document.getElementById('btn-load').onclick = () => {
+  const data = localStorage.getItem('sandbox_shooter_level');
+  if (!data) { alert('No saved level found.'); return; }
+  deserialize(data);
+  setStatus('Loaded from local storage');
+};
+
+document.getElementById('btn-share').onclick = () => {
+  const data = serialize();
+  openModal('Share Level Code', `<p style="margin-bottom:8px;font-size:12px;color:#8a92a6">Copy this code and share it. Others can import it via the Import button.</p>
+    <textarea id="share-text" readonly>${data}</textarea>`,
+    [
+      { label: 'Copy', cls: 'primary', action: () => { navigator.clipboard.writeText(data); setStatus('Copied to clipboard'); closeModal(); } },
+      { label: 'Close', action: closeModal }
+    ]);
+  setTimeout(() => document.getElementById('share-text').select(), 50);
+};
+
+document.getElementById('btn-import').onclick = () => {
+  openModal('Import Level Code', `<p style="margin-bottom:8px;font-size:12px;color:#8a92a6">Paste a level code below:</p>
+    <textarea id="import-text" placeholder="Paste JSON here..."></textarea>`,
+    [
+      { label: 'Import', cls: 'primary', action: () => {
+          try { deserialize(document.getElementById('import-text').value); setStatus('Imported'); closeModal(); }
+          catch (e) { alert('Invalid level code: ' + e.message); }
+      }},
+      { label: 'Cancel', action: closeModal }
+    ]);
+};
+
+document.getElementById('btn-objective').onclick = () => {
+  const o = state.objective;
+  openModal('Level Objective', `
+    <div class="prop-row"><label>Objective Type</label>
+      <select id="obj-type">
+        <option value="kill_all" ${o.type==='kill_all'?'selected':''}>Kill All Enemies</option>
+        <option value="survive" ${o.type==='survive'?'selected':''}>Survive Time</option>
+        <option value="reach" ${o.type==='reach'?'selected':''}>Reach Goal Point</option>
+      </select>
+    </div>
+    <div class="prop-row"><label>Survival Time (seconds)</label>
+      <input type="number" id="obj-time" value="${o.params.time || 60}" min="10" max="600">
+    </div>
+  `, [
+    { label: 'Save', cls: 'primary', action: () => {
+        state.objective.type = document.getElementById('obj-type').value;
+        state.objective.params.time = parseInt(document.getElementById('obj-time').value) || 60;
+        updateObjectiveText(); closeModal();
+    }},
+    { label: 'Cancel', action: closeModal }
+  ]);
+};
+
+/* ---------- MODAL ---------- */
+function openModal(title, bodyHtml, actions) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  const actBox = document.getElementById('modal-actions');
+  actBox.innerHTML = '';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'btn ' + (a.cls || '');
+    b.textContent = a.label;
+    b.onclick = a.action;
+    actBox.appendChild(b);
+  });
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+/* ---------- SERIALIZATION ---------- */
+function serialize() {
+  return JSON.stringify({
+    version: 1,
+    levelSize: state.levelSize,
+    objective: state.objective,
+    entities: state.entities
+  });
+}
+function deserialize(json) {
+  const obj = JSON.parse(json);
+  state.levelSize = obj.levelSize || state.levelSize;
+  state.objective = obj.objective || state.objective;
+  state.entities = obj.entities || [];
+  state.nextId = state.entities.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1;
+  state.selected = null;
+  renderProperties();
+  updateObjectiveText();
+}
+
+/* ---------- UTIL ---------- */
+function setStatus(msg) {
+  const s = document.getElementById('status');
+  s.textContent = msg;
+  clearTimeout(setStatus._t);
+  setStatus._t = setTimeout(() => { s.textContent = 'Ready'; }, 2500);
+}
+
+/* ---------- DEMO LEVEL ---------- */
+(function seedDemo() {
+  state.entities.push(makeEntity('spawn', 200, 800));
+  state.entities.push(makeEntity('goal', 2200, 800));
+  state.entities.push(makeEntity('enemy', 700, 500));
+  state.entities.push(makeEntity('enemy', 1200, 900));
+  const e3 = makeEntity('enemy', 1700, 400); e3.ai = 'stationary'; e3.range = 400;
+  state.entities.push(e3);
+  state.entities.push(makeEntity('obstacle', 500, 700));
+  const o2 = makeEntity('obstacle', 1000, 600); o2.w = 120; o2.h = 40; state.entities.push(o2);
+  const o3 = makeEntity('obstacle', 1500, 800); o3.destructible = true; o3.w = 80; o3.h = 80; state.entities.push(o3);
+  state.entities.push(makeEntity('prop_health', 900, 1100));
+  state.entities.push(makeEntity('prop_ammo', 1400, 1200));
+})();
+
+updateObjectiveText();
+setStatus('Welcome! Pick a tool and click the canvas to place entities.');
+</script>
+</body>
+</html>

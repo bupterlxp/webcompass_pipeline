@@ -1,0 +1,18 @@
+<html>
+<head>
+    <title>Customer Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>Customer Dashboard</h2>
+        <p>Welcome, {{ user.username }}!</p>
+        <div class="dashboard-links">
+            <a href="{{ url_for('customer_profile') }}">Profile</a><br>
+            <a href="{{ url_for('customer_policies') }}">Policies</a><br>
+            <a href="{{ url_for('customer_claims') }}">Claims</a>
+        </div>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</body>
+</html>

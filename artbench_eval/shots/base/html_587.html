@@ -1,0 +1,78 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Subtitles</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Add Subtitles to Video</h1>
+        <p>Upload a video and add multiple text captions with timeline markers.</p>
+        
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="text">Subtitle Text:</label>
+                <textarea id="text" name="text" rows="3" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="start_time">Start Time (HH:MM:SS):</label>
+                <input type="text" id="start_time" name="start_time" placeholder="00:00:00" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="end_time">End Time (HH:MM:SS):</label>
+                <input type="text" id="end_time" name="end_time" placeholder="00:00:00" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="font">Font:</label>
+                <input type="text" id="font" name="font" value="Arial" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="font_size">Font Size:</label>
+                <input type="number" id="font_size" name="font_size" value="24" min="10" max="100" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="font_color">Font Color (Hex):</label>
+                <input type="color" id="font_color" name="font_color" value="#FFFFFF" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="background_color">Background Color (Hex):</label>
+                <input type="color" id="background_color" name="background_color" value="#000000" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="background_opacity">Background Opacity (0.0-1.0):</label>
+                <input type="number" id="background_opacity" name="background_opacity" value="0.7" min="0.0" max="1.0" step="0.1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="position">Position:</label>
+                <select id="position" name="position" required>
+                    <option value="top">Top</option>
+                    <option value="middle">Middle</option>
+                    <option value="bottom">Bottom</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn-primary">Add Subtitle</button>
+                <button type="button" class="btn-secondary" onclick="window.location.href='{{ url_for('index') }}'">Cancel</button>
+            </div>
+        </form>
+        
+        <div class="subtitle-list">
+            <h2>Added Subtitles</h2>
+            <div id="subtitle-list-container">
+                <!-- Subtitles will be displayed here -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplayer Shooter Arena</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e8f0fe;
+  line-height: 1.6;
+  overflow: hidden;
+}
+.app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  background: #1e2a44;
+  border-right: 1px solid #2a3854;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff5a5f, #ffbd2e);
+  display: grid; place-items: center;
+  font-size: 22px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+}
+.brand h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+
+.panel { background: #24324a; border: 1px solid #2a3854; border-radius: 10px; padding: 14px; }
+.panel h2 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #8aa4c7;
+  font-weight: 600;
+}
+
+/* Rooms */
+.rooms { display: flex; flex-direction: column; gap: 6px; }
+.room-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid transparent;
+}
+.room-item:hover { background: #2a3854; }
+.room-item.active { background: #ff6b6b; border-color: #ff4d4d; }
+.room-item .room-name { font-weight: 600; font-size: 14px; }
+.room-item .room-code { font-size: 12px; color: #8aa4c7; }
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.btn-primary { background: #ff5a5f; color: #fff; border-color: #ff5a5f; }
+.btn-primary:hover { background: #ff7a7f; border-color: #ff7a7f; transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: #fff; border-color: #2a3854; }
+.btn-ghost:hover { background: #2a3854; border-color: #2a3854; }
+.btn-danger { background: #ff6b6b; color: #fff; border-color: #ff6b6b; }
+.btn-danger:hover { background: #ff8a8a; border-color: #ff8a8a; }
+
+/* Chat */
+.chat { height: 220px; overflow-y: auto; padding: 8px; margin-bottom: 8px; }
+.chat-msg { display: flex; gap: 8px; margin-bottom: 6px; }
+.chat-msg .avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #ff5a5f; color: #fff;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.chat-msg .text { flex: 1; min-width: 0; }
+.chat-msg .text b { font-weight: 600; }
+.chat-msg .text small { color: #8aa4c7; font-size: 11px; }
+.chat-msg .text small.system { color: #8aa4c7; }
+
+/* Stats */
+.stats { display: flex; flex-direction: column; gap: 4px; }
+.stat { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 6px; }
+.stat-head { font-size: 11px; color: #8aa4c7; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-val { font-weight: 600; font-size: 14px; }
+
+/* Main */
+.main { display: flex; flex-direction: column; }
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2a3854;
+  flex-wrap: wrap; gap: 10px;
+}
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill-ghost { background: #2a3854; color: #fff; }
+.pill-ghost.active { background: #ff5a5f; color: #fff; }
+
+.map-wrap {
+  flex: 1;
+  position: relative;
+  background: #0f1420;
+  overflow: hidden;
+}
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.bottombar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 20px;
+  background: #1a1a2e;
+  border-top: 1px solid #2a3854;
+  font-size: 12px;
+  color: #8aa4c7;
+}
+.bottom-left, .bottom-right { display: flex; gap: 12px; flex-wrap: wrap; }
+.bottom-left span { display: inline-flex; align-items: center; gap: 6px; }
+.bottom-left span b { color: #fff; font-weight: 600; }
+
+/* Responsive */
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { border-right: none; border-bottom: 1px solid #2a3854; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">🎯</div>
+      <h1>Shooter Arena</h1>
+    </div>
+
+    <div class="panel" id="panel-rooms">
+      <h2>Rooms</h2>
+      <div class="rooms" id="rooms"></div>
+      <button class="btn btn-primary" id="btn-create">Create Room</button>
+    </div>
+
+    <div class="panel" id="panel-chat">
+      <h2>Chat</h2>
+      <div class="chat" id="chat"></div>
+      <input type="text" id="chat-input" placeholder="Type a message..." />
+    </div>
+
+    <div class="panel" id="panel-stats">
+      <h2>Stats</h2>
+      <div class="stats" id="stats"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="pill" id="room-pill">Room: —</span>
+        <span class="pill pill-ghost" id="score-pill">Score: 0</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost" id="btn-leave">Leave</button>
+        <button class="btn btn-primary" id="btn-switch">Switch Weapon</button>
+      </div>
+    </header>
+
+    <section class="map-wrap" id="map-wrap">
+      <canvas id="game" width="800" height="600"></canvas>
+    </section>
+
+    <footer class="bottombar">
+      <div class="bottom-left">
+        <span>WASD / Arrow Keys — Move</span>
+        <span>Space — Shoot</span>
+        <span>Q/E — Switch Weapon</span>
+      </div>
+      <div class="bottom-right">
+        <span>Health: <b id="health">100</b></span>
+        <span>Bullets: <b id="bullets">30</b></span>
+      </div>
+    </footer>
+  </main>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  // ---------- Config ----------
+  const MAP_WIDTH = 800;
+  const MAP_HEIGHT = 600;
+  const PLAYER_SIZE = 18;
+  const WEAPON_SIZE = 12;
+  const BULLET_SPEED = 550;
+  const BULLET_LIFE = 1500;
+  const MAX_BULLETS = 30;
+  const MAX_PLAYERS = 20;
+  const MAX_ROOMS = 50;
+
+  const WEAPONS = [
+    { id: 'pistol', name: 'Pistol', color: '#ff5a5f', damage: 15, fireRate: 0.15, ammo: 18 },
+    { id: 'smg', name: 'SMG', color: '#ffbd2e', damage: 10, fireRate: 0.05, ammo: 40 },
+    { id: 'rifle', name: 'Rifle', color: '#29c97a', damage: 22, fireRate: 0.3, ammo: 24 },
+    { id: 'sniper', name: 'Sniper', color: '#6b8cff', damage: 45, fireRate: 1.2, ammo: 8 },
+  ];
+
+  // ---------- State ----------
+  const state = {
+    me: null,                    // { id, name, x, y, health, bullets, weaponId, color, alive }
+    room: null,                  // { id, name, code, players, hostId }
+    players: new Map(),          // playerId -> player
+    bullets: [],                 // { id, x, y, vx, vy, owner, life }
+    bulletsToDraw: [],           // same but filtered by owner
+    chat: [],
+    chatInput: '',
+    history: [],                 // last 50 messages
+    keys: {},                    // key -> pressed
+    lastShot: 0,
+    lastTick: 0,
+    bulletsToDrawMap: new Map(), // playerId -> bullets
+  };
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d');
+  const roomsEl = $('rooms');
+  const chatEl = $('chat');
+  const chatInput = $('chat-input');
+  const sidebar = $('sidebar');
+  const roomPill = $('room-pill');
+  const scorePill = $('score-pill');
+  const healthEl = $('health');
+  const bulletsEl = $('bullets');
+
+  // ---------- Storage ----------
+  const STORAGE_KEY = 'shooter_arena_v1';
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return data;
+    } catch (e) { return null; }
+  }
+  function save(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+
+  // ---------- WebSocket ----------
+  const wsUrl = location.origin.replace(/^http/, 'ws');
+  let ws = null;
+  let reconnectTimer = null;
+
+  function connect() {
+    ws = new WebSocket(wsUrl + '/ws');
+    ws.onopen = () => {
+      console.log('Connected to WebSocket server');
+      ws.send(JSON.stringify({ type: 'auth', username: state.me ? state.me.name : '' }));
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'rooms') {
+          state.rooms = msg.rooms;
+          renderRooms();
+        } else if (msg.type === 'joined') {
+          state.room = msg.room;
+          state.me = msg.player;
+          state.players.set(state.me.id, state.me);
+          renderSidebar();
+          renderChat();
+          renderScorePill();
+          renderRooms();
+          startGameLoop();
+        } else if (msg.type === 'update') {
+          state.room = msg.room;
+          state.players = new Map(msg.players);
+          state.bullets = msg.bullets;
+          state.chat = msg.chat;
+          state.history = msg.history;
+          renderSidebar();
+          renderChat();
+          renderScorePill();
+        } else if (msg.type === 'leave') {
+          if (msg.playerId === state.me.id) {
+            reset();
+          }
+        } else if (msg.type === 'error') {
+          showError(msg.error);
+        } else if (msg.type === 'chat') {
+          state.chat.push(msg);
+          state.history.push(msg);
+          if (state.history.length > 50) state.history.shift();
+          renderChat();
+        } else if (msg.type === 'bullet') {
+          state.bullets.push(msg);
+        } else if (msg.type === 'player') {
+          if (msg.id === state.me.id) {
+            state.me = msg;
+          } else {
+            state.players.set(msg.id, msg);
+          }
+        }
+      } catch (e) { console.error(e); }
+    };
+    ws.onclose = () => {
+      console.log('Disconnected');
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, 2000);
+    };
+  }
+
+  function send(action) {
+    if (!ws) return;
+    ws.send(JSON.stringify(action));
+  }
+
+  function showError(msg) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#ff5a5f;color:#fff;padding:10px 16px;border-radius:8px;z-index:1000;font-size:14px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  // ---------- Room UI ----------
+  function renderRooms() {
+    roomsEl.innerHTML = '';
+    state.rooms.forEach((r) => {
+      const li = document.createElement('div');
+      li.className = 'room-item' + (r.id === state.room?.id ? ' active' : '');
+      li.innerHTML = `
+        <span class="room-code">#${r.code}</span>
+        <span class="room-name">${r.name}</span>
+        <span class="room-meta">· ${r.players.length}/${MAX_PLAYERS} players</span>
+      `;
+      li.addEventListener('click', () => joinRoom(r.id));
+      roomsEl.appendChild(li);
+    });
+  }
+
+  // ---------- Sidebar panels ----------
+  function renderSidebar() {
+    const activeRoom = state.room;
+    roomPill.textContent = `Room: ${activeRoom ? activeRoom.name : '—'}`;
+    if (activeRoom) {
+      roomPill.classList.add('active');
+    } else {
+      roomPill.classList.remove('active');
+    }
+
+    // Stats
+    const stats = document.getElementById('stats');
+    stats.innerHTML = '';
+    const me = state.me;
+    if (me) {
+      const alive = me.alive && me.health > 0;
+      const statsEl = document.createElement('div');
+      statsEl.className = 'stat';
+      statsEl.innerHTML = `
+        <span>Health</span><b id="stat-health">${alive ? me.health : 0}</b>
+      `;
+      stats.appendChild(statsEl);
+
+      const bulletsEl = document.createElement('div');
+      bulletsEl.className = 'stat';
+      bulletsEl.innerHTML = `
+        <span>Bullets</span><b id="stat-bullets">${me.bullets}</b>
+      `;
+      stats.appendChild(bulletsEl);
+
+      const weaponEl = document.createElement('div');
+      weaponEl.className = 'stat';
+      weaponEl.innerHTML = `
+        <span>Weapon</span><b id="stat-weapon">${WEAPONS.find(w => w.id === me.weaponId)?.name || '—'}</b>
+      `;
+      stats.appendChild(weaponEl);
+
+      const killsEl = document.createElement('div');
+      killsEl.className = 'stat';
+      killsEl.innerHTML = `
+        <span>Kills</span><b id="stat-kills">${me.kills}</b>
+      `;
+      stats.appendChild(killsEl);
+
+      const deathsEl = document.createElement('div');
+      deathsEl.className = 'stat';
+      deathsEl.innerHTML = `
+        <span>Deaths</span><b id="stat-deaths">${me.deaths}</b>
+      `;
+      stats.appendChild(deathsEl);
+
+      // Leaderboard
+      const lb = document.createElement('div');
+      lb.className = 'stat';
+      lb.innerHTML = '<span>Leaderboard</span><b id="stat-lb">—</b>';
+      stats.appendChild(lb);
+      const lbList = document.createElement('div');
+      lbList.style.cssText = 'font-size:11px;color:#8aa4c7;margin-top:4px;';
+      stats.appendChild(lbList);
+
+      const sorted = [...state.room.players].sort((a, b) => b.kills - a.kills || b.score - a.score);
+      sorted.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #2a3854;';
+        row.innerHTML = `<span>${p.name}</span><span>${p.kills} kills</span>`;
+        lbList.appendChild(row);
+      });
+    } else {
+      stats.innerHTML = '<div class="stat"><span>Not in a room</span><b>—</b></div>';
+    }
+  }
+
+  // ---------- Chat ----------
+  function renderChat() {
+    chatEl.innerHTML = '';
+    state.chat.forEach((msg) => {
+      const el = document.createElement('div');
+      el.className = 'chat-msg';
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = msg.name.charAt(0).toUpperCase();
+      const text = document.createElement('div');
+      text.className = 'text';
+      if (msg.system) {
+        text.innerHTML = `<small class="system">${msg.system}</small>`;
+      } else {
+        text.innerHTML = `<b>${msg.name}</b> <small>${msg.text}</small>`;
+      }
+      el.appendChild(avatar);
+      el.appendChild(text);
+      chatEl.appendChild(el);
+    });
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  // ---------- Game loop ----------
+  function startGameLoop() {
+    state.lastTick = performance.now();
+    requestAnimationFrame(loop);
+  }
+  function loop(now) {
+    const dt = Math.min(0.05, (now - state.lastTick) / 1000);
+    state.lastTick = now;
+
+    update(dt);
+    render();
+
+    requestAnimationFrame(loop);
+  }
+
+  function update(dt) {
+    if (!state.room || !state.me) return;
+
+    // Move
+    if (state.keys['w'] || state.keys['ArrowUp']) state.me.y -= 220 * dt;
+    if (state.keys['s'] || state.keys['ArrowDown']) state.me.y += 220 * dt;
+    if (state.keys['a'] || state.keys['ArrowLeft']) state.me.x -= 220 * dt;
+    if (state.keys['d'] || state.keys['ArrowRight']) state.me.x += 220 * dt;
+
+    // Keep in bounds
+    state.me.x = Math.max(PLAYER_SIZE, Math.min(MAP_WIDTH - PLAYER_SIZE, state.me.x));
+    state.me.y = Math.max(PLAYER_SIZE, Math.min(MAP_HEIGHT - PLAYER_SIZE, state.me.y));
+
+    // Shooting
+    if (state.keys[' ']) {
+      const now = performance.now();
+      if (now - state.lastShot > 1000 / WEAPONS.find(w => w.id === state.me.weaponId).fireRate) {
+        shoot();
+        state.lastShot = now;
+      }
+    }
+
+    // Switch weapon
+    if (state.keys['q'] || state.keys['Q']) {
+      const idx = WEAPONS.findIndex(w => w.id === state.me.weaponId);
+      if (idx >= 0 && idx + 1 < WEAPONS.length) {
+        state.me.weaponId = WEAPONS[idx + 1].id;
+        state.me.bullets = WEAPONS[idx + 1].ammo;
+        state.me.color = WEAPONS[idx + 1].color;
+      }
+    }
+    if (state.keys['e'] || state.keys['E']) {
+      const idx = WEAPONS.findIndex(w => w.id === state.me.weaponId);
+      if (idx > 0) {
+        state.me.weaponId = WEAPONS[idx - 1].id;
+        state.me.bullets = WEAPONS[idx - 1].ammo;
+        state.me.color = WEAPONS[idx - 1].color;
+      }
+    }
+
+    // Bullet update
+    for (let i = state.bullets.length - 1; i >= 0; i--) {
+      const b = state.bullets[i];
+      b.life -= 1;
+      if (b.life <= 0) { state.bullets.splice(i, 1); continue; }
+      b.x += b.vx * BULLET_SPEED * dt;
+      b.y += b.vy * BULLET_SPEED * dt;
+      if (b.x < -10 || b.x > MAP_WIDTH + 10 || b.y < -10 || b.y > MAP_HEIGHT + 10) {
+        state.bullets.splice(i, 1);
+        continue;
+      }
+      // Hit detection
+      const owner = state.players.get(b.owner);
+      if (!owner || !owner.alive) continue;
+      if (owner.x < b.x && owner.x + PLAYER_SIZE > b.x &&
+          owner.y < b.y && owner.y + PLAYER_SIZE > b.y) {
+        state.bullets.splice(i, 1);
+        owner.health -= WEAPONS.find(w => w.id === state.me.weaponId).damage;
+        if (owner.health <= 0) {
+          owner.health = 0;
+          owner.alive = false;
+          state.me.kills++;
+          state.me.score += 10;
+          state.room.players.forEach(p => {
+            if (p.id !== state.me.id && p.alive) p.score += 1;
+          });
+        }
+        continue;
+      }
+    }
+
+    // Update bulletsToDrawMap
+    state.bulletsToDrawMap.clear();
+    state.players.forEach((p) => {
+      if (!p.alive) return;
+      state.bulletsToDrawMap.set(p.id, []);
+    });
+    state.bullets.forEach((b) => {
+      if (!state.players.get(b.owner)?.alive) return;
+      state.bulletsToDrawMap.get(b.owner).push(b);
+    });
+
+    // Health regen
+    if (state.me.health < 100 && state.me.alive) {
+      state.me.health += 0.5;
+    }
+    if (state.me.health > 100) state.me.health = 100;
+  }
+
+  function shoot() {
+    if (!state.room || !state.me || state.me.bullets <= 0 || !state.me.alive) return;
+    state.me.bullets--;
+    const w = WEAPONS.find(w => w.id === state.me.weaponId);
+    state.bullets.push({
+      id: 'b' + Date.now(),
+      x: state.me.x + PLAYER_SIZE / 2,
+      y: state.me.y + PLAYER_SIZE / 2,
+      vx: Math.cos(state.me.dir || 0),
+      vy: Math.sin(state.me.dir || 0),
+      owner: state.me.id,
+      life: BULLET_LIFE,
+    });
+    send({ type: 'shoot', playerId: state.me.id, weaponId: state.me.weaponId });
+  }
+
+  function render() {
+    // Clear
+    ctx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    // Background
+    ctx.fillStyle = '#0f1420';
+    ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= MAP_WIDTH; x += 40) ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_HEIGHT); ctx.stroke();
+    for (let y = 0; y <= MAP_HEIGHT; y += 40) ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_WIDTH, y); ctx.stroke();
+
+    // Bullets
+    state.bulletsToDrawMap.forEach((bullets, playerId) => {
+      bullets.forEach((b) => {
+        ctx.fillStyle = WEAPONS.find(w => w.id === state.me.weaponId)?.color || '#ff5a5f';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+
+    // Players
+    state.players.forEach((p) => {
+      if (!p.alive) return;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, PLAYER_SIZE, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Weapon icon
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Segoe UI, sans-serif';
+      ctx.fillText(p.weaponId, p.x - 4, p.y + 10);
+    });
+
+    // Me highlight
+    if (state.me) {
+      ctx.strokeStyle = '#ff5a5f';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(state.me.x, state.me.y, PLAYER_SIZE + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // ---------- Actions ----------
+  function createRoom(name) {
+    send({ type: 'createRoom', name });
+  }
+  function joinRoom(roomId) {
+    send({ type: 'joinRoom', roomId });
+  }
+  function leaveRoom() {
+    if (!state.room) return;
+    send({ type: 'leaveRoom' });
+  }
+  function sendMessage(text) {
+    if (!state.room) return;
+    if (text.trim() === '') return;
+    send({ type: 'chat', text });
+  }
+
+  // ---------- Input ----------
+  window.addEventListener('keydown', (e) => {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+    state.keys[e.key] = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    state.keys[e.key] = false;
+  });
+
+  // ---------- UI events ----------
+  $('btn-create').addEventListener('click', () => {
+    const name = prompt('Room name:', 'My Room');
+    if (name && name.trim()) createRoom(name.trim());
+  });
+  $('btn-leave').addEventListener('click', leaveRoom);
+  $('btn-switch').addEventListener('click', () => {
+    if (!state.me) return;
+    const idx = WEAPONS.findIndex(w => w.id === state.me.weaponId);
+    if (idx >= 0 && idx + 1 < WEAPONS.length) {
+      state.me.weaponId = WEAPONS[idx + 1].id;
+      state.me.bullets = WEAPONS[idx + 1].ammo;
+      state.me.color = WEAPONS[idx + 1].color;
+    }
+  });
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage(chatInput.value);
+      chatInput.value = '';
+    }
+  });
+
+  // ---------- Reset ----------
+  function reset() {
+    state.room = null;
+    state.me = null;
+    state.players.clear();
+    state.bullets = [];
+    state.bulletsToDraw = [];
+    state.chat = [];
+    state.history = [];
+    state.keys = {};
+    renderSidebar();
+    renderChat();
+    renderRooms();
+    healthEl.textContent = '100';
+    bulletsEl.textContent = '30';
+    renderScorePill();
+  }
+
+  // ---------- Init ----------
+  function init() {
+    const data = load();
+    if (data && data.username) {
+      state.me = { id: data.username, name: data.username, x: 400, y: 300, health: 100, bullets: 30, weaponId: 'pistol', color: '#ff5a5f', alive: true, kills: 0, deaths: 0, score: 0, dir: 0 };
+    } else {
+      state.me = { id: 'me', name: 'Player', x: 400, y: 300, health: 100, bullets: 30, weaponId: 'pistol', color: '#ff5a5f', alive: true, kills: 0, deaths: 0, score: 0, dir: 0 };
+    }
+    connect();
+    renderRooms();
+    renderSidebar();
+    renderChat();
+    renderScorePill();
+    healthEl.textContent = '100';
+    bulletsEl.textContent = '30';
+  }
+
+  function renderScorePill() {
+    if (!state.room) return;
+    const alive = state.me?.alive && state.me?.health > 0;
+    scorePill.textContent = `Score: ${alive ? state.me?.score || 0 : 0}`;
+  }
+
+  init();
+})();
+</script></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

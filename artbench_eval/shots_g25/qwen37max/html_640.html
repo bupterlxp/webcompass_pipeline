@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Dynamic Sticker Studio</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#171a2e; --panel2:#1f2340; --accent:#7c5cff;
+    --accent2:#22d3ee; --text:#e7e9f5; --muted:#9aa0c3; --danger:#ff5d73;
+    --border:#2a2f55;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .app{display:grid;grid-template-columns:280px 1fr 300px;height:100vh}
+  .sidebar{background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:16px}
+  .sidebar.right{border-right:none;border-left:1px solid var(--border)}
+  h2{font-size:14px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  h3{font-size:13px;margin:14px 0 8px;color:var(--text)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--panel2);color:var(--text);
+       border:1px solid var(--border);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;transition:.15s}
+  .btn:hover{border-color:var(--accent);color:#fff}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0b0d1a;font-weight:600}
+  .btn.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+  .btn.danger:hover{background:var(--danger);color:#fff}
+  .btn.full{width:100%}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .emoji-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .emoji{font-size:22px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+         padding:6px 0;text-align:center;cursor:pointer;transition:.15s;user-select:none}
+  .emoji:hover{transform:scale(1.15);border-color:var(--accent)}
+  .canvas-area{display:flex;flex-direction:column;align-items:center;justify-content:center;
+               background:radial-gradient(circle at 50% 30%,#1a1f3d,#0b0d1a);padding:20px;overflow:auto}
+  .stage{position:relative;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden}
+  canvas{display:block;max-width:100%;max-height:70vh;cursor:default}
+  .toolbar{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+  label.field{display:block;margin:8px 0;font-size:12px;color:var(--muted)}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    padding:8px;border-radius:6px;font-size:13px;font-family:inherit
+  }
+  input[type=range]{width:100%}
+  input[type=color]{width:100%;height:34px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;cursor:pointer}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px}
+  .empty{color:var(--muted);font-size:12px;text-align:center;padding:20px 0}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;background:var(--panel2);
+         font-size:11px;color:var(--muted);border:1px solid var(--border)}
+  .progress{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:8px;display:none}
+  .progress>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .2s}
+  .section{border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:12px}
+  .logo{font-weight:700;font-size:18px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+        -webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:14px}
+  .file-input{display:none}
+  .anim-chip{padding:6px 10px;border-radius:16px;background:var(--panel2);border:1px solid var(--border);
+             font-size:12px;cursor:pointer;user-select:none}
+  .anim-chip.active{background:var(--accent);border-color:var(--accent);color:#0b0d1a;font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">✨ Sticker Studio</div>
+
+    <div class="section">
+      <h2>1. Background</h2>
+      <button class="btn full" onclick="document.getElementById('imgInput').click()">📁 Upload Image</button>
+      <input type="file" id="imgInput" class="file-input" accept="image/*" />
+      <div class="hint">Or use a solid color:</div>
+      <input type="color" id="bgColor" value="#ffffff" />
+      <button class="btn full" style="margin-top:6px" onclick="setSolidBg()">Apply Solid Background</button>
+    </div>
+
+    <div class="section">
+      <h2>2. Add Stickers</h2>
+      <h3>Emoji Stickers</h3>
+      <div class="emoji-grid" id="emojiGrid"></div>
+
+      <h3>Dynamic Text</h3>
+      <input type="text" id="textInput" placeholder="Type your text..." value="Hello!" />
+      <div class="row" style="margin-top:6px">
+        <input type="color" id="textColor" value="#ff3b8b" style="flex:1" />
+        <button class="btn" onclick="addTextSticker()">+ Add Text</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>3. Export</h2>
+      <div class="row">
+        <label class="field" style="flex:1">Duration (s)
+          <input type="number" id="duration" value="2" min="1" max="10" step="0.5"/>
+        </label>
+        <label class="field" style="flex:1">FPS
+          <input type="number" id="fps" value="20" min="10" max="30"/>
+        </label>
+      </div>
+      <button class="btn primary full" onclick="exportGIF()">⬇ Download GIF</button>
+      <button class="btn full" style="margin-top:6px" onclick="exportVideo()">⬇ Download Video (WebM)</button>
+      <div class="progress" id="progress"><div></div></div>
+      <div class="hint" id="statusHint">Tip: GIF uses gif.js; Video uses MediaRecorder.</div>
+    </div>
+  </aside>
+
+  <!-- CANVAS -->
+  <main class="canvas-area">
+    <div class="stage">
+      <canvas id="canvas" width="720" height="720"></canvas>
+    </div>
+    <div class="toolbar">
+      <span class="badge" id="infoBadge">No stickers yet — add some from the left panel</span>
+      <button class="btn" onclick="togglePlay()" id="playBtn">⏸ Pause Preview</button>
+      <button class="btn" onclick="duplicateSelected()">⧉ Duplicate</button>
+      <button class="btn danger" onclick="deleteSelected()">🗑 Delete</button>
+    </div>
+  </main>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="sidebar right">
+    <h2>Properties</h2>
+    <div id="propsPanel">
+      <div class="empty">Select a sticker on the canvas to edit its properties.</div>
+    </div>
+  </aside>
+</div>
+
+<!-- gif.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+<script>
+/* =========================================================
+   Dynamic Sticker Studio — Core Logic
+   ========================================================= */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// ---------- State ----------
+let bgImage = null;          // HTMLImageElement or null
+let bgColor = '#ffffff';
+let stickers = [];           // array of sticker objects
+let selectedId = null;
+let playing = true;
+let startTime = performance.now();
+
+// Drag / resize state
+let drag = null; // {mode:'move'|'resize', id, offsetX, offsetY, corner, startSticker}
+
+// ---------- Sticker factory ----------
+let idCounter = 1;
+function makeSticker(opts){
+  return Object.assign({
+    id: idCounter++,
+    type: 'emoji',          // 'emoji' | 'text'
+    content: '😀',
+    x: W/2, y: H/2,
+    size: 120,              // base font size / emoji size
+    rotation: 0,
+    color: '#ffffff',
+    stroke: '#000000',
+    strokeWidth: 0,
+    animation: 'bounce',    // bounce, pulse, rotate, shake, spin, float, fade, none
+    speed: 1,
+    amplitude: 1,
+  }, opts);
+}
+
+// ---------- Emoji library ----------
+const EMOJIS = ['😀','😂','🥰','😎','🤩','😍','🥳','😜','🤔','😴','🤯','🥺',
+                '🔥','✨','💖','💥','⭐','🌈','🎉','🎈','🎁','🏆','💎','👑',
+                '👍','👏','🙌','💪','👀','💯','❤️','💔','🌟','⚡','☀️','🌙',
+                '🍕','🍔','🍩','🍦','🎵','🎶','🚀','✈️','🌸','🌺','🍀','🦄'];
+const emojiGrid = document.getElementById('emojiGrid');
+EMOJIS.forEach(e=>{
+  const d = document.createElement('div');
+  d.className='emoji'; d.textContent=e;
+  d.onclick = ()=> addSticker(makeSticker({type:'emoji', content:e, size:120}));
+  emojiGrid.appendChild(d);
+});
+
+// ---------- Background handling ----------
+document.getElementById('imgInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const img = new Image();
+  img.onload = ()=>{
+    // Fit image into canvas while preserving aspect
+    const r = Math.min(W/img.width, H/img.height);
+    bgImage = img;
+    bgImage._drawW = img.width*r;
+    bgImage._drawH = img.height*r;
+  };
+  img.src = URL.createObjectURL(f);
+});
+function setSolidBg(){
+  bgImage = null;
+  bgColor = document.getElementById('bgColor').value;
+}
+
+// ---------- Add stickers ----------
+function addSticker(s){
+  // Slight random offset so stacking is visible
+  s.x += (Math.random()-0.5)*40;
+  s.y += (Math.random()-0.5)*40;
+  stickers.push(s);
+  selectedId = s.id;
+  renderProps();
+  updateBadge();
+}
+function addTextSticker(){
+  const txt = document.getElementById('textInput').value.trim() || 'Text';
+  const col = document.getElementById('textColor').value;
+  addSticker(makeSticker({
+    type:'text', content:txt, color:col, stroke:'#000', strokeWidth:2,
+    size:72, animation:'pulse'
+  }));
+}
+
+// ---------- Animation math ----------
+function applyAnimation(s, t){
+  // t in seconds
+  const sp = s.speed;
+  const amp = s.amplitude;
+  let dx=0, dy=0, scale=1, rot=s.rotation, alpha=1;
+  switch(s.animation){
+    case 'bounce': dy = -Math.abs(Math.sin(t*2.5*sp))*30*amp; break;
+    case 'pulse':  scale = 1 + Math.sin(t*3*sp)*0.15*amp; break;
+    case 'rotate': rot = s.rotation + t*1.5*sp; break;
+    case 'spin':   rot = s.rotation + t*6*sp; break;
+    case 'shake':  dx = Math.sin(t*15*sp)*8*amp; break;
+    case 'float':  dy = Math.sin(t*1.5*sp)*15*amp; dx = Math.cos(t*1.1*sp)*6*amp; break;
+    case 'fade':   alpha = 0.5 + 0.5*Math.sin(t*2*sp); break;
+    case 'none':
+    default: break;
+  }
+  return {dx,dy,scale,rot,alpha};
+}
+
+// ---------- Drawing ----------
+function drawSticker(s, t){
+  const a = applyAnimation(s,t);
+  ctx.save();
+  ctx.globalAlpha = a.alpha;
+  ctx.translate(s.x + a.dx, s.y + a.dy);
+  ctx.rotate(a.rot);
+  ctx.scale(a.scale, a.scale);
+
+  if(s.type==='emoji'){
+    ctx.font = `${s.size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(s.content, 0, 0);
+  } else {
+    ctx.font = `bold ${s.size}px system-ui, Segoe UI, Roboto, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    if(s.strokeWidth>0){
+      ctx.lineWidth = s.strokeWidth;
+      ctx.strokeStyle = s.stroke;
+      ctx.lineJoin='round';
+      ctx.strokeText(s.content,0,0);
+    }
+    ctx.fillStyle = s.color;
+    ctx.fillText(s.content,0,0);
+  }
+
+  // Selection outline
+  if(s.id===selectedId){
+    const box = getStickerBox(s);
+    ctx.rotate(-a.rot); ctx.scale(1/a.scale,1/a.scale); // back to sticker-local
+    ctx.setLineDash([6,4]);
+    ctx.strokeStyle = '#7c5cff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-box.w/2-6, -box.h/2-6, box.w+12, box.h+12);
+    ctx.setLineDash([]);
+    // Resize handle
+    ctx.fillStyle='#7c5cff';
+    ctx.fillRect(box.w/2-2, box.h/2-2, 14, 14);
+  }
+  ctx.restore();
+}
+
+function getStickerBox(s){
+  // Approximate bounding box
+  if(s.type==='emoji') return {w:s.size, h:s.size};
+  ctx.font = `bold ${s.size}px system-ui, Segoe UI, Roboto, sans-serif`;
+  const w = ctx.measureText(s.content).width;
+  return {w, h:s.size*1.1};
+}
+
+function renderFrame(t){
+  // Background
+  if(bgImage){
+    ctx.fillStyle='#fff';
+    ctx.fillRect(0,0,W,H);
+    const dx = (W - bgImage._drawW)/2;
+    const dy = (H - bgImage._drawH)/2;
+    ctx.drawImage(bgImage, dx, dy, bgImage._drawW, bgImage._drawH);
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,W,H);
+  }
+  // Stickers
+  stickers.forEach(s=> drawSticker(s,t));
+}
+
+// ---------- Animation loop ----------
+function loop(){
+  const t = playing ? (performance.now()-startTime)/1000 : frozenTime;
+  renderFrame(t);
+  requestAnimationFrame(loop);
+}
+let frozenTime = 0;
+function togglePlay(){
+  playing = !playing;
+  if(!playing) frozenTime = (performance.now()-startTime)/1000;
+  else startTime = performance.now() - frozenTime*1000;
+  document.getElementById('playBtn').textContent = playing ? '⏸ Pause Preview' : '▶ Play Preview';
+}
+loop();
+
+// ---------- Mouse interaction ----------
+function canvasPos(e){
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (canvas.width / r.width),
+    y: (e.clientY - r.top)  * (canvas.height / r.height)
+  };
+}
+function hitTest(p){
+  // Iterate top-down
+  for(let i=stickers.length-1;i>=0;i--){
+    const s = stickers[i];
+    const box = getStickerBox(s);
+    // Transform point into sticker local space (rotate around s.x,s.y by -rotation)
+    const dx = p.x - s.x, dy = p.y - s.y;
+    const c = Math.cos(-s.rotation), sn = Math.sin(-s.rotation);
+    const lx = dx*c - dy*sn, ly = dx*sn + dy*c;
+    if(Math.abs(lx) <= box.w/2+6 && Math.abs(ly) <= box.h/2+6){
+      // Check resize handle (bottom-right corner in local space)
+      const hx = box.w/2+5, hy = box.h/2+5;
+      if(Math.abs(lx-hx)<12 && Math.abs(ly-hy)<12){
+        return {sticker:s, mode:'resize'};
+      }
+      return {sticker:s, mode:'move'};
+    }
+  }
+  return null;
+}
+canvas.addEventListener('mousedown', e=>{
+  const p = canvasPos(e);
+  const h = hitTest(p);
+  if(h){
+    selectedId = h.sticker.id;
+    // Bring to front
+    stickers = stickers.filter(s=>s.id!==h.sticker.id);
+    stickers.push(h.sticker);
+    drag = {
+      mode: h.mode,
+      id: h.sticker.id,
+      startX: p.x, startY: p.y,
+      origX: h.sticker.x, origY: h.sticker.y,
+      origSize: h.sticker.size
+    };
+    renderProps();
+    updateBadge();
+  } else {
+    selectedId = null;
+    renderProps();
+  }
+});
+canvas.addEventListener('mousemove', e=>{
+  if(!drag) return;
+  const p = canvasPos(e);
+  const s = stickers.find(x=>x.id===drag.id); if(!s) return;
+  if(drag.mode==='move'){
+    s.x = drag.origX + (p.x - drag.startX);
+    s.y = drag.origY + (p.y - drag.startY);
+  } else if(drag.mode==='resize'){
+    const dx = p.x - drag.startX;
+    s.size = Math.max(20, drag.origSize + dx);
+  }
+  renderProps();
+});
+window.addEventListener('mouseup', ()=> drag=null);
+window.addEventListener('keydown', e=>{
+  if(e.key==='Delete' && selectedId!=null) deleteSelected();
+});
+
+// ---------- Properties panel ----------
+const ANIMS = [
+  {id:'none',   label:'None'},
+  {id:'bounce', label:'Bounce'},
+  {id:'pulse',  label:'Pulse'},
+  {id:'rotate', label:'Rotate'},
+  {id:'spin',   label:'Spin'},
+  {id:'shake',  label:'Shake'},
+  {id:'float',  label:'Float'},
+  {id:'fade',   label:'Fade'},
+];
+function renderProps(){
+  const panel = document.getElementById('propsPanel');
+  const s = stickers.find(x=>x.id===selectedId);
+  if(!s){ panel.innerHTML = '<div class="empty">Select a sticker on the canvas to edit its properties.</div>'; return; }
+
+  panel.innerHTML = `
+    <div class="section">
+      <div class="badge">${s.type==='emoji'?'Emoji':'Text'} #${s.id}</div>
+      ${s.type==='text' ? `
+        <label class="field">Text
+          <input type="text" id="p_content" value="${escapeHtml(s.content)}"/>
+        </label>
+        <label class="field">Color <input type="color" id="p_color" value="${s.color}"/></label>
+        <label class="field">Stroke Color <input type="color" id="p_stroke" value="${s.stroke}"/></label>
+        <label class="field">Stroke Width <input type="range" id="p_strokeWidth" min="0" max="10" step="1" value="${s.strokeWidth}"/></label>
+      ` : `
+        <label class="field">Emoji
+          <input type="text" id="p_content" value="${s.content}" maxlength="4"/>
+        </label>
+      `}
+    </div>
+    <div class="section">
+      <h3>Transform</h3>
+      <label class="field">Size: <span id="sizeVal">${Math.round(s.size)}</span>
+        <input type="range" id="p_size" min="20" max="400" value="${s.size}"/>
+      </label>
+      <label class="field">X <input type="number" id="p_x" value="${Math.round(s.x)}"/></label>
+      <label class="field">Y <input type="number" id="p_y" value="${Math.round(s.y)}"/></label>
+      <label class="field">Rotation (rad)
+        <input type="range" id="p_rotation" min="-3.14" max="3.14" step="0.01" value="${s.rotation}"/>
+      </label>
+    </div>
+    <div class="section">
+      <h3>Animation</h3>
+      <div class="row" id="animChips">
+        ${ANIMS.map(a=>`<div class="anim-chip ${a.id===s.animation?'active':''}" data-a="${a.id}">${a.label}</div>`).join('')}
+      </div>
+      <label class="field" style="margin-top:10px">Speed: <span id="speedVal">${s.speed.toFixed(2)}</span>
+        <input type="range" id="p_speed" min="0" max="3" step="0.05" value="${s.speed}"/>
+      </label>
+      <label class="field">Amplitude: <span id="ampVal">${s.amplitude.toFixed(2)}</span>
+        <input type="range" id="p_amplitude" min="0" max="3" step="0.05" value="${s.amplitude}"/>
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn" onclick="duplicateSelected()">⧉ Duplicate</button>
+      <button class="btn danger" onclick="deleteSelected()">🗑 Delete</button>
+    </div>
+  `;
+
+  // Bind inputs
+  const bind = (id, key, parse=v=>v) => {
+    const el = document.getElementById(id); if(!el) return;
+    el.addEventListener('input', ()=>{
+      s[key] = parse(el.value);
+      const valSpan = document.getElementById(key+'Val') || document.getElementById(id.replace('p_','')+'Val');
+      if(valSpan) valSpan.textContent = typeof s[key]==='number' ? (Number.isInteger(s[key])?s[key]:s[key].toFixed(2)) : s[key];
+    });
+  };
+  bind('p_content','content');
+  bind('p_color','color');
+  bind('p_stroke','stroke');
+  bind('p_strokeWidth','strokeWidth',Number);
+  bind('p_size','size',Number);
+  bind('p_x','x',Number);
+  bind('p_y','y',Number);
+  bind('p_rotation','rotation',Number);
+  bind('p_speed','speed',Number);
+  bind('p_amplitude','amplitude',Number);
+
+  document.querySelectorAll('#animChips .anim-chip').forEach(chip=>{
+    chip.onclick = ()=>{
+      s.animation = chip.dataset.a;
+      renderProps();
+    };
+  });
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function deleteSelected(){
+  if(selectedId==null) return;
+  stickers = stickers.filter(s=>s.id!==selectedId);
+  selectedId = null;
+  renderProps(); updateBadge();
+}
+function duplicateSelected(){
+  const s = stickers.find(x=>x.id===selectedId); if(!s) return;
+  const copy = {...s, id:idCounter++, x:s.x+20, y:s.y+20};
+  stickers.push(copy);
+  selectedId = copy.id;
+  renderProps(); updateBadge();
+}
+function updateBadge(){
+  document.getElementById('infoBadge').textContent =
+    stickers.length ? `${stickers.length} sticker(s) on canvas` : 'No stickers yet — add some from the left panel';
+}
+
+/* =========================================================
+   EXPORT: GIF (gif.js) and Video (MediaRecorder)
+   ========================================================= */
+function setProgress(p, show=true){
+  const el = document.getElementById('progress');
+  el.style.display = show ? 'block' : 'none';
+  el.firstElementChild.style.width = (p*100).toFixed(1)+'%';
+}
+function setStatus(msg){ document.getElementById('statusHint').textContent = msg; }
+
+async function exportGIF(){
+  if(typeof GIF === 'undefined'){ alert('gif.js failed to load from CDN. Check your internet connection.'); return; }
+  const duration = parseFloat(document.getElementById('duration').value) || 2;
+  const fps = parseInt(document.getElementById('fps').value) || 20;
+  const totalFrames = Math.round(duration*fps);
+  const delay = Math.round(1000/fps);
+
+  setStatus('Encoding GIF... 0%');
+  setProgress(0);
+
+  const gif = new GIF({
+    workers: 2, quality: 10,
+    width: canvas.width, height: canvas.height,
+    workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+  });
+
+  // Capture frames by freezing time
+  const wasPlaying = playing;
+  playing = false;
+  const baseT = (performance.now()-startTime)/1000;
+
+  for(let i=0;i<totalFrames;i++){
+    frozenTime = baseT + i/fps;
+    renderFrame(frozenTime);
+    gif.addFrame(ctx, {copy:true, delay});
+    setProgress((i+1)/totalFrames * 0.5);
+    setStatus(`Capturing frame ${i+1}/${totalFrames}`);
+    await new Promise(r=>setTimeout(r,0)); // yield to UI
+  }
+
+  if(wasPlaying){ playing = true; startTime = performance.now() - baseT*1000; }
+
+  gif.on('progress', p=>{
+    setProgress(0.5 + p*0.5);
+    setStatus(`Encoding GIF... ${(50+p*50).toFixed(0)}%`);
+  });
+  gif.on('finished', blob=>{
+    setProgress(1,false);
+    setStatus('GIF ready!');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'sticker-animation.gif';
+    a.click();
+  });
+  gif.render();
+}
+
+async function exportVideo(){
+  const duration = parseFloat(document.getElementById('duration').value) || 2;
+  const fps = parseInt(document.getElementById('fps').value) || 20;
+
+  if(!canvas.captureStream || !window.MediaRecorder){
+    alert('Your browser does not support MediaRecorder video export.'); return;
+  }
+
+  setStatus('Recording video...');
+  setProgress(0);
+
+  const stream = canvas.captureStream(fps);
+  // Prefer webm vp9, fallback to default
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+    ? 'video/webm;codecs=vp9' : 'video/webm';
+  const rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 5_000_000});
+  const chunks = [];
+  rec.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+
+  const wasPlaying = playing;
+  playing = true;
+  startTime = performance.now();
+
+  rec.start();
+  const startT = performance.now();
+
+  await new Promise(resolve=>{
+    const tick = ()=>{
+      const elapsed = (performance.now()-startT)/1000;
+      setProgress(Math.min(1, elapsed/duration));
+      setStatus(`Recording... ${elapsed.toFixed(1)}s / ${duration}s`);
+      if(elapsed >= duration){
+        rec.stop();
+        rec.onstop = resolve;
+      } else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+
+  playing = wasPlaying;
+  const blob = new Blob(chunks, {type:'video/webm'});
+  setProgress(1,false);
+  setStatus('Video ready!');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sticker-animation.webm';
+  a.click();
+}
+</script>
+</body>
+</html>

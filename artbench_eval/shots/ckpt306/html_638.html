@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ShootEditor — Sandbox Shooting Level Editor</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e8e8f0;
+  overflow: hidden;
+}
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #252540;
+  border-bottom: 1px solid #3a3a60;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { font-size: 24px; }
+.topbar h1 { font-size: 16px; letter-spacing: 0.5px; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn {
+  background: #3a3a60;
+  color: #e8e8f0;
+  border: 1px solid #4a4a70;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+.btn:hover { background: #4a4a70; border-color: #5a5a80; }
+.btn:active { transform: translateY(1px); }
+.btn.active { background: #ff6b6b; border-color: #ff4d4d; }
+.status {
+  margin-left: auto;
+  font-size: 12px;
+  color: #7a7a9a;
+  padding: 4px 10px;
+  background: #252540;
+  border-left: 2px solid #4a4a70;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+  gap: 12px;
+  padding: 12px;
+  min-height: 0;
+}
+
+.palette {
+  background: #252540;
+  border: 1px solid #3a3a60;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.palette h2 { font-size: 13px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #3a3a60; }
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: #3a3a60;
+  color: #e8e8f0;
+  border: 1px solid #4a4a70;
+  border-radius: 6px;
+  padding: 10px 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+.tile:hover { background: #4a4a70; border-color: #5a5a80; transform: translateY(-2px); }
+.tile.dragging { opacity: 0.4; }
+.tile-icon { font-size: 28px; }
+.tile-label { font-size: 10px; }
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #252540;
+  border-bottom: 1px solid #3a3a60;
+}
+.stage-header h2 { font-size: 13px; }
+.stage-controls { display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  width: 28px; height: 28px;
+  background: #3a3a60;
+  color: #e8e8f0;
+  border: 1px solid #4a4a70;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s ease;
+}
+.icon-btn:hover { background: #4a4a70; border-color: #5a5a80; }
+.zoom-label { font-size: 12px; color: #7a7a9a; padding: 0 8px; }
+
+.viewport-wrap {
+  position: relative;
+  flex: 1;
+  background: #0a0a1e;
+  border: 1px solid #3a3a60;
+  border-radius: 6px;
+  overflow: hidden;
+  min-height: 0;
+}
+#viewport {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(100,100,180,0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100,100,180,0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.6;
+}
+
+.stage-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #252540;
+  border-top: 1px solid #3a3a60;
+  font-size: 12px;
+  color: #7a7a9a;
+}
+
+.inspector {
+  background: #252540;
+  border: 1px solid #3a3a60;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.inspector h2 { font-size: 13px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #3a3a60; }
+.inspector .empty-state {
+  text-align: center;
+  padding: 24px;
+  color: #7a7a9a;
+}
+.empty-icon { font-size: 40px; display: block; margin-bottom: 8px; }
+
+.entity-card {
+  background: #3a3a60;
+  border: 1px solid #4a4a70;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.entity-card .card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #4a4a70;
+}
+.entity-card .card-head .name { font-weight: 600; font-size: 13px; }
+.entity-card .card-head .type {
+  font-size: 10px;
+  padding: 2px 8px;
+  background: #5a5a80;
+  color: #e8e8f0;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.entity-card .card-head .remove {
+  background: #ff4d4d;
+  color: #fff;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+.entity-card .card-head .remove:hover { background: #ff6b6b; }
+.entity-card .card-body { display: flex; flex-direction: column; gap: 6px; }
+.prop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #d8d8e8;
+}
+.prop-row .label { color: #e8e8f0; font-weight: 500; }
+.prop-row input, .prop-row select {
+  background: #4a4a70;
+  color: #e8e8f0;
+  border: 1px solid #5a5a80;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  width: 60px;
+  text-align: center;
+}
+.prop-row input:focus, .prop-row select:focus {
+  outline: 2px solid #ff6b6b;
+  outline-offset: 1px;
+}
+
+/* Drag helpers */
+.drag-preview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  font-size: 24px;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transform: translate(-50%, -50%);
+}
+.drag-preview::after {
+  content: '  (drag to place)';
+  font-size: 12px;
+  color: #b8b8d0;
+  margin-left: 6px;
+}
+
+/* Tooltip */
+.tool-tip {
+  position: fixed;
+  background: #3a3a60;
+  color: #e8e8f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 900;
+  border: 1px solid #4a4a70;
+  white-space: nowrap;
+}
+
+/* Preview overlay */
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,30,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+}
+.preview-overlay.hidden { display: none; }
+.preview-overlay .preview-inner {
+  background: #1a1a2e;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(255,107,107,0.4);
+}
+.preview-overlay h3 { margin-bottom: 8px; }
+.preview-overlay .preview-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.preview-overlay .stat {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  background: #252540;
+  border: 1px solid #3a3a60;
+  border-radius: 6px;
+}
+.preview-overlay .stat strong { font-size: 14px; }
+.preview-overlay .stat span { font-size: 11px; color: #7a7a9a; }
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,30,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(4px);
+}
+.modal.hidden { display: none; }
+.modal .modal-card {
+  background: #1a1a2e;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 400px;
+  width: calc(100% - 32px);
+}
+.modal h3 { margin-bottom: 12px; }
+.modal input, .modal textarea {
+  width: 100%;
+  background: #252540;
+  color: #e8e8f0;
+  border: 1px solid #3a3a60;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  font-family: inherit;
+}
+.modal input:focus, .modal textarea:focus {
+  outline: 2px solid #ff6b6b;
+  outline-offset: 1px;
+}
+.modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3a3a60;
+  color: #e8e8f0;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid #4a4a70;
+  font-size: 13px;
+  z-index: 4000;
+  transition: all 0.25s ease;
+}
+.toast.show { animation: toast-in 0.3s ease; }
+.toast.hide { animation: toast-out 0.25s ease forwards; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translate(-50%, 10px); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🔫</span>
+      <h1>ShootEditor</h1>
+    </div>
+    <nav class="toolbar">
+      <button id="btn-new" class="btn">New</button>
+      <button id="btn-load" class="btn">Load</button>
+      <button id="btn-save" class="btn">Save</button>
+      <button id="btn-undo" class="btn">Undo</button>
+      <button id="btn-redo" class="btn">Redo</button>
+      <button id="btn-preview" class="btn">Preview</button>
+      <span id="status" class="status">Ready</span>
+    </nav>
+  </header>
+
+  <div class="workspace">
+    <aside class="palette" id="palette">
+      <h2>Palette</h2>
+      <div class="palette-grid">
+        <button class="tile" data-type="player" title="Player">
+          <span class="tile-icon">🎮</span>
+          <span class="tile-label">Player</span>
+        </button>
+        <button class="tile" data-type="enemy" title="Enemy">
+          <span class="tile-icon">👹</span>
+          <span class="tile-label">Enemy</span>
+        </button>
+        <button class="tile" data-type="obstacle" title="Obstacle">
+          <span class="tile-icon">🧱</span>
+          <span class="tile-label">Obstacle</span>
+        </button>
+        <button class="tile" data-type="prop" title="Prop">
+          <span class="tile-icon">📦</span>
+          <span class="tile-label">Prop</span>
+        </button>
+        <button class="tile" data-type="flag" title="Flag">
+          <span class="tile-icon">🏁</span>
+          <span class="tile-label">Flag</span>
+        </button>
+        <button class="tile" data-type="camera" title="Camera">
+          <span class="tile-icon">👁️</span>
+          <span class="tile-label">Camera</span>
+        </button>
+        <button class="tile" data-type="goal" title="Goal">
+          <span class="tile-icon">🏆</span>
+          <span class="tile-label">Goal</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <div class="stage-header">
+        <h2>Viewport</h2>
+        <div class="stage-controls">
+          <button id="btn-zoom-in" class="icon-btn">+</button>
+          <button id="btn-zoom-out" class="icon-btn">−</button>
+          <span id="zoom-label" class="zoom-label">100%</span>
+        </div>
+      </div>
+      <div class="viewport-wrap">
+        <canvas id="viewport" width="800" height="600"></canvas>
+        <div id="grid-overlay" class="grid-overlay"></div>
+      </div>
+      <div class="stage-footer">
+        <span>Grid: 40px</span>
+        <span>Entities: <strong id="entity-count">0</strong></span>
+        <span>Selected: <strong id="sel-count">0</strong></select>
+      </div>
+    </main>
+
+    <aside class="inspector" id="inspector">
+      <h2>Inspector</h2>
+      <div id="inspector-body">
+        <div class="empty-state">
+          <span class="empty-icon">🔧</span>
+          <p>Select an entity to edit its properties.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>/* =========================================================
+   ShootEditor — Sandbox Shooting Level Editor
+   ========================================================= */
+
+const GRID = 40;
+const ZOOM_MIN = 0.2; ZOOM_MAX = 2.5;
+const ZOOM_STEP = 0.25;
+
+/* ---------- State ---------- */
+const state = {
+  entities: [],
+  selected: [],
+  history: [],
+  future: [],
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+  editing: null, // entity being dragged (for preview)
+  dragging: null, // entity being dragged by user
+  hover: null,
+  showGrid: true,
+  preview: false,
+  previewStats: {},
+  camera: { x: 0, y: 0 },
+  goal: null,
+  flag: null,
+};
+
+/* ---------- DOM ---------- */
+const $ = (id) => document.getElementById(id);
+const viewport = $('viewport');
+const gridOverlay = $('grid-overlay');
+const status = $('status');
+const entityCount = $('entity-count');
+const selCount = $('sel-count');
+const zoomLabel = $('zoom-label');
+const palette = $('palette');
+const inspectorBody = $('inspector-body');
+
+/* ---------- Level Data ---------- */
+const ENTITY_TYPES = {
+  player: { name: 'Player', icon: '🎮', default: { x: 100, y: 100, hp: 100, speed: 4, color: '#ff6b6b' } },
+  enemy:  { name: 'Enemy',  icon: '👹', default: { x: 300, y: 300, hp: 100, speed: 2, color: '#ff8a8a' } },
+  obstacle:{ name: 'Obstacle', icon: '🧱', default: { x: 400, y: 400, hp: 100, color: '#4a4a70' } },
+  prop:   { name: 'Prop',   icon: '📦', default: { x: 500, y: 500, hp: 100, color: '#7a7a9a' } },
+  flag:   { name: 'Flag',   icon: '🏁', default: { x: 600, y: 600, hp: 100, color: '#ffd86b' } },
+  camera: { name: 'Camera', icon: '👁️', default: { x: 0, y: 0, follow: false, speed: 2 } },
+  goal:   { name: 'Goal',   icon: '🏆', default: { x: 0, y: 0, hp: 100, color: '#4ade80' } },
+};
+
+/* ---------- Helpers ---------- */
+function uid() { return 'e_' + Math.random().toString(36).slice(2, 9); }
+function snapToGrid(p) {
+  return { x: Math.round(p.x / GRID) * GRID, y: Math.round(p.y / GRID) * GRID };
+}
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 300);
+  }, 2200);
+}
+
+/* ---------- Entities ---------- */
+function createEntity(type, data = {}) {
+  const def = ENTITY_TYPES[type];
+  const d = { ...def.default, ...data, type, id: uid(), selected: false };
+  state.entities.push(d);
+  state.selected = [d.id];
+  updateInspector();
+  return d;
+}
+
+function deleteEntity(id) {
+  const idx = state.entities.findIndex(e => e.id === id);
+  if (idx < 0) return;
+  state.history.push({ type: 'delete', data: state.entities[idx] });
+  state.entities.splice(idx, 1);
+  if (state.selected.includes(id)) state.selected = [];
+  updateInspector();
+}
+
+function moveEntity(id, dx, dy) {
+  const e = state.entities.find(x => x.id === id);
+  if (!e) return;
+  e.x += dx; e.y += dy;
+}
+
+function selectEntity(id) {
+  state.selected = [id];
+  updateInspector();
+}
+
+function toggleSelect(id) {
+  if (state.selected.includes(id)) {
+    state.selected = state.selected.filter(x => x !== id);
+  } else {
+    state.selected = [id];
+  }
+  updateInspector();
+}
+
+function getSelected() { return state.selected.map(id => state.entities.find(e => e.id === id)); }
+
+/* ---------- History ---------- */
+function pushHistory() {
+  state.history.push({ type: 'snapshot', data: JSON.stringify(state.entities.map(e => ({ ...e }))) });
+  if (state.history.length > 50) state.history.shift();
+}
+function undo() { if (state.history.length) { const h = state.history.pop(); state.future.push(h); restoreSnapshot(h); } }
+function redo() { if (state.future.length) { const h = state.future.pop(); state.history.push(h); restoreSnapshot(h); } }
+function restoreSnapshot(h) {
+  if (!h) return;
+  if (h.type === 'snapshot') {
+    state.entities = JSON.parse(h.data).map(e => ({ ...e }));
+    state.selected = state.entities.filter(e => e.selected).map(e => e.id);
+  } else if (h.type === 'delete') {
+    state.entities.push(h.data);
+    state.selected = [h.data.id];
+  }
+  updateInspector();
+}
+
+/* ---------- Rendering ---------- */
+function render() {
+  const ctx = viewport.getContext('2d');
+  ctx.clearRect(0, 0, viewport.width, viewport.height);
+
+  // Background
+  const bg = document.createElement('canvas');
+  bg.width = viewport.width; bg.height = viewport.height;
+  const bctx = bg.getContext('2d');
+  bctx.fillStyle = '#0a0a1e';
+  bctx.fillRect(0, 0, bg.width, bg.height);
+  ctx.drawImage(bg, 0, 0);
+
+  // Grid overlay
+  if (state.showGrid) {
+    gridOverlay.style.display = 'block';
+  } else {
+    gridOverlay.style.display = 'none';
+  }
+
+  // Camera follow
+  const cam = state.camera;
+  const cx = cam.x, cy = cam.y;
+  const w = viewport.width / state.zoom;
+  const h = viewport.height / state.zoom;
+  const minX = Math.max(0, cx - w * 0.5);
+  const minY = Math.max(0, cy - h * 0.5);
+  const maxX = Math.min(state.goal ? state.goal.x : 800, cx + w * 0.5);
+  const maxY = Math.min(state.goal ? state.goal.y : 600, cy + h * 0.5);
+
+  // Entities
+  state.entities.forEach(e => {
+    const sx = e.x - cx;
+    const sy = e.y - cy;
+    if (sx < -w || sx > w || sy < -h || sy > h) return;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    if (e.type === 'camera') {
+      ctx.fillStyle = '#7a7a9a';
+      ctx.strokeStyle = '#4a4a70';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('CAM', 0, 4);
+    } else if (e.type === 'goal') {
+      ctx.fillStyle = e.color;
+      ctx.strokeStyle = '#252540';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏆', 0, 4);
+    } else if (e.type === 'flag') {
+      ctx.fillStyle = e.color;
+      ctx.strokeStyle = '#252540';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.lineTo(0, 14);
+      ctx.lineTo(10, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = e.color;
+      ctx.strokeStyle = '#252540';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.icon, 0, 4);
+    }
+
+    ctx.restore();
+  });
+
+  // Preview overlay (for dragged entity)
+  if (state.editing) {
+    const e = state.editing;
+    const sx = e.x - cam.x;
+    const sy = e.y - cam.y;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.fillStyle = e.color;
+    ctx.strokeStyle = '#252540';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#e8e8f0';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(e.icon, 0, 4);
+    ctx.restore();
+  }
+}
+
+/* ---------- Inspector ---------- */
+function updateInspector() {
+  const sel = getSelected();
+  if (!sel.length) {
+    inspectorBody.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-icon">🔧</span>
+        <p>Select an entity to edit its properties.</p>
+      </div>`;
+    return;
+  }
+
+  const def = ENTITY_TYPES[sel[0].type];
+  const card = document.createElement('div');
+  card.className = 'entity-card';
+  card.innerHTML = `
+    <div class="card-head">
+      <span class="name">${def.name}</span>
+      <span class="type">${sel[0].type}</span>
+      <button class="remove" title="Delete">✕</button>
+    </div>
+    <div class="card-body">
+      <div class="prop-row"><span class="label">X</span><input type="number" data-prop="x" value="${sel[0].x}"></div>
+      <div class="prop-row"><span class="label">Y</span><input type="number" data-prop="y" value="${sel[0].y}"></div>
+      ${def.properties.map(p => {
+        const val = sel[0][p.key];
+        const input = p.type === 'color' ? `<input type="color" data-prop="${p.key}" value="${val}">` : `<input type="number" data-prop="${p.key}" value="${val}">`;
+        return `<div class="prop-row"><span class="label">${p.label}</span>${input}</div>`;
+      }).join('')}
+    </div>
+  `;
+  inspectorBody.innerHTML = '';
+  inspectorBody.appendChild(card);
+
+  card.querySelector('.remove').addEventListener('click', () => deleteEntity(sel[0].id));
+
+  card.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const key = inp.dataset.prop;
+      sel[0][key] = inp.type === 'number' ? parseFloat(inp.value) : inp.value;
+      render();
+    });
+  });
+
+  selCount.textContent = sel.length;
+}
+
+/* ---------- Palette ---------- */
+palette.querySelectorAll('.tile').forEach(tile => {
+  tile.addEventListener('click', () => {
+    const type = tile.dataset.type;
+    const def = ENTITY_TYPES[type];
+    createEntity(type, { x: 100, y: 100, ...def.default });
+    toast(`Added ${def.name}`);
+  });
+});
+
+/* ---------- Drag & Drop ---------- */
+function getMousePos(e) {
+  const rect = viewport.getBoundingClientRect();
+  const x = (e.clientX - rect.left - state.offsetX) / state.zoom;
+  const y = (e.clientY - rect.top - state.offsetY) / state.zoom;
+  return { x, y };
+}
+
+viewport.addEventListener('mousedown', (e) => {
+  if (state.preview) return;
+  const p = getMousePos(e);
+  const hit = state.entities.find(e => {
+    const dx = e.x - state.camera.x, dy = e.y - state.camera.y;
+    return Math.abs(dx) < 14 && Math.abs(dy) < 14;
+  });
+  if (hit) {
+    state.dragging = hit;
+    state.editing = hit;
+    document.body.appendChild(createDragPreview(hit));
+    e.stopPropagation();
+    e.preventDefault();
+  }
+});
+
+viewport.addEventListener('mousemove', (e) => {
+  if (state.preview) return;
+  const p = getMousePos(e);
+  const hit = state.entities.find(e => {
+    const dx = e.x - state.camera.x, dy = e.y - state.camera.y;
+    return Math.abs(dx) < 14 && Math.abs(dy) < 14;
+  });
+  state.hover = hit ? hit.id : null;
+  if (state.dragging) {
+    state.dragging.x = p.x;
+    state.dragging.y = p.y;
+    render();
+  }
+});
+
+viewport.addEventListener('mouseup', (e) => {
+  if (state.preview) return;
+  if (state.dragging) {
+    state.dragging = null;
+    document.querySelectorAll('.drag-preview').forEach(d => d.remove());
+    state.editing = null;
+  }
+});
+
+function createDragPreview(e) {
+  const el = document.createElement('div');
+  el.className = 'drag-preview';
+  el.textContent = e.icon;
+  const rect = viewport.getBoundingClientRect();
+  el.style.left = (e.x - state.camera.x - rect.left) + 'px';
+  el.style.top = (e.y - state.camera.y - rect.top) + 'px';
+  document.body.appendChild(el);
+  return el;
+}
+
+/* ---------- Touch Support ---------- */
+viewport.addEventListener('touchstart', (e) => {
+  if (state.preview) return;
+  const t = e.touches[0];
+  const p = getMousePos(t);
+  const hit = state.entities.find(e => {
+    const dx = e.x - state.camera.x, dy = e.y - state.camera.y;
+    return Math.abs(dx) < 14 && Math.abs(dy) < 14;
+  });
+  if (hit) {
+    state.dragging = hit;
+    state.editing = hit;
+    document.body.appendChild(createDragPreview(hit));
+    e.preventDefault();
+  }
+}, { passive: false });
+
+viewport.addEventListener('touchmove', (e) => {
+  if (state.preview) return;
+  if (state.dragging) {
+    const t = e.touches[0];
+    const p = getMousePos(t);
+    state.dragging.x = p.x;
+    state.dragging.y = p.y;
+    render();
+  }
+}, { passive: false });
+
+viewport.addEventListener('touchend', (e) => {
+  if (state.preview) return;
+  if (state.dragging) {
+    state.dragging = null;
+    document.querySelectorAll('.drag-preview').forEach(d => d.remove());
+    state.editing = null;
+  }
+});
+
+/* ---------- Zoom ---------- */
+$('btn-zoom-in').addEventListener('click', () => {
+  state.zoom = Math.min(ZOOM_MAX, state.zoom + ZOOM_STEP);
+  zoomLabel.textContent = Math.round(state.zoom * 100) + '%';
+  render();
+});
+$('btn-zoom-out').addEventListener('click', () => {
+  state.zoom = Math.max(ZOOM_MIN, state.zoom - ZOOM_STEP);
+  zoomLabel.textContent = Math.round(state.zoom * 100) + '%';
+  render();
+});
+
+/* ---------- Camera ---------- */
+viewport.addEventListener('wheel', (e) => {
+  if (state.preview) return;
+  e.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / state.zoom;
+  const my = (e.clientY - rect.top) / state.zoom;
+  const delta = -e.deltaY * 0.001;
+  const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, state.zoom * (1 + delta)));
+  state.zoom = newZoom;
+  zoomLabel.textContent = Math.round(state.zoom * 100) + '%';
+
+  const prevCam = { x: state.camera.x, y: state.camera.y };
+  state.camera.x = mx * state.zoom - mx * newZoom;
+  state.camera.y = my * state.zoom - my * newZoom;
+
+  render();
+});
+
+/* ---------- Preview Mode ---------- */
+$('btn-preview').addEventListener('click', () => {
+  state.preview = !state.preview;
+  $('btn-preview').classList.toggle('active', state.preview);
+  status.textContent = state.preview ? 'Preview Mode' : 'Editor Mode';
+  if (state.preview) {
+    renderPreview();
+  } else {
+    state.camera = { x: 0, y: 0 };
+    state.offsetX = 0; state.offsetY = 0;
+    render();
+  }
+});
+
+function renderPreview() {
+  // Find goal and flag
+  state.goal = state.entities.find(e => e.type === 'goal');
+  state.flag = state.entities.find(e => e.type === 'flag');
+  state.camera = { x: 0, y: 0 };
+
+  // Build stats
+  const enemies = state.entities.filter(e => e.type === 'enemy');
+  const props = state.entities.filter(e => e.type === 'prop');
+  const flags = state.entities.filter(e => e.type === 'flag');
+  const total = state.entities.length;
+  state.previewStats = {
+    enemies: enemies.length,
+    props: props.length,
+    flags: flags.length,
+    total,
+    goal: state.goal ? state.goal.x : 0,
+    flag: state.flag ? state.flag.x : 0,
+  };
+
+  // Show overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'preview-overlay';
+  overlay.innerHTML = `
+    <div class="preview-inner">
+      <h3>Preview</h3>
+      <div class="preview-stats">
+        <div class="stat"><strong>${state.previewStats.total}</strong><span>Total Entities</span></div>
+        <div class="stat"><strong>${state.previewStats.enemies}</strong><span>Enemies</span></div>
+        <div class="stat"><strong>${state.previewStats.props}</strong><span>Props</span></div>
+        <div class="stat"><strong>${state.previewStats.flags}</strong><span>Flags</span></div>
+        <div class="stat"><strong>${state.previewStats.goal}</strong><span>Goal X</span></div>
+        <div class="stat"><strong>${state.previewStats.flag}</strong><span>Flag X</span></div>
+      </div>
+      <div style="text-align:center; margin-top:16px; color:#7a7a9a; font-size:12px;">
+        Click anywhere to place entities · Drag entities to move · Zoom with mouse wheel
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+/* ---------- Save / Load ---------- */
+$('btn-save').addEventListener('click', () => {
+  const data = {
+    entities: state.entities.map(e => ({ ...e })),
+    camera: state.camera,
+    goal: state.goal ? { ...state.goal } : null,
+    flag: state.flag ? { ...state.flag } : null,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'level.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Level saved');
+});
+
+$('btn-load').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        state.entities = data.entities || [];
+        state.camera = data.camera || { x: 0, y: 0 };
+        state.goal = data.goal ? { ...data.goal } : null;
+        state.flag = data.flag ? { ...data.flag } : null;
+        state.selected = [];
+        state.preview = false;
+        $('btn-preview').classList.remove('active');
+        status.textContent = 'Editor Mode';
+        render();
+        toast('Level loaded');
+      } catch (err) {
+        toast('Failed to load level');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+});
+
+$('btn-new').addEventListener('click', () => {
+  if (state.preview) {
+    state.preview = false;
+    $('btn-preview').classList.remove('active');
+    status.textContent = 'Editor Mode';
+  }
+  state.entities = [];
+  state.camera = { x: 0, y: 0 };
+  state.goal = null;
+  state.flag = null;
+  state.selected = [];
+  state.previewStats = {};
+  render();
+  toast('New level created');
+});
+
+$('btn-undo').addEventListener('click', undo);
+$('btn-redo').addEventListener('click', redo);
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown', (e) => {
+  if (state.preview) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state.selected.length) {
+      state.selected.forEach(id => deleteEntity(id));
+      state.selected = [];
+      updateInspector();
+      toast('Deleted entities');
+    }
+  } else if (e.key === 'z' && e.ctrlKey && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  } else if (e.key === 'y' && e.ctrlKey) {
+    redo();
+  } else if (e.key === 'g') {
+    // Toggle goal
+    if (state.goal) deleteEntity(state.goal.id);
+    else {
+      state.goal = createEntity('goal', { x: 400, y: 300 });
+    }
+  } else if (e.key === 'f') {
+    // Toggle flag
+    if (state.flag) deleteEntity(state.flag.id);
+    else {
+      state.flag = createEntity('flag', { x: 500, y: 400 });
+    }
+  } else if (e.key === 'Enter') {
+    // Place player at cursor
+    const p = getMousePos(e);
+    createEntity('player', { x: p.x, y: p.y });
+  }
+});
+
+/* ---------- Resize ---------- */
+window.addEventListener('resize', () => {
+  // Keep viewport canvas ratio
+  const rect = viewport.getBoundingClientRect();
+  viewport.width = rect.width * devicePixelRatio;
+  viewport.height = rect.height * devicePixelRatio;
+  viewport.style.width = rect.width + 'px';
+  viewport.style.height = rect.height + 'px';
+  render();
+});
+
+/* ---------- Init ---------- */
+function init() {
+  // Seed a few default entities
+  createEntity('player', { x: 100, y: 100, hp: 100, speed: 4, color: '#ff6b6b' });
+  createEntity('enemy',  { x: 300, y: 300, hp: 100, speed: 2, color: '#ff8a8a' });
+  createEntity('obstacle',{ x: 400, y: 400, hp: 100, color: '#4a4a70' });
+  createEntity('prop',   { x: 500, y: 500, hp: 100, color: '#7a7a9a' });
+  createEntity('flag',   { x: 600, y: 600, hp: 100, color: '#ffd86b' });
+  state.camera = { x: 0, y: 0 };
+  state.goal = { x: 400, y: 300, type: 'goal', hp: 100, color: '#4ade80' };
+  state.entities.push(state.goal);
+  state.flag = { x: 500, y: 400, type: 'flag', hp: 100, color: '#ffd86b' };
+  state.entities.push(state.flag);
+  state.selected = [];
+  state.preview = false;
+  $('btn-preview').classList.remove('active');
+  status.textContent = 'Editor Mode';
+  render();
+  entityCount.textContent = state.entities.length;
+}
+
+init();
+</script></script>
+</body>
+</html>

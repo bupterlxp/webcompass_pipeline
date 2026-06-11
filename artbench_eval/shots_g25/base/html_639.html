@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular Synthesizer</title>
+    <style>/* style.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    overflow-x: hidden;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    background-color: #222;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+}
+
+header h1 {
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+#controls {
+    display: flex;
+    gap: 1rem;
+}
+
+#controls button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#controls button:hover {
+    background-color: #45a049;
+}
+
+#audioInfo {
+    background-color: #333;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+#workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+#moduleLibrary {
+    width: 250px;
+    background-color: #222;
+    padding: 1rem;
+    border-right: 1px solid #333;
+    overflow-y: auto;
+}
+
+.module-category {
+    margin-bottom: 2rem;
+}
+
+.module-category h3 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #aaa;
+}
+
+.module-item {
+    background-color: #333;
+    padding: 0.8rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    cursor: grab;
+    transition: all 0.2s;
+    border: 1px solid #444;
+}
+
+.module-item:hover {
+    background-color: #444;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.module-icon {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: #555;
+    border-radius: 4px;
+    margin-right: 0.5rem;
+    text-align: center;
+    line-height: 24px;
+    font-weight: bold;
+    color: #aaa;
+}
+
+.module-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+#synthCanvas {
+    flex: 1;
+    position: relative;
+    background-color: #111;
+    padding: 1rem;
+    overflow: auto;
+}
+
+#synthModules {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+#connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.connection {
+    position: absolute;
+    background-color: #4CAF50;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.connection-line {
+    position: absolute;
+    background-color: #4CAF50;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.module {
+    position: relative;
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 8px;
+    padding: 1rem;
+    min-width: 120px;
+    min-height: 100px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    cursor: move;
+    transition: all 0.2s;
+}
+
+.module:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.module-header {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.module-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.control-group label {
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-bottom: 0.2rem;
+}
+
+.control-group input,
+.control-group select,
+.control-group button {
+    background-color: #444;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.control-group input:focus,
+.control-group select:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.control-group button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.control-group button:hover {
+    background-color: #45a049;
+}
+
+#settingsPanel {
+    width: 300px;
+    background-color: #222;
+    padding: 1rem;
+    border-left: 1px solid #333;
+    overflow-y: auto;
+    display: none;
+}
+
+#settingsPanel h2 {
+    margin-bottom: 1rem;
+    color: #fff;
+}
+
+#settingsContent {
+    padding: 0.5rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #moduleLibrary {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #333;
+    }
+    
+    #workspace {
+        flex-direction: column;
+    }
+    
+    #synthCanvas {
+        padding: 0.5rem;
+    }
+    
+    #settingsPanel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #333;
+    }
+}
+
+/* Connection styles */
+.connection {
+    background-color: #4CAF50;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.connection-line {
+    position: absolute;
+    background-color: #4CAF50;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+}
+</style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Modular Synthesizer</h1>
+            <div id="controls">
+                <button id="playBtn">Play</button>
+                <button id="stopBtn">Stop</button>
+                <button id="exportBtn">Export Audio</button>
+                <div id="audioInfo">
+                    <span id="currentSound">Current Sound: None</span>
+                </div>
+            </div>
+        </header>
+        
+        <div id="workspace">
+            <div id="moduleLibrary">
+                <h2>Module Library</h2>
+                <div class="module-category">
+                    <h3>Oscillators</h3>
+                    <div class="module-item" data-type="sine">
+                        <div class="module-icon">Sine</div>
+                        <div class="module-name">Sine Oscillator</div>
+                    </div>
+                    <div class="module-item" data-type="square">
+                        <div class="module-icon">Square</div>
+                        <div class="module-name">Square Oscillator</div>
+                    </div>
+                    <div class="module-item" data-type="sawtooth">
+                        <div class="module-icon">Saw</div>
+                        <div class="module-name">Sawtooth Oscillator</div>
+                    </div>
+                    <div class="module-item" data-type="triangle">
+                        <div class="module-icon">Triangle</div>
+                        <div class="module-name">Triangle Oscillator</div>
+                    </div>
+                </div>
+                
+                <div class="module-category">
+                    <h3>Filters</h3>
+                    <div class="module-item" data-type="lowpass">
+                        <div class="module-icon">LPF</div>
+                        <div class="module-name">Low Pass Filter</div>
+                    </div>
+                    <div class="module-item" data-type="highpass">
+                        <div class="module-icon">HPF</div>
+                        <div class="module-name">High Pass Filter</div>
+                    </div>
+                    <div class="module-item" data-type="bandpass">
+                        <div class="module-icon">BPF</div>
+                        <div class="module-name">Band Pass Filter</div>
+                    </div>
+                    <div class="module-item" data-type="notch">
+                        <div class="module-icon">Notch</div>
+                        <div class="module-name">Notch Filter</div>
+                    </div>
+                </div>
+                
+                <div class="module-category">
+                    <h3>Envelope Generators</h3>
+                    <div class="module-item" data-type="adsr">
+                        <div class="module-icon">ADSR</div>
+                        <div class="module-name">ADSR Envelope</div>
+                    </div>
+                    <div class="module-item" data-type="envelope">
+                        <div class="module-icon">Env</div>
+                        <div class="module-name">Simple Envelope</div>
+                    </div>
+                </div>
+                
+                <div class="module-category">
+                    <h3>Effects</h3>
+                    <div class="module-item" data-type="reverb">
+                        <div class="module-icon">Reverb</div>
+                        <div class="module-name">Reverb</div>
+                    </div>
+                    <div class="module-item" data-type="delay">
+                        <div class="module-icon">Delay</div>
+                        <div class="module-name">Delay</div>
+                    </div>
+                    <div class="module-item" data-type="distortion">
+                        <div class="module-icon">Dist</div>
+                        <div class="module-name">Distortion</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="synthCanvas">
+                <div id="synthModules"></div>
+                <div id="connections"></div>
+            </div>
+        </div>
+        
+        <div id="settingsPanel">
+            <h2>Module Settings</h2>
+            <div id="settingsContent"></div>
+        </div>
+    </div>
+    
+    <script>// synthesizer.js
+class Synthesizer {
+    constructor() {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.modules = [];
+        this.connections = [];
+        this.playing = false;
+        this.currentSound = null;
+        this.audioBuffer = null;
+        
+        this.initUI();
+        this.initAudio();
+        this.setupEventListeners();
+    }
+    
+    initUI() {
+        this.playBtn = document.getElementById('playBtn');
+        this.stopBtn = document.getElementById('stopBtn');
+        this.exportBtn = document.getElementById('exportBtn');
+        this.currentSoundDisplay = document.getElementById('currentSound');
+        
+        this.moduleLibrary = document.getElementById('moduleLibrary');
+        this.synthCanvas = document.getElementById('synthCanvas');
+        this.synthModules = document.getElementById('synthModules');
+        this.settingsPanel = document.getElementById('settingsPanel');
+        this.settingsContent = document.getElementById('settingsContent');
+        
+        this.draggedModule = null;
+        this.draggedModuleData = null;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        
+        // Initialize the canvas
+        this.synthCanvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        this.synthCanvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (this.draggedModule) {
+                this.placeModule(e.clientX, e.clientY);
+                this.draggedModule = null;
+                this.draggedModuleData = null;
+            }
+        });
+    }
+    
+    initAudio() {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGainNode = this.audioContext.createGain();
+        this.masterGainNode.gain.value = 1.0;
+        this.masterGainNode.connect(this.audioContext.destination);
+    }
+    
+    setupEventListeners() {
+        // Play button
+        this.playBtn.addEventListener('click', () => {
+            if (this.playing) {
+                this.stop();
+            } else {
+                this.play();
+            }
+        });
+        
+        // Stop button
+        this.stopBtn.addEventListener('click', () => {
+            this.stop();
+        });
+        
+        // Export button
+        this.exportBtn.addEventListener('click', () => {
+            this.exportAudio();
+        });
+        
+        // Module library click
+        this.moduleLibrary.addEventListener('click', (e) => {
+            if (e.target.classList.contains('module-item')) {
+                const moduleType = e.target.dataset.type;
+                this.createModule(moduleType, e.clientX, e.clientY);
+            }
+        });
+        
+        // Module drag start
+        this.synthCanvas.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('module-item')) {
+                this.draggedModule = e.target;
+                this.draggedModuleData = {
+                    type: e.target.dataset.type,
+                    x: e.clientX,
+                    y: e.clientY
+                };
+                this.dragStartX = e.clientX;
+                this.dragStartY = e.clientY;
+            }
+        });
+        
+        // Module drag end
+        this.synthCanvas.addEventListener('dragend', (e) => {
+            this.draggedModule = null;
+            this.draggedModuleData = null;
+        });
+        
+        // Module drag over
+        this.synthCanvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        // Module drop
+        this.synthCanvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (this.draggedModule) {
+                this.placeModule(e.clientX, e.clientY);
+                this.draggedModule = null;
+                this.draggedModuleData = null;
+            }
+        });
+        
+        // Module context menu
+        this.synthCanvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (e.target.classList.contains('module')) {
+                const moduleId = e.target.dataset.moduleId;
+                const module = this.getModuleById(moduleId);
+                if (module) {
+                    this.showSettings(module);
+                }
+            }
+        });
+    }
+    
+    createModule(type, x, y) {
+        const module = this.createModuleInstance(type);
+        module.x = x;
+        module.y = y;
+        module.element = this.createModuleElement(type, module);
+        module.element.dataset.moduleId = module.id;
+        module.element.style.left = `${x - 100}px`;
+        module.element.style.top = `${y - 50}px`;
+        
+        // Add to canvas
+        this.synthModules.appendChild(module.element);
+        
+        // Add to modules array
+        this.modules.push(module);
+        
+        // Add module to audio graph
+        this.addModuleToAudioGraph(module);
+        
+        // Add module to settings panel
+        this.showSettings(module);
+        
+        // Update UI
+        this.updateCurrentSound();
+    }
+    
+    createModuleInstance(type) {
+        const module = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            type: type,
+            x: 0,
+            y: 0,
+            params: {},
+            element: null,
+            audioNode: null,
+            connections: []
+        };
+        
+        // Initialize parameters based on module type
+        switch (type) {
+            case 'sine':
+            case 'square':
+            case 'sawtooth':
+            case 'triangle':
+                module.params = {
+                    frequency: 440,
+                    volume: 0.5,
+                    waveform: type
+                };
+                break;
+                
+            case 'lowpass':
+            case 'highpass':
+            case 'bandpass':
+            case 'notch':
+                module.params = {
+                    frequency: 1000,
+                    resonance: 0.7,
+                    q: 1.0
+                };
+                break;
+                
+            case 'adsr':
+            case 'envelope':
+                module.params = {
+                    attack: 0.1,
+                    decay: 0.1,
+                    sustain: 0.5,
+                    release: 1.0
+                };
+                break;
+                
+            case 'reverb':
+                module.params = {
+                    decay: 2.0,
+                    wet: 0.5,
+                    roomSize: 0.8
+                };
+                break;
+                
+            case 'delay':
+                module.params = {
+                    delayTime: 0.2,
+                    feedback: 0.3,
+                    wet: 0.5
+                };
+                break;
+                
+            case 'distortion':
+                module.params = {
+                    distortion: 0.5,
+                    wet: 0.5
+                };
+                break;
+        }
+        
+        return module;
+    }
+    
+    createModuleElement(type, module) {
+        const element = document.createElement('div');
+        element.className = 'module';
+        element.dataset.moduleId = module.id;
+        element.dataset.type = type;
+        
+        // Module header
+        const header = document.createElement('div');
+        header.className = 'module-header';
+        header.textContent = type.charAt(0).toUpperCase() + type.slice(1).replace(/([A-Z])/g, ' $1').trim();
+        element.appendChild(header);
+        
+        // Module controls
+        const controls = document.createElement('div');
+        controls.className = 'module-controls';
+        element.appendChild(controls);
+        
+        // Add parameters based on module type
+        this.addModuleControls(type, controls, module);
+        
+        // Add connections
+        const connections = document.createElement('div');
+        connections.className = 'module-connections';
+        element.appendChild(connections);
+        
+        // Add connection points
+        this.addConnectionPoints(element, module);
+        
+        return element;
+    }
+    
+    addModuleControls(type, controls, module) {
+        switch (type) {
+            case 'sine':
+            case 'square':
+            case 'sawtooth':
+            case 'triangle':
+                this.addOscillatorControls(controls, module);
+                break;
+                
+            case 'lowpass':
+            case 'highpass':
+            case 'bandpass':
+            case 'notch':
+                this.addFilterControls(controls, module);
+                break;
+                
+            case 'adsr':
+            case 'envelope':
+                this.addEnvelopeControls(controls, module);
+                break;
+                
+            case 'reverb':
+                this.addReverbControls(controls, module);
+                break;
+                
+            case 'delay':
+                this.addDelayControls(controls, module);
+                break;
+                
+            case 'distortion':
+                this.addDistortionControls(controls, module);
+                break;
+        }
+    }
+    
+    addOscillatorControls(controls, module) {
+        const freqControl = this.createControl('frequency', 'Frequency (Hz)', 'input', 'number', {
+            min: 20,
+            max: 20000,
+            step: 1,
+            value: module.params.frequency
+        });
+        controls.appendChild(freqControl);
+        
+        const volumeControl = this.createControl('volume', 'Volume', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.volume
+        });
+        controls.appendChild(volumeControl);
+        
+        const waveformControl = this.createControl('waveform', 'Waveform', 'select', null, {
+            options: [
+                { value: 'sine', text: 'Sine' },
+                { value: 'square', text: 'Square' },
+                { value: 'sawtooth', text: 'Sawtooth' },
+                { value: 'triangle', text: 'Triangle' }
+            ],
+            value: module.params.waveform
+        });
+        controls.appendChild(waveformControl);
+    }
+    
+    addFilterControls(controls, module) {
+        const freqControl = this.createControl('frequency', 'Frequency (Hz)', 'input', 'number', {
+            min: 20,
+            max: 20000,
+            step: 1,
+            value: module.params.frequency
+        });
+        controls.appendChild(freqControl);
+        
+        const resonanceControl = this.createControl('resonance', 'Resonance', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.resonance
+        });
+        controls.appendChild(resonanceControl);
+        
+        const qControl = this.createControl('q', 'Q Factor', 'input', 'range', {
+            min: 0.1,
+            max: 10,
+            step: 0.1,
+            value: module.params.q
+        });
+        controls.appendChild(qControl);
+    }
+    
+    addEnvelopeControls(controls, module) {
+        const attackControl = this.createControl('attack', 'Attack (s)', 'input', 'number', {
+            min: 0.01,
+            max: 5,
+            step: 0.01,
+            value: module.params.attack
+        });
+        controls.appendChild(attackControl);
+        
+        const decayControl = this.createControl('decay', 'Decay (s)', 'input', 'number', {
+            min: 0.01,
+            max: 5,
+            step: 0.01,
+            value: module.params.decay
+        });
+        controls.appendChild(decayControl);
+        
+        const sustainControl = this.createControl('sustain', 'Sustain', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.sustain
+        });
+        controls.appendChild(sustainControl);
+        
+        const releaseControl = this.createControl('release', 'Release (s)', 'input', 'number', {
+            min: 0.01,
+            max: 5,
+            step: 0.01,
+            value: module.params.release
+        });
+        controls.appendChild(releaseControl);
+    }
+    
+    addReverbControls(controls, module) {
+        const decayControl = this.createControl('decay', 'Decay (s)', 'input', 'number', {
+            min: 0.1,
+            max: 10,
+            step: 0.1,
+            value: module.params.decay
+        });
+        controls.appendChild(decayControl);
+        
+        const wetControl = this.createControl('wet', 'Wet', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.wet
+        });
+        controls.appendChild(wetControl);
+        
+        const roomSizeControl = this.createControl('roomSize', 'Room Size', 'input', 'range', {
+            min: 0.1,
+            max: 1,
+            step: 0.01,
+            value: module.params.roomSize
+        });
+        controls.appendChild(roomSizeControl);
+    }
+    
+    addDelayControls(controls, module) {
+        const delayTimeControl = this.createControl('delayTime', 'Delay Time (s)', 'input', 'number', {
+            min: 0.01,
+            max: 5,
+            step: 0.01,
+            value: module.params.delayTime
+        });
+        controls.appendChild(delayTimeControl);
+        
+        const feedbackControl = this.createControl('feedback', 'Feedback', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.feedback
+        });
+        controls.appendChild(feedbackControl);
+        
+        const wetControl = this.createControl('wet', 'Wet', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.wet
+        });
+        controls.appendChild(wetControl);
+    }
+    
+    addDistortionControls(controls, module) {
+        const distortionControl = this.createControl('distortion', 'Distortion', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.distortion
+        });
+        controls.appendChild(distortionControl);
+        
+        const wetControl = this.createControl('wet', 'Wet', 'input', 'range', {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: module.params.wet
+        });
+        controls.appendChild(wetControl);
+    }
+    
+    createControl(name, label, type, options, config = {}) {
+        const controlGroup = document.createElement('div');
+        controlGroup.className = 'control-group';
+        
+        const labelElement = document.createElement('label');
+        labelElement.textContent = label;
+        controlGroup.appendChild(labelElement);
+        
+        const inputElement = document.createElement(type === 'select' ? 'select' : type);
+        inputElement.name = name;
+        inputElement.value = config.value;
+        
+        if (type === 'select') {
+            config.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.value;
+                optionElement.textContent = option.text;
+                inputElement.appendChild(optionElement);
+            });
+        } else if (type === 'input') {
+            inputElement.type = type;
+            inputElement.min = config.min;
+            inputElement.max = config.max;
+            inputElement.step = config.step;
+            inputElement.value = config.value;
+        }
+        
+        controlGroup.appendChild(inputElement);
+        
+        // Add event listeners
+        if (type === 'input' || type === 'select') {
+            inputElement.addEventListener('input', (e) => {
+                this.updateModuleParameter(e.target.name, e.target.value, e.target);
+            });
+        }
+        
+        return controlGroup;
+    }
+    
+    updateModuleParameter(name, value, element) {
+        const module = this.getModuleById(element.closest('.module').dataset.moduleId);
+        if (module && module.params) {
+            if (name === 'frequency') {
+                module.params.frequency = parseFloat(value);
+            } else if (name === 'volume') {
+                module.params.volume = parseFloat(value);
+            } else if (name === 'waveform') {
+                module.params.waveform = value;
+            } else if (name === 'resonance') {
+                module.params.resonance = parseFloat(value);
+            } else if (name === 'q') {
+                module.params.q = parseFloat(value);
+            } else if (name === 'attack') {
+                module.params.attack = parseFloat(value);
+            } else if (name === 'decay') {
+                module.params.decay = parseFloat(value);
+            } else if (name === 'sustain') {
+                module.params.sustain = parseFloat(value);
+            } else if (name === 'release') {
+                module.params.release = parseFloat(value);
+            } else if (name === 'decay') {
+                module.params.decay = parseFloat(value);
+            } else if (name === 'wet') {
+                module.params.wet = parseFloat(value);
+            } else if (name === 'roomSize') {
+                module.params.roomSize = parseFloat(value);
+            } else if (name === 'delayTime') {
+                module.params.delayTime = parseFloat(value);
+            } else if (name === 'feedback') {
+                module.params.feedback = parseFloat(value);
+            } else if (name === 'distortion') {
+                module.params.distortion = parseFloat(value);
+            }
+            
+            // Update audio node
+            this.updateModuleAudioNode(module);
+            
+            // Update UI
+            this.updateCurrentSound();
+        }
+    }
+    
+    addConnectionPoints(element, module) {
+        const connections = element.querySelector('.module-connections');
+        if (!connections) {
+            element.appendChild(connections);
+        }
+        
+        // Add input connection point
+        const inputPoint = document.createElement('div');
+        inputPoint.className = 'connection-point';
+        inputPoint.style.position = 'absolute';
+        inputPoint.style.left = '10px';
+        inputPoint.style.top = '10px';
+        inputPoint.style.width = '10px';
+        inputPoint.style.height = '10px';
+        inputPoint.style.backgroundColor = '#4CAF50';
+        inputPoint.style.borderRadius = '50%';
+        inputPoint.style.cursor = 'crosshair';
+        inputPoint.dataset.type = 'input';
+        inputPoint.dataset.moduleId = module.id;
+        inputPoint.dataset.connectionId = 'input';
+        connections.appendChild(inputPoint);
+        
+        // Add output connection point
+        const outputPoint = document.createElement('div');
+        outputPoint.className = 'connection-point';
+        outputPoint.style.position = 'absolute';
+        outputPoint.style.right = '10px';
+        outputPoint.style.top = '10px';
+        outputPoint.style.width = '10px';
+        outputPoint.style.height = '10px';
+        outputPoint.style.backgroundColor = '#4CAF50';
+        outputPoint.style.borderRadius = '50%';
+        outputPoint.style.cursor = 'crosshair';
+        outputPoint.dataset.type = 'output';
+        outputPoint.dataset.moduleId = module.id;
+        outputPoint.dataset.connectionId = 'output';
+        connections.appendChild(outputPoint);
+    }
+    
+    placeModule(x, y) {
+        if (!this.draggedModule) return;
+        
+        const moduleType = this.draggedModule.dataset.type;
+        const module = this.createModuleInstance(moduleType);
+        module.x = x;
+        module.y = y;
+        module.element = this.createModuleElement(moduleType, module);
+        module.element.dataset.moduleId = module.id;
+        module.element.style.left = `${x - 100}px`;
+        module.element.style.top = `${y - 50}px`;
+        
+        // Add to canvas
+        this.synthModules.appendChild(module.element);
+        
+        // Add to modules array
+        this.modules.push(module);
+        
+        // Add module to audio graph
+        this.addModuleToAudioGraph(module);
+        
+        // Add module to settings panel
+        this.showSettings(module);
+        
+        // Update UI
+        this.updateCurrentSound();
+    }
+    
+    addModuleToAudioGraph(module) {
+        // Create audio node based on module type
+        switch (module.type) {
+            case 'sine':
+            case 'square':
+            case 'sawtooth':
+            case 'triangle':
+                this.createOscillatorNode(module);
+                break;
+                
+            case 'lowpass':
+            case 'highpass':
+            case 'bandpass':
+            case 'notch':
+                this.createFilterNode(module);
+                break;
+                
+            case 'adsr':
+            case 'envelope':
+                this.createEnvelopeNode(module);
+                break;
+                
+            case 'reverb':
+                this.createReverbNode(module);
+                break;
+                
+            case 'delay':
+                this.createDelayNode(module);
+                break;
+                
+            case 'distortion':
+                this.createDistortionNode(module);
+                break;
+        }
+    }
+    
+    createOscillatorNode(module) {
+        const oscillator = this.audioContext.createOscillator();
+        oscillator.type = module.params.waveform;
+        oscillator.frequency.setValueAtTime(module.params.frequency, this.audioContext.currentTime);
+        oscillator.connect(this.masterGainNode);
+        
+        module.audioNode = oscillator;
+        
+        // Add to audio graph
+        this.connectModuleToAudioGraph(module);
+    }
+    
+    createFilterNode(module) {
+        const filter = this.audioContext.createBiquadFilter();
+        filter.type = module.type;
+        filter.frequency.setValueAtTime(module.params.frequency, this.audioContext.currentTime);
+        filter.Q.setValueAtTime(module.params.q, this.audioContext.currentTime);
+        filter.connect(this.masterGainNode);
+        
+        module.audioNode = filter;
+        
+        // Add to audio graph
+        this.connectModuleToAudioGraph(module);
+    }
+    
+    createEnvelopeNode(module) {
+        const envelope = this.audioContext.createGain();
+        envelope.gain.setValueAtTime(0, this.audioContext.currentTime);
+        envelope.connect(this.masterGainNode);
+        
+        module.audioNode = envelope;
+        
+        // Add to audio graph
+        this.connectModuleToAudioGraph(module);
+    }
+    
+    createReverbNode(module) {
+        const reverb = this.audioContext.createConvolver();
+        reverb.connect(this.masterGainNode);
+        
+        module.audioNode = reverb;
+        
+        // Add to audio graph
+        this.connectModuleToAudioGraph(module);
+    }
+    
+    createDelayNode(module) {
+        const delay = this.audioContext.createDelay();
+        delay.delayTime.setValueAtTime(module.params.delayTime, this.audioContext.currentTime);
+        delay.connect(this.masterGainNode);
+        
+        module.audioNode = delay;
+        
+        // Add to audio graph
+        this.connectModuleToAudioGraph(module);
+    }
+    
+    createDistortionNode(module) {
+        const distortion = this.audioContext.createWaveShaper();
+        const curve = new Float32Array(4096);
+        for (let i = 0; i < 4096; i++) {
+            const x = i * 2 / 4096 - 1;
+            curve[i] = (x < 0 ? -1 : 1) * (x * x * x * x * x);
+        }
+        distortion.curve = curve;
+        distortion.connect(this.masterGainNode);
+        
+        module.audioNode = distortion;
+        
+        // Add to audio graph
+        this.connectModuleToAudioGraph(module);
+    }
+    
+    connectModuleToAudioGraph(module) {
+        // Connect module to audio graph
+        // This is a simplified version - in a real implementation, you would need to handle connections between modules
+        if (module.type === 'sine' || module.type === 'square' || module.type === 'sawtooth' || module.type === 'triangle') {
+            // Connect oscillator to master gain
+            if (module.audioNode) {
+                module.audioNode.connect(this.masterGainNode);
+            }
+        }
+    }
+    
+    updateModuleAudioNode(module) {
+        if (!module.audioNode) return;
+        
+        switch (module.type) {
+            case 'sine':
+            case 'square':
+            case 'sawtooth':
+            case 'triangle':
+                if (module.audioNode) {
+                    module.audioNode.frequency.setValueAtTime(module.params.frequency, this.audioContext.currentTime);
+                }
+                break;
+                
+            case 'lowpass':
+            case 'highpass':
+            case 'bandpass':
+            case 'notch':
+                if (module.audioNode) {
+                    module.audioNode.frequency.setValueAtTime(module.params.frequency, this.audioContext.currentTime);
+                    module.audioNode.Q.setValueAtTime(module.params.q, this.audioContext.currentTime);
+                }
+                break;
+                
+            case 'adsr':
+            case 'envelope':
+                if (module.audioNode) {
+                    // Update envelope parameters
+                    module.audioNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    module.audioNode.gain.setValueAtTime(module.params.sustain, this.audioContext.currentTime + module.params.attack);
+                    module.audioNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + module.params.attack + module.params.decay);
+                }
+                break;
+                
+            case 'reverb':
+                if (module.audioNode) {
+                    // Update reverb parameters
+                    module.audioNode.gain.setValueAtTime(module.params.wet, this.audioContext.currentTime);
+                }
+                break;
+                
+            case 'delay':
+                if (module.audioNode) {
+                    module.audioNode.delayTime.setValueAtTime(module.params.delayTime, this.audioContext.currentTime);
+                    module.audioNode.gain.setValueAtTime(module.params.wet, this.audioContext.currentTime);
+                }
+                break;
+                
+            case 'distortion':
+                if (module.audioNode) {
+                    module.audioNode.gain.setValueAtTime(module.params.wet, this.audioContext.currentTime);
+                }
+                break;
+        }
+    }
+    
+    showSettings(module) {
+        this.settingsContent.innerHTML = '';
+        
+        const moduleType = module.type;
+        const moduleParams = module.params;
+        
+        const settingsTitle = document.createElement('h3');
+        settingsTitle.textContent = `${moduleType.charAt(0).toUpperCase() + moduleType.slice(1)} Settings`;
+        this.settingsContent.appendChild(settingsTitle);
+        
+        const settingsContainer = document.createElement('div');
+        settingsContainer.className = 'settings-container';
+        this.settingsContent.appendChild(settingsContainer);
+        
+        // Add parameters based on module type
+        switch (moduleType) {
+            case 'sine':
+            case 'square':
+            case 'sawtooth':
+            case 'triangle':
+                this.addOscillatorSettings(settingsContainer, moduleParams);
+                break;
+                
+            case 'lowpass':
+            case 'highpass':
+            case 'bandpass':
+            case 'notch':
+                this.addFilterSettings(settingsContainer, moduleParams);
+                break;
+                
+            case 'adsr':
+            case 'envelope':
+                this.addEnvelopeSettings(settingsContainer, moduleParams);
+                break;
+                
+            case 'reverb':
+                this.addReverbSettings(settingsContainer, moduleParams);
+                break;
+                
+            case 'delay':
+                this.addDelaySettings(settingsContainer, moduleParams);
+                break;
+                
+            case 'distortion':
+                this.addDistortionSettings(settingsContainer, moduleParams);
+                break;
+        }
+        
+        // Add close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.addEventListener('click', () => {
+            this.settingsPanel.style.display = 'none';
+        });
+        this.settingsContent.appendChild(closeButton);
+        
+        // Show settings panel
+        this.settingsPanel.style.display = 'block';
+    }
+    
+    addOscillatorSettings(container, params) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Frequency (Hz):';
+        paramDiv.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 20;
+        input.max = 20000;
+        input.step = 1;
+        input.value = params.frequency;
+        input.addEventListener('input', (e) => {
+            params.frequency = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Volume:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.volume;
+        input.addEventListener('input', (e) => {
+            params.volume = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Waveform:';
+        paramDiv.appendChild(label);
+        
+        const select = document.createElement('select');
+        select.value = params.waveform;
+        select.addEventListener('change', (e) => {
+            params.waveform = e.target.value;
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        
+        const options = ['sine', 'square', 'sawtooth', 'triangle'];
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option;
+            opt.textContent = option.charAt(0).toUpperCase() + option.slice(1);
+            select.appendChild(opt);
+        });
+        paramDiv.appendChild(select);
+        
+        container.appendChild(paramDiv);
+    }
+    
+    addFilterSettings(container, params) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Frequency (Hz):';
+        paramDiv.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 20;
+        input.max = 20000;
+        input.step = 1;
+        input.value = params.frequency;
+        input.addEventListener('input', (e) => {
+            params.frequency = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Resonance:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.resonance;
+        input.addEventListener('input', (e) => {
+            params.resonance = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Q Factor:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0.1;
+        input.max = 10;
+        input.step = 0.1;
+        input.value = params.q;
+        input.addEventListener('input', (e) => {
+            params.q = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+    }
+    
+    addEnvelopeSettings(container, params) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Attack (s):';
+        paramDiv.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 0.01;
+        input.max = 5;
+        input.step = 0.01;
+        input.value = params.attack;
+        input.addEventListener('input', (e) => {
+            params.attack = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Decay (s):';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'number';
+        input.min = 0.01;
+        input.max = 5;
+        input.step = 0.01;
+        input.value = params.decay;
+        input.addEventListener('input', (e) => {
+            params.decay = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Sustain:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.sustain;
+        input.addEventListener('input', (e) => {
+            params.sustain = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Release (s):';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'number';
+        input.min = 0.01;
+        input.max = 5;
+        input.step = 0.01;
+        input.value = params.release;
+        input.addEventListener('input', (e) => {
+            params.release = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+    }
+    
+    addReverbSettings(container, params) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Decay (s):';
+        paramDiv.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 0.1;
+        input.max = 10;
+        input.step = 0.1;
+        input.value = params.decay;
+        input.addEventListener('input', (e) => {
+            params.decay = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Wet:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.wet;
+        input.addEventListener('input', (e) => {
+            params.wet = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Room Size:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0.1;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.roomSize;
+        input.addEventListener('input', (e) => {
+            params.roomSize = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+    }
+    
+    addDelaySettings(container, params) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Delay Time (s):';
+        paramDiv.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 0.01;
+        input.max = 5;
+        input.step = 0.01;
+        input.value = params.delayTime;
+        input.addEventListener('input', (e) => {
+            params.delayTime = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Feedback:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.feedback;
+        input.addEventListener('input', (e) => {
+            params.feedback = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Wet:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.wet;
+        input.addEventListener('input', (e) => {
+            params.wet = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+    }
+    
+    addDistortionSettings(container, params) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Distortion:';
+        paramDiv.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.distortion;
+        input.addEventListener('input', (e) => {
+            params.distortion = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+        
+        paramDiv = document.createElement('div');
+        paramDiv.className = 'parameter';
+        
+        label = document.createElement('label');
+        label.textContent = 'Wet:';
+        paramDiv.appendChild(label);
+        
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = params.wet;
+        input.addEventListener('input', (e) => {
+            params.wet = parseFloat(e.target.value);
+            this.updateModuleAudioNode(this.getModuleById(e.target.closest('.module').dataset.moduleId));
+        });
+        paramDiv.appendChild(input);
+        
+        container.appendChild(paramDiv);
+    }
+    
+    getModuleById(id) {
+        return this.modules.find(module => module.id === id);
+    }
+    
+    play() {
+        if (!this.playing) {
+            this.playing = true;
+            this.playBtn.textContent = 'Stop';
+            
+            // Start audio context if not already started
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+            
+            // Start playing
+            this.startPlaying();
+        }
+    }
+    
+    stop() {
+        this.playing = false;
+        this.playBtn.textContent = 'Play';
+        
+        // Stop playing
+        this.stopPlaying();
+    }
+    
+    startPlaying() {
+        // In a real implementation, you would start the audio graph
+        // For now, we'll just update the UI
+        this.currentSound = 'Playing';
+        this.updateCurrentSound();
+    }
+    
+    stopPlaying() {
+        // In a real implementation, you would stop the audio graph
+        // For now, we'll just update the UI
+        this.currentSound = 'Stopped';
+        this.updateCurrentSound();
+    }
+    
+    updateCurrentSound() {
+        this.currentSoundDisplay.textContent = `Current Sound: ${this.currentSound}`;
+    }
+    
+    exportAudio() {
+        if (!this.playing) {
+            alert('Please start playing to export audio');
+            return;
+        }
+        
+        // In a real implementation, you would record the audio
+        // For now, we'll create a simple audio file
+        alert('Audio export functionality would be implemented here.');
+    }
+    
+    // Helper method to get the current audio context
+    getAudioContext() {
+        return this.audioContext;
+    }
+    
+    // Helper method to get the master gain node
+    getMasterGainNode() {
+        return this.masterGainNode;
+    }
+    
+    // Helper method to get all modules
+    getModules() {
+        return this.modules;
+    }
+    
+    // Helper method to get all connections
+    getConnections() {
+        return this.connections;
+    }
+}
+
+// Initialize the synthesizer when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const synthesizer = new Synthesizer();
+    
+    // Add some default modules
+    synthesizer.createModule('sine', 100, 100);
+    synthesizer.createModule('lowpass', 300, 100);
+    synthesizer.createModule('adsr', 500, 100);
+    
+    // Add some connections
+    // In a real implementation, you would connect modules based on user interaction
+    console.log('Synthesizer initialized');
+});
+
+// Add some basic functionality for module connections
+document.addEventListener('DOMContentLoaded', () => {
+    const synthCanvas = document.getElementById('synthCanvas');
+    const modules = document.querySelectorAll('.module');
+    
+    // Add connection logic
+    modules.forEach(module => {
+        const inputPoint = module.querySelector('.connection-point[data-type="input"]');
+        const outputPoint = module.querySelector('.connection-point[data-type="output"]');
+        
+        if (inputPoint && outputPoint) {
+            inputPoint.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                // Start connection
+                const startX = e.clientX;
+                const startY = e.clientY;
+                
+                // Create connection line
+                const connection = document.createElement('div');
+                connection.className = 'connection-line';
+                connection.style.position = 'absolute';
+                connection.style.left = `${startX}px`;
+                connection.style.top = `${startY}px`;
+                connection.style.width = '0px';
+                connection.style.height = '0px';
+                connection.style.backgroundColor = '#4CAF50';
+                connection.style.borderRadius = '2px';
+                synthCanvas.appendChild(connection);
+                
+                // Store connection data
+                connection.dataset.moduleId = module.dataset.moduleId;
+                connection.dataset.connectionId = 'input';
+                
+                // Update connection position on mouse move
+                document.addEventListener('mousemove', (e) => {
+                    if (connection && connection.dataset.moduleId) {
+                        connection.style.left = `${e.clientX}px`;
+                        connection.style.top = `${e.clientY}px`;
+                    }
+                });
+                
+                // End connection on mouse up
+                document.addEventListener('mouseup', (e) => {
+                    if (connection && connection.dataset.moduleId) {
+                        // Find target module
+                        const targetModule = document.querySelector('.module[data-module-id]');
+                        if (targetModule) {
+                            // Connect modules
+                            // In a real implementation, you would connect the modules
+                            console.log(`Connecting ${module.dataset.moduleId} to ${targetModule.dataset.moduleId}`);
+                        }
+                        
+                        // Remove connection
+                        synthCanvas.removeChild(connection);
+                        document.removeEventListener('mousemove', () => {});
+                        document.removeEventListener('mouseup', () => {});
+                    }
+                });
+            });
+        }
+    });
+});
+</script></script>
+</body>
+</html>

@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScreenSnap — Browser Screenshot Tool</title>
+<style>* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #111;
+  color: #f5f5f7;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  background: #0b0d10;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #16191f;
+  border-bottom: 1px solid #262b32;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4d96ff, #ff6b6b);
+  color: white;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 14px rgba(77, 150, 255, 0.4);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.modes {
+  display: flex;
+  gap: 4px;
+}
+
+.mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  background: #262b32;
+  color: #c7ccd1;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+  background: #333a45;
+  border-color: #4a525c;
+}
+
+.mode-btn.active {
+  background: #4d96ff;
+  color: #0b0d10;
+  border-color: #4d96ff;
+  box-shadow: 0 2px 8px rgba(77, 150, 255, 0.35);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tool-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-slider {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #4a525c;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.switch-slider::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.tool-switch input:checked + .switch-slider {
+  background: #4d96ff;
+}
+
+.tool-switch input:checked + .switch-slider::before {
+  transform: translateX(18px);
+}
+
+.tool-label {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #c7ccd1;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: #262b32;
+  color: #c7ccd1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #333a45;
+  border-color: #4a525c;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #4d96ff;
+  color: #0b0d10;
+  box-shadow: 0 2px 8px rgba(77, 150, 255, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #6aa4ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(77, 150, 255, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: #262b32;
+  color: #c7ccd1;
+  border-color: #4a525c;
+}
+
+.btn-ghost:hover {
+  background: #333a45;
+  border-color: #5a636d;
+}
+
+/* ---------- Workspace ---------- */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  min-height: 0;
+}
+
+.preview {
+  position: relative;
+  overflow: hidden;
+  background: #0b0d10;
+  min-height: 0;
+}
+
+.preview-inner {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background: #0b0d10;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #6b7280;
+  text-align: center;
+  padding: 24px;
+}
+
+.placeholder svg {
+  opacity: 0.5;
+}
+
+.placeholder p {
+  margin: 0;
+  font-size: 14px;
+  max-width: 320px;
+}
+
+.placeholder strong {
+  color: #c7ccd1;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  background: #0b0d10;
+  border-left: 1px solid #262b32;
+  min-height: 0;
+}
+
+.panel {
+  padding: 14px 12px;
+  border-bottom: 1px solid #262b32;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+}
+
+.tools-panel { display: flex; flex-direction: column; gap: 4px; }
+
+.tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #c7ccd1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.tool-btn:hover {
+  background: #262b32;
+  border-color: #4a525c;
+}
+
+.tool-btn.active {
+  background: #4d96ff;
+  color: #0b0d10;
+  border-color: #4d96ff;
+}
+
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.text-panel, .color-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.field input[type="number"],
+.field select,
+.field input[type="color"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #333a45;
+  background: #16191f;
+  color: #f5f5f7;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.field input[type="number"]:hover,
+.field select:hover,
+.field input[type="color"]:hover {
+  border-color: #4a525c;
+}
+
+.field input[type="color"] {
+  background: transparent;
+  padding: 8px 36px 8px 10px;
+  cursor: pointer;
+  border: 1px solid #333a45;
+}
+
+.field input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.field input[type="color"]::-webkit-color-swatch {
+  border: 1px solid #333a45;
+  border-radius: 4px;
+}
+
+.field input[type="color"]::-moz-color-swatch {
+  border: 1px solid #333a45;
+  border-radius: 4px;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px solid #333a45;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.swatch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+
+.swatch.active {
+  box-shadow: 0 0 0 2px #4d96ff, 0 4px 10px rgba(77, 150, 255, 0.4);
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Capture overlay ---------- */
+.capture-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 13, 16, 0.75);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.capture-card {
+  background: #16191f;
+  border: 1px solid #4a525c;
+  border-radius: 14px;
+  padding: 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.capture-card h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.capture-sub {
+  margin: 0 0 24px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.capture-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ---------- Canvas layer ---------- */
+.layer {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+  z-index: 1;
+}
+
+.layer canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.layer {
+  pointer-events: auto;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none;
+  }
+  .actions .tool-switch { display: none; }
+}
+
+@media (max-width: 520px) {
+  .modes { display: none; }
+  .actions .btn-primary { padding: 8px 12px; font-size: 12px; }
+  .btn-ghost { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="9" cy="9" r="2"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+      </div>
+      <h1>ScreenSnap</h1>
+    </div>
+    <nav class="modes" role="tablist">
+      <button class="mode-btn active" data-mode="area" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Selected Area
+      </button>
+      <button class="mode-btn" data-mode="window" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V9M15 21V9"/></svg>
+        Visible Window
+      </button>
+      <button class="mode-btn" data-mode="page" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Entire Page
+      </button>
+    </nav>
+    <div class="actions">
+      <label class="tool-switch" title="Toggle editing">
+        <input type="checkbox" id="editToggle" checked>
+        <span class="switch-slider"></span>
+        <span class="tool-label">Edit</span>
+      </label>
+      <button class="icon-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+      </button>
+      <button class="icon-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg>
+      </button>
+      <button class="btn btn-primary" id="saveBtn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Save
+      </button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <div class="preview" id="preview">
+      <div class="preview-inner" id="previewInner">
+        <div class="placeholder" id="placeholder">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          <p>Select a mode and click <strong>Save</strong> to capture.</p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="panel tools-panel">
+        <h3>Tools</h3>
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="box" title="Draw box">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            Box
+          </button>
+          <button class="tool-btn" data-tool="arrow" title="Draw arrow">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+            Arrow
+          </button>
+          <button class="tool-btn" data-tool="text" title="Add text">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><line x1="4" y1="20" x2="20" y2="20"/></svg>
+            Text
+          </button>
+        </div>
+      </div>
+
+      <div class="panel text-panel hidden" id="textPanel">
+        <h3>Text</h3>
+        <label class="field">
+          <span>Font</span>
+          <select id="fontSelect">
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Impact, sans-serif">Impact</option>
+            <option value="Courier New, monospace">Courier</option>
+            <option value="Verdana, sans-serif">Verdana</option>
+            <option value="Helvetica, sans-serif">Helvetica</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Size</span>
+          <input type="number" id="fontSize" value="18" min="8" max="72" step="1">
+        </label>
+        <label class="field">
+          <span>Color</span>
+          <input type="color" id="textColor" value="#000000">
+        </label>
+        <label class="field">
+          <span>Background</span>
+          <input type="color" id="textBg" value="rgba(255,255,255,0.85)">
+        </label>
+      </div>
+
+      <div class="panel color-panel hidden" id="colorPanel">
+        <h3>Colors</h3>
+        <div class="swatches">
+          <button class="swatch active" data-color="#000000" style="background:#000000"></button>
+          <button class="swatch" data-color="#ffffff" style="background:#ffffff"></button>
+          <button class="swatch" data-color="#ff6b6b" style="background:#ff6b6b"></button>
+          <button class="swatch" data-color="#ffd166" style="background:#ffd166"></button>
+          <button class="swatch" data-color="#29cc97" style="background:#29cc97"></button>
+          <button class="swatch" data-color="#4d96ff" style="background:#4d96ff"></button>
+          <button class="swatch" data-color="#f5b301" style="background:#f5b301"></button>
+          <button class="swatch" data-color="#ff8a3d" style="background:#ff8a3d"></button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="capture-overlay hidden" id="captureOverlay">
+  <div class="capture-card">
+    <h2 id="captureTitle">Select an area to capture</h2>
+    <p class="capture-sub">Drag to select, or click <strong>Save</strong> to capture the visible window.</p>
+    <div class="capture-actions">
+      <button class="btn btn-ghost" id="cancelCapture">Cancel</button>
+      <button class="btn btn-primary" id="confirmCapture">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>/* =========================================================
+   ScreenSnap — Browser Screenshot Tool
+   ========================================================= */
+
+const app = (() => {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    mode: 'area',          // area | window | page
+    tool: 'box',           // box | arrow | text
+    editing: false,
+    canvas: null,
+    ctx: null,
+    layers: [],            // [{ type, data, x, y, w, h, color, text, font, bg }]
+    selectedLayerIdx: -1,
+    history: [],
+    redoStack: [],
+    startX: 0,
+    startY: 0,
+    endX: 0,
+    endY: 0,
+    drawing: false,
+    textInput: '',
+    textX: 0,
+    textY: 0,
+    fontSize: 18,
+    fontFamily: 'Arial, sans-serif',
+    textColor: '#000000',
+    textBg: 'rgba(255,255,255,0.85)',
+    color: '#000000',
+    captureRect: null,
+    captureTitle: 'Select an area to capture',
+    captureSub: 'Drag to select, or click Save to capture the visible window.',
+    captureBtnText: 'Save',
+  };
+
+  // ---------- DOM ----------
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  const previewInner = $('#previewInner');
+  const placeholder = $('#placeholder');
+  const sidebar = $('#sidebar');
+  const textPanel = $('#textPanel');
+  const colorPanel = $('#colorPanel');
+
+  const modeBtns = $$('.mode-btn');
+  const toolBtns = $$('.tool-btn');
+  const editToggle = $('#editToggle');
+  const undoBtn = $('#undoBtn');
+  const redoBtn = $('#redoBtn');
+  const saveBtn = $('#saveBtn');
+  const captureOverlay = $('#captureOverlay');
+  const captureTitle = $('#captureTitle');
+  const captureSub = $('#captureSub');
+  const captureBtnText = $('#confirmCapture');
+
+  // ---------- Canvas helpers ----------
+  const makeCanvas = (w, h) => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    c.style.width = w + 'px';
+    c.style.height = h + 'px';
+    c.style.display = 'block';
+    c.style.cursor = state.editing ? 'crosshair' : 'default';
+    c.setAttribute('tabindex', '0');
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', 'Screenshot canvas');
+    return c;
+  };
+
+  const resizeCanvas = (canvas, w, h) => {
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+  };
+
+  const clearCanvas = (canvas) => {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const drawLayer = (canvas, layer) => {
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.translate(layer.x, layer.y);
+
+    if (layer.type === 'box') {
+      ctx.strokeStyle = layer.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, layer.w, layer.h);
+    } else if (layer.type === 'arrow') {
+      ctx.strokeStyle = layer.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(layer.w, 0);
+      ctx.lineTo(layer.w - 8, 8);
+      ctx.lineTo(layer.w - 8, -8);
+      ctx.closePath();
+      ctx.stroke();
+    } else if (layer.type === 'text') {
+      ctx.font = `${layer.fontSize}px ${layer.fontFamily}`;
+      ctx.fillStyle = layer.textColor;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(layer.text, 0, 0);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = layer.textBg;
+      ctx.fillRect(0, 0, layer.w, layer.h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    ctx.restore();
+  };
+
+  const drawAll = () => {
+    state.layers.forEach((layer) => drawLayer(state.canvas, layer));
+  };
+
+  const redraw = () => {
+    clearCanvas(state.canvas);
+    drawAll();
+  };
+
+  // ---------- Mode switching ----------
+  const setMode = (mode) => {
+    state.mode = mode;
+    modeBtns.forEach((b) => {
+      const active = b.dataset.mode === mode;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active);
+    });
+    captureTitle.textContent = state.mode === 'area'
+      ? 'Select an area to capture'
+      : state.mode === 'window'
+        ? 'Capture visible window'
+        : 'Capture entire page';
+    captureSub.textContent = state.mode === 'area'
+      ? 'Drag to select, or click Save to capture the visible window.'
+      : state.mode === 'window'
+        ? 'Click Save to capture the visible window.'
+        : 'Click Save to capture the entire page.';
+    captureBtnText.textContent = state.mode === 'area' ? 'Save' : 'Save';
+    captureOverlay.classList.remove('hidden');
+    state.captureRect = null;
+    state.selectedLayerIdx = -1;
+    redraw();
+  };
+
+  // ---------- Tool switching ----------
+  const setTool = (tool) => {
+    state.tool = tool;
+    toolBtns.forEach((b) => {
+      const active = b.dataset.tool === tool;
+      b.classList.toggle('active', active);
+      b.disabled = active ? false : true;
+    });
+    if (tool === 'text') {
+      textPanel.classList.remove('hidden');
+      colorPanel.classList.add('hidden');
+    } else {
+      textPanel.classList.add('hidden');
+      colorPanel.classList.remove('hidden');
+    }
+    redraw();
+  };
+
+  // ---------- Editing ----------
+  const setEditing = (on) => {
+    state.editing = on;
+    editToggle.checked = on;
+    editToggle.indeterminate = false;
+    state.drawing = false;
+    state.startX = 0;
+    state.startY = 0;
+    state.endX = 0;
+    state.endY = 0;
+    state.textInput = '';
+    state.textX = 0;
+    state.textY = 0;
+    state.selectedLayerIdx = -1;
+    undoBtn.disabled = true;
+    redoBtn.disabled = true;
+    clearCanvas(state.canvas);
+    drawAll();
+    captureOverlay.classList.add('hidden');
+  };
+
+  // ---------- Capture overlay ----------
+  const openCapture = () => {
+    captureOverlay.classList.remove('hidden');
+    if (state.mode === 'area') {
+      state.captureRect = null;
+      redraw();
+    }
+  };
+
+  const closeCapture = () => {
+    captureOverlay.classList.add('hidden');
+  };
+
+  // ---------- Capture logic ----------
+  const captureArea = () => {
+    if (!state.captureRect) return;
+    const { x, y, w, h } = state.captureRect;
+    const rect = { x, y, w, h };
+    state.captureRect = null;
+    return rect;
+  };
+
+  const captureWindow = () => {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = window.visualViewport
+      ? {
+          x: window.visualViewport.pageLeft,
+          y: window.visualViewport.pageTop,
+          w: window.visualViewport.width,
+          h: window.visualViewport.height,
+        }
+      : {
+          x: 0,
+          y: 0,
+          w: window.innerWidth,
+          h: window.innerHeight,
+        };
+    return rect;
+  };
+
+  const capturePage = () => {
+    const dpr = window.devicePixelRatio || 1;
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    const width = document.documentElement.scrollWidth;
+    const height = document.documentElement.scrollHeight;
+    const rect = {
+      x: scrollX,
+      y: scrollY,
+      w: width,
+      h: height,
+    };
+    return rect;
+  };
+
+  const capture = () => {
+    const rect = state.mode === 'area'
+      ? captureArea()
+      : state.mode === 'window'
+        ? captureWindow()
+        : capturePage();
+
+    if (!rect) return null;
+
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(rect.w * dpr);
+    const h = Math.round(rect.h * dpr);
+
+    const canvas = makeCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    // Draw background
+    ctx.fillStyle = '#0b0d10';
+    ctx.fillRect(0, 0, w, h);
+
+    // Scroll to top (for page mode)
+    if (state.mode === 'page') {
+      window.scrollTo(0, 0);
+    }
+
+    // Draw content
+    const content = document.documentElement;
+    const rect = content.getBoundingClientRect();
+    ctx.save();
+    ctx.translate(-rect.left, -rect.top);
+    ctx.scale(1, 1);
+
+    // Render visible content
+    const clone = content.cloneNode(true);
+    clone.style.position = 'absolute';
+    clone.style.left = '0';
+    clone.style.top = '0';
+    clone.style.width = rect.width + 'px';
+    clone.style.height = rect.height + 'px';
+    clone.style.transform = 'translate(-' + rect.left + 'px, -' + rect.top + 'px)';
+    clone.style.transformOrigin = '0 0';
+    clone.style.boxSizing = 'border-box';
+
+    // Remove hidden elements
+    const hidden = clone.querySelectorAll('hidden, [hidden]');
+    hidden.forEach((el) => el.remove());
+
+    // Draw cloned content
+    const cloneRect = clone.getBoundingClientRect();
+    ctx.fillStyle = '#0b0d10';
+    ctx.fillRect(0, 0, cloneRect.width, cloneRect.height);
+    ctx.save();
+    ctx.translate(-cloneRect.left, -cloneRect.top);
+    ctx.scale(1, 1);
+
+    // Render clone into canvas
+    const tmp = document.createElement('canvas');
+    tmp.width = cloneRect.width;
+    tmp.height = cloneRect.height;
+    tmp.getContext('2d').drawImage(clone, 0, 0);
+    ctx.drawImage(tmp, 0, 0);
+
+    ctx.restore();
+    ctx.restore();
+
+    // Add layers
+    state.layers.forEach((layer) => {
+      ctx.save();
+      ctx.translate(layer.x, layer.y);
+      if (layer.type === 'box') {
+        ctx.strokeStyle = layer.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, layer.w, layer.h);
+      } else if (layer.type === 'arrow') {
+        ctx.strokeStyle = layer.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(layer.w, 0);
+        ctx.lineTo(layer.w - 8, 8);
+        ctx.lineTo(layer.w - 8, -8);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (layer.type === 'text') {
+        ctx.font = `${layer.fontSize}px ${layer.fontFamily}`;
+        ctx.fillStyle = layer.textColor;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(layer.text, 0, 0);
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = layer.textBg;
+        ctx.fillRect(0, 0, layer.w, layer.h);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
+    });
+
+    return canvas;
+  };
+
+  // ---------- Canvas drawing ----------
+  const addLayer = (layer) => {
+    state.layers.push(layer);
+    state.history.push([...state.layers]);
+    state.redoStack = [];
+    state.selectedLayerIdx = state.layers.length - 1;
+    redraw();
+    updateUndoRedo();
+  };
+
+  const deleteLayer = (idx) => {
+    if (idx < 0 || idx >= state.layers.length) return;
+    state.layers.splice(idx, 1);
+    state.history.push([...state.layers]);
+    state.redoStack = [];
+    state.selectedLayerIdx = -1;
+    redraw();
+    updateUndoRedo();
+  };
+
+  const undo = () => {
+    if (state.history.length === 0) return;
+    state.layers = state.history[state.history.length - 1];
+    state.history.pop();
+    state.selectedLayerIdx = -1;
+    redraw();
+    updateUndoRedo();
+  };
+
+  const redo = () => {
+    if (state.redoStack.length === 0) return;
+    state.layers = state.redoStack.pop();
+    state.history.push([...state.layers]);
+    state.selectedLayerIdx = -1;
+    redraw();
+    updateUndoRedo();
+  };
+
+  const updateUndoRedo = () => {
+    undoBtn.disabled = state.history.length === 0;
+    redoBtn.disabled = state.redoStack.length === 0;
+  };
+
+  const selectLayer = (idx) => {
+    state.selectedLayerIdx = idx;
+    redraw();
+  };
+
+  // ---------- Color selection ----------
+  const setColor = (color) => {
+    state.color = color;
+    state.layers.forEach((l) => { if (l.type === 'box' || l.type === 'arrow') l.color = color; });
+    redraw();
+  };
+
+  // ---------- Text input ----------
+  const setText = (text) => {
+    if (state.selectedLayerIdx < 0) return;
+    const l = state.layers[state.selectedLayerIdx];
+    l.text = text;
+    redraw();
+  };
+
+  // ---------- Save ----------
+  const save = () => {
+    const canvas = capture();
+    if (!canvas) return;
+    const url = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `screenshot-${Date.now()}.png`;
+    link.href = url;
+    link.click();
+    closeCapture();
+  };
+
+  // ---------- Events ----------
+  modeBtns.forEach((b) => {
+    b.addEventListener('click', () => setMode(b.dataset.mode));
+  });
+
+  toolBtns.forEach((b) => {
+    b.addEventListener('click', () => setTool(b.dataset.tool));
+  });
+
+  editToggle.addEventListener('change', (e) => {
+    setEditing(e.target.checked);
+  });
+
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+
+  saveBtn.addEventListener('click', save);
+
+  $('#cancelCapture').addEventListener('click', closeCapture);
+
+  // Capture overlay drag
+  const overlay = captureOverlay;
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.btn')) return;
+    overlay.classList.add('hidden');
+  });
+
+  // Color swatches
+  $$('.swatch').forEach((sw) => {
+    sw.addEventListener('click', () => setColor(sw.dataset.color));
+  });
+
+  // Font select
+  $('#fontSelect').addEventListener('change', (e) => {
+    state.fontFamily = e.target.value;
+    if (state.selectedLayerIdx >= 0) {
+      state.layers[state.selectedLayerIdx].fontFamily = state.fontFamily;
+      redraw();
+    }
+  });
+
+  // Font size
+  $('#fontSize').addEventListener('change', (e) => {
+    state.fontSize = parseInt(e.target.value, 10);
+    if (state.selectedLayerIdx >= 0) {
+      state.layers[state.selectedLayerIdx].fontSize = state.fontSize;
+      redraw();
+    }
+  });
+
+  // Text color
+  $('#textColor').addEventListener('change', (e) => {
+    state.textColor = e.target.value;
+    if (state.selectedLayerIdx >= 0) {
+      state.layers[state.selectedLayerIdx].textColor = state.textColor;
+      redraw();
+    }
+  });
+
+  // Text background
+  $('#textBg').addEventListener('change', (e) => {
+    state.textBg = e.target.value;
+    if (state.selectedLayerIdx >= 0) {
+      state.layers[state.selectedLayerIdx].textBg = state.textBg;
+      redraw();
+    }
+  });
+
+  // Capture overlay drag (area mode)
+  if (state.mode === 'area') {
+    overlay.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.btn')) return;
+      overlay.classList.add('hidden');
+    });
+  }
+
+  // ---------- Keyboard shortcuts ----------
+  document.addEventListener('keydown', (e) => {
+    if (!state.editing) return;
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z') {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        redo();
+      }
+    }
+  });
+
+  // ---------- Init ----------
+  const init = () => {
+    state.canvas = makeCanvas(1, 1);
+    state.canvas.style.display = 'none';
+    previewInner.appendChild(state.canvas);
+    redraw();
+    setMode('area');
+    setTool('box');
+    setEditing(true);
+    updateUndoRedo();
+  };
+
+  return { init };
+})();
+
+// Boot
+app.init();
+</script></script>
+</body>
+</html>

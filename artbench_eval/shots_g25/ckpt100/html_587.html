@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subtitle Editor</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 28px; }
+.brand h1 { margin: 0; font-size: 18px; font-weight: 600; }
+
+.status {
+  font-size: 13px;
+  color: #6b7280;
+  padding: 6px 12px;
+  background: #eef2f7;
+  border-radius: 999px;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.panel-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.panel-title h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.panel-title p { margin: 0; color: #6b7280; font-size: 13px; }
+
+.dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dropzone:hover, .dropzone.drag {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.dz-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.dz-content p { margin: 0; font-weight: 600; color: #334155; }
+.hint { font-size: 12px; color: #6b7280; }
+
+.file-info {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+.file-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+.file-row .label { color: #6b7280; }
+.file-row .value { font-weight: 500; }
+
+/* Timeline */
+.timeline {
+  position: relative;
+  height: 180px;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+.tl-track {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to right, #e2e8f0 0%, #f8fafc 100%);
+  cursor: pointer;
+  user-select: none;
+}
+.tl-track::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: #3b82f6;
+}
+.tl-track::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: #3b82f6;
+}
+.tl-track::before { left: 0; }
+.tl-track::after { right: 0; }
+
+.tl-track.dragging::before { background: #fbbf24; }
+.tl-track.dragging::after { background: #fbbf24; }
+
+.tl-playhead {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  width: 4px;
+  background: #f97316;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(249,115,22,0.5);
+  transition: left 0.1s linear;
+}
+
+.tl-controls {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(4px);
+  border-top: 1px solid #e2e8f0;
+  z-index: 5;
+}
+.icon-btn {
+  width: 36px; height: 36px;
+  border: none; background: transparent;
+  font-size: 18px; cursor: pointer;
+  border-radius: 6px;
+  color: #334155;
+}
+.icon-btn:hover { background: #f1f5f9; }
+#tlSeek { flex: 1; accent-color: #3b82f6; }
+#tlTime { font-variant-numeric: tabular-nums; font-size: 13px; color: #6b7280; }
+
+/* Subtitles */
+.subtitle-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.subtitle-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-left: 2px solid transparent;
+}
+.subtitle-item:hover { background: #f8fafc; }
+.subtitle-item.active { background: #eff6ff; border-left-color: #3b82f6; }
+.subtitle-item .time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #6b7280;
+  min-width: 72px;
+}
+.subtitle-item .text {
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.toolbar-group { display: flex; align-items: center; gap: 8px; }
+.toolbar-group label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+.toolbar-group select, .toolbar-group input[type="number"], .toolbar-group input[type="color"] {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+}
+.toolbar-group input[type="color"] { width: 64px; }
+
+.btn {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+}
+.btn-primary:hover { background: #2563eb; }
+.btn-ghost {
+  background: transparent;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.btn-ghost:hover { background: #f1f5f9; }
+
+.bottombar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 12px;
+  margin-top: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.export-section h3 { margin: 0; font-size: 14px; font-weight: 600; color: #334155; }
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 999px;
+  transition: width 0.1s;
+}
+.progress-text {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app { padding: 12px; }
+  .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .panel { padding: 14px; }
+  .subtitle-toolbar { flex-direction: column; align-items: stretch; }
+  .toolbar-group { flex: 1; }
+  .toolbar-group label { font-size: 11px; }
+  .btn { width: 100%; }
+  .timeline { height: 140px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🎬</span>
+      <h1>Subtitle Editor</h1>
+    </div>
+    <div class="status" id="status">Ready</div>
+  </header>
+
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Upload Video</h2>
+      <p>Drop or click to upload a video file</p>
+    </div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="video/*" hidden />
+      <div class="dz-content">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p>Click to upload or drag & drop</p>
+        <span class="hint">MP4, WebM, MOV up to 100MB</span>
+      </div>
+    </div>
+    <div class="file-info" id="fileInfo" hidden>
+      <div class="file-row">
+        <span class="label">Name</span>
+        <span class="value" id="fileName"></span>
+      </div>
+      <div class="file-row">
+        <span class="label">Duration</span>
+        <span class="value" id="fileDuration"></span>
+      </div>
+      <div class="file-row">
+        <span class="label">Resolution</span>
+        <span class="value" id="fileRes"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Timeline</h2>
+      <p>Click and drag to add captions</p>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="tl-track" id="tlTrack"></div>
+      <div class="tl-playhead" id="tlPlayhead"></div>
+      <div class="tl-controls">
+        <button id="playBtn" class="icon-btn" title="Play">▶</button>
+        <input type="range" id="tlSeek" min="0" max="100" value="0" />
+        <span id="tlTime">0:00</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Subtitles</h2>
+      <p>Add captions with custom styling</p>
+    </div>
+    <div class="subtitle-list" id="subtitleList"></div>
+    <div class="subtitle-toolbar">
+      <div class="toolbar-group">
+        <label for="fontFamily">Font</label>
+        <select id="fontFamily">
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Courier New, monospace">Courier</option>
+          <option value="Helvetica, sans-serif">Helvetica</option>
+        </select>
+      </div>
+      <div class="toolbar-group">
+        <label for="fontSize">Size</label>
+        <input type="number" id="fontSize" min="16" max="72" value="24" />
+      </div>
+      <div class="toolbar-group">
+        <label for="color">Color</label>
+        <input type="color" id="color" value="#ffffff" />
+      </div>
+      <div class="toolbar-group">
+        <label for="bgColor">Background</label>
+        <input type="color" id="bgColor" value="#000000" />
+      </div>
+      <div class="toolbar-group">
+        <label for="bgOpacity">Opacity</label>
+        <input type="range" id="bgOpacity" min="0" max="100" value="80" />
+        <span id="bgOpacityVal">80%</span>
+      </div>
+      <div class="toolbar-group">
+        <label for="position">Position</label>
+        <select id="position">
+          <option value="bottom">Bottom</option>
+          <option value="top">Top</option>
+        </select>
+      </div>
+      <button id="addBtn" class="btn btn-primary">+ Add Caption</button>
+      <button id="removeBtn" class="btn btn-ghost" disabled>Remove Selected</button>
+    </div>
+  </section>
+
+  <footer class="bottombar">
+    <div class="export-section">
+      <h3>Export</h3>
+      <button id="exportBtn" class="btn btn-primary">Export Video</button>
+    </div>
+    <div class="progress" id="progress" hidden>
+      <div class="progress-bar" id="progressBar"></div>
+      <span id="progressText">Processing...</span>
+    </div>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $('fileInput');
+  const dropzone = $('dropzone');
+  const fileInfo = $('fileInfo');
+  const fileNameEl = $('fileName');
+  const fileDurationEl = $('fileDuration');
+  const fileResEl = $('fileRes');
+  const tlTrack = $('tlTrack');
+  const tlPlayhead = $('tlPlayhead');
+  const tlSeek = $('tlSeek');
+  const tlTime = $('tlTime');
+  const playBtn = $('playBtn');
+  const addBtn = $('addBtn');
+  const removeBtn = $('removeBtn');
+  const subtitleList = $('subtitleList');
+  const fontFamily = $('fontFamily');
+  const fontSize = $('fontSize');
+  const color = $('color');
+  const bgColor = $('bgColor');
+  const bgOpacity = $('bgOpacity');
+  const bgOpacityVal = $('bgOpacityVal');
+  const position = $('position');
+  const exportBtn = $('exportBtn');
+  const progress = $('progress');
+  const progressBar = $('progressBar');
+  const progressText = $('progressText');
+
+  const state = {
+    video: null,
+    duration: 0,
+    currentTime: 0,
+    subtitles: [],
+    activeIndex: -1,
+    ffmpeg: null,
+    worker: null,
+  };
+
+  // ---------- File handling ----------
+  const handleFile = (file) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = false;
+    video.muted = true;
+    video.playsInline = true;
+    video.addEventListener('loadedmetadata', () => {
+      state.video = video;
+      state.duration = video.duration;
+      state.currentTime = 0;
+      renderFileInfo();
+      renderTimeline();
+      renderSubtitles();
+      playBtn.addEventListener('click', () => togglePlay());
+      tlSeek.addEventListener('input', () => seekTo(parseFloat(tlSeek.value)));
+      tlSeek.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        tlSeek.setPointerCapture(e.pointerId);
+      });
+      tlSeek.addEventListener('mouseup', () => tlSeek.releasePointerCapture(tlSeek));
+      tlSeek.addEventListener('pointerleave', () => tlSeek.releasePointerCapture(tlSeek));
+      tlSeek.addEventListener('pointerupoutside', () => tlSeek.releasePointerCapture(tlSeek));
+      window.addEventListener('resize', () => renderTimeline());
+      window.addEventListener('resize', () => renderSubtitles());
+      window.addEventListener('resize', () => renderFileInfo());
+    });
+    $('body').appendChild(video);
+  };
+
+  const renderFileInfo = () => {
+    if (!state.video) return;
+    const d = state.video.duration;
+    fileNameEl.textContent = state.video.src.split('/').pop();
+    fileDurationEl.textContent = formatTime(d);
+    fileResEl.textContent = `${state.video.videoWidth} × ${state.video.videoHeight}`;
+  };
+
+  const formatTime = (s) => {
+    if (!isFinite(s)) return '—';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
+
+  // ---------- Timeline ----------
+  const renderTimeline = () => {
+    tlTrack.style.height = `${state.duration * 4}px`;
+    tlPlayhead.style.left = '0%';
+    tlTime.textContent = formatTime(state.currentTime);
+  };
+
+  const seekTo = (pct) => {
+    if (!state.video) return;
+    const t = state.duration * (pct / 100);
+    state.currentTime = t;
+    state.video.currentTime = t;
+    tlPlayhead.style.left = `${pct}%`;
+    tlTime.textContent = formatTime(t);
+  };
+
+  const togglePlay = () => {
+    if (!state.video) return;
+    if (state.video.paused) state.video.play();
+    else state.video.pause();
+  };
+
+  // ---------- Subtitles ----------
+  const renderSubtitles = () => {
+    subtitleList.innerHTML = '';
+    state.subtitles.forEach((s, i) => {
+      const el = document.createElement('div');
+      el.className = 'subtitle-item' + (i === state.activeIndex ? ' active' : '');
+      el.dataset.index = i;
+      el.innerHTML = `
+        <span class="time">${formatTime(s.start)} → ${formatTime(s.end)}</span>
+        <span class="text">${escapeHtml(s.text)}</span>
+      `;
+      el.addEventListener('click', () => selectSubtitle(i));
+      subtitleList.appendChild(el);
+    });
+  };
+
+  const escapeHtml = (s) =>
+    String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+  const addSubtitle = () => {
+    const start = state.currentTime || 0;
+    const end = start + 3; // 3s default
+    state.subtitles.push({ start, end, text: '', fontFamily: fontFamily.value, fontSize: fontSize.value, color: color.value, bgColor: bgColor.value, opacity: parseFloat(bgOpacity.value) / 100, position: position.value });
+    renderSubtitles();
+    selectSubtitle(state.subtitles.length - 1);
+  };
+
+  const selectSubtitle = (i) => {
+    state.activeIndex = i;
+    renderSubtitles();
+    updateRemoveBtn();
+  };
+
+  const updateRemoveBtn = () => {
+    removeBtn.disabled = state.activeIndex < 0 || state.activeIndex >= state.subtitles.length;
+  };
+
+  const removeSubtitle = () => {
+    if (state.activeIndex < 0) return;
+    state.subtitles.splice(state.activeIndex, 1);
+    if (state.activeIndex >= state.subtitles.length) state.activeIndex = state.subtitles.length - 1;
+    renderSubtitles();
+    updateRemoveBtn();
+  };
+
+  // ---------- Drag to add subtitles ----------
+  const onDragStart = (e) => {
+    e.preventDefault();
+    tlTrack.classList.add('dragging');
+    tlTrack.dataset.dragStart = e.clientX;
+  };
+  const onDragMove = (e) => {
+    if (!tlTrack.dataset.dragStart) return;
+    const startX = parseFloat(tlTrack.dataset.dragStart);
+    const dx = e.clientX - startX;
+    const pct = Math.max(0, Math.min(100, (dx / state.duration) * 100));
+    tlPlayhead.style.left = `${pct}%`;
+    tlTime.textContent = formatTime(state.duration * (pct / 100));
+  };
+  const onDragEnd = (e) => {
+    tlTrack.classList.remove('dragging');
+    tlTrack.dataset.dragStart = null;
+    const pct = parseFloat(tlPlayhead.style.left.replace('%', ''));
+    const start = state.duration * (pct / 100);
+    const end = start + 3;
+    state.subtitles.push({ start, end, text: '', fontFamily: fontFamily.value, fontSize: fontSize.value, color: color.value, bgColor: bgColor.value, opacity: parseFloat(bgOpacity.value) / 100, position: position.value });
+    renderSubtitles();
+    selectSubtitle(state.subtitles.length - 1);
+  };
+
+  tlTrack.addEventListener('pointerdown', onDragStart);
+  window.addEventListener('pointermove', onDragMove);
+  window.addEventListener('pointerup', onDragEnd);
+  window.addEventListener('pointercancel', onDragEnd);
+
+  // ---------- Export ----------
+  const buildWebVTT = () => {
+    const cues = [];
+    state.subtitles.forEach((s) => {
+      const startSec = s.start;
+      const endSec = s.end;
+      const startMs = Math.round(startSec * 1000);
+      const endMs = Math.round(endSec * 1000);
+      const startLine = `${startMs.toString().padStart(6, '0')},000`;
+      const endLine = `${endMs.toString().padStart(6, '0')},000`;
+      cues.push({ start: startSec, end: endSec, text: s.text, startLine, endLine });
+    });
+    cues.sort((a, b) => a.start - b.start);
+    const header = `WEBVTT\n\n`;
+    const body = cues.map((c) => `${c.startLine} --> ${c.endLine}\n${escapeHtml(c.text)}\n`).join('');
+    return header + body;
+  };
+
+  const exportVideo = async () => {
+    if (!state.video || state.subtitles.length === 0) return;
+    progress.hidden = false;
+    progressBar.style.width = '0%';
+    progressText.textContent = 'Preparing export...';
+
+    try {
+      const ffmpegPath = require('ffmpeg-static').path;
+      const ffmpeg = require('fluent-ffmpeg');
+      const ffprobe = require('fluent-ffmpeg');
+      const ffprobePath = require('ffprobe-static').path;
+
+      state.ffmpeg = ffmpeg;
+      state.worker = null;
+
+      const input = state.video.src;
+      const output = 'output.mp4';
+      const vtt = buildWebVTT();
+      const vttFile = 'subtitles.vtt';
+
+      // Write VTT file
+      const vttBlob = new Blob([vtt], { type: 'text/vtt' });
+      const vttUrl = URL.createObjectURL(vttBlob);
+      const vttFileBlob = new File([vtt], vttFile, { type: 'text/vtt' });
+      const vttFileUrl = URL.createObjectURL(vttFileBlob);
+
+      const tempDir = 'temp';
+      const tempVtt = `${tempDir}/${vttFile}`;
+      const tempOutput = `${tempDir}/output.mp4`;
+      const tempSubs = `${tempDir}/subtitles.vtt`;
+
+      await new Promise((resolve) => {
+        const writer = fs.createWriteStream(tempVtt);
+        writer.write(vtt);
+        writer.end(() => resolve());
+      });
+
+      const cmd = [
+        '-i', input,
+        '-i', tempVtt,
+        '-c', 'copy',
+        '-map', '0:v:0',
+        '-map', '1:s:0',
+        '-c:s', 'webvtt',
+        '-map', '1:s:0',
+        '-c:s', 'webvtt',
+        '-y',
+        tempOutput,
+      ];
+
+      const proc = state.ffmpeg(cmd);
+
+      proc.on('start', () => {
+        progressText.textContent = 'Encoding with FFmpeg...';
+      });
+
+      proc.on('progress', (p) => {
+        progressBar.style.width = `${Math.min(100, p.percent)}%`;
+        progressText.textContent = `Encoding... ${p.percent.toFixed(0)}%`;
+      });
+
+      proc.on('end', () => {
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Export complete!';
+        setTimeout(() => {
+          progress.hidden = true;
+          progressBar.style.width = '0%';
+          progressText.textContent = 'Ready';
+        }, 1500);
+        alert('Export complete! Check your downloads folder.');
+      });
+
+      proc.on('error', (err) => {
+        progressBar.style.width = '0%';
+        progressText.textContent = 'Export failed: ' + err.message;
+        setTimeout(() => {
+          progress.hidden = true;
+          progressBar.style.width = '0%';
+          progressText.textContent = 'Ready';
+        }, 1500);
+      });
+
+      await new Promise((resolve) => proc.on('end', resolve));
+
+      // Clean up
+      fs.unlinkSync(tempVtt);
+      fs.unlinkSync(tempOutput);
+      fs.unlinkSync(tempSubs);
+      URL.revokeObjectURL(vttUrl);
+      URL.revokeObjectURL(vttFileUrl);
+    } catch (err) {
+      console.error(err);
+      progressBar.style.width = '0%';
+      progressText.textContent = 'Export failed: ' + err.message;
+      setTimeout(() => {
+        progress.hidden = true;
+        progressBar.style.width = '0%';
+        progressText.textContent = 'Ready';
+      }, 1500);
+    }
+  };
+
+  // ---------- Dropzone ----------
+  const setupDropzone = () => {
+    ['dragenter', 'dragover'].forEach((ev) => {
+      dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('drag');
+      });
+    });
+    ['dragleave', 'drop'].forEach((ev) => {
+      dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('drag');
+      });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) handleFile(file);
+    });
+    dropzone.addEventListener('click', () => fileInput.click());
+  };
+
+  // ---------- Init ----------
+  setupDropzone();
+  addBtn.addEventListener('click', addSubtitle);
+  removeBtn.addEventListener('click', removeSubtitle);
+  exportBtn.addEventListener('click', exportVideo);
+})();
+</script></script>
+</body>
+</html>

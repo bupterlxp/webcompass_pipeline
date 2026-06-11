@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subtitle Generator</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --bg-2: #252540;
+    --surface: #2b2b44;
+    --surface-2: #3a3a55;
+    --border: #4a4a68;
+    --text: #e6e6f5;
+    --text-dim: #a8a8c2;
+    --accent: #7c9cff;
+    --accent-2: #5aa9ff;
+    --danger: #ff6b6b;
+    --success: #4ade80;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .panel h1 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+
+  .panel h2 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+
+  .panel p { margin: 0 0 8px; }
+  .panel p:last-child { margin-bottom: 0; }
+
+  .video-wrap {
+    position: relative;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    box-shadow: var(--shadow);
+  }
+
+  .video-wrap video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .video-wrap .sub-display {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 24px;
+    line-height: 1.3;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 5;
+  }
+
+  .video-wrap .sub-display.active { opacity: 1; }
+
+  .video-wrap .controls {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 12px 16px;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.7) 100%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 4;
+  }
+
+  .video-wrap .controls button {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+  }
+  .video-wrap .controls button:hover { background: rgba(255,255,255,0.18); }
+
+  .editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .editor textarea {
+    width: 100%;
+    min-height: 280px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    color: var(--text);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+  }
+  .editor textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,156,255,0.2);
+  }
+
+  .editor .hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border);
+  }
+
+  .style-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    align-items: center;
+  }
+  .style-row label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .style-row input[type="color"],
+  .style-row input[type="number"] {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .style-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .style-row input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border); border-radius: 6px; }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .btn {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0a18;
+  }
+  .btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: #444; border-color: #555; }
+
+  .status {
+    font-size: 13px;
+    color: var(--success);
+    padding: 8px 12px;
+    background: rgba(74,222,128,0.1);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    display: none;
+  }
+  .status.error { color: var(--danger); background: rgba(255,107,107,0.1); }
+
+  .preview {
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .style-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="panel">
+    <h1>Subtitle Generator</h1>
+    <p>Upload a video and add subtitles with timestamps. Customize style and export everything.</p>
+
+    <div class="video-wrap" id="videoWrap">
+      <video id="video" controls preload="metadata"></video>
+      <div class="sub-display" id="subDisplay" aria-live="polite"></div>
+      <div class="controls">
+        <button id="playBtn" aria-label="Play">▶ Play</button>
+        <span id="timeInfo">00:00 / 00:00</span>
+        <button id="muteBtn" aria-label="Mute">🔊</button>
+      </div>
+    </div>
+
+    <div class="editor">
+      <div class="hint">Format: <code>00:00:01.000 --> 00:00:03.500</code><br/>Text on the next line.</div>
+      <textarea id="subEditor" placeholder="00:00:01.000 --> 00:00:03.500\nHello world!"></textarea>
+      <div class="style-row">
+        <label for="fontFamily">Font</label>
+        <input type="text" id="fontFamily" value="'Inter', system-ui, sans-serif">
+        <label for="fontSize">Size (px)</label>
+        <input type="number" id="fontSize" value="24" min="10" max="100">
+        <label for="color">Color</label>
+        <input type="color" id="color" value="#ffffff">
+        <label for="bgColor">Bg</label>
+        <input type="color" id="bgColor" value="#000000">
+        <label for="opacity">Opacity</label>
+        <input type="number" id="opacity" value="85" min="0" max="100" step="1">
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="applyBtn">Apply Subtitles</button>
+        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h1>Style</h1>
+    <p>Customize the appearance of your subtitles.</p>
+
+    <div class="style-row">
+      <label for="fontFamily">Font Family</label>
+      <input type="text" id="fontFamilyS" value="'Inter', system-ui, sans-serif">
+      <label for="fontSize">Size (px)</label>
+      <input type="number" id="fontSizeS" value="24" min="10" max="100">
+      <label for="color">Color</label>
+      <input type="color" id="colorS" value="#ffffff">
+      <label for="bgColor">Background</label>
+      <input type="color" id="bgColorS" value="#000000">
+      <label for="opacity">Opacity (%)</label>
+      <input type="number" id="opacityS" value="85" min="0" max="100" step="1">
+    </div>
+
+    <div class="preview" id="preview">
+      <div style="font-family: 'Inter', system-ui, sans-serif; font-size: 24px; color: #ffffff; background: #000000; opacity: 0.85; padding: 12px; border-radius: 6px; letter-spacing: 0.01em;">
+        Hello world! This is a preview of your subtitle style.
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="exportBtn">Export as .VTT</button>
+      <button class="btn btn-secondary" id="mergeBtn">Export merged .webm</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+</div>
+
+<script>
+// ---------- State ----------
+const state = {
+  video: null,
+  subtitles: [],
+  style: {
+    fontFamily: "'Inter', system-ui, sans-serif",
+    fontSize: 24,
+    color: '#ffffff',
+    bgColor: '#000000',
+    opacity: 0.85
+  }
+};
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+const subEditor = $('subEditor');
+const subDisplay = $('subDisplay');
+const timeInfo = $('timeInfo');
+const playBtn = $('playBtn');
+const muteBtn = $('muteBtn');
+const applyBtn = $('applyBtn');
+const resetBtn = $('resetBtn');
+const exportBtn = $('exportBtn');
+const mergeBtn = $('mergeBtn');
+const status = $('status');
+const videoWrap = $('videoWrap');
+
+// ---------- Video ----------
+$('input[type="file"]').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.load();
+  status.textContent = `Loaded: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+  status.className = 'status';
+});
+
+playBtn.addEventListener('click', () => video.play().catch(() => {}));
+muteBtn.addEventListener('click', () => video.muted = !video.muted);
+
+// ---------- Subtitle parser ----------
+function parseSubs(text) {
+  const lines = text.split('\n');
+  const subs = [];
+  let current = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (current.length >= 2) {
+        const [start, end] = current.map(s => s.trim());
+        subs.push({ start, end, text: current.slice(2).join('\n').trim() });
+      }
+      current = [];
+      continue;
+    }
+    if (/^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}$/.test(trimmed)) {
+      if (current.length >= 2) {
+        const [start, end] = current.map(s => s.trim());
+        subs.push({ start, end, text: current.slice(2).join('\n').trim() });
+      }
+      current = [trimmed];
+    } else {
+      current.push(trimmed);
+    }
+  }
+  if (current.length >= 2) {
+    const [start, end] = current.map(s => s.trim());
+    subs.push({ start, end, text: current.slice(2).join('\n').trim() });
+  }
+  return subs;
+}
+
+// ---------- Apply ----------
+applyBtn.addEventListener('click', () => {
+  const text = subEditor.value;
+  const subs = parseSubs(text);
+  state.subtitles = subs;
+  // Reset video time
+  video.currentTime = 0;
+  // Update display
+  updateDisplay();
+  status.textContent = `Applied ${subs.length} subtitle(s).`;
+  status.className = 'status';
+});
+
+resetBtn.addEventListener('click', () => {
+  subEditor.value = '';
+  state.subtitles = [];
+  video.currentTime = 0;
+  updateDisplay();
+  status.textContent = 'Subtitles reset.';
+  status.className = 'status';
+});
+
+// ---------- Display sync ----------
+function updateDisplay() {
+  if (!state.subtitles.length) {
+    subDisplay.textContent = '';
+    subDisplay.classList.remove('active');
+    return;
+  }
+  const now = video.currentTime;
+  const current = state.subtitles.find(s => now >= parseTime(s.start) && now < parseTime(s.end));
+  if (current) {
+    subDisplay.textContent = current.text;
+    subDisplay.classList.add('active');
+  } else {
+    subDisplay.textContent = '';
+    subDisplay.classList.remove('active');
+  }
+}
+
+function parseTime(t) {
+  const [hms, ms] = t.split('.');
+  const [h, m, s] = hms.split(':').map(Number);
+  return h * 3600 + m * 60 + s + Number(ms) / 1000;
+}
+
+video.addEventListener('timeupdate', updateDisplay);
+
+// ---------- Style sync ----------
+function applyStyle() {
+  state.style.fontFamily = $('fontFamilyS').value;
+  state.style.fontSize = parseInt($('fontSizeS').value, 10) || 24;
+  state.style.color = $('colorS').value;
+  state.style.bgColor = $('bgColorS').value;
+  state.style.opacity = parseFloat($('opacityS').value) / 100;
+  updatePreview();
+}
+
+$('fontFamilyS').addEventListener('input', applyStyle);
+$('fontSizeS').addEventListener('input', applyStyle);
+$('colorS').addEventListener('input', applyStyle);
+$('bgColorS').addEventListener('input', applyStyle);
+$('opacityS').addEventListener('input', applyStyle);
+
+function updatePreview() {
+  const p = $('preview');
+  const text = p.querySelector('div');
+  if (!text) return;
+  text.style.fontFamily = state.style.fontFamily;
+  text.style.fontSize = state.style.fontSize + 'px';
+  text.style.color = state.style.color;
+  text.style.background = state.style.bgColor;
+  text.style.opacity = state.style.opacity;
+  text.textContent = 'Hello world! This is a preview of your subtitle style.';
+}
+
+// ---------- Export VTT ----------
+exportBtn.addEventListener('click', () => {
+  if (!state.subtitles.length) {
+    status.textContent = 'No subtitles to export.';
+    status.className = 'status error';
+    return;
+  }
+  const header = 'WEBVTT\n\n';
+  const body = state.subtitles.map(s => {
+    const start = formatTime(parseTime(s.start));
+    const end = formatTime(parseTime(s.end));
+    return `${start} --> ${end}\n${s.text}\n`;
+  }).join('\n');
+  const blob = new Blob([header + body], { type: 'text/vtt' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'subtitles.vtt';
+  a.click();
+  URL.revokeObjectURL(url);
+  status.textContent = 'VTT exported successfully.';
+  status.className = 'status';
+});
+
+function formatTime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.floor((sec - Math.floor(sec)) * 1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+}
+
+// ---------- Merge video + VTT (blob-based, simple) ----------
+mergeBtn.addEventListener('click', () => {
+  if (!state.subtitles.length) {
+    status.textContent = 'No subtitles to export.';
+    status.className = 'status error';
+    return;
+  }
+  status.textContent = 'Preparing merged video...';
+  status.className = 'status';
+
+  const videoUrl = video.src;
+  const videoBlob = new Blob([videoUrl], { type: 'video/mp4' });
+  const vttBlob = new Blob([generateVtt()], { type: 'text/vtt' });
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const videoData = reader.result;
+    const vttData = vttBlob;
+
+    // Create a temporary video element to read as array buffer
+    const tmpVideo = document.createElement('video');
+    tmpVideo.src = URL.createObjectURL(videoData);
+    tmpVideo.muted = true;
+    tmpVideo.playsInline = true;
+    tmpVideo.preload = 'auto';
+
+    await new Promise((res) => tmpVideo.addEventListener('loadedmetadata', res, { once: true }));
+
+    const duration = tmpVideo.duration;
+    const canvas = document.createElement('canvas');
+    canvas.width = tmpVideo.videoWidth;
+    canvas.height = tmpVideo.videoHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Draw frames + subtitles
+    const tracks = [];
+    for (let i = 0; i < state.subtitles.length; i++) {
+      const s = state.subtitles[i];
+      const start = parseTime(s.start);
+      const end = parseTime(s.end);
+      const track = {
+        id: 'sub' + i,
+        start,
+        end,
+        text: s.text,
+        style: state.style
+      };
+      tracks.push(track);
+    }
+
+    // Sort by start
+    tracks.sort((a, b) => a.start - b.start);
+
+    // Render
+    const totalFrames = Math.floor(duration * 60);
+    const frameDuration = 1 / 60;
+    const frames = [];
+    for (let f = 0; f < totalFrames; f++) {
+      const t = f * frameDuration;
+      let active = null;
+      for (const track of tracks) {
+        if (t >= track.start && t < track.end) active = track;
+      }
+      frames.push({ t, active });
+    }
+
+    tmpVideo.pause();
+    tmpVideo.src = '';
+    tmpVideo.remove();
+
+    // Render to canvas
+    for (let f = 0; f < frames.length; f++) {
+      const { t, active } = frames[f];
+      tmpVideo.currentTime = t;
+      await new Promise((res) => tmpVideo.addEventListener('seeked', res, { once: true }));
+      ctx.drawImage(tmpVideo, 0, 0, canvas.width, canvas.height);
+      if (active) {
+        ctx.fillStyle = active.style.bgColor;
+        ctx.globalAlpha = active.style.opacity;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = active.style.color;
+        ctx.font = `${active.style.fontSize}px ${active.style.fontFamily}`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        const lines = wrapText(active.text, canvas.width, ctx);
+        for (let i = 0; i < lines.length; i++) {
+          const y = (canvas.height / 2) - (lines.length - 1) * 28 - i * 28;
+          ctx.fillText(lines[i], canvas.width / 2, y);
+        }
+      }
+    }
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        status.textContent = 'Failed to render merged video.';
+        status.className = 'status error';
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'video-with-subtitles.webm';
+      a.click();
+      URL.revokeObjectURL(url);
+      status.textContent = 'Merged video exported successfully.';
+      status.className = 'status';
+    }, 'image/webp');
+  };
+  reader.onerror = () => {
+    status.textContent = 'Failed to read video.';
+    status.className = 'status error';
+  };
+  reader.readAsArrayBuffer(videoBlob);
+});
+
+function generateVtt() {
+  const header = 'WEBVTT\n\n';
+  const body = state.subtitles.map(s => {
+    const start = formatTime(parseTime(s.start));
+    const end = formatTime(parseTime(s.end));
+    return `${start} --> ${end}\n${s.text}\n`;
+  }).join('\n');
+  return header + body;
+}
+
+function wrapText(text, maxWidth, ctx) {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+  for (const word of words) {
+    const test = currentLine + (currentLine ? ' ' : '') + word;
+    const w = ctx.measureText(test).width;
+    if (w > maxWidth) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = test;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+// ---------- Keyboard shortcuts ----------
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.code === 'Space') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+  if (e.key === 'Enter' && e.target === subEditor) { e.preventDefault(); subEditor.blur(); }
+});
+</script>
+</body>
+</html>

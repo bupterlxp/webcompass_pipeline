@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arena Royale</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e8f1ff;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px;
+  gap: 16px;
+}
+
+/* Topbar */
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(20, 25, 45, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #ff5a5f, #ffaf2d);
+  border-radius: 10px;
+  font-size: 22px;
+  box-shadow: 0 4px 12px rgba(255,90,95,0.4);
+}
+.brand h1 { font-size: 18px; letter-spacing: 0.5px; }
+.status { display: flex; gap: 8px; }
+.pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #2a3a55;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.pill.playing { background: #3fb94a; border-color: rgba(63,185,74,0.4); }
+
+/* Sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.panel {
+  background: rgba(20, 25, 45, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 16px;
+}
+.panel h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #7aa2ff;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel h2::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: #ffaf2d;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ffaf2d;
+}
+
+.room-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(255,255,255,0.08);
+}
+.room-info:last-child { border-bottom: none; }
+.label { color: #6b7a99; font-size: 12px; }
+.value { color: #fff; font-weight: 600; font-size: 14px; }
+
+.scoreboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.score-row .name { color: #fff; font-weight: 600; }
+.score-row .stats { color: #a8b4d2; font-size: 12px; }
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+.chat .msg {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border-left: 2px solid rgba(255,255,255,0.1);
+  animation: slideIn 0.25s ease;
+}
+.chat .me .msg { background: rgba(63,185,74,0.15); border-left-color: #3fb94a; }
+.chat .system .msg { color: #a8b4d2; font-size: 12px; }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chat-form input {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-form input:focus { border-color: #7aa2ff; }
+.chat-form button {
+  background: #3fb94a;
+  color: #0a1428;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.chat-form button:hover { transform: scale(1.05); }
+
+.controls { display: flex; flex-direction: column; gap: 12px; }
+.keybinds {
+  font-size: 12px;
+  color: #a8b4d2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.keybinds kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  margin: 0 2px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #fff;
+}
+.actions { display: flex; flex-direction: column; gap: 6px; }
+.btn {
+  background: linear-gradient(135deg, #ff5a5f, #ffaf2d);
+  color: #0a1428;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255,90,95,0.3); }
+.btn:active { transform: translateY(0); }
+.btn-ghost {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.08); }
+
+/* Arena */
+.arena-wrap {
+  position: relative;
+  background: #0b1220;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(255,90,95,0.2);
+}
+#arena {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hud {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  background: rgba(10, 14, 24, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  z-index: 5;
+}
+.hud-item { display: flex; flex-direction: column; gap: 4px; }
+.hud-label { font-size: 11px; color: #a8b4d2; text-transform: uppercase; letter-spacing: 1px; }
+.hud-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.hud-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff5a5f, #ffaf2d);
+  width: 100%;
+  transition: width 0.2s;
+}
+.hud-value { font-size: 18px; font-weight: 700; color: #fff; }
+
+/* Scrollbar */
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { max-height: 320px; }
+  .panel { max-height: 240px; }
+  .chat { max-height: 180px; }
+  .scoreboard { max-height: 180px; }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">⚔</div>
+        <h1>Arena Royale</h1>
+      </div>
+      <div class="status">
+        <span class="pill" id="statusPill">Ready</span>
+      </div>
+    </header>
+
+    <div class="sidebar">
+      <div class="panel">
+        <h2>Room</h2>
+        <div class="room-info">
+          <span class="label">Room</span>
+          <span class="value" id="roomName">—</span>
+        </div>
+        <div class="room-info">
+          <span class="label">Players</span>
+          <span class="value" id="playerCount">0 / 4</span>
+        </div>
+        <div class="room-info">
+          <span class="label">Host</span>
+          <span class="value" id="hostName">—</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Scoreboard</h2>
+        <div class="scoreboard" id="scoreboard"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Chat</h2>
+        <div class="chat" id="chat"></div>
+        <form class="chat-form" id="chatForm">
+          <input type="text" id="chatInput" placeholder="Say something..." maxlength="120" />
+          <button type="submit">➤</button>
+        </form>
+      </div>
+
+      <div class="panel controls">
+        <h2>Controls</h2>
+        <div class="keybinds">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
+          <div><kbd>Space</kbd> Shoot</div>
+          <div><kbd>1</kbd>–<kbd>4</kbd> Switch</div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="btnCreate">Create Room</button>
+          <button class="btn" id="btnJoin">Join Room</button>
+          <button class="btn btn-ghost" id="btnLeave">Leave</button>
+          <button class="btn btn-ghost" id="btnKick">Kick</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="arena-wrap">
+      <canvas id="arena" width="800" height="600"></canvas>
+      <div class="hud">
+        <div class="hud-item">
+          <span class="hud-label">Health</span>
+          <div class="hud-bar"><div class="hud-fill" id="healthFill"></div></div>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Ammo</span>
+          <div class="hud-bar"><div class="hud-fill" id="ammoFill"></div></div>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Score</span>
+          <span class="hud-value" id="hudScore">0</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>/* =========================================================
+   Arena Royale — Multiplayer Shooting Game
+   ========================================================= */
+
+const canvas = document.getElementById('arena');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+// ---------- State ----------
+const state = {
+  players: [],        // {id, name, x, y, vx, vy, hp, maxHp, ammo, score, dead, color, weapon}
+  bullets: [],        // {id, x, y, vx, vy, owner, damage}
+  keys: new Set(),
+  chat: [],
+  room: null,
+  host: null,
+  me: null,
+  status: 'idle',     // idle | joining | playing | paused | kicked
+  chatInput: '',
+  leaderboard: [],
+  ammoMax: 12,
+  bulletsPerShot: 1,
+  spawnRadius: 40,
+  maxPlayers: 4,
+  hostId: null,
+  connected: false,
+};
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const roomNameEl = $('roomName');
+const playerCountEl = $('playerCount');
+const hostNameEl = $('hostName');
+const scoreboardEl = $('scoreboard');
+const chatEl = $('chat');
+const chatInput = $('chatInput');
+const chatForm = $('chatForm');
+const healthFill = $('healthFill');
+const ammoFill = $('ammoFill');
+const hudScore = $('hudScore');
+const statusPill = $('statusPill');
+
+// ---------- Colors ----------
+const COLORS = ['#ff5a5f', '#ffaf2d', '#3fb94a', '#4a90e2'];
+
+// ---------- Helpers ----------
+function rand(min, max) { return Math.random() * (max - min) + min; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function dist(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+function uid() { return 'p' + Math.random().toString(36).slice(2, 9); }
+function uidB() { return 'b' + Math.random().toString(36).slice(2, 9); }
+
+function addChat(text, type = 'chat') {
+  const el = document.createElement('div');
+  el.className = 'msg ' + type;
+  el.textContent = text;
+  chatEl.appendChild(el);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  chatEl.style.display = '';
+  setTimeout(() => el.remove(), 10000);
+}
+
+function updateStatus(text, cls = '') {
+  statusPill.textContent = text;
+  statusPill.className = 'pill ' + cls;
+}
+
+// ---------- Networking ----------
+const ws = new WebSocket('ws://localhost:8765');
+
+ws.onopen = () => {
+  state.connected = true;
+  updateStatus('Connected', 'playing');
+  addChat('Connected to server.', 'system');
+};
+
+ws.onclose = () => {
+  state.connected = false;
+  updateStatus('Disconnected', '');
+  addChat('Connection lost.', 'system');
+};
+
+ws.onerror = (e) => {
+  addChat('WebSocket error: ' + e.message, 'system');
+};
+
+ws.onmessage = (ev) => {
+  const data = JSON.parse(ev.data);
+  if (data.type === 'room') {
+    state.room = data;
+    roomNameEl.textContent = data.name;
+    hostNameEl.textContent = data.hostName;
+    playerCountEl.textContent = `${data.players.length} / ${state.maxPlayers}`;
+    state.host = data.hostId;
+    state.hostId = data.hostId;
+    state.leaderboard = data.leaderboard || [];
+    renderLeaderboard();
+    if (data.players.some(p => p.id === state.me)) {
+      state.me = data.players.find(p => p.id === state.me);
+    }
+  }
+  if (data.type === 'player') {
+    const p = state.players.find(x => x.id === data.id);
+    if (p) {
+      Object.assign(p, data);
+      if (data.dead) {
+        p.deadAt = Date.now();
+      }
+    } else {
+      state.players.push(data);
+    }
+    if (data.id === state.me?.id) {
+      state.me = data;
+    }
+  }
+  if (data.type === 'bullet') {
+    const b = state.bullets.find(x => x.id === data.id);
+    if (b) {
+      Object.assign(b, data);
+    } else {
+      state.bullets.push(data);
+    }
+  }
+  if (data.type === 'chat') {
+    addChat(data.text, data.type || 'chat');
+  }
+  if (data.type === 'leaderboard') {
+    state.leaderboard = data;
+    renderLeaderboard();
+  }
+  if (data.type === 'kicked') {
+    state.me = null;
+    state.room = null;
+    state.host = null;
+    state.hostId = null;
+    state.players = [];
+    state.bullets = [];
+    state.leaderboard = [];
+    addChat('You were kicked from the room.', 'system');
+    updateStatus('Kicked', '');
+  }
+};
+
+// ---------- Input ----------
+window.addEventListener('keydown', (e) => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  state.keys.add(e.key);
+});
+window.addEventListener('keyup', (e) => state.keys.delete(e.key));
+
+// ---------- Room UI ----------
+$('btnCreate').addEventListener('click', () => {
+  if (!state.connected) return;
+  ws.send(JSON.stringify({ type: 'create', name: 'My Room' }));
+});
+$('btnJoin').addEventListener('click', () => {
+  if (!state.connected) return;
+  const name = prompt('Enter room name to join:');
+  if (name) ws.send(JSON.stringify({ type: 'join', name }));
+});
+$('btnLeave').addEventListener('click', () => {
+  if (!state.room || !state.me) return;
+  ws.send(JSON.stringify({ type: 'leave' }));
+  state.room = null;
+  state.host = null;
+  state.hostId = null;
+  state.players = [];
+  state.bullets = [];
+  state.me = null;
+  state.leaderboard = [];
+  addChat('You left the room.', 'system');
+  updateStatus('Left', '');
+});
+$('btnKick').addEventListener('click', () => {
+  if (!state.room || !state.host) return;
+  ws.send(JSON.stringify({ type: 'kick' }));
+});
+
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!state.room || !state.me) return;
+  const text = chatInput.value.trim();
+  if (!text) return;
+  ws.send(JSON.stringify({ type: 'chat', text, from: state.me.id }));
+  chatInput.value = '';
+});
+
+// ---------- Game Loop ----------
+function loop() {
+  if (state.status !== 'playing') return;
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+function update() {
+  // Player movement
+  if (state.me && state.me.dead) return;
+
+  const me = state.me;
+  const speed = 280;
+  let vx = 0, vy = 0;
+
+  if (state.keys.has('ArrowUp') || state.keys.has('w') || state.keys.has('W')) vy -= 1;
+  if (state.keys.has('ArrowDown') || state.keys.has('s') || state.keys.has('S')) vy += 1;
+  if (state.keys.has('ArrowLeft') || state.keys.has('a') || state.keys.has('A')) vx -= 1;
+  if (state.keys.has('ArrowRight') || state.keys.has('d') || state.keys.has('D')) vx += 1;
+
+  if (vx !== 0 || vy !== 0) {
+    const len = Math.hypot(vx, vy);
+    vx = (vx / len) * speed;
+    vy = (vy / len) * speed;
+  }
+
+  if (me) {
+    me.x += vx;
+    me.y += vy;
+    me.x = clamp(me.x, state.spawnRadius, W - state.spawnRadius);
+    me.y = clamp(me.y, state.spawnRadius, H - state.spawnRadius);
+
+    // Shooting
+    if (state.keys.has(' ')) {
+      if (me.ammo > 0) {
+        fireBullet(me);
+        me.ammo -= 1;
+      }
+    }
+
+    // Weapon switching
+    const key = state.keys.has('1') ? 0 :
+                state.keys.has('2') ? 1 :
+                state.keys.has('3') ? 2 :
+                state.keys.has('4') ? 3 : -1;
+    if (key >= 0 && key !== me.weapon) {
+      me.weapon = key;
+      me.ammo = state.ammoMax;
+    }
+
+    // Health recovery
+    if (me.hp < me.maxHp) {
+      me.hp += 0.15;
+      if (me.hp > me.maxHp) me.hp = me.maxHp;
+    }
+  }
+
+  // Bullets
+  for (let i = state.bullets.length - 1; i >= 0; i--) {
+    const b = state.bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) {
+      state.bullets.splice(i, 1);
+      continue;
+    }
+    // Collide with players
+    for (const p of state.players) {
+      if (p.dead || p.id === b.owner) continue;
+      if (dist(b, p) < 14) {
+        p.hp -= b.damage;
+        if (p.hp <= 0) {
+          p.hp = 0;
+          p.dead = true;
+          p.deadAt = Date.now();
+          if (b.owner && b.owner !== me?.id) {
+            if (me) me.score += 1;
+            ws.send(JSON.stringify({ type: 'kill', victim: p.id, killer: b.owner }));
+          }
+          state.leaderboard = state.leaderboard.filter(x => x.id !== p.id);
+          renderLeaderboard();
+        }
+        state.bullets.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  // Remove dead players
+  state.players = state.players.filter(p => !p.dead || Date.now() - p.deadAt < 1500);
+
+  // Update HUD
+  if (me) {
+    healthFill.style.width = (me.hp / me.maxHp * 100) + '%';
+    ammoFill.style.width = (me.ammo / state.ammoMax * 100) + '%';
+    hudScore.textContent = me.score;
+  }
+}
+
+function fireBullet(me) {
+  const angle = Math.atan2(me.vy, me.vx);
+  const power = 700;
+  const bx = me.x + Math.cos(angle) * 14;
+  const by = me.y + Math.sin(angle) * 14;
+  const b = {
+    id: uidB(),
+    x: bx, y: by,
+    vx: Math.cos(angle) * power,
+    vy: Math.sin(angle) * power,
+    owner: me.id,
+    damage: 15,
+  };
+  state.bullets.push(b);
+  // Add muzzle flash
+  setTimeout(() => {
+    if (state.bullets.some(x => x.id === b.id)) {
+      state.bullets.push({
+        id: uidB(),
+        x: bx, y: by,
+        vx: Math.cos(angle) * 40,
+        vy: Math.sin(angle) * 40,
+        owner: me.id,
+        damage: 0,
+      });
+    }
+  }, 50);
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#1a1a2e');
+  grd.addColorStop(1, '#0b1220');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+
+  // Arena border
+  ctx.strokeStyle = '#ff5a5f';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(2, 2, W - 4, H - 4);
+
+  // Floor tiles
+  ctx.fillStyle = '#16213e';
+  for (let y = 0; y < H; y += 40) {
+    for (let x = 0; x < W; x += 40) {
+      ctx.fillRect(x, y, 40, 40);
+    }
+  }
+
+  // Floor lines
+  ctx.strokeStyle = 'rgba(255,90,95,0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < W; i += 40) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke();
+  }
+  for (let i = 0; i < H; i += 40) {
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke();
+  }
+
+  // Floor dots
+  ctx.fillStyle = '#ffaf2d';
+  for (let y = 0; y < H; y += 60) {
+    for (let x = 0; x < W; x += 60) {
+      ctx.beginPath(); ctx.arc(x + 20, y + 20, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Bullets
+  for (const b of state.bullets) {
+    if (b.damage > 0) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Players
+  for (const p of state.players) {
+    if (p.dead && Date.now() - p.deadAt > 1500) continue;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation || 0);
+
+    // Weapon (simple)
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-2, -10, 4, 20);
+
+    // Body
+    ctx.fillStyle = '#2a3a55';
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(0, -16, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-6, -18, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, -18, 2, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Crosshair
+  if (state.me) {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W/2 - 2, W/2); ctx.lineTo(W/2 + 2, W/2);
+    ctx.moveTo(W/2, H/2 - 2); ctx.lineTo(W/2, H/2 + 2);
+    ctx.stroke();
+  }
+}
+
+function renderLeaderboard() {
+  scoreboardEl.innerHTML = '';
+  if (!state.leaderboard || state.leaderboard.length === 0) {
+    const el = document.createElement('div');
+    el.className = 'score-row';
+    el.innerHTML = '<span class="name">No players yet</span><span class="stats">—</span>';
+    scoreboardEl.appendChild(el);
+    return;
+  }
+  state.leaderboard.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'score-row';
+    el.innerHTML = `
+      <span class="name">${p.name}</span>
+      <span class="stats">${p.kills}K · ${p.deaths}D · ${p.score}</span>
+    `;
+    scoreboardEl.appendChild(el);
+  });
+}
+
+// ---------- Init ----------
+updateStatus('Ready', '');
+loop();
+</script></script>
+</body>
+</html>

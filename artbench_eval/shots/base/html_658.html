@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webpage Screenshot Tool</title>
+  <style>body {
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  max-width: 500px;
+  width: 100%;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+#result {
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  text-align: center;
+}
+
+#downloadLink {
+  text-align: center;
+}
+
+#downloadAnchor {
+  color: #007bff;
+  text-decoration: none;
+}
+
+#downloadAnchor:hover {
+  text-decoration: underline;
+}
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>📸 Webpage Screenshot Tool</h1>
+    <input type="text" id="urlInput" placeholder="Enter URL (e.g., https://example.com)" />
+    <button id="captureBtn">Capture Screenshot</button>
+    <div id="result"></div>
+    <div id="downloadLink" style="margin-top: 20px; display: none;">
+      <p>✅ Screenshot captured! <a id="downloadAnchor">Download</a></p>
+    </div>
+  </div>
+
+  <script>document.addEventListener('DOMContentLoaded', () => {
+  const urlInput = document.getElementById('urlInput');
+  const captureBtn = document.getElementById('captureBtn');
+  const resultDiv = document.getElementById('result');
+  const downloadLink = document.getElementById('downloadLink');
+  const downloadAnchor = document.getElementById('downloadAnchor');
+
+  captureBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+      resultDiv.innerHTML = '<p style="color: red;">Please enter a valid URL.</p>';
+      return;
+    }
+
+    resultDiv.innerHTML = '<p>Processing... Please wait.</p>';
+    downloadLink.style.display = 'none';
+
+    try {
+      const response = await fetch('/screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        resultDiv.innerHTML = `<p>✅ Screenshot captured successfully!</p>`;
+        downloadAnchor.href = data.downloadUrl;
+        downloadAnchor.textContent = 'Download Screenshot';
+        downloadLink.style.display = 'block';
+      } else {
+        resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      resultDiv.innerHTML = `<p style="color: red;">Failed to capture screenshot. Try again.</p>`;
+    }
+  });
+});
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Recorder & Editor</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(135deg, #1a2332 0%, #0f1419 100%);
+  color: #e8eef5;
+  min-height: 100vh;
+}
+
+.topbar { text-align: center; margin-bottom: 24px; }
+.topbar h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
+.subtitle { margin: 4px 0 0; color: #9aa7b8; font-size: 14px; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: 1px solid #3a4a65;
+  background: #2a3a55;
+  color: #e8eef5;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn:hover:not(:disabled) { background: #3a4a65; border-color: #4a5a75; transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.panel {
+  background: #1a2332;
+  border: 1px solid #2a3548;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.panel h2 { margin: 0 0 12px; font-size: 16px; color: #e8eef5; }
+
+.waveform {
+  height: 80px;
+  background: #0f1419;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.waveform canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #9aa7b8;
+}
+.meta span { background: #2a3548; padding: 4px 10px; border-radius: 6px; }
+
+.trim {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+#trimStart, #trimEnd {
+  flex: 1;
+  background: #2a3548;
+  border: 1px solid #3a4a65;
+  color: #e8eef5;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.effects { display: flex; flex-wrap: wrap; gap: 12px; }
+.effect { display: inline-flex; align-items: center; gap: 8px; color: #9aa7b8; font-size: 14px; }
+.effect input { accent-color: #7cc4ff; }
+
+.foot {
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid #2a3548;
+  color: #6b7890;
+  font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .app { padding: 16px; }
+  .controls { flex-direction: column; }
+  .btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>Audio Recorder & Editor</h1>
+    <p class="subtitle">Record, trim, and apply effects</p>
+  </header>
+
+  <div class="controls">
+    <button id="startBtn" class="btn btn-primary" disabled>🎤 Start Recording</button>
+    <button id="stopBtn" class="btn" disabled>⏹ Stop</button>
+    <button id="trimBtn" class="btn" disabled>✂ Trim</button>
+    <button id="effectBtn" class="btn" disabled>🔊 Effects</button>
+    <button id="downloadBtn" class="btn btn-secondary" disabled>💾 Download</button>
+  </div>
+
+  <section class="panel">
+    <h2>Preview</h2>
+    <div id="waveform" class="waveform"></div>
+    <div class="meta">
+      <span id="duration">00:00</span>
+      <span id="status">Idle</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Trim</h2>
+    <div class="trim">
+      <input type="range" id="trimStart" min="0" max="100" value="0" disabled>
+      <input type="range" id="trimEnd" min="0" max="100" value="100" disabled>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Effects</h2>
+    <div class="effects">
+      <label class="effect"><input type="checkbox" id="echo"> Echo</label>
+      <label class="effect"><input type="checkbox" id="reverse"> Reverse</label>
+      <label class="effect"><input type="checkbox" id="lowpass"> Low-Pass (2000 Hz)</label>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <small>Uses Web Audio API · Record with a connected microphone</small>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  const startBtn = $('startBtn');
+  const stopBtn = $('stopBtn');
+  const trimBtn = $('trimBtn');
+  const effectBtn = $('effectBtn');
+  const downloadBtn = $('downloadBtn');
+
+  const statusEl = $('status');
+  const durationEl = $('duration');
+  const waveformEl = $('waveform');
+  const trimStart = $('trimStart');
+  const trimEnd = $('trimEnd');
+
+  const echo = $('echo');
+  const reverse = $('reverse');
+  const lowpass = $('lowpass');
+
+  let stream = null;
+  let mediaRecorder = null;
+  let audioCtx = null;
+  let chunks = [];
+  let isRecording = false;
+  let isTrimming = false;
+  let startTime = 0;
+  let totalDuration = 0;
+  let lastTime = 0;
+  let analyser = null;
+  let sourceNode = null;
+  let waveformCanvas = null;
+  let waveformCtx = null;
+  let waveformTimer = null;
+
+  // --- Audio Setup ---
+  async function initAudio() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.85;
+
+      // Create a source from the stream
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      // Build a recording chain
+      const bufferSize = analyser.fftSize * 2;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const out = buffer.getChannelData(0);
+
+      const recorder = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+      recorder.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          out[i] = input[i] || 0;
+        }
+      };
+      source.connect(recorder);
+      recorder.connect(audioCtx.destination);
+
+      // Effects chain (for preview)
+      const effects = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+      effects.onaudioprocess = (e) => applyEffects(e.inputBuffer, e.outputBuffer);
+      recorder.connect(effects);
+      effects.connect(audioCtx.destination);
+
+      // Setup waveform canvas
+      waveformCanvas = document.createElement('canvas');
+      waveformCanvas.width = 400;
+      waveformCanvas.height = 80;
+      waveformEl.appendChild(waveformCanvas);
+      waveformCtx = waveformCanvas.getContext('2d');
+
+      drawWaveform();
+
+      return { source, recorder, effects, buffer };
+    } catch (err) {
+      console.error(err);
+      throw new Error('Microphone access denied or unavailable');
+    }
+  }
+
+  function applyEffects(inputBuf, outputBuf) {
+    const input = inputBuf.getChannelData(0);
+    const output = outputBuf.getChannelData(0);
+    const len = input.length;
+
+    // Echo
+    if (echo.checked) {
+      const delay = 0.18;
+      const delaySamples = Math.floor(audioCtx.sampleRate * delay);
+      const maxDelay = delaySamples * 2;
+      const delayLine = new Float32Array(maxDelay);
+      for (let i = 0; i < len; i++) {
+        const sample = input[i];
+        const delaySample = delayLine[i % maxDelay];
+        output[i] = sample + delaySample * 0.5;
+        delayLine[i % maxDelay] = sample;
+      }
+    } else {
+      for (let i = 0; i < len; i++) output[i] = input[i];
+    }
+
+    // Reverse
+    if (reverse.checked) {
+      for (let i = 0; i < len; i++) output[i] = input[len - 1 - i];
+    }
+
+    // Low-pass
+    if (lowpass.checked) {
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 2000;
+      filter.connect(effects);
+      effects.disconnect();
+      effects.connect(filter);
+      filter.connect(audioCtx.destination);
+    }
+  }
+
+  // --- Recording ---
+  async function startRecording() {
+    if (isRecording) return;
+    try {
+      const { source, recorder } = await initAudio();
+      mediaRecorder = new MediaRecorder(source, { mimeType: 'audio/wav' });
+      chunks = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        if (chunks.length) {
+          const blob = new Blob(chunks, { type: 'audio/wav' });
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.play().catch(() => {});
+        }
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      statusEl.textContent = 'Recording...';
+      durationEl.textContent = '00:00';
+      trimStart.disabled = false;
+      trimEnd.disabled = false;
+      trimBtn.disabled = false;
+      effectBtn.disabled = false;
+      downloadBtn.disabled = false;
+      lastTime = performance.now();
+    } catch (err) {
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  async function stopRecording() {
+    if (!isRecording) return;
+    isRecording = false;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    statusEl.textContent = 'Stopped';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    trimBtn.disabled = true;
+    effectBtn.disabled = true;
+    downloadBtn.disabled = true;
+    totalDuration = 0;
+    durationEl.textContent = '00:00';
+    trimStart.value = 0;
+    trimEnd.value = 100;
+    drawWaveform();
+  }
+
+  // --- Trim ---
+  function setTrim(startPct, endPct) {
+    const start = startPct / 100 * totalDuration;
+    const end = endPct / 100 * totalDuration;
+    if (start >= end) return;
+    if (isTrimming) {
+      // Apply trim to recorded chunks
+      const blob = new Blob(chunks, { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.addEventListener('loadedmetadata', () => {
+        const newBlob = trimBlob(audio, start, end);
+        URL.revokeObjectURL(url);
+        chunks = [];
+        chunks.push(newBlob);
+        totalDuration = end - start;
+        durationEl.textContent = formatTime(totalDuration);
+        drawWaveform();
+      });
+    }
+  }
+
+  function trimBlob(audio, start, end) {
+    return new Promise((resolve) => {
+      audio.addEventListener('play', () => {
+        const ctx = new AudioContext();
+        const src = ctx.createMediaElementSource(audio);
+        const dest = ctx.createMediaStreamDestination();
+        src.connect(dest);
+        const stream = dest.stream;
+        const rec = new MediaRecorder(stream, { mimeType: 'audio/wav' });
+        rec.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            rec.stop();
+            const blob = new Blob([e.data], { type: 'audio/wav' });
+            resolve(blob);
+          }
+        };
+        rec.start();
+        audio.addEventListener('ended', () => rec.stop());
+      }, { once: true });
+    });
+  }
+
+  // --- Download ---
+  function downloadEditedAudio() {
+    if (!chunks.length) return;
+    const blob = new Blob(chunks, { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'edited-audio.wav';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // --- Waveform ---
+  function drawWaveform() {
+    if (!waveformCtx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = waveformCanvas.width;
+    const h = waveformCanvas.height;
+    waveformCanvas.width = w * dpr;
+    waveformCanvas.height = h * dpr;
+    waveformCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteTimeDomainData(dataArray);
+
+    const amp = Math.max(...dataArray);
+    const ampNorm = amp > 0 ? amp / 255 : 0;
+
+    const barCount = w;
+    const barWidth = w / barCount;
+    const barHeight = h * 0.5;
+
+    waveformCtx.clearRect(0, 0, w, h);
+    for (let i = 0; i < barCount; i++) {
+      const v = dataArray[i] / 255;
+      const y = (1 - v) * (h - barHeight) + v * (h - barHeight) * 0.4;
+      const color = v > 0.5 ? '#7cc4ff' : '#4a6599';
+      waveformCtx.fillStyle = color;
+      waveformCtx.fillRect(i * barWidth, y, barWidth - 1, barHeight);
+    }
+  }
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  // --- Event wiring ---
+  startBtn.addEventListener('click', startRecording);
+  stopBtn.addEventListener('click', stopRecording);
+  trimBtn.addEventListener('click', () => {
+    isTrimming = true;
+    setTrim(parseFloat(trimStart.value), parseFloat(trimEnd.value));
+  });
+  effectBtn.addEventListener('click', () => {
+    statusEl.textContent = 'Effects applied';
+    drawWaveform();
+  });
+  downloadBtn.addEventListener('click', downloadEditedAudio);
+
+  trimStart.addEventListener('input', () => {
+    if (isTrimming) setTrim(parseFloat(trimStart.value), parseFloat(trimEnd.value));
+  });
+  trimEnd.addEventListener('input', () => {
+    if (isTrimming) setTrim(parseFloat(trimStart.value), parseFloat(trimEnd.value));
+  });
+
+  // --- Resize handling ---
+  window.addEventListener('resize', () => {
+    if (waveformCanvas && waveformCtx) drawWaveform();
+  });
+
+  // --- Keyboard shortcuts ---
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (isRecording) stopRecording();
+      else startRecording();
+    }
+  });
+
+  // --- Init ---
+  statusEl.textContent = 'Ready. Click "Start Recording" to begin.';
+})();
+</script></script>
+</body>
+</html>

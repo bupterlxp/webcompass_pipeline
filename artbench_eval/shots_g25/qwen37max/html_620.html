@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Graphic Video Generator</title>
+<style>
+/* ========== Global Reset & Variables ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-dark: #1a1a2e;
+  --bg-panel: #16213e;
+  --bg-card: #0f3460;
+  --accent: #e94560;
+  --accent2: #533483;
+  --text: #eee;
+  --text-dim: #999;
+  --border: #2a2a4a;
+  --success: #4ecca3;
+  --warning: #f0a500;
+}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== Top Toolbar ========== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  z-index: 100;
+}
+.toolbar h1 {
+  font-size: 16px;
+  color: var(--accent);
+  margin-right: 20px;
+  white-space: nowrap;
+}
+.toolbar-group {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px;
+  border-right: 1px solid var(--border);
+}
+.toolbar-group:last-child { border-right: none; }
+.tool-btn {
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tool-btn:hover { background: var(--accent2); border-color: var(--accent); }
+.tool-btn.active { background: var(--accent); border-color: var(--accent); }
+.tool-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+/* ========== Main Layout ========== */
+.main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ========== Left Panel ========== */
+.left-panel {
+  width: 260px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.panel-section {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-section h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.shape-btn {
+  padding: 10px 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.shape-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+.shape-btn .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+
+/* ========== Property Inputs ========== */
+.prop-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 6px;
+}
+.prop-row label {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 60px;
+  flex-shrink: 0;
+}
+.prop-row input[type="number"],
+.prop-row input[type="text"],
+.prop-row select {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.prop-row input[type="color"] {
+  width: 32px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+.prop-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+/* ========== Canvas Area ========== */
+.canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  position: relative;
+}
+.canvas-wrapper {
+  position: relative;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+#mainCanvas {
+  background: #ffffff;
+  cursor: crosshair;
+}
+.canvas-info {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(0,0,0,0.6);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ========== Right Panel ========== */
+.right-panel {
+  width: 280px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.anim-effect-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+.effect-btn {
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.effect-btn:hover { background: var(--accent2); }
+.effect-btn.active { background: var(--accent); border-color: var(--accent); }
+
+/* ========== Layer List ========== */
+.layer-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.layer-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12px;
+  gap: 6px;
+  transition: background 0.2s;
+}
+.layer-item:hover { background: rgba(255,255,255,0.05); }
+.layer-item.selected { background: var(--accent2); border-left: 3px solid var(--accent); }
+.layer-item .layer-icon { font-size: 14px; }
+.layer-item .layer-name { flex: 1; }
+.layer-item .layer-actions { display: flex; gap: 4px; }
+.layer-item .layer-actions button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px;
+}
+.layer-item .layer-actions button:hover { color: var(--accent); }
+
+/* ========== Timeline ========== */
+.timeline-container {
+  height: 180px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.timeline-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.timeline-header .time-display {
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--success);
+  min-width: 100px;
+}
+.play-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.play-btn:hover { transform: scale(1.1); background: #ff5a7a; }
+.timeline-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+.timeline-labels {
+  width: 140px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.timeline-label {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.timeline-label.selected { color: var(--accent); font-weight: bold; }
+.timeline-tracks {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+.timeline-ruler {
+  height: 20px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.timeline-ruler canvas { width: 100%; height: 100%; }
+.track-row {
+  height: 30px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.track-bar {
+  position: absolute;
+  height: 22px;
+  top: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  color: white;
+  transition: opacity 0.2s;
+  min-width: 20px;
+}
+.track-bar:hover { opacity: 0.85; }
+.playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--accent);
+  z-index: 10;
+  pointer-events: none;
+}
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* ========== Export Modal ========== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 420px;
+  max-width: 90vw;
+}
+.modal h2 { margin-bottom: 16px; color: var(--accent); }
+.modal .prop-row { margin-bottom: 10px; }
+.modal .prop-row label { width: 90px; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+.btn-primary {
+  padding: 8px 20px;
+  background: var(--accent);
+  border: none;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.btn-primary:hover { background: #ff5a7a; }
+.btn-secondary {
+  padding: 8px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-dark);
+  border-radius: 3px;
+  margin-top: 12px;
+  overflow: hidden;
+  display: none;
+}
+.progress-bar.show { display: block; }
+.progress-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 3px;
+  transition: width 0.3s;
+  width: 0%;
+}
+.export-status {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+
+/* ========== Keyframe dots ========== */
+.keyframe-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--warning);
+  border-radius: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  z-index: 5;
+}
+</style>
+</head>
+<body>
+
+<!-- ========== TOP TOOLBAR ========== -->
+<div class="toolbar">
+  <h1>🎬 Motion Graphics Studio</h1>
+  <div class="toolbar-group">
+    <button class="tool-btn active" id="selectTool" onclick="setTool('select')" title="Select & Move">
+      <span>↖</span> Select
+    </button>
+    <button class="tool-btn" id="pathTool" onclick="setTool('path')" title="Draw Animation Path">
+      <span>〰</span> Path
+    </button>
+  </div>
+  <div class="toolbar-group">
+    <button class="tool-btn" onclick="undoAction()" title="Undo">↩ Undo</button>
+    <button class="tool-btn" onclick="redoAction()" title="Redo">↪ Redo</button>
+  </div>
+  <div class="toolbar-group">
+    <button class="tool-btn" onclick="duplicateSelected()" title="Duplicate">⧉ Duplicate</button>
+    <button class="tool-btn" onclick="deleteSelected()" title="Delete">🗑 Delete</button>
+  </div>
+  <div class="toolbar-group" style="margin-left:auto;">
+    <button class="tool-btn" onclick="showExportModal()" style="background:var(--accent);">📹 Export Video</button>
+  </div>
+</div>
+
+<!-- ========== MAIN CONTENT ========== -->
+<div class="main-container">
+
+  <!-- Left Panel: Shapes & Layers -->
+  <div class="left-panel">
+    <div class="panel-section">
+      <h3>➕ Add Shapes</h3>
+      <div class="shape-grid">
+        <button class="shape-btn" onclick="addShape('rect')"><span class="icon">▬</span>Rectangle</button>
+        <button class="shape-btn" onclick="addShape('circle')"><span class="icon">●</span>Circle</button>
+        <button class="shape-btn" onclick="addShape('triangle')"><span class="icon">▲</span>Triangle</button>
+        <button class="shape-btn" onclick="addShape('star')"><span class="icon">★</span>Star</button>
+        <button class="shape-btn" onclick="addShape('line')"><span class="icon">╱</span>Line</button>
+        <button class="shape-btn" onclick="addShape('arrow')"><span class="icon">➤</span>Arrow</button>
+        <button class="shape-btn" onclick="addShape('heart')"><span class="icon">♥</span>Heart</button>
+        <button class="shape-btn" onclick="addShape('diamond')"><span class="icon">◆</span>Diamond</button>
+        <button class="shape-btn" onclick="addShape('text')"><span class="icon">T</span>Text</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>📑 Layers</h3>
+      <div class="layer-list" id="layerList"></div>
+    </div>
+
+    <div class="panel-section" id="propsPanel">
+      <h3>🎨 Shape Properties</h3>
+      <div id="shapeProps">
+        <p style="font-size:12px;color:var(--text-dim);">Select a shape to edit properties</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Canvas -->
+  <div class="canvas-area">
+    <div class="canvas-wrapper">
+      <canvas id="mainCanvas" width="800" height="500"></canvas>
+      <div class="canvas-info" id="canvasInfo">800 × 500 | 30 FPS</div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Animation -->
+  <div class="right-panel">
+    <div class="panel-section">
+      <h3>🎭 Animation Effects</h3>
+      <div class="anim-effect-grid" id="effectGrid">
+        <button class="effect-btn" onclick="addEffect('fadeIn')">Fade In</button>
+        <button class="effect-btn" onclick="addEffect('fadeOut')">Fade Out</button>
+        <button class="effect-btn" onclick="addEffect('slideLeft')">Slide Left</button>
+        <button class="effect-btn" onclick="addEffect('slideRight')">Slide Right</button>
+        <button class="effect-btn" onclick="addEffect('slideUp')">Slide Up</button>
+        <button class="effect-btn" onclick="addEffect('slideDown')">Slide Down</button>
+        <button class="effect-btn" onclick="addEffect('scaleIn')">Scale In</button>
+        <button class="effect-btn" onclick="addEffect('scaleOut')">Scale Out</button>
+        <button class="effect-btn" onclick="addEffect('rotate')">Rotate</button>
+        <button class="effect-btn" onclick="addEffect('bounce')">Bounce</button>
+        <button class="effect-btn" onclick="addEffect('shake')">Shake</button>
+        <button class="effect-btn" onclick="addEffect('pulse')">Pulse</button>
+        <button class="effect-btn" onclick="addEffect('spin')">Spin</button>
+        <button class="effect-btn" onclick="addEffect('swing')">Swing</button>
+      </div>
+    </div>
+
+    <div class="panel-section" id="animPropsPanel">
+      <h3>⚙ Animation Settings</h3>
+      <div id="animProps">
+        <p style="font-size:12px;color:var(--text-dim);">Select a shape to configure animation</p>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>🎬 Canvas Settings</h3>
+      <div class="prop-row">
+        <label>Background</label>
+        <input type="color" id="canvasBg" value="#ffffff" onchange="updateCanvasBg()">
+      </div>
+      <div class="prop-row">
+        <label>Duration(s)</label>
+        <input type="number" id="totalDuration" value="5" min="1" max="60" step="0.5" onchange="updateDuration()">
+      </div>
+      <div class="prop-row">
+        <label>FPS</label>
+        <select id="fpsSelect" onchange="updateFPS()">
+          <option value="24">24</option>
+          <option value="30" selected>30</option>
+          <option value="60">60</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== TIMELINE ========== -->
+<div class="timeline-container">
+  <div class="timeline-header">
+    <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+    <button class="tool-btn" onclick="stopPlayback()">⏹</button>
+    <span class="time-display" id="timeDisplay">00:00.00 / 00:05.00</span>
+    <div style="flex:1;"></div>
+    <span style="font-size:11px;color:var(--text-dim);">Zoom:</span>
+    <input type="range" id="timelineZoom" min="50" max="400" value="150" style="width:100px;accent-color:var(--accent);" onchange="updateTimelineZoom()">
+  </div>
+  <div class="timeline-body">
+    <div class="timeline-labels" id="timelineLabels"></div>
+    <div class="timeline-tracks" id="timelineTracks">
+      <div class="timeline-ruler" id="timelineRuler">
+        <canvas id="rulerCanvas"></canvas>
+      </div>
+      <div id="trackRows"></div>
+      <div class="playhead" id="playhead" style="left:0px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== EXPORT MODAL ========== -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <h2>📹 Export Video</h2>
+    <div class="prop-row">
+      <label>Format</label>
+      <select id="exportFormat">
+        <option value="webm">WebM (VP8)</option>
+        <option value="mp4">MP4 (if supported)</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>Quality</label>
+      <select id="exportQuality">
+        <option value="2500000">Low (2.5 Mbps)</option>
+        <option value="5000000" selected>Medium (5 Mbps)</option>
+        <option value="10000000">High (10 Mbps)</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>Resolution</label>
+      <select id="exportRes">
+        <option value="800x500">800 × 500 (Original)</option>
+        <option value="1280x720">1280 × 720 (HD)</option>
+        <option value="1920x1080">1920 × 1080 (Full HD)</option>
+      </select>
+    </div>
+    <div class="progress-bar" id="exportProgress"><div class="fill" id="exportFill"></div></div>
+    <div class="export-status" id="exportStatus"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeExportModal()">Cancel</button>
+      <button class="btn-primary" id="exportBtn" onclick="startExport()">🎬 Start Export</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CORE STATE
+// ============================================================
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+let shapes = [];
+let selectedShapeId = null;
+let currentTool = 'select';
+let isPlaying = false;
+let currentTime = 0;
+let totalDuration = 5;
+let fps = 30;
+let canvasBg = '#ffffff';
+let timelineZoom = 150; // pixels per second
+let animFrameId = null;
+let lastFrameTime = 0;
+let shapeIdCounter = 0;
+let undoStack = [];
+let redoStack = [];
+let isDragging = false;
+let dragOffsetX = 0, dragOffsetY = 0;
+let isDrawingPath = false;
+let pathPoints = [];
+
+// Color palette for track bars
+const trackColors = [
+  '#e94560','#4ecca3','#f0a500','#533483','#00b4d8',
+  '#e76f51','#2a9d8f','#e9c46a','#264653','#f4a261'
+];
+
+// ============================================================
+// SHAPE CLASS
+// ============================================================
+class Shape {
+  constructor(type, x, y) {
+    this.id = ++shapeIdCounter;
+    this.type = type;
+    this.name = type.charAt(0).toUpperCase() + type.slice(1) + ' ' + this.id;
+    this.x = x;
+    this.y = y;
+    this.width = type === 'line' || type === 'arrow' ? 150 : 100;
+    this.height = type === 'line' || type === 'arrow' ? 4 : 100;
+    this.rotation = 0;
+    this.scaleX = 1;
+    this.scaleY = 1;
+    this.opacity = 1;
+    this.fillColor = trackColors[this.id % trackColors.length];
+    this.strokeColor = '#333333';
+    this.strokeWidth = 2;
+    this.text = type === 'text' ? 'Hello' : '';
+    this.fontSize = 32;
+
+    // Animation properties
+    this.animStart = 0;
+    this.animDuration = 1;
+    this.animDelay = 0;
+    this.effects = [];
+    this.animPath = []; // Array of {x, y} for custom path
+    this.easing = 'easeInOut';
+
+    // Store original position for animations
+    this.origX = x;
+    this.origY = y;
+    this.origOpacity = 1;
+    this.origScaleX = 1;
+    this.origScaleY = 1;
+    this.origRotation = 0;
+
+    this.visible = true;
+    this.colorIndex = this.id % trackColors.length;
+  }
+}
+
+// ============================================================
+// EASING FUNCTIONS
+// ============================================================
+const easings = {
+  linear: t => t,
+  easeIn: t => t * t * t,
+  easeOut: t => 1 - Math.pow(1 - t, 3),
+  easeInOut: t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  bounce: t => {
+    const n1 = 7.5625, d1 = 2.75;
+    if (t < 1 / d1) return n1 * t * t;
+    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
+    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
+    return n1 * (t -= 2.625 / d1) * t + 0.984375;
+  },
+  elastic: t => {
+    if (t === 0 || t === 1) return t;
+    return -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * (2 * Math.PI / 3));
+  }
+};
+
+// ============================================================
+// ADD SHAPE
+// ============================================================
+function addShape(type) {
+  saveUndo();
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const shape = new Shape(type, cx - 50, cy - 50);
+  shape.animDuration = Math.min(2, totalDuration);
+  shapes.push(shape);
+  selectedShapeId = shape.id;
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+// ============================================================
+// SHAPE RENDERING
+// ============================================================
+function drawShape(ctx, shape, time) {
+  if (!shape.visible) return;
+
+  // Calculate animation progress
+  const anim = computeAnimation(shape, time);
+  if (anim === null) return; // Before animation start
+
+  ctx.save();
+  ctx.globalAlpha = anim.opacity;
+  ctx.translate(anim.x + shape.width * anim.scaleX / 2, anim.y + shape.height * anim.scaleY / 2);
+  ctx.rotate(anim.rotation * Math.PI / 180);
+  ctx.scale(anim.scaleX, anim.scaleY);
+  ctx.translate(-shape.width / 2, -shape.height / 2);
+
+  ctx.fillStyle = shape.fillColor;
+  ctx.strokeStyle = shape.strokeColor;
+  ctx.lineWidth = shape.strokeWidth;
+
+  switch (shape.type) {
+    case 'rect':
+      ctx.beginPath();
+      ctx.roundRect(0, 0, shape.width, shape.height, 6);
+      ctx.fill();
+      if (shape.strokeWidth > 0) ctx.stroke();
+      break;
+
+    case 'circle':
+      ctx.beginPath();
+      ctx.ellipse(shape.width / 2, shape.height / 2, shape.width / 2, shape.height / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (shape.strokeWidth > 0) ctx.stroke();
+      break;
+
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(shape.width / 2, 0);
+      ctx.lineTo(shape.width, shape.height);
+      ctx.lineTo(0, shape.height);
+      ctx.closePath();
+      ctx.fill();
+      if (shape.strokeWidth > 0) ctx.stroke();
+      break;
+
+    case 'star':
+      drawStar(ctx, shape.width / 2, shape.height / 2, 5, shape.width / 2, shape.width / 4);
+      ctx.fill();
+      if (shape.strokeWidth > 0) ctx.stroke();
+      break;
+
+    case 'line':
+      ctx.beginPath();
+      ctx.moveTo(0, shape.height / 2);
+      ctx.lineTo(shape.width, shape.height / 2);
+      ctx.strokeStyle = shape.fillColor;
+      ctx.lineWidth = Math.max(shape.strokeWidth, 3);
+      ctx.stroke();
+      break;
+
+    case 'arrow':
+      ctx.beginPath();
+      ctx.moveTo(0, shape.height / 2);
+      ctx.lineTo(shape.width - 20, shape.height / 2);
+      ctx.strokeStyle = shape.fillColor;
+      ctx.lineWidth = Math.max(shape.strokeWidth, 3);
+      ctx.stroke();
+      // Arrowhead
+      ctx.beginPath();
+      ctx.moveTo(shape.width, shape.height / 2);
+      ctx.lineTo(shape.width - 20, shape.height / 2 - 12);
+      ctx.lineTo(shape.width - 20, shape.height / 2 + 12);
+      ctx.closePath();
+      ctx.fillStyle = shape.fillColor;
+      ctx.fill();
+      break;
+
+    case 'heart':
+      drawHeart(ctx, shape.width / 2, shape.height / 2, shape.width / 2);
+      ctx.fill();
+      if (shape.strokeWidth > 0) ctx.stroke();
+      break;
+
+    case 'diamond':
+      ctx.beginPath();
+      ctx.moveTo(shape.width / 2, 0);
+      ctx.lineTo(shape.width, shape.height / 2);
+      ctx.lineTo(shape.width / 2, shape.height);
+      ctx.lineTo(0, shape.height / 2);
+      ctx.closePath();
+      ctx.fill();
+      if (shape.strokeWidth > 0) ctx.stroke();
+      break;
+
+    case 'text':
+      ctx.font = `bold ${shape.fontSize}px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = shape.fillColor;
+      ctx.textBaseline = 'top';
+      ctx.fillText(shape.text, 0, 0);
+      // Update width/height based on text measurement
+      const metrics = ctx.measureText(shape.text);
+      shape.width = metrics.width || 100;
+      shape.height = shape.fontSize * 1.2;
+      break;
+  }
+
+  ctx.restore();
+}
+
+function drawStar(ctx, cx, cy, spikes, outerR, innerR) {
+  let rot = Math.PI / 2 * 3;
+  let step = Math.PI / spikes;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerR);
+  for (let i = 0; i < spikes; i++) {
+    ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+    rot += step;
+  }
+  ctx.lineTo(cx, cy - outerR);
+  ctx.closePath();
+}
+
+function drawHeart(ctx, cx, cy, size) {
+  ctx.beginPath();
+  const topY = cy - size * 0.4;
+  ctx.moveTo(cx, cy + size * 0.6);
+  ctx.bezierCurveTo(cx - size * 1.2, cy - size * 0.2, cx - size * 0.6, topY - size * 0.6, cx, topY + size * 0.2);
+  ctx.bezierCurveTo(cx + size * 0.6, topY - size * 0.6, cx + size * 1.2, cy - size * 0.2, cx, cy + size * 0.6);
+  ctx.closePath();
+}
+
+// ============================================================
+// ANIMATION COMPUTATION
+// ============================================================
+function computeAnimation(shape, time) {
+  const startTime = shape.animDelay;
+  const endTime = startTime + shape.animDuration;
+
+  // Before animation starts
+  if (time < startTime) {
+    // Check if any fadeIn-type effect should hide the shape initially
+    const hasFadeIn = shape.effects.some(e => ['fadeIn','scaleIn','slideLeft','slideRight','slideUp','slideDown'].includes(e));
+    if (hasFadeIn) return null;
+    return {
+      x: shape.x, y: shape.y,
+      opacity: shape.opacity,
+      scaleX: shape.scaleX, scaleY: shape.scaleY,
+      rotation: shape.rotation
+    };
+  }
+
+  // After animation ends - hold final state
+  let t = Math.min((time - startTime) / shape.animDuration, 1);
+  const easeFn = easings[shape.easing] || easings.easeInOut;
+  const et = easeFn(t);
+
+  let result = {
+    x: shape.x,
+    y: shape.y,
+    opacity: shape.opacity,
+    scaleX: shape.scaleX,
+    scaleY: shape.scaleY,
+    rotation: shape.rotation
+  };
+
+  // Apply custom animation path
+  if (shape.animPath.length >= 2) {
+    const pathProgress = et;
+    const totalLen = getPathLength(shape.animPath);
+    const targetLen = pathProgress * totalLen;
+    const pt = getPointAtLength(shape.animPath, targetLen);
+    result.x = pt.x - shape.width / 2;
+    result.y = pt.y - shape.height / 2;
+  }
+
+  // Apply effects
+  for (const effect of shape.effects) {
+    switch (effect) {
+      case 'fadeIn':
+        result.opacity = et * shape.opacity;
+        break;
+      case 'fadeOut':
+        result.opacity = (1 - et) * shape.opacity;
+        break;
+      case 'slideLeft':
+        result.x = shape.x - 200 * (1 - et);
+        break;
+      case 'slideRight':
+        result.x = shape.x + 200 * (1 - et);
+        break;
+      case 'slideUp':
+        result.y = shape.y - 200 * (1 - et);
+        break;
+      case 'slideDown':
+        result.y = shape.y + 200 * (1 - et);
+        break;
+      case 'scaleIn':
+        result.scaleX = et * shape.scaleX;
+        result.scaleY = et * shape.scaleY;
+        break;
+      case 'scaleOut':
+        result.scaleX = (1 - et) * shape.scaleX;
+        result.scaleY = (1 - et) * shape.scaleY;
+        break;
+      case 'rotate':
+        result.rotation = shape.rotation + 360 * et;
+        break;
+      case 'bounce':
+        const bounceT = easings.bounce(t);
+        result.y = shape.y - 100 * (1 - bounceT);
+        break;
+      case 'shake':
+        if (t < 1) {
+          const shakeAmp = 10 * (1 - t);
+          result.x += Math.sin(t * 50) * shakeAmp;
+          result.y += Math.cos(t * 37) * shakeAmp;
+        }
+        break;
+      case 'pulse':
+        const pulseScale = 1 + 0.15 * Math.sin(t * Math.PI * 4);
+        result.scaleX *= pulseScale;
+        result.scaleY *= pulseScale;
+        break;
+      case 'spin':
+        result.rotation = shape.rotation + 720 * et;
+        break;
+      case 'swing':
+        result.rotation = shape.rotation + 15 * Math.sin(t * Math.PI * 3) * (1 - t);
+        break;
+    }
+  }
+
+  return result;
+}
+
+function getPathLength(points) {
+  let len = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i-1].x;
+    const dy = points[i].y - points[i-1].y;
+    len += Math.sqrt(dx*dx + dy*dy);
+  }
+  return len;
+}
+
+function getPointAtLength(points, targetLen) {
+  let len = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i-1].x;
+    const dy = points[i].y - points[i-1].y;
+    const segLen = Math.sqrt(dx*dx + dy*dy);
+    if (len + segLen >= targetLen) {
+      const t = (targetLen - len) / segLen;
+      return {
+        x: points[i-1].x + dx * t,
+        y: points[i-1].y + dy * t
+      };
+    }
+    len += segLen;
+  }
+  return points[points.length - 1];
+}
+
+// ============================================================
+// RENDER FRAME
+// ============================================================
+function renderFrame(time) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background
+  ctx.fillStyle = canvasBg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw all shapes in order
+  for (const shape of shapes) {
+    drawShape(ctx, shape, time);
+  }
+
+  // Draw selection highlight (only when not exporting)
+  if (!isExporting && selectedShapeId) {
+    const sel = shapes.find(s => s.id === selectedShapeId);
+    if (sel) {
+      const anim = computeAnimation(sel, time);
+      if (anim) {
+        ctx.save();
+        ctx.strokeStyle = '#e94560';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(anim.x - 4, anim.y - 4, sel.width * anim.scaleX + 8, sel.height * anim.scaleY + 8);
+        ctx.setLineDash([]);
+
+        // Draw animation path if exists
+        if (sel.animPath.length >= 2) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(233,69,96,0.5)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.moveTo(sel.animPath[0].x, sel.animPath[0].y);
+          for (let i = 1; i < sel.animPath.length; i++) {
+            ctx.lineTo(sel.animPath[i].x, sel.animPath[i].y);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Draw path points
+          for (const pt of sel.animPath) {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#e94560';
+            ctx.fill();
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+  }
+}
+
+// ============================================================
+// PLAYBACK
+// ============================================================
+function togglePlay() {
+  if (isPlaying) {
+    pausePlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  if (isPlaying) return;
+  isPlaying = true;
+  document.getElementById('playBtn').textContent = '⏸';
+  lastFrameTime = performance.now();
+  animFrameId = requestAnimationFrame(playLoop);
+}
+
+function pausePlayback() {
+  isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶';
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+}
+
+function stopPlayback() {
+  pausePlayback();
+  currentTime = 0;
+  updateTimeDisplay();
+  updatePlayhead();
+  renderFrame(currentTime);
+}
+
+function playLoop(timestamp) {
+  if (!isPlaying) return;
+
+  const delta = (timestamp - lastFrameTime) / 1000;
+  lastFrameTime = timestamp;
+  currentTime += delta;
+
+  if (currentTime >= totalDuration) {
+    currentTime = 0; // Loop
+  }
+
+  renderFrame(currentTime);
+  updateTimeDisplay();
+  updatePlayhead();
+
+  animFrameId = requestAnimationFrame(playLoop);
+}
+
+function updateTimeDisplay() {
+  const cur = formatTime(currentTime);
+  const tot = formatTime(totalDuration);
+  document.getElementById('timeDisplay').textContent = `${cur} / ${tot}`;
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+  const ms = Math.floor((seconds % 1) * 100).toString().padStart(2, '0');
+  return `${m}:${s}.${ms}`;
+}
+
+function updatePlayhead() {
+  const playhead = document.getElementById('playhead');
+  playhead.style.left = (currentTime * timelineZoom) + 'px';
+}
+
+// ============================================================
+// CANVAS INTERACTION
+// ============================================================
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  if (currentTool === 'path') {
+    // Drawing animation path
+    const sel = getSelectedShape();
+    if (sel) {
+      isDrawingPath = true;
+      sel.animPath = [{ x: mx, y: my }];
+      renderFrame(currentTime);
+    }
+    return;
+  }
+
+  // Select tool - find shape under cursor (reverse order for top-most)
+  let found = null;
+  for (let i = shapes.length - 1; i >= 0; i--) {
+    const s = shapes[i];
+    const anim = computeAnimation(s, currentTime);
+    if (!anim) continue;
+    if (mx >= anim.x && mx <= anim.x + s.width * anim.scaleX &&
+        my >= anim.y && my <= anim.y + s.height * anim.scaleY) {
+      found = s;
+      break;
+    }
+  }
+
+  if (found) {
+    selectedShapeId = found.id;
+    isDragging = true;
+    const anim = computeAnimation(found, currentTime);
+    dragOffsetX = mx - anim.x;
+    dragOffsetY = my - anim.y;
+  } else {
+    selectedShapeId = null;
+  }
+
+  refreshUI();
+  renderFrame(currentTime);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  if (isDrawingPath) {
+    const sel = getSelectedShape();
+    if (sel) {
+      sel.animPath.push({ x: mx, y: my });
+      renderFrame(currentTime);
+    }
+    return;
+  }
+
+  if (isDragging && selectedShapeId) {
+    const sel = getSelectedShape();
+    if (sel) {
+      sel.x = mx - dragOffsetX;
+      sel.y = my - dragOffsetY;
+      renderFrame(currentTime);
+      updateShapeProps();
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  if (isDrawingPath) {
+    isDrawingPath = false;
+    // Simplify path (keep every Nth point)
+    const sel = getSelectedShape();
+    if (sel && sel.animPath.length > 10) {
+      const simplified = [sel.animPath[0]];
+      const step = Math.max(1, Math.floor(sel.animPath.length / 30));
+      for (let i = step; i < sel.animPath.length - 1; i += step) {
+        simplified.push(sel.animPath[i]);
+      }
+      simplified.push(sel.animPath[sel.animPath.length - 1]);
+      sel.animPath = simplified;
+    }
+    renderFrame(currentTime);
+  }
+  isDragging = false;
+});
+
+// ============================================================
+// TOOL MANAGEMENT
+// ============================================================
+function setTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll('.toolbar-group .tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tool + 'Tool')?.classList.add('active');
+  canvas.style.cursor = tool === 'path' ? 'crosshair' : 'default';
+}
+
+// ============================================================
+// EFFECTS
+// ============================================================
+function addEffect(effectName) {
+  const sel = getSelectedShape();
+  if (!sel) {
+    alert('Please select a shape first!');
+    return;
+  }
+  saveUndo();
+  if (!sel.effects.includes(effectName)) {
+    sel.effects.push(effectName);
+  }
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+function removeEffect(effectName) {
+  const sel = getSelectedShape();
+  if (!sel) return;
+  saveUndo();
+  sel.effects = sel.effects.filter(e => e !== effectName);
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+// ============================================================
+// UI REFRESH
+// ============================================================
+function refreshUI() {
+  updateLayerList();
+  updateShapeProps();
+  updateAnimProps();
+  updateTimeline();
+}
+
+function getSelectedShape() {
+  return shapes.find(s => s.id === selectedShapeId) || null;
+}
+
+// ---- Layer List ----
+function updateLayerList() {
+  const list = document.getElementById('layerList');
+  list.innerHTML = '';
+  for (let i = shapes.length - 1; i >= 0; i--) {
+    const s = shapes[i];
+    const div = document.createElement('div');
+    div.className = 'layer-item' + (s.id === selectedShapeId ? ' selected' : '');
+    div.innerHTML = `
+      <span class="layer-icon">${getShapeIcon(s.type)}</span>
+      <span class="layer-name">${s.name}</span>
+      <span class="layer-actions">
+        <button onclick="event.stopPropagation();toggleVisibility(${s.id})" title="Toggle visibility">${s.visible ? '👁' : '🚫'}</button>
+        <button onclick="event.stopPropagation();moveLayer(${s.id},1)" title="Move up">↑</button>
+        <button onclick="event.stopPropagation();moveLayer(${s.id},-1)" title="Move down">↓</button>
+        <button onclick="event.stopPropagation();deleteShape(${s.id})" title="Delete">✕</button>
+      </span>
+    `;
+    div.addEventListener('click', () => {
+      selectedShapeId = s.id;
+      refreshUI();
+      renderFrame(currentTime);
+    });
+    list.appendChild(div);
+  }
+}
+
+function getShapeIcon(type) {
+  const icons = { rect:'▬', circle:'●', triangle:'▲', star:'★', line:'╱', arrow:'➤', heart:'♥', diamond:'◆', text:'T' };
+  return icons[type] || '■';
+}
+
+function toggleVisibility(id) {
+  const s = shapes.find(s => s.id === id);
+  if (s) { s.visible = !s.visible; refreshUI(); renderFrame(currentTime); }
+}
+
+function moveLayer(id, dir) {
+  const idx = shapes.findIndex(s => s.id === id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= shapes.length) return;
+  saveUndo();
+  [shapes[idx], shapes[newIdx]] = [shapes[newIdx], shapes[idx]];
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+function deleteShape(id) {
+  saveUndo();
+  shapes = shapes.filter(s => s.id !== id);
+  if (selectedShapeId === id) selectedShapeId = null;
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+function deleteSelected() {
+  if (selectedShapeId) deleteShape(selectedShapeId);
+}
+
+function duplicateSelected() {
+  const sel = getSelectedShape();
+  if (!sel) return;
+  saveUndo();
+  const dup = new Shape(sel.type, sel.x + 20, sel.y + 20);
+  Object.assign(dup, {
+    width: sel.width, height: sel.height,
+    rotation: sel.rotation, scaleX: sel.scaleX, scaleY: sel.scaleY,
+    opacity: sel.opacity, fillColor: sel.fillColor, strokeColor: sel.strokeColor,
+    strokeWidth: sel.strokeWidth, text: sel.text, fontSize: sel.fontSize,
+    animStart: sel.animStart, animDuration: sel.animDuration, animDelay: sel.animDelay,
+    effects: [...sel.effects], animPath: sel.animPath.map(p => ({...p})),
+    easing: sel.easing
+  });
+  dup.name = sel.name + ' copy';
+  shapes.push(dup);
+  selectedShapeId = dup.id;
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+// ---- Shape Properties ----
+function updateShapeProps() {
+  const panel = document.getElementById('shapeProps');
+  const sel = getSelectedShape();
+  if (!sel) {
+    panel.innerHTML = '<p style="font-size:12px;color:var(--text-dim);">Select a shape to edit properties</p>';
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="prop-row">
+      <label>Name</label>
+      <input type="text" value="${sel.name}" onchange="setProp('name', this.value)">
+    </div>
+    <div class="prop-row">
+      <label>X</label>
+      <input type="number" value="${Math.round(sel.x)}" onchange="setProp('x', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Y</label>
+      <input type="number" value="${Math.round(sel.y)}" onchange="setProp('y', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Width</label>
+      <input type="number" value="${Math.round(sel.width)}" min="10" onchange="setProp('width', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Height</label>
+      <input type="number" value="${Math.round(sel.height)}" min="10" onchange="setProp('height', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Rotation</label>
+      <input type="number" value="${Math.round(sel.rotation)}" step="5" onchange="setProp('rotation', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Opacity</label>
+      <input type="range" min="0" max="1" step="0.05" value="${sel.opacity}" oninput="setProp('opacity', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Fill</label>
+      <input type="color" value="${sel.fillColor}" onchange="setProp('fillColor', this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Stroke</label>
+      <input type="color" value="${sel.strokeColor}" onchange="setProp('strokeColor', this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Stroke W</label>
+      <input type="number" value="${sel.strokeWidth}" min="0" max="20" onchange="setProp('strokeWidth', +this.value)">
+    </div>
+    ${sel.type === 'text' ? `
+    <div class="prop-row">
+      <label>Text</label>
+      <input type="text" value="${sel.text}" onchange="setProp('text', this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Font Size</label>
+      <input type="number" value="${sel.fontSize}" min="8" max="200" onchange="setProp('fontSize', +this.value)">
+    </div>` : ''}
+    <div class="prop-row">
+      <label>Path</label>
+      <button class="tool-btn" style="font-size:11px;" onclick="clearPath()">Clear Path</button>
+    </div>
+  `;
+}
+
+function setProp(key, value) {
+  const sel = getSelectedShape();
+  if (!sel) return;
+  saveUndo();
+  sel[key] = value;
+  renderFrame(currentTime);
+  if (key === 'name') updateLayerList();
+}
+
+function clearPath() {
+  const sel = getSelectedShape();
+  if (sel) { sel.animPath = []; renderFrame(currentTime); }
+}
+
+// ---- Animation Properties ----
+function updateAnimProps() {
+  const panel = document.getElementById('animProps');
+  const sel = getSelectedShape();
+  if (!sel) {
+    panel.innerHTML = '<p style="font-size:12px;color:var(--text-dim);">Select a shape to configure animation</p>';
+    return;
+  }
+
+  const effectsHtml = sel.effects.length > 0
+    ? sel.effects.map(e => `<span style="display:inline-block;background:var(--accent2);padding:2px 8px;border-radius:10px;font-size:11px;margin:2px;">${e} <span style="cursor:pointer;" onclick="removeEffect('${e}')">✕</span></span>`).join('')
+    : '<span style="font-size:11px;color:var(--text-dim);">No effects added</span>';
+
+  panel.innerHTML = `
+    <div class="prop-row">
+      <label>Delay(s)</label>
+      <input type="number" value="${sel.animDelay}" min="0" max="${totalDuration}" step="0.1" onchange="setAnimProp('animDelay', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Duration(s)</label>
+      <input type="number" value="${sel.animDuration}" min="0.1" max="${totalDuration}" step="0.1" onchange="setAnimProp('animDuration', +this.value)">
+    </div>
+    <div class="prop-row">
+      <label>Easing</label>
+      <select onchange="setAnimProp('easing', this.value)">
+        ${Object.keys(easings).map(e => `<option value="${e}" ${sel.easing === e ? 'selected' : ''}>${e}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-top:8px;">
+      <label style="font-size:11px;color:var(--text-dim);">Active Effects:</label>
+      <div style="margin-top:4px;">${effectsHtml}</div>
+    </div>
+  `;
+}
+
+function setAnimProp(key, value) {
+  const sel = getSelectedShape();
+  if (!sel) return;
+  saveUndo();
+  sel[key] = value;
+  updateTimeline();
+  renderFrame(currentTime);
+}
+
+// ============================================================
+// TIMELINE
+// ============================================================
+function updateTimeline() {
+  updateTimelineLabels();
+  updateTimelineTracks();
+  drawRuler();
+  updatePlayhead();
+}
+
+function updateTimelineLabels() {
+  const container = document.getElementById('timelineLabels');
+  container.innerHTML = '';
+  for (const s of shapes) {
+    const div = document.createElement('div');
+    div.className = 'timeline-label' + (s.id === selectedShapeId ? ' selected' : '');
+    div.textContent = s.name;
+    div.addEventListener('click', () => {
+      selectedShapeId = s.id;
+      refreshUI();
+      renderFrame(currentTime);
+    });
+    container.appendChild(div);
+  }
+}
+
+function updateTimelineTracks() {
+  const container = document.getElementById('trackRows');
+  container.innerHTML = '';
+  const totalWidth = totalDuration * timelineZoom;
+
+  for (const s of shapes) {
+    const row = document.createElement('div');
+    row.className = 'track-row';
+    row.style.width = totalWidth + 'px';
+
+    // Animation bar
+    const bar = document.createElement('div');
+    bar.className = 'track-bar';
+    bar.style.left = (s.animDelay * timelineZoom) + 'px';
+    bar.style.width = (s.animDuration * timelineZoom) + 'px';
+    bar.style.background = trackColors[s.colorIndex];
+    bar.textContent = s.effects.length > 0 ? s.effects.join(', ') : s.name;
+    bar.title = `${s.name}: ${s.animDelay}s - ${s.animDelay + s.animDuration}s`;
+
+    // Make bar draggable for repositioning delay
+    bar.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      selectedShapeId = s.id;
+      const startX = e.clientX;
+      const startDelay = s.animDelay;
+
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX;
+        s.animDelay = Math.max(0, startDelay + dx / timelineZoom);
+        s.animDelay = Math.round(s.animDelay * 10) / 10;
+        updateTimeline();
+        updateAnimProps();
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    row.appendChild(bar);
+    container.appendChild(row);
+  }
+}
+
+function drawRuler() {
+  const rulerCanvas = document.getElementById('rulerCanvas');
+  const tracksEl = document.getElementById('timelineTracks');
+  const totalWidth = totalDuration * timelineZoom;
+  rulerCanvas.width = totalWidth;
+  rulerCanvas.height = 20;
+  rulerCanvas.style.width = totalWidth + 'px';
+
+  const rctx = rulerCanvas.getContext('2d');
+  rctx.fillStyle = '#1a1a2e';
+  rctx.fillRect(0, 0, totalWidth, 20);
+
+  rctx.fillStyle = '#999';
+  rctx.font = '10px monospace';
+  rctx.strokeStyle = '#444';
+
+  for (let t = 0; t <= totalDuration; t += 0.5) {
+    const x = t * timelineZoom;
+    const isMajor = t % 1 === 0;
+    rctx.beginPath();
+    rctx.moveTo(x, isMajor ? 0 : 10);
+    rctx.lineTo(x, 20);
+    rctx.stroke();
+    if (isMajor) {
+      rctx.fillText(t + 's', x + 3, 12);
+    }
+  }
+}
+
+function updateTimelineZoom() {
+  timelineZoom = +document.getElementById('timelineZoom').value;
+  updateTimeline();
+}
+
+// Timeline click to seek
+document.getElementById('timelineTracks').addEventListener('mousedown', (e) => {
+  if (e.target.classList.contains('track-bar')) return;
+  const rect = document.getElementById('timelineTracks').getBoundingClientRect();
+  const x = e.clientX - rect.left + document.getElementById('timelineTracks').scrollLeft;
+  currentTime = Math.max(0, Math.min(totalDuration, x / timelineZoom));
+  updateTimeDisplay();
+  updatePlayhead();
+  renderFrame(currentTime);
+});
+
+// ============================================================
+// CANVAS SETTINGS
+// ============================================================
+function updateCanvasBg() {
+  canvasBg = document.getElementById('canvasBg').value;
+  renderFrame(currentTime);
+}
+
+function updateDuration() {
+  totalDuration = +document.getElementById('totalDuration').value;
+  updateTimeDisplay();
+  updateTimeline();
+}
+
+function updateFPS() {
+  fps = +document.getElementById('fpsSelect').value;
+  document.getElementById('canvasInfo').textContent = `${canvas.width} × ${canvas.height} | ${fps} FPS`;
+}
+
+// ============================================================
+// UNDO / REDO
+// ============================================================
+function saveUndo() {
+  undoStack.push(JSON.stringify(shapes.map(s => ({...s, animPath: [...s.animPath], effects: [...s.effects]}))));
+  if (undoStack.length > 50) undoStack.shift();
+  redoStack = [];
+}
+
+function undoAction() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.stringify(shapes.map(s => ({...s, animPath: [...s.animPath], effects: [...s.effects]}))));
+  const state = JSON.parse(undoStack.pop());
+  shapes = state.map(s => {
+    const shape = new Shape(s.type, s.x, s.y);
+    Object.assign(shape, s);
+    return shape;
+  });
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+function redoAction() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.stringify(shapes.map(s => ({...s, animPath: [...s.animPath], effects: [...s.effects]}))));
+  const state = JSON.parse(redoStack.pop());
+  shapes = state.map(s => {
+    const shape = new Shape(s.type, s.x, s.y);
+    Object.assign(shape, s);
+    return shape;
+  });
+  refreshUI();
+  renderFrame(currentTime);
+}
+
+// ============================================================
+// VIDEO EXPORT
+// ============================================================
+let isExporting = false;
+
+function showExportModal() {
+  document.getElementById('exportModal').classList.add('show');
+  document.getElementById('exportProgress').classList.remove('show');
+  document.getElementById('exportStatus').textContent = '';
+  document.getElementById('exportBtn').disabled = false;
+  document.getElementById('exportBtn').textContent = '🎬 Start Export';
+}
+
+function closeExportModal() {
+  if (isExporting) return;
+  document.getElementById('exportModal').classList.remove('show');
+}
+
+async function startExport() {
+  isExporting = true;
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  btn.textContent = 'Exporting...';
+
+  const progressBar = document.getElementById('exportProgress');
+  const progressFill = document.getElementById('exportFill');
+  const statusEl = document.getElementById('exportStatus');
+  progressBar.classList.add('show');
+
+  // Get export settings
+  const quality = +document.getElementById('exportQuality').value;
+  const resStr = document.getElementById('exportRes').value;
+  const [expW, expH] = resStr.split('x').map(Number);
+
+  // Create offscreen canvas for export
+  const expCanvas = document.createElement('canvas');
+  expCanvas.width = expW;
+  expCanvas.height = expH;
+  const expCtx = expCanvas.getContext('2d');
+
+  // Setup MediaRecorder
+  const stream = expCanvas.captureStream(fps);
+  let mimeType = 'video/webm;codecs=vp8';
+  if (document.getElementById('exportFormat').value === 'mp4') {
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+      mimeType = 'video/mp4';
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+      mimeType = 'video/webm;codecs=h264';
+    }
+  }
+
+  const recorder = new MediaRecorder(stream, {
+    mimeType: mimeType,
+    videoBitsPerSecond: quality
+  });
+
+  const chunks = [];
+  recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `motion-graphics-${Date.now()}.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    isExporting = false;
+    btn.textContent = '✅ Done! Export Again?';
+    btn.disabled = false;
+    statusEl.textContent = 'Export complete! File downloaded.';
+    renderFrame(currentTime); // Re-render with selection highlights
+  };
+
+  // Pause any current playback
+  pausePlayback();
+
+  recorder.start();
+  statusEl.textContent = 'Recording frames...';
+
+  const totalFrames = Math.ceil(totalDuration * fps);
+  const frameDuration = 1 / fps;
+
+  // Render each frame
+  for (let frame = 0; frame < totalFrames; frame++) {
+    const time = frame * frameDuration;
+
+    // Clear and render
+    expCtx.clearRect(0, 0, expW, expH);
+
+    // Scale if resolution differs
+    const scaleX = expW / canvas.width;
+    const scaleY = expH / canvas.height;
+    expCtx.save();
+    expCtx.scale(scaleX, scaleY);
+
+    // Background
+    expCtx.fillStyle = canvasBg;
+    expCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw shapes
+    for (const shape of shapes) {
+      drawShape(expCtx, shape, time);
+    }
+
+    expCtx.restore();
+
+    // Update progress
+    const progress = ((frame + 1) / totalFrames) * 100;
+    progressFill.style.width = progress + '%';
+    statusEl.textContent = `Rendering frame ${frame + 1} / ${totalFrames} (${Math.round(progress)}%)`;
+
+    // Wait for next frame interval to let MediaRecorder capture
+    await new Promise(r => setTimeout(r, 1000 / fps));
+  }
+
+  // Small delay then stop
+  await new Promise(r => setTimeout(r, 200));
+  recorder.stop();
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+  switch (e.key) {
+    case 'Delete':
+    case 'Backspace':
+      deleteSelected();
+      break;
+    case ' ':
+      e.preventDefault();
+      togglePlay();
+      break;
+    case 'd':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        duplicateSelected();
+      }
+      break;
+    case 'z':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.shiftKey) redoAction();
+        else undoAction();
+      }
+      break;
+    case 'v':
+      setTool('select');
+      break;
+    case 'p':
+      setTool('path');
+      break;
+  }
+});
+
+// ============================================================
+// DEMO: Add sample shapes for immediate preview
+// ============================================================
+function loadDemo() {
+  // Rectangle with slide + fade
+  const rect = new Shape('rect', 100, 180);
+  rect.width = 160; rect.height = 100;
+  rect.fillColor = '#e94560';
+  rect.effects = ['slideLeft', 'fadeIn'];
+  rect.animDuration = 1.5;
+  rect.animDelay = 0;
+  rect.easing = 'easeOut';
+  rect.name = 'Red Rectangle';
+  shapes.push(rect);
+
+  // Circle with bounce
+  const circle = new Shape('circle', 350, 150);
+  circle.width = 120; circle.height = 120;
+  circle.fillColor = '#4ecca3';
+  circle.effects = ['bounce', 'fadeIn'];
+  circle.animDuration = 2;
+  circle.animDelay = 0.5;
+  circle.easing = 'easeInOut';
+  circle.name = 'Green Circle';
+  shapes.push(circle);
+
+  // Star with spin
+  const star = new Shape('star', 550, 170);
+  star.width = 100; star.height = 100;
+  star.fillColor = '#f0a500';
+  star.effects = ['spin', 'scaleIn'];
+  star.animDuration = 2;
+  star.animDelay = 1;
+  star.easing = 'easeInOut';
+  star.name = 'Gold Star';
+  shapes.push(star);
+
+  // Text with slide up
+  const text = new Shape('text', 200, 380);
+  text.text = 'Motion Graphics!';
+  text.fillColor = '#533483';
+  text.fontSize = 40;
+  text.effects = ['slideUp', 'fadeIn'];
+  text.animDuration = 1.5;
+  text.animDelay = 1.5;
+  text.easing = 'easeOut';
+  text.name = 'Title Text';
+  shapes.push(text);
+
+  // Triangle with pulse
+  const tri = new Shape('triangle', 600, 350);
+  tri.width = 90; tri.height = 90;
+  tri.fillColor = '#00b4d8';
+  tri.effects = ['pulse', 'fadeIn', 'slideDown'];
+  tri.animDuration = 2;
+  tri.animDelay = 0.8;
+  tri.easing = 'easeInOut';
+  tri.name = 'Blue Triangle';
+  shapes.push(tri);
+
+  selectedShapeId = rect.id;
+  refreshUI();
+  renderFrame(0);
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+function init() {
+  loadDemo();
+  updateTimeline();
+  updateTimeDisplay();
+  renderFrame(0);
+}
+
+// Polyfill for roundRect if needed
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (typeof r === 'number') r = [r, r, r, r];
+    this.moveTo(x + r[0], y);
+    this.lineTo(x + w - r[1], y);
+    this.quadraticCurveTo(x + w, y, x + w, y + r[1]);
+    this.lineTo(x + w, y + h - r[2]);
+    this.quadraticCurveTo(x + w, y + h, x + w - r[2], y + h);
+    this.lineTo(x + r[3], y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - r[3]);
+    this.lineTo(x, y + r[0]);
+    this.quadraticCurveTo(x, y, x + r[0], y);
+    this.closePath();
+  };
+}
+
+init();
+</script>
+</body>
+</html>

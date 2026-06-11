@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HTML5 Open World Prototype</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #333; font-family: sans-serif; user-select: none; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #mission-panel { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; pointer-events: auto; }
+        
+        /* Virtual Controls */
+        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; pointer-events: auto; touch-action: none; }
+        #joystick-knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; }
+        
+        .action-btn { position: absolute; bottom: 20px; width: 70px; height: 70px; background: rgba(255,0,0,0.5); color: white; border-radius: 50%; border: 2px solid white; font-weight: bold; pointer-events: auto; touch-action: none; display: flex; justify-content: center; align-items: center; text-align: center; font-size: 12px; }
+        #btn-attack { right: 100px; background: rgba(255, 100, 0, 0.6); }
+        #btn-interact { right: 20px; background: rgba(0, 150, 255, 0.6); }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui-layer">
+    <div id="mission-panel">
+        <strong>Mission:</strong> <span id="mission-text">Loading...</span>
+    </div>
+    
+    <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+    </div>
+    
+    <div id="btn-attack" class="action-btn">SHOOT</div>
+    <div id="btn-interact" class="action-btn">ENTER<br>VEHICLE</div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Resize canvas
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Game Constants
+const MAP_SIZE = 3000;
+const TILE_SIZE = 100;
+
+// Input State
+const input = { x: 0, y: 0, interact: false, attack: false };
+
+// Joystick Logic
+const joyZone = document.getElementById('joystick-zone');
+const joyKnob = document.getElementById('joystick-knob');
+let joyActive = false;
+let joyCenter = { x: 0, y: 0 };
+
+function handleJoyStart(e) {
+    joyActive = true;
+    const rect = joyZone.getBoundingClientRect();
+    joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    handleJoyMove(e);
+}
+function handleJoyMove(e) {
+    if (!joyActive) return;
+    e.preventDefault();
+    const touch = e.touches ? e.touches[0] : e;
+    let dx = touch.clientX - joyCenter.x;
+    let dy = touch.clientY - joyCenter.y;
+    const distance = Math.min(Math.hypot(dx, dy), 35);
+    const angle = Math.atan2(dy, dx);
+    
+    const knobX = Math.cos(angle) * distance;
+    const knobY = Math.sin(angle) * distance;
+    joyKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+    
+    input.x = Math.cos(angle) * (distance / 35);
+    input.y = Math.sin(angle) * (distance / 35);
+}
+function handleJoyEnd() {
+    joyActive = false;
+    joyKnob.style.transform = `translate(0px, 0px)`;
+    input.x = 0;
+    input.y = 0;
+}
+
+joyZone.addEventListener('mousedown', handleJoyStart);
+window.addEventListener('mousemove', handleJoyMove);
+window.addEventListener('mouseup', handleJoyEnd);
+joyZone.addEventListener('touchstart', handleJoyStart, {passive: false});
+window.addEventListener('touchmove', handleJoyMove, {passive: false});
+window.addEventListener('touchend', handleJoyEnd);
+
+// Action Buttons
+document.getElementById('btn-interact').addEventListener('mousedown', () => input.interact = true);
+document.getElementById('btn-interact').addEventListener('touchstart', (e) => { e.preventDefault(); input.interact = true; });
+document.getElementById('btn-attack').addEventListener('mousedown', () => input.attack = true);
+document.getElementById('btn-attack').addEventListener('touchstart', (e) => { e.preventDefault(); input.attack = true; });
+
+// Keyboard fallback
+window.addEventListener('keydown', (e) => {
+    if(e.key === 'w') input.y = -1;
+    if(e.key === 's') input.y = 1;
+    if(e.key === 'a') input.x = -1;
+    if(e.key === 'd') input.x = 1;
+    if(e.key === 'e') input.interact = true;
+    if(e.key === ' ') input.attack = true;
+});
+window.addEventListener('keyup', (e) => {
+    if(e.key === 'w' || e.key === 's') input.y = 0;
+    if(e.key === 'a' || e.key === 'd') input.x = 0;
+});
+
+// Game Classes
+class Entity {
+    constructor(x, y, radius, color) {
+        this.x = x; this.y = y;
+        this.radius = radius; this.color = color;
+        this.vx = 0; this.vy = 0;
+        this.speed = 3;
+        this.hp = 100;
+        this.dead = false;
+        this.angle = 0;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        // Map bounds
+        this.x = Math.max(this.radius, Math.min(MAP_SIZE - this.radius, this.x));
+        this.y = Math.max(this.radius, Math.min(MAP_SIZE - this.radius, this.y));
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        // Direction indicator
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, -2, this.radius + 5, 4);
+        ctx.restore();
+    }
+}
+
+class Vehicle {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.width = 80; this.height = 40;
+        this.angle = 0;
+        this.driver = null; // null, 'player', or NPC object
+        this.speed = 0;
+        this.maxSpeed = 12;
+    }
+    update() {
+        if (this.driver) {
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
+            this.speed *= 0.95; // friction
+        }
+        this.x = Math.max(this.width, Math.min(MAP_SIZE - this.width, this.x));
+        this.y = Math.max(this.height, Math.min(MAP_SIZE - this.height, this.y));
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = this.driver === 'player' ? '#00ff00' : (this.driver ? '#ff5555' : '#aaaaaa');
+        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        // Windshield
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(10, -this.height/2 + 5, 15, this.height - 10);
+        ctx.restore();
+    }
+}
+
+class Bullet {
+    constructor(x, y, angle, isPlayer) {
+        this.x = x; this.y = y;
+        this.vx = Math.cos(angle) * 15;
+        this.vy = Math.sin(angle) * 15;
+        this.life = 60;
+        this.isPlayer = isPlayer;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+    }
+    draw(ctx) {
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 4, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
+// Game State
+const player = new Entity(MAP_SIZE/2, MAP_SIZE/2, 15, '#0088ff');
+let playerInVehicle = null;
+let lastShootTime = 0;
+
+const vehicles = [];
+const npcs = [];
+const bullets = [];
+
+// Populate Map
+for(let i=0; i<10; i++) {
+    let v = new Vehicle(Math.random() * MAP_SIZE, Math.random() * MAP_SIZE);
+    // 50% chance NPC is driving
+    if (Math.random() > 0.5) {
+        let npc = new Entity(v.x, v.y, 15, '#ff0000');
+        v.driver = npc;
+        npcs.push(npc);
+    }
+    vehicles.push(v);
+}
+for(let i=0; i<15; i++) {
+    npcs.push(new Entity(Math.random() * MAP_SIZE, Math.random() * MAP_SIZE, 15, '#ff0000'));
+}
+
+// Mission System
+const missions = [
+    { text: "Steal a vehicle from an NPC", check: () => playerInVehicle && npcs.some(n => n.justKickedOut) },
+    { text: "Defeat 3 NPCs", target: 3, count: 0, check: function() { return this.count >= this.target; } },
+    { text: "Drive to the edge of the map", check: () => player.x < 100 || player.x > MAP_SIZE-100 || player.y < 100 || player.y > MAP_SIZE-100 }
+];
+let currentMission = 0;
+
+function updateMission() {
+    const mText = document.getElementById('mission-text');
+    if (currentMission < missions.length) {
+        mText.innerText = missions[currentMission].text + (missions[currentMission].target ? ` (${missions[currentMission].count}/${missions[currentMission].target})` : '');
+        if (missions[currentMission].check()) {
+            currentMission++;
+            if(currentMission >= missions.length) mText.innerText = "All missions completed!";
+        }
+    }
+}
+
+// Main Loop
+function update() {
+    // Player Movement & Logic
+    if (!playerInVehicle) {
+        player.vx = input.x * player.speed;
+        player.vy = input.y * player.speed;
+        if (input.x !== 0 || input.y !== 0) player.angle = Math.atan2(input.y, input.x);
+        player.update();
+        
+        // Shooting
+        if (input.attack && Date.now() - lastShootTime > 300) {
+            bullets.push(new Bullet(player.x, player.y, player.angle, true));
+            lastShootTime = Date.now();
+        }
+    } else {
+        // Driving
+        if (input.y < 0) playerInVehicle.speed += 0.5; // Forward
+        if (input.y > 0) playerInVehicle.speed -= 0.5; // Reverse/Brake
+        if (input.x !== 0) playerInVehicle.angle += input.x * 0.05; // Steer
+        
+        playerInVehicle.speed = Math.max(-playerInVehicle.maxSpeed/2, Math.min(playerInVehicle.maxSpeed, playerInVehicle.speed));
+        player.x = playerInVehicle.x;
+        player.y = playerInVehicle.y;
+    }
+
+    // Interaction (Enter/Exit/Steal Vehicle)
+    if (input.interact) {
+        input.interact = false; // consume input
+        if (playerInVehicle) {
+            // Exit
+            player.x -= Math.cos(playerInVehicle.angle) * 50;
+            player.y -= Math.sin(playerInVehicle.angle) * 50;
+            playerInVehicle.driver = null;
+            playerInVehicle = null;
+            document.getElementById('btn-interact').innerHTML = "ENTER<br>VEHICLE";
+        } else {
+            // Find nearest vehicle
+            let nearest = null;
+            let minDist = 100;
+            vehicles.forEach(v => {
+                let dist = Math.hypot(v.x - player.x, v.y - player.y);
+                if (dist < minDist) { minDist = dist; nearest = v; }
+            });
+            
+            if (nearest) {
+                if (nearest.driver && nearest.driver !== 'player') {
+                    // Steal! Kick NPC out
+                    let npc = nearest.driver;
+                    npc.x = nearest.x - Math.cos(nearest.angle) * 50;
+                    npc.y = nearest.y - Math.sin(nearest.angle) * 50;
+                    npc.justKickedOut = true; // For mission
+                }
+                nearest.driver = 'player';
+                playerInVehicle = nearest;
+                document.getElementById('btn-interact').innerHTML = "EXIT<br>VEHICLE";
+            }
+        }
+    }
+
+    // Update Vehicles
+    vehicles.forEach(v => v.update());
+
+    // Update NPCs
+    npcs.forEach(npc => {
+        if (npc.dead) return;
+        
+        // Simple AI: Wander or chase if close
+        let distToPlayer = Math.hypot(player.x - npc.x, player.y - npc.y);
+        
+        // Check if NPC is driving
+        let drivingVehicle = vehicles.find(v => v.driver === npc);
+        
+        if (drivingVehicle) {
+            drivingVehicle.speed = 4;
+            drivingVehicle.angle += (Math.random() - 0.5) * 0.1;
+            npc.x = drivingVehicle.x;
+            npc.y = drivingVehicle.y;
+        } else {
+            if (distToPlayer < 300 && !playerInVehicle) {
+                // Chase
+                npc.angle = Math.atan2(player.y - npc.y, player.x - npc.x);
+                npc.vx = Math.cos(npc.angle) * (npc.speed * 0.8);
+                npc.vy = Math.sin(npc.angle) * (npc.speed * 0.8);
+            } else {
+                // Wander
+                if (Math.random() < 0.02) npc.angle += (Math.random() - 0.5) * Math.PI;
+                npc.vx = Math.cos(npc.angle) * (npc.speed * 0.3);
+                npc.vy = Math.sin(npc.angle) * (npc.speed * 0.3);
+            }
+            npc.update();
+        }
+    });
+
+    // Update Bullets & Collision
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.update();
+        if (b.life <= 0) { bullets.splice(i, 1); continue; }
+        
+        if (b.isPlayer) {
+            npcs.forEach(npc => {
+                if (!npc.dead && Math.hypot(npc.x - b.x, npc.y - b.y) < npc.radius + 5) {
+                    npc.hp -= 50;
+                    bullets.splice(i, 1);
+                    if (npc.hp <= 0) {
+                        npc.dead = true;
+                        if(currentMission < missions.length && missions[currentMission].target) {
+                            missions[currentMission].count++;
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    updateMission();
+}
+
+function draw() {
+    // Camera follows player
+    const camX = player.x - canvas.width / 2;
+    const camY = player.y - canvas.height / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(-camX, -camY);
+
+    // Draw Map Grid (Grass/Street feel)
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
+    ctx.strokeStyle = '#388E3C';
+    ctx.lineWidth = 2;
+    for(let x=0; x<=MAP_SIZE; x+=TILE_SIZE) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_SIZE); ctx.stroke();
+    }
+    for(let y=0; y<=MAP_SIZE; y+=TILE_SIZE) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_SIZE, y); ctx.stroke();
+    }
+
+    // Draw Entities
+    vehicles.forEach(v => v.draw(ctx));
+    npcs.forEach(npc => { if(!npc.dead && !vehicles.find(v=>v.driver===npc)) npc.draw(ctx); });
+    
+    if (!playerInVehicle) player.draw(ctx);
+    
+    bullets.forEach(b => b.draw(ctx));
+
+    ctx.restore();
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Start Game
+loop();
+</script>
+</body>
+</html>

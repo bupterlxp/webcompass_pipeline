@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhythm Trainer</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #e8f1ff;
+    margin: 0;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    background: rgba(20, 25, 45, 0.75);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 32px;
+    backdrop-filter: blur(10px);
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 16px;
+    letter-spacing: 0.3px;
+  }
+  .subtitle {
+    color: #8aa7c7;
+    margin: 0 0 24px;
+    font-size: 15px;
+  }
+  .panel {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .row label {
+    color: #c7d2e0;
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 110px;
+  }
+  .row input[type="number"], .row input[type="range"] {
+    flex: 1;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #e8f1ff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .row input[type="number"]:focus, .row input[type="range"]:focus {
+    outline: 2px solid #7cc4ff;
+    background: rgba(255,255,255,0.1);
+  }
+  .row input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    outline: none;
+  }
+  .row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #7cc4ff;
+    cursor: pointer;
+    border: 2px solid #1a1a2e;
+  }
+  .row input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #7cc4ff;
+    cursor: pointer;
+    border: 2px solid #1a1a2e;
+  }
+  .btn {
+    background: #7cc4ff;
+    color: #1a1a2e;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn:hover { background: #9ee0ff; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: #7cc4ff; }
+  .btn-primary:hover { background: #9ee0ff; }
+  .btn-danger { background: #ff6b6b; }
+  .btn-danger:hover { background: #ff8a8a; }
+  .btn-info { background: #7cc4ff; }
+  .btn-info:hover { background: #9ee0ff; }
+  .btn-success { background: #4ade80; }
+  .btn-success:hover { background: #6ee7b7; }
+  .btn-warning { background: #fbbf24; }
+  .btn-warning:hover { background: #fed7aa; }
+
+  #timeline {
+    position: relative;
+    height: 100px;
+    margin: 0 0 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.08));
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  #timeline .bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    pointer-events: none;
+  }
+  #timeline .marker {
+    position: absolute;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    pointer-events: none;
+    transition: background 0.2s, height 0.2s;
+  }
+  #timeline .marker.active {
+    background: #7cc4ff;
+    height: 12px;
+  }
+  #timeline .marker.hit {
+    background: #4ade80;
+    height: 12px;
+  }
+  #timeline .marker.miss {
+    background: #ff6b6b;
+    height: 12px;
+  }
+  #timeline .marker.warn {
+    background: #fbbf24;
+    height: 12px;
+  }
+  #timeline .marker.miss, #timeline .marker.warn { animation: blink 0.4s ease; }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #beat-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7cc4ff, #4ade80);
+    color: #1a1a2e;
+    border: none;
+    cursor: pointer;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 30px rgba(124, 196, 255, 0.35);
+    transition: transform 0.1s, box-shadow 0.2s;
+  }
+  #beat-btn:hover { transform: scale(1.05); box-shadow: 0 14px 40px rgba(124, 196, 255, 0.5); }
+  #beat-btn:active { transform: scale(0.96); }
+  #beat-btn:focus-visible { outline: 3px solid #7cc4ff; outline-offset: 3px; }
+
+  .score {
+    text-align: center;
+    padding: 16px;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .score.high { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+  .score.medium { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+  .score.low { background: rgba(255, 107, 107, 0.15); color: #ff6b6b; }
+  .score.none { background: rgba(124, 196, 255, 0.15); color: #7cc4ff; }
+
+  .log {
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #c7d2e0;
+    white-space: pre-wrap;
+  }
+  .log .ok { color: #4ade80; }
+  .log .warn { color: #fbbf24; }
+  .log .bad { color: #ff6b6b; }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .status-dot.running { background: #7cc4ff; box-shadow: 0 0 0 4px rgba(124, 196, 255, 0.2); animation: pulse 1.2s infinite; }
+  .status-dot.paused { background: #fbbf24; }
+  .status-dot.stopped { background: #4ade80; }
+  .status-dot.idle { background: #c7d2e0; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Rhythm Trainer</h1>
+    <p class="subtitle">Listen to the beat and click the button within the window to score your rhythm.</p>
+
+    <div class="panel">
+      <h3 class="panel-title">Settings</h3>
+      <div class="row">
+        <label for="bpm">BPM</label>
+        <input type="number" id="bpm" min="60" max="200" value="120" />
+      </div>
+      <div class="row">
+        <label for="window">Window (ms)</label>
+        <input type="number" id="window" min="50" max="300" value="120" />
+      </div>
+      <div class="row">
+        <label for="count">Beats</label>
+        <input type="number" id="count" min="5" max="20" value="10" />
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="panel-title">Status</h3>
+      <div class="status" id="status">
+        <span class="status-dot idle" id="statusDot"></span>
+        <span id="statusText">Idle — press Start to begin</span>
+      </div>
+      <div class="row">
+        <label for="startBtn">Start</label>
+        <button class="btn btn-primary" id="startBtn">Start</button>
+      </div>
+      <div class="row">
+        <label for="resetBtn">Reset</label>
+        <button class="btn btn-info" id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="panel-title">Timeline</h3>
+      <div id="timeline">
+        <div class="bar"></div>
+        <div class="marker" id="marker1"></div>
+        <div class="marker" id="marker2"></div>
+        <div class="marker" id="marker3"></div>
+        <div class="marker" id="marker4"></div>
+        <div class="marker" id="marker5"></div>
+        <div class="marker" id="marker6"></div>
+        <div class="marker" id="marker7"></div>
+        <div class="marker" id="marker8"></div>
+      </div>
+      <div class="row">
+        <label for="beatBtn">Click the beat</label>
+        <button id="beatBtn" class="btn btn-primary" disabled>Beat</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="panel-title">Score</h3>
+      <div class="score" id="scoreBox">0%</div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <script>
+    const bpmEl = document.getElementById('bpm');
+    const windowEl = document.getElementById('window');
+    const countEl = document.getElementById('count');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const beatBtn = document.getElementById('beatBtn');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const scoreBox = document.getElementById('scoreBox');
+    const logEl = document.getElementById('log');
+    const timeline = document.getElementById('timeline');
+    const markers = [
+      document.getElementById('marker1'), document.getElementById('marker2'),
+      document.getElementById('marker3'), document.getElementById('marker4'),
+      document.getElementById('marker5'), document.getElementById('marker6'),
+      document.getElementById('marker7'), document.getElementById('marker8')
+    ];
+
+    const state = {
+      bpm: 120,
+      window: 120,
+      count: 10,
+      beats: [],
+      current: 0,
+      startTime: 0,
+      elapsed: 0,
+      lastBeat: 0,
+      clicks: [],
+      score: 0,
+      accuracy: 0,
+      perfect: 0,
+      started: false,
+      running: false,
+      paused: false,
+      finished: false,
+      beatInterval: null,
+      nextBeatAt: 0,
+    };
+
+    function setBpm(v) { state.bpm = Math.max(60, Math.min(200, parseInt(v, 10) || 120)); }
+    function setWindow(v) { state.window = Math.max(50, Math.min(300, parseInt(v, 10) || 120)); }
+    function setCount(v) { state.count = Math.max(5, Math.min(20, parseInt(v, 10) || 10)); }
+
+    bpmEl.addEventListener('input', (e) => setBpm(e.target.value));
+    windowEl.addEventListener('input', (e) => setWindow(e.target.value));
+    countEl.addEventListener('input', (e) => setCount(e.target.value));
+
+    function setStatus(text, cls) {
+      statusText.textContent = text;
+      statusDot.className = 'status-dot ' + cls;
+    }
+
+    function updateTimeline() {
+      const beats = state.beats;
+      if (beats.length === 0) return;
+      const totalMs = beats[beats.length - 1].time;
+      const bar = timeline.querySelector('.bar');
+      bar.style.height = totalMs + 'px';
+
+      markers.forEach((m, i) => {
+        const t = beats[i].time;
+        m.style.left = (t / totalMs * 100) + '%';
+      });
+    }
+
+    function generateBeats() {
+      const beats = [];
+      const totalMs = 60000 / state.bpm * state.count;
+      for (let i = 0; i < state.count; i++) {
+        const t = (i + 1) * (60000 / state.bpm);
+        beats.push({ time: t, index: i });
+      }
+      state.beats = beats;
+      state.current = 0;
+      state.elapsed = 0;
+      state.lastBeat = 0;
+      state.clicks = [];
+      state.score = 0;
+      state.accuracy = 0;
+      state.perfect = 0;
+      state.finished = false;
+      updateTimeline();
+    }
+
+    function log(msg, cls) {
+      const now = new Date().toLocaleTimeString();
+      logEl.innerHTML += `[${now}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function evaluateClick(time) {
+      const beat = state.beats[state.current];
+      if (!beat) return;
+      const diff = Math.abs(time - beat.time);
+      const ok = diff <= state.window;
+      if (ok) {
+        const perfect = diff <= 10;
+        state.perfect += perfect ? 1 : 0;
+        state.score += perfect ? 2 : 1;
+        state.accuracy += 1;
+        log(`Click at ${time.toFixed(1)}ms — Perfect ${perfect ? '✓' : ''}`, 'ok');
+      } else {
+        log(`Click at ${time.toFixed(1)}ms — Miss (window: ${state.window}ms)`, 'bad');
+      }
+      state.clicks.push({ time, beat });
+      state.current++;
+    }
+
+    function updateScore() {
+      if (state.finished) {
+        state.accuracy = Math.max(0, state.accuracy);
+        const pct = state.accuracy / state.count * 100;
+        const perfectPct = state.perfect / state.count * 100;
+        scoreBox.textContent = `${pct.toFixed(1)}%`;
+        scoreBox.className = 'score';
+        if (pct >= 90) scoreBox.classList.add('high');
+        else if (pct >= 70) scoreBox.classList.add('medium');
+        else if (pct >= 50) scoreBox.classList.add('low');
+        else scoreBox.classList.add('none');
+        beatBtn.disabled = true;
+        startBtn.disabled = false;
+        setStatus('Finished — your score', 'stopped');
+      } else if (state.current >= state.count) {
+        state.finished = true;
+        updateScore();
+      } else {
+        scoreBox.textContent = `${(state.accuracy / state.current * 100).toFixed(1)}%`;
+        scoreBox.className = 'score';
+        if (state.accuracy / state.current >= 0.9) scoreBox.classList.add('high');
+        else if (state.accuracy / state.current >= 0.7) scoreBox.classList.add('medium');
+        else if (state.accuracy / state.current >= 0.5) scoreBox.classList.add('low');
+        else scoreBox.classList.add('none');
+      }
+    }
+
+    function start() {
+      if (state.running || state.started) return;
+      state.started = true;
+      state.running = true;
+      state.paused = false;
+      state.finished = false;
+      state.current = 0;
+      state.elapsed = 0;
+      state.lastBeat = 0;
+      state.clicks = [];
+      state.score = 0;
+      state.accuracy = 0;
+      state.perfect = 0;
+      state.nextBeatAt = 0;
+      generateBeats();
+      state.startTime = performance.now();
+      updateTimeline();
+      updateScore();
+      setStatus('Playing — click within window', 'running');
+      beatBtn.disabled = false;
+      startBtn.disabled = true;
+      state.beatInterval = setInterval(() => {
+        if (!state.running || state.finished) return;
+        const now = performance.now();
+        if (now >= state.nextBeatAt) {
+          const beat = state.beats[state.current];
+          if (beat) {
+            const elapsed = now - state.startTime;
+            const marker = markers[state.current];
+            marker.classList.add('active');
+            marker.style.transition = 'height 0.2s, background 0.2s';
+            setTimeout(() => {
+              marker.classList.remove('active');
+            }, 150);
+            log(`Beat ${beat.index + 1} at ${elapsed.toFixed(1)}s`);
+          }
+          state.nextBeatAt = now + (60000 / state.bpm);
+        }
+      }, 10);
+    }
+
+    function pause() {
+      if (!state.running) return;
+      state.running = false;
+      state.paused = true;
+      setStatus('Paused', 'paused');
+    }
+
+    function resume() {
+      if (!state.running || state.paused) {
+        state.running = true;
+        state.paused = false;
+        setStatus('Playing — click within window', 'running');
+      }
+    }
+
+    function reset() {
+      if (state.beatInterval) clearInterval(state.beatInterval);
+      state.beatInterval = null;
+      state.running = false;
+      state.paused = false;
+      state.finished = false;
+      state.current = 0;
+      state.elapsed = 0;
+      state.lastBeat = 0;
+      state.clicks = [];
+      state.score = 0;
+      state.accuracy = 0;
+      state.perfect = 0;
+      state.nextBeatAt = 0;
+      state.startTime = 0;
+      state.started = false;
+      state.beats = [];
+      updateTimeline();
+      updateScore();
+      setStatus('Idle — press Start to begin', 'idle');
+      beatBtn.disabled = true;
+      startBtn.disabled = false;
+      logEl.innerHTML = '';
+    }
+
+    startBtn.addEventListener('click', start);
+    resetBtn.addEventListener('click', reset);
+    beatBtn.addEventListener('click', () => {
+      if (!state.running || state.finished) return;
+      evaluateClick(performance.now());
+      updateScore();
+    });
+
+    // Keyboard shortcut: Space to start/pause
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (state.running && !state.finished) {
+          if (state.paused) resume();
+          else pause();
+        } else {
+          start();
+        }
+      }
+    });
+
+    // Initial render
+    updateTimeline();
+    updateScore();
+    setStatus('Idle — press Start to begin', 'idle');
+  </script>
+</body>
+</html>

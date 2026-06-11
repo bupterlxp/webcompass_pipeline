@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Matting Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .toolbar {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .canvas-container {
+            position: relative;
+            /* Checkerboard background to visualize transparency */
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 2px solid #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input[type="range"] {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <div>
+            <label for="imageLoader">Upload Image:</label>
+            <input type="file" id="imageLoader" accept="image/*">
+        </div>
+        <div>
+            <label for="brushSize">Brush Size:</label>
+            <input type="range" id="brushSize" min="5" max="100" value="20">
+            <span id="brushSizeLabel">20px</span>
+        </div>
+        <button id="clearBtn">Clear Mask</button>
+        <button id="exportBtn">Export Transparent PNG</button>
+    </div>
+
+    <div class="canvas-container">
+        <!-- The main canvas displayed to the user -->
+        <canvas id="displayCanvas"></canvas>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const imageLoader = document.getElementById('imageLoader');
+        const displayCanvas = document.getElementById('displayCanvas');
+        const displayCtx = displayCanvas.getContext('2d');
+        const brushSizeInput = document.getElementById('brushSize');
+        const brushSizeLabel = document.getElementById('brushSizeLabel');
+        const clearBtn = document.getElementById('clearBtn');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // Offscreen canvases for processing
+        const originalImageCanvas = document.createElement('canvas');
+        const originalImageCtx = originalImageCanvas.getContext('2d');
+        
+        const maskCanvas = document.createElement('canvas');
+        const maskCtx = maskCanvas.getContext('2d');
+
+        let currentImage = null;
+        let isDrawing = false;
+        let brushSize = parseInt(brushSizeInput.value);
+
+        // Update brush size label
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            brushSizeLabel.textContent = brushSize + 'px';
+        });
+
+        // Handle image upload
+        imageLoader.addEventListener('change', handleImage, false);
+
+        function handleImage(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImage = img;
+                    initCanvases(img);
+                }
+                img.src = event.target.result;
+            }
+            if(e.target.files[0]) {
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        }
+
+        // Initialize canvases with the loaded image
+        function initCanvases(img) {
+            const width = img.width;
+            const height = img.height;
+
+            // Set dimensions for all canvases
+            displayCanvas.width = width;
+            displayCanvas.height = height;
+            originalImageCanvas.width = width;
+            originalImageCanvas.height = height;
+            maskCanvas.width = width;
+            maskCanvas.height = height;
+
+            // Draw original image to offscreen canvas
+            originalImageCtx.drawImage(img, 0, 0);
+
+            // Initialize mask canvas (transparent black)
+            maskCtx.clearRect(0, 0, width, height);
+
+            redrawDisplay();
+        }
+
+        // Redraw the display canvas (Original Image + Red Mask Overlay)
+        function redrawDisplay() {
+            if (!currentImage) return;
+
+            // Clear display
+            displayCtx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
+
+            // Draw original image
+            displayCtx.globalAlpha = 1.0;
+            displayCtx.drawImage(originalImageCanvas, 0, 0);
+
+            // Draw mask overlay (semi-transparent red to show what is selected)
+            displayCtx.globalAlpha = 0.5;
+            displayCtx.globalCompositeOperation = 'source-over';
+            
+            // Create a temporary canvas to colorize the mask red
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = maskCanvas.width;
+            tempCanvas.height = maskCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCtx.drawImage(maskCanvas, 0, 0);
+            tempCtx.globalCompositeOperation = 'source-in';
+            tempCtx.fillStyle = 'red';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+            displayCtx.drawImage(tempCanvas, 0, 0);
+            
+            // Reset composite operation
+            displayCtx.globalCompositeOperation = 'source-over';
+            displayCtx.globalAlpha = 1.0;
+        }
+
+        // Mouse events for drawing the mask
+        displayCanvas.addEventListener('mousedown', startDrawing);
+        displayCanvas.addEventListener('mousemove', draw);
+        displayCanvas.addEventListener('mouseup', stopDrawing);
+        displayCanvas.addEventListener('mouseout', stopDrawing);
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            if (!currentImage) return;
+            isDrawing = true;
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing || !currentImage) return;
+
+            const pos = getMousePos(displayCanvas, e);
+
+            // Draw solid black on the mask canvas
+            maskCtx.globalCompositeOperation = 'source-over';
+            maskCtx.beginPath();
+            maskCtx.arc(pos.x, pos.y, brushSize / 2, 0, Math.PI * 2);
+            maskCtx.fillStyle = 'black';
+            maskCtx.fill();
+            maskCtx.closePath();
+
+            // Update the display
+            redrawDisplay();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // Clear the mask
+        clearBtn.addEventListener('click', () => {
+            if (!currentImage) return;
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            redrawDisplay();
+        });
+
+        // Export the final image
+        exportBtn.addEventListener('click', () => {
+            if (!currentImage) {
+                alert("Please upload an image first.");
+                return;
+            }
+
+            // Create export canvas
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = originalImageCanvas.width;
+            exportCanvas.height = originalImageCanvas.height;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            // Draw original image
+            exportCtx.drawImage(originalImageCanvas, 0, 0);
+
+            // Apply the mask (keep only areas where mask is drawn)
+            exportCtx.globalCompositeOperation = 'destination-in';
+            exportCtx.drawImage(maskCanvas, 0, 0);
+
+            // Trigger download
+            const dataURL = exportCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'matted_image.png';
+            link.href = dataURL;
+            link.click();
+        });
+
+        // Load a mock image on startup for demonstration purposes
+        window.onload = () => {
+            const mockCanvas = document.createElement('canvas');
+            mockCanvas.width = 600;
+            mockCanvas.height = 400;
+            const mCtx = mockCanvas.getContext('2d');
+            
+            // Draw a mock scene
+            mCtx.fillStyle = '#87CEEB'; // Sky blue
+            mCtx.fillRect(0, 0, 600, 400);
+            mCtx.fillStyle = '#228B22'; // Forest green
+            mCtx.beginPath();
+            mCtx.arc(300, 400, 200, 0, Math.PI * 2);
+            mCtx.fill();
+            mCtx.fillStyle = '#FFD700'; // Sun
+            mCtx.beginPath();
+            mCtx.arc(100, 100, 50, 0, Math.PI * 2);
+            mCtx.fill();
+
+            const img = new Image();
+            img.onload = () => {
+                currentImage = img;
+                initCanvases(img);
+            };
+            img.src = mockCanvas.toDataURL();
+        };
+    </script>
+</body>
+</html>

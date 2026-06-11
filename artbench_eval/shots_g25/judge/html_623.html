@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Echo Effect Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 400px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .value-display {
+            float: right;
+            font-weight: normal;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Audio Echo Effect</h1>
+    
+    <input type="file" id="audioUpload" accept="audio/*">
+
+    <div class="control-group">
+        <label>
+            Delay Time (Seconds)
+            <span class="value-display" id="delayVal">0.5s</span>
+        </label>
+        <input type="range" id="delayTime" min="0.1" max="2.0" step="0.1" value="0.5">
+    </div>
+
+    <div class="control-group">
+        <label>
+            Echo Intensity (Feedback)
+            <span class="value-display" id="feedbackVal">0.4</span>
+        </label>
+        <input type="range" id="feedback" min="0.0" max="0.9" step="0.1" value="0.4">
+    </div>
+
+    <div class="buttons">
+        <button id="playBtn" disabled>Play</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="saveBtn" disabled>Save Audio</button>
+    </div>
+</div>
+
+<script>
+    let audioContext;
+    let audioBuffer;
+    let sourceNode;
+    let isPlaying = false;
+
+    const audioUpload = document.getElementById('audioUpload');
+    const delayTimeInput = document.getElementById('delayTime');
+    const feedbackInput = document.getElementById('feedback');
+    const delayValDisplay = document.getElementById('delayVal');
+    const feedbackValDisplay = document.getElementById('feedbackVal');
+    
+    const playBtn = document.getElementById('playBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const saveBtn = document.getElementById('saveBtn');
+
+    // Update display values
+    delayTimeInput.addEventListener('input', (e) => {
+        delayValDisplay.textContent = e.target.value + 's';
+    });
+    feedbackInput.addEventListener('input', (e) => {
+        feedbackValDisplay.textContent = e.target.value;
+    });
+
+    // Handle file upload
+    audioUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const audioData = ev.target.result;
+            audioContext.decodeAudioData(audioData, function(buffer) {
+                audioBuffer = buffer;
+                playBtn.disabled = false;
+                saveBtn.disabled = false;
+                alert("Audio loaded successfully!");
+            }, function(err) {
+                alert("Error decoding audio data: " + err);
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // Build the audio graph for echo effect
+    function buildAudioGraph(context, buffer) {
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+
+        const delayNode = context.createDelay();
+        delayNode.delayTime.value = parseFloat(delayTimeInput.value);
+
+        const feedbackNode = context.createGain();
+        feedbackNode.gain.value = parseFloat(feedbackInput.value);
+
+        // Dry signal to destination
+        source.connect(context.destination);
+
+        // Wet signal (Echo) routing
+        source.connect(delayNode);
+        delayNode.connect(feedbackNode);
+        feedbackNode.connect(delayNode); // Loop back for multiple echoes
+        delayNode.connect(context.destination);
+
+        return source;
+    }
+
+    // Play audio
+    playBtn.addEventListener('click', () => {
+        if (!audioBuffer) return;
+        if (isPlaying) stopAudio();
+
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        sourceNode = buildAudioGraph(audioContext, audioBuffer);
+        sourceNode.start(0);
+        isPlaying = true;
+        
+        playBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        sourceNode.onended = () => {
+            isPlaying = false;
+            playBtn.disabled = false;
+            stopBtn.disabled = true;
+        };
+    });
+
+    // Stop audio
+    function stopAudio() {
+        if (sourceNode && isPlaying) {
+            sourceNode.stop();
+            sourceNode.disconnect();
+            isPlaying = false;
+            playBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+    }
+
+    stopBtn.addEventListener('click', stopAudio);
+
+    // Save processed audio
+    saveBtn.addEventListener('click', async () => {
+        if (!audioBuffer) return;
+        
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Processing...";
+
+        // Calculate new duration to account for echo tail
+        const tailLength = 3.0; // Add 3 seconds for the echo to fade out
+        const offlineCtx = new OfflineAudioContext(
+            audioBuffer.numberOfChannels,
+            (audioBuffer.duration + tailLength) * audioBuffer.sampleRate,
+            audioBuffer.sampleRate
+        );
+
+        const offlineSource = buildAudioGraph(offlineCtx, audioBuffer);
+        offlineSource.start(0);
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.numberOfChannels * renderedBuffer.length * 2);
+        
+        const url = URL.createObjectURL(wavBlob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'echo_audio.wav';
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            saveBtn.disabled = false;
+            saveBtn.textContent = "Save Audio";
+        }, 100);
+    });
+
+    // Convert AudioBuffer to WAV Blob
+    function bufferToWave(abuffer, len) {
+        let numOfChan = abuffer.numberOfChannels,
+            length = len + 44,
+            buffer = new ArrayBuffer(length),
+            view = new DataView(buffer),
+            channels = [], i, sample,
+            offset = 0,
+            pos = 0;
+
+        // write WAVE header
+        setUint32(0x46464952);                         // "RIFF"
+        setUint32(length - 8);                         // file length - 8
+        setUint32(0x45564157);                         // "WAVE"
+
+        setUint32(0x20746d66);                         // "fmt " chunk
+        setUint32(16);                                 // length = 16
+        setUint16(1);                                  // PCM (uncompressed)
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+        setUint16(numOfChan * 2);                      // block-align
+        setUint16(16);                                 // 16-bit (hardcoded in this demo)
+
+        setUint32(0x61746164);                         // "data" - chunk
+        setUint32(length - pos - 4);                   // chunk length
+
+        // write interleaved data
+        for(i = 0; i < abuffer.numberOfChannels; i++)
+            channels.push(abuffer.getChannelData(i));
+
+        while(pos < length) {
+            for(i = 0; i < numOfChan; i++) {             // interleave channels
+                sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; // scale to 16-bit signed int
+                view.setInt16(pos, sample, true);          // write 16-bit sample
+                pos += 2;
+            }
+            offset++                                     // next source sample
+        }
+
+        return new Blob([buffer], {type: "audio/wav"});
+
+        function setUint16(data) {
+            view.setUint16(pos, data, true);
+            pos += 2;
+        }
+
+        function setUint32(data) {
+            view.setUint32(pos, data, true);
+            pos += 4;
+        }
+    }
+</script>
+
+</body>
+</html>

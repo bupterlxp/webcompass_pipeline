@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bubble Shooter</title>
+<style>body {
+  margin: 0;
+  background: #000;
+  overflow: hidden;
+  cursor: none;
+}
+#game {
+  display: block;
+  background: #000;
+}
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.5);
+  border: 2px solid #fff;
+  pointer-events: none;
+}
+#hud div { display: inline-block; margin-right: 16px; }
+#hud div:last-child { margin-right: 0; }
+#message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-family: monospace;
+  font-size: 16px;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 0.4s;
+}
+#message.hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<canvas id="game" width="800" height="640"></canvas>
+<div id="hud">
+  <div>Score: <span id="score">0</span></div>
+  <div>Combo: <span id="combo">0</span></div>
+  <div>Level: <span id="level">1</span></div>
+</div>
+<div id="message">Aim your cannon with the mouse and click to shoot!</div>
+<script>(() => {
+  'use strict';
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // ---------- Constants ----------
+  const COLORS = ['#FF5588', '#FFAA33', '#33AAFF', '#33FF88', '#FF88AA', '#88FFAA'];
+  const ROWS = 10;
+  const COLS = 12;
+  const HEX_SIZE = 36;
+  const HEX_OFFSET_X = HEX_SIZE * 0.75;
+  const HEX_OFFSET_Y = HEX_SIZE * 0.866;
+  const GRAVITY = 0.35;
+  const BUBBLE_R = 14;
+  const MAX_SPEED = 24;
+  const SPRING_K = 0.00015;
+  const SPRING_DAMP = 0.992;
+  const ADHESION_STRENGTH = 0.000004;
+
+  // ---------- State ----------
+  const state = {
+    bubbles: [],
+    cannon: { x: W / 2, y: H - 100, angle: 0, baseX: W / 2 },
+    shot: null,
+    shotBubble: null,
+    mouse: { x: W / 2, y: H - 100 },
+    score: 0,
+    combo: 0,
+    level: 1,
+    grid: [],
+    lastShot: 0,
+    message: 'Aim your cannon with the mouse and click to shoot!',
+  };
+
+  // ---------- Grid ----------
+  function buildGrid() {
+    state.grid = [];
+    for (let r = 0; r < ROWS; r++) {
+      const row = [];
+      for (let c = 0; c < COLS; c++) {
+        const x = HEX_OFFSET_X + c * HEX_OFFSET_X;
+        const y = HEX_OFFSET_Y * (r + 0.5);
+        row.push({ x, y, color: COLORS[r % COLORS.length], alive: true });
+      }
+      state.grid.push(row);
+    }
+  }
+
+  // ---------- Bubble ----------
+  function createBubble(x, y, color) {
+    return { x, y, vx: 0, vy: 0, color, r: BUBBLE_R, alive: true, adhesion: true };
+  }
+
+  function createShotBubble(x, y, angle, color) {
+    const v = Math.min(MAX_SPEED, 18 + state.level * 1.2);
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    return createBubble(x, y, color).setVelocity(dx * v, dy * v);
+  }
+
+  Bubble.prototype.setVelocity = function (vx, vy) {
+    this.vx = vx; this.vy = vy;
+    return this;
+  };
+
+  // ---------- Collision / Adhesion ----------
+  function distanceSq(a, b) {
+    const dx = a.x - b.x, dy = a.y - b.y;
+    return dx * dx + dy * dy;
+  }
+
+  function applyAdhesion(a, b) {
+    const d2 = distanceSq(a, b);
+    if (d2 < (a.r + b.r) * (a.r + b.r) * 1.5) {
+      const d = Math.sqrt(d2);
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const norm = Math.hypot(dx, dy) || 1;
+      const nx = dx / norm, ny = dy / norm;
+      const overlap = (a.r + b.r) - d;
+      if (overlap > 0.01) {
+        a.x += nx * overlap * 0.5;
+        a.y += ny * overlap * 0.5;
+        b.x -= nx * overlap * 0.5;
+        b.y -= ny * overlap * 0.5;
+      }
+      const fx = -nx * ADHESION_STRENGTH * overlap;
+      const fy = -ny * ADHESION_STRENGTH * overlap;
+      a.vx += fx; a.vy += fy;
+      b.vx -= fx; b.vy -= fy;
+    }
+  }
+
+  // ---------- Update ----------
+  function update() {
+    const now = performance.now();
+
+    // Shot bubble
+    if (state.shotBubble) {
+      state.shotBubble.vy += GRAVITY;
+      state.shotBubble.x += state.shotBubble.vx;
+      state.shotBubble.y += state.shotBubble.vy;
+
+      // Wall collisions
+      if (state.shotBubble.x - state.shotBubble.r < 0) {
+        state.shotBubble.x = state.shotBubble.r;
+        state.shotBubble.vx = -state.shotBubble.vx * 0.7;
+      }
+      if (state.shotBubble.x + state.shotBubble.r > W) {
+        state.shotBubble.x = W - state.shotBubble.r;
+        state.shotBubble.vx = -state.shotBubble.vx * 0.7;
+      }
+      if (state.shotBubble.y - state.shotBubble.r > H) {
+        state.shotBubble.alive = false;
+        state.shotBubble = null;
+      }
+
+      // Adhesion to bubbles
+      for (const b of state.bubbles) {
+        if (b.alive && b !== state.shotBubble) {
+          applyAdhesion(state.shotBubble, b);
+        }
+      }
+
+      // Check collision with grid
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const b = state.grid[r][c];
+          if (!b.alive) continue;
+          const d2 = distanceSq(state.shotBubble, b);
+          if (d2 < (state.shotBubble.r + b.r) * (state.shotBubble.r + b.r)) {
+            state.shotBubble.alive = false;
+            state.shotBubble = null;
+            state.score += 10;
+            state.combo = 0;
+            break;
+          }
+        }
+        if (state.shotBubble === null) break;
+      }
+
+      if (state.shotBubble === null) {
+        state.lastShot = now;
+      }
+    }
+
+    // Cannon angle follows mouse
+    const dx = state.mouse.x - state.cannon.x;
+    const dy = state.mouse.y - state.cannon.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    state.cannon.angle = Math.atan2(dy, dx);
+
+    // Update bubbles
+    for (const b of state.bubbles) {
+      if (!b.alive) continue;
+      b.vy += GRAVITY;
+      b.x += b.vx;
+      b.y += b.vy;
+
+      // Wall collisions
+      if (b.x - b.r < 0) { b.x = b.r; b.vx = -b.vx * 0.7; }
+      if (b.x + b.r > W) { b.x = W - b.r; b.vx = -b.vx * 0.7; }
+      if (b.y - b.r > H) { b.alive = false; }
+
+      // Adhesion to other bubbles
+      for (const other of state.bubbles) {
+        if (other === b || !other.alive) continue;
+        applyAdhesion(b, other);
+      }
+    }
+
+    // Remove dead bubbles
+    state.bubbles = state.bubbles.filter(b => b.alive);
+
+    // Check for 3+ connected bubbles
+    if (now - state.lastShot > 200) {
+      const connected = findConnected(state.bubbles);
+      if (connected.size >= 3) {
+        state.combo += 1;
+        state.score += connected.size * 10 * state.combo;
+        state.bubbles = state.bubbles.filter(b => !connected.has(b));
+        state.lastShot = now;
+      } else {
+        state.combo = 0;
+      }
+    }
+  }
+
+  function findConnected(bubbles) {
+    const set = new Set();
+    const visited = new Set();
+    const colors = new Map();
+
+    function visit(b) {
+      if (visited.has(b)) return;
+      visited.add(b);
+      const color = b.color;
+      if (!colors.has(color)) colors.set(color, []);
+      colors.get(color).push(b);
+      for (const other of bubbles) {
+        if (other === b) continue;
+        const d2 = distanceSq(b, other);
+        if (d2 < (BUBBLE_R * 2 + 1) * (BUBBLE_R * 2 + 1)) {
+          visit(other);
+        }
+      }
+    }
+
+    for (const b of bubbles) {
+      if (!visited.has(b)) {
+        visit(b);
+      }
+    }
+
+    // Pick largest group
+    let best = null;
+    for (const color of colors.keys()) {
+      const group = colors.get(color);
+      if (best === null || group.length > best.length) best = group;
+    }
+    if (best) {
+      for (const b of best) set.add(b);
+    }
+    return set;
+  }
+
+  // ---------- Render ----------
+  function drawHexagon(x, y, r, color, fill = true) {
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI / 2;
+      points.push([x + Math.cos(a) * r, y + Math.sin(a) * r]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i][0], points[i][1]);
+    }
+    ctx.closePath();
+    if (fill) {
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawGrid() {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const b = state.grid[r][c];
+        if (b.alive) {
+          drawHexagon(b.x, b.y, BUBBLE_R, b.color);
+        }
+      }
+    }
+  }
+
+  function drawBubble(b) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = b.color;
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCannon() {
+    const angle = state.cannon.angle;
+    const baseX = state.cannon.baseX;
+    const baseY = H - 100;
+
+    // Barrel
+    ctx.save();
+    ctx.translate(baseX, baseY);
+    ctx.rotate(angle);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(18, -18);
+    ctx.stroke();
+
+    // Tip
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(18, -18, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawShotBubble() {
+    if (!state.shotBubble) return;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    drawBubble(state.shotBubble);
+    ctx.restore();
+  }
+
+  function drawTrajectory() {
+    if (!state.shotBubble) return;
+    const angle = state.cannon.angle;
+    const baseX = state.cannon.baseX;
+    const baseY = H - 100;
+    const v = Math.min(MAX_SPEED, 18 + state.level * 1.2);
+    const steps = 60;
+    const maxDist = 400;
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+
+    ctx.save();
+    ctx.strokeStyle = '#fff';
+    ctx.globalAlpha = 0.4;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = baseX + dx * t * maxDist;
+      const y = baseY + dy * t * maxDist + 0.5 * GRAVITY * t * t * maxDist * maxDist;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawGrid();
+    for (const b of state.bubbles) {
+      drawBubble(b);
+    }
+    drawShotBubble();
+    drawCannon();
+    drawTrajectory();
+  }
+
+  // ---------- Input ----------
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    state.mouse.x = e.clientX - rect.left;
+    state.mouse.y = e.clientY - rect.top;
+  });
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (state.shotBubble) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const dx = mx - state.cannon.x;
+    const dy = my - state.cannon.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 50) {
+      state.shotBubble = createShotBubble(state.cannon.x, state.cannon.y, state.cannon.angle, state.grid[0][0].color);
+    }
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if (state.shotBubble) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const dx = mx - state.cannon.x;
+    const dy = my - state.cannon.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 50) {
+      state.shotBubble = createShotBubble(state.cannon.x, state.cannon.y, state.cannon.angle, state.grid[0][0].color);
+    }
+  });
+
+  // ---------- Loop ----------
+  function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Init ----------
+  function init() {
+    buildGrid();
+    state.bubbles = [];
+    state.score = 0;
+    state.combo = 0;
+    state.level = 1;
+    state.message = 'Aim your cannon with the mouse and click to shoot!';
+    document.getElementById('message').classList.remove('hidden');
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  init();
+})();
+</script></script>
+</body>
+</html>

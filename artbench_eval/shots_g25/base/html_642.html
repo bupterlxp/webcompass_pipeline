@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karaoke Lyrics Synchronization Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>/* static/css/style.css not found in result */</style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Karaoke Lyrics Synchronization Tool</h1>
+            <p>Upload your audio and LRC files to synchronize lyrics with the audio timeline</p>
+        </header>
+        
+        <main>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="audio_file">Audio File (MP3/WAV/OGG/M4A/FLAC):</label>
+                    <input type="file" id="audio_file" name="audio_file" accept=".mp3,.wav,.ogg,.m4a,.flac" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="lyrics_file">LRC Lyrics File:</label>
+                    <input type="file" id="lyrics_file" name="lyrics_file" accept=".lrc" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="offset">Lyrics Timing Offset (seconds):</label>
+                    <input type="number" id="offset" name="offset" step="0.1" value="0.0" min="-10" max="10">
+                    <p class="help-text">Adjust timing offset if lyrics are too early or too late</p>
+                </div>
+                
+                <button type="submit" class="btn-primary">Synchronize Lyrics</button>
+            </form>
+        </main>
+        
+        <footer>
+            <p>&copy; 2023 Karaoke Lyrics Synchronization Tool</p>
+            <a href="{{ url_for('about') }}">About</a> | 
+            <a href="{{ url_for('help') }}">Help</a>
+        </footer>
+    </div>
+</body>
+</html>

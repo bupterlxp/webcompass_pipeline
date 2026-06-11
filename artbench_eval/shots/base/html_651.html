@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Space Shooter</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>Score: <span id="score">0</span></div>
+        <div>Shield: <span id="shield">100</span>%</div>
+        <div>Press ESC to pause</div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/js/loaders/FontLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/js/loaders/TextGeometry.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/js/controls/PointerLockControls.js"></script>
+    <script>
+        // Game variables
+        let scene, camera, renderer, controls;
+        let player, playerMesh, playerGeometry, playerMaterial;
+        let asteroids = [];
+        let bullets = [];
+        let score = 0;
+        let shield = 100;
+        let isPaused = false;
+        let gameLoop;
+        let lastAsteroidTime = 0;
+        let asteroidSpawnInterval = 2000; // ms
+        let light;
+        let particles = [];
+        let particleSystem;
+        let particleSystem2;
+        let explosionSound = new Audio();
+        let shootSound = new Audio();
+        let shieldSound = new Audio();
+        let music = new Audio();
+        
+        // Initialize the game
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 5;
+            controls.maxDistance = 30;
+            
+            // Create player
+            playerGeometry = new THREE.SphereGeometry(1, 16, 16);
+            playerMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00, specular: 0x00ff00, shininess: 30 });
+            playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
+            playerMesh.castShadow = true;
+            playerMesh.receiveShadow = true;
+            scene.add(playerMesh);
+            
+            // Create player's weapon
+            let weaponGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 16);
+            let weaponMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            let weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+            weapon.position.set(0, 0.5, 0);
+            playerMesh.add(weapon);
+            
+            // Create light
+            light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(10, 10, 10);
+            light.castShadow = true;
+            light.shadow.mapSize.width = 2048;
+            light.shadow.mapSize.height = 2048;
+            scene.add(light);
+            
+            // Create ambient light
+            let ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            // Create stars
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
+            const starVertices = [];
+            for (let i = 0; i < 10000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starVertices.push(x, y, z);
+            }
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            
+            // Create asteroids
+            createAsteroids();
+            
+            // Create particle systems for explosions and shield impacts
+            createParticleSystem();
+            
+            // Create sounds
+            explosionSound.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0Zi5qc3c=";
+            shootSound.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0Zi5qc3c=";
+            shieldSound.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0Zi5qc3c=";
+            music.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0Zi5qc3c=";
+            
+            // Add event listeners
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('click', onClick);
+            document.addEventListener('contextmenu', preventContextMenu);
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start game loop
+            gameLoop = requestAnimationFrame(gameLoop);
+            
+            // Start music
+            music.loop = true;
+            music.volume = 0.2;
+            music.play().catch(e => console.log("Music autoplay blocked"));
+        }
+        
+        // Create asteroids
+        function createAsteroids() {
+            for (let i = 0; i < 10; i++) {
+                const asteroid = createAsteroid();
+                asteroid.position.set(
+                    (Math.random() - 0.5) * 100,
+                    (Math.random() - 0.5) * 100,
+                    (Math.random() - 0.5) * 100
+                );
+                asteroid.userData.isAsteroid = true;
+                scene.add(asteroid);
+                asteroids.push(asteroid);
+            }
+        }
+        
+        // Create a single asteroid
+        function createAsteroid() {
+            const geometry = new THREE.SphereGeometry(2, 16, 16);
+            const material = new THREE.MeshPhongMaterial({ color: 0x888888, specular: 0x888888, shininess: 30 });
+            const asteroid = new THREE.Mesh(geometry, material);
+            asteroid.castShadow = true;
+            asteroid.receiveShadow = true;
+            asteroid.userData.health = 1;
+            asteroid.userData.size = 2;
+            asteroid.userData.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5
+            );
+            return asteroid;
+        }
+        
+        // Create particle system for explosions
+        function createParticleSystem() {
+            const geometry = new THREE.BufferGeometry();
+            const count = 500;
+            const positions = new Float32Array(count * 3);
+            const velocities = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                positions[i3] = (Math.random() - 0.5) * 2;
+                positions[i3 + 1] = (Math.random() - 0.5) * 2;
+                positions[i3 + 2] = (Math.random() - 0.5) * 2;
+                
+                velocities[i3] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+                
+                colors[i3] = 1;
+                colors[i3 + 1] = 0.5;
+                colors[i3 + 2] = 0;
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            particleSystem = new THREE.Points(geometry, material);
+            particleSystem.rotation.x = Math.random() * Math.PI;
+            particleSystem.rotation.y = Math.random() * Math.PI;
+            scene.add(particleSystem);
+            
+            // Create second particle system for shield impacts
+            const geometry2 = new THREE.BufferGeometry();
+            const count2 = 200;
+            const positions2 = new Float32Array(count2 * 3);
+            const velocities2 = new Float32Array(count2 * 3);
+            const colors2 = new Float32Array(count2 * 3);
+            
+            for (let i = 0; i < count2; i++) {
+                const i3 = i * 3;
+                positions2[i3] = (Math.random() - 0.5) * 2;
+                positions2[i3 + 1] = (Math.random() - 0.5) * 2;
+                positions2[i3 + 2] = (Math.random() - 0.5) * 2;
+                
+                velocities2[i3] = (Math.random() - 0.5) * 0.5;
+                velocities2[i3 + 1] = (Math.random() - 0.5) * 0.5;
+                velocities2[i3 + 2] = (Math.random() - 0.5) * 0.5;
+                
+                colors2[i3] = 1;
+                colors2[i3 + 1] = 0.5;
+                colors2[i3 + 2] = 0;
+            }
+            
+            geometry2.setAttribute('position', new THREE.Float32BufferAttribute(positions2, 3));
+            geometry2.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities2, 3));
+            geometry2.setAttribute('color', new THREE.Float32BufferAttribute(colors2, 3));
+            
+            const material2 = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            particleSystem2 = new THREE.Points(geometry2, material2);
+            particleSystem2.rotation.x = Math.random() * Math.PI;
+            particleSystem2.rotation.y = Math.random() * Math.PI;
+            scene.add(particleSystem2);
+        }
+        
+        // Update particle systems
+        function updateParticleSystem() {
+            const positions = particleSystem.geometry.attributes.position.array;
+            const velocities = particleSystem.geometry.attributes.velocity.array;
+            const colors = particleSystem.geometry.attributes.color.array;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+                
+                velocities[i] *= 0.98;
+                velocities[i + 1] *= 0.98;
+                velocities[i + 2] *= 0.98;
+                
+                if (positions[i] > 5 || positions[i] < -5 || 
+                    positions[i + 1] > 5 || positions[i + 1] < -5 || 
+                    positions[i + 2] > 5 || positions[i + 2] < -5) {
+                    positions[i] = (Math.random() - 0.5) * 2;
+                    positions[i + 1] = (Math.random() - 0.5) * 2;
+                    positions[i + 2] = (Math.random() - 0.5) * 2;
+                    velocities[i] = (Math.random() - 0.5) * 0.5;
+                    velocities[i + 1] = (Math.random() - 0.5) * 0.5;
+                    velocities[i + 2] = (Math.random() - 0.5) * 0.5;
+                }
+            }
+            
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+            
+            // Update second particle system
+            const positions2 = particleSystem2.geometry.attributes.position.array;
+            const velocities2 = particleSystem2.geometry.attributes.velocity.array;
+            const colors2 = particleSystem2.geometry.attributes.color.array;
+            
+            for (let i = 0; i < positions2.length; i += 3) {
+                positions2[i] += velocities2[i];
+                positions2[i + 1] += velocities2[i + 1];
+                positions2[i + 2] += velocities2[i + 2];
+                
+                velocities2[i] *= 0.98;
+                velocities2[i + 1] *= 0.98;
+                velocities2[i + 2] *= 0.98;
+                
+                if (positions2[i] > 5 || positions2[i] < -5 || 
+                    positions2[i + 1] > 5 || positions2[i + 1] < -5 || 
+                    positions2[i + 2] > 5 || positions2[i + 2] < -5) {
+                    positions2[i] = (Math.random() - 0.5) * 2;
+                    positions2[i + 1] = (Math.random() - 0.5) * 2;
+                    positions2[i + 2] = (Math.random() - 0.5) * 2;
+                    velocities2[i] = (Math.random() - 0.5) * 0.5;
+                    velocities2[i + 1] = (Math.random() - 0.5) * 0.5;
+                    velocities2[i + 2] = (Math.random() - 0.5) * 0.5;
+                }
+            }
+            
+            particleSystem2.geometry.attributes.position.needsUpdate = true;
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (isPaused) return;
+            
+            // Update controls
+            controls.update();
+            
+            // Update player
+            updatePlayer();
+            
+            // Update asteroids
+            updateAsteroids();
+            
+            // Update bullets
+            updateBullets();
+            
+            // Update particles
+            updateParticleSystem();
+            
+            // Update lighting
+            updateLighting();
+            
+            // Render
+            renderer.render(scene, camera);
+            
+            // Continue game loop
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Update player
+        function updatePlayer() {
+            // Get player position
+            const playerPosition = playerMesh.position;
+            
+            // Move player based on WASD keys
+            const moveSpeed = 0.2;
+            if (keys['w']) {
+                playerMesh.position.y += moveSpeed;
+            }
+            if (keys['s']) {
+                playerMesh.position.y -= moveSpeed;
+            }
+            if (keys['a']) {
+                playerMesh.position.x -= moveSpeed;
+            }
+            if (keys['d']) {
+                playerMesh.position.x += moveSpeed;
+            }
+            
+            // Limit player movement
+            playerMesh.position.x = Math.max(-10, Math.min(10, playerMesh.position.x));
+            playerMesh.position.y = Math.max(-10, Math.min(10, playerMesh.position.y));
+            
+            // Update camera position
+            camera.position.x = playerMesh.position.x + 0;
+            camera.position.y = playerMesh.position.y + 0;
+            camera.position.z = playerMesh.position.z + 0;
+        }
+        
+        // Update asteroids
+        function updateAsteroids() {
+            for (let i = 0; i < asteroids.length; i++) {
+                const asteroid = asteroids[i];
+                
+                // Move asteroid
+                asteroid.position.add(asteroid.userData.velocity);
+                
+                // Check for collision with player
+                const distance = playerMesh.position.distanceTo(asteroid.position);
+                if (distance < 2) {
+                    // Reduce shield
+                    shield -= 10;
+                    document.getElementById('shield').textContent = shield + '%';
+                    
+                    // Play shield impact sound
+                    shieldSound.play().catch(e => console.log("Shield sound autoplay blocked"));
+                    
+                    // Create shield impact particles
+                    createShieldImpactParticles();
+                    
+                    // Remove asteroid
+                    scene.remove(asteroid);
+                    asteroids.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                // Check for collision with bullets
+                for (let j = 0; j < bullets.length; j++) {
+                    const bullet = bullets[j];
+                    const distance = bullet.position.distanceTo(asteroid.position);
+                    if (distance < 0.5) {
+                        // Reduce asteroid health
+                        asteroid.userData.health -= 1;
+                        
+                        // Remove bullet
+                        scene.remove(bullet);
+                        bullets.splice(j, 1);
+                        j--;
+                        
+                        // Check if asteroid is destroyed
+                        if (asteroid.userData.health <= 0) {
+                            // Create explosion particles
+                            createExplosionParticles(asteroid.position);
+                            
+                            // Play explosion sound
+                            explosionSound.play().catch(e => console.log("Explosion sound autoplay blocked"));
+                            
+                            // Add score
+                            score += 10;
+                            document.getElementById('score').textContent = score;
+                            
+                            // Create new asteroids
+                            createNewAsteroids(asteroid);
+                            
+                            // Remove asteroid
+                            scene.remove(asteroid);
+                            asteroids.splice(i, 1);
+                            i--;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Create new asteroids after destroying one
+        function createNewAsteroids(asteroid) {
+            const size = asteroid.userData.size;
+            const newAsteroidSize = size * 0.5;
+            
+            // Create 3 smaller asteroids
+            for (let i = 0; i < 3; i++) {
+                const newAsteroid = createAsteroid();
+                newAsteroid.userData.size = newAsteroidSize;
+                newAsteroid.userData.health = 1;
+                newAsteroid.position.copy(asteroid.position);
+                newAsteroid.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5
+                );
+                scene.add(newAsteroid);
+                asteroids.push(newAsteroid);
+            }
+        }
+        
+        // Update bullets
+        function updateBullets() {
+            for (let i = 0; i < bullets.length; i++) {
+                const bullet = bullets[i];
+                
+                // Move bullet
+                bullet.position.add(bullet.userData.velocity);
+                
+                // Remove bullet if it goes out of bounds
+                if (bullet.position.x < -20 || bullet.position.x > 20 ||
+                    bullet.position.y < -20 || bullet.position.y > 20 ||
+                    bullet.position.z < -20 || bullet.position.z > 20) {
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+        
+        // Create explosion particles
+        function createExplosionParticles(position) {
+            const geometry = new THREE.BufferGeometry();
+            const count = 100;
+            const positions = new Float32Array(count * 3);
+            const velocities = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                positions[i3] = (Math.random() - 0.5) * 2;
+                positions[i3 + 1] = (Math.random() - 0.5) * 2;
+                positions[i3 + 2] = (Math.random() - 0.5) * 2;
+                
+                velocities[i3] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+                
+                colors[i3] = 1;
+                colors[i3 + 1] = 0.5;
+                colors[i3 + 2] = 0;
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const explosion = new THREE.Points(geometry, material);
+            explosion.position.copy(position);
+            explosion.userData.life = 100;
+            scene.add(explosion);
+            particles.push(explosion);
+        }
+        
+        // Create shield impact particles
+        function createShieldImpactParticles() {
+            const geometry = new THREE.BufferGeometry();
+            const count = 50;
+            const positions = new Float32Array(count * 3);
+            const velocities = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                positions[i3] = (Math.random() - 0.5) * 2;
+                positions[i3 + 1] = (Math.random() - 0.5) * 2;
+                positions[i3 + 2] = (Math.random() - 0.5) * 2;
+                
+                velocities[i3] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+                
+                colors[i3] = 1;
+                colors[i3 + 1] = 0.5;
+                colors[i3 + 2] = 0;
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const shieldImpact = new THREE.Points(geometry, material);
+            shieldImpact.position.copy(playerMesh.position);
+            shieldImpact.userData.life = 100;
+            scene.add(shieldImpact);
+            particles.push(shieldImpact);
+        }
+        
+        // Update lighting
+        function updateLighting() {
+            // Change light color based on time
+            const time = Date.now() / 1000;
+            const color = new THREE.Color();
+            
+            // Cycle through different colors
+            const hue = (time * 0.01) % 1;
+            color.setHSL(hue, 0.8, 0.5);
+            light.color.copy(color);
+            
+            // Change intensity
+            const intensity = Math.sin(time * 0.1) * 0.5 + 0.5;
+            light.intensity = intensity;
+        }
+        
+        // Handle keyboard input
+        const keys = {};
+        function onKeyDown(event) {
+            keys[event.key.toLowerCase()] = true;
+            
+            // Shoot
+            if (event.key === ' ') {
+                shoot();
+            }
+            
+            // Pause
+            if (event.key === 'Escape') {
+                togglePause();
+            }
+        }
+        
+        function onKeyUp(event) {
+            keys[event.key.toLowerCase()] = false;
+        }
+        
+        // Handle mouse input
+        let mouseX = 0;
+        let mouseY = 0;
+        let mouseDown = false;
+        function onMouseMove(event) {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+        
+        function onMouseDown(event) {
+            mouseDown = true;
+            shoot();
+        }
+        
+        function onClick(event) {
+            shoot();
+        }
+        
+        function preventContextMenu(event) {
+            event.preventDefault();
+        }
+        
+        // Shoot function
+        function shoot() {
+            if (mouseDown) {
+                // Create bullet
+                const bulletGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+                const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+                bullet.position.copy(playerMesh.position);
+                bullet.userData.velocity = new THREE.Vector3(
+                    mouseX * 0.5,
+                    mouseY * 0.5,
+                    0
+                );
+                bullet.userData.velocity.normalize();
+                bullet.userData.velocity.multiplyScalar(0.5);
+                bullet.userData.life = 100;
+                scene.add(bullet);
+                bullets.push(bullet);
+                
+                // Play shoot sound
+                shootSound.play().catch(e => console.log("Shoot sound autoplay blocked"));
+            }
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Toggle pause
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                // Pause game
+                cancelAnimationFrame(gameLoop);
+            } else {
+                // Resume game
+                gameLoop = requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>

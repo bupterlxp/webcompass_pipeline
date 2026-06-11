@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Menu System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>/* styles.css not found in result */</style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="#" class="brand" data-route="customer-menu">
+                <span class="brand-logo">🍽</span>
+                <span class="brand-name">MenuHub</span>
+            </a>
+            <nav class="main-nav" aria-label="Primary">
+                <a href="#" data-route="chef-upload" class="nav-link">Chef Upload</a>
+                <a href="#" data-route="manager-review" class="nav-link">Manager Review</a>
+                <a href="#" data-route="customer-menu" class="nav-link active">Customer Menu</a>
+            </nav>
+            <div class="user-menu">
+                <span class="user-name">{{ current_user.username if current_user else 'Guest' }}</span>
+                <a href="#" data-route="logout" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="alert alert-{{ msg[1] }}">{{ msg[0] }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <p>&copy; 2025 MenuHub. Crafted with care.</p>
+        </div>
+    </footer>
+</body>
+</html>

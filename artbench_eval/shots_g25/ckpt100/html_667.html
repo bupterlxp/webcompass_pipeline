@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Learning Partner Matcher</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>/* {{ url_for( not found in result */</style>
+</head>
+<body>
+    <div class="container">
+        <header class="site-header">
+            <h1>Learning Partner Matcher</h1>
+            <p>Find the perfect study buddy based on goals, interests, and schedule.</p>
+        </header>
+
+        <nav class="site-nav">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('register') }}">Register</a>
+            <a href="{{ url_for('browse') }}">Browse Users</a>
+            <a href="{{ url_for('history') }}">History</a>
+        </nav>
+
+        <section class="hero">
+            <h2>How it works</h2>
+            <ul>
+                <li>Create your profile with goals, interests, and schedule.</li>
+                <li>Get matched with users who share your learning goals.</li>
+                <li>Send invitations and start collaborative learning.</li>
+                <li>Give feedback to help improve matching.</li>
+            </ul>
+        </section>
+
+        <section class="card">
+            <h3>Top Matches</h3>
+            <div class="matches" id="matches">
+                <!-- populated by JS -->
+            </div>
+        </section>
+
+        <footer class="site-footer">
+            <p>&copy; 2025 Learning Partner Matcher</p>
+        </footer>
+    </div>
+
+    <script>
+        fetch('/api/match/alex_m')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('matches');
+                el.innerHTML = data.map(m => `
+                    <div class="match">
+                        <div class="match-head">
+                            <strong>${m[0]}</strong>
+                            <span class="score">Score: ${m[1]}</span>
+                        </div>
+                        <p>${m[0]} has goals: ${m[0].split('_')[0]}, interests: ${m[0].split('_')[1]}, available: ${m[0].split('_')[2]}.</p>
+                    </div>
+                `).join('');
+            });
+    </script>
+</body>
+</html>

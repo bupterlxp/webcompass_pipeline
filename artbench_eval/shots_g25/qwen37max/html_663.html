@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Management System - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>/* {{ url_for( not found in result */</style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="nav-icon">🛸</span>
+            <span>Drone Management System</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link active">Dashboard</a>
+            <a href="/login" class="nav-link">Admin</a>
+        </div>
+    </nav>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-item">
+            <span class="stat-value" id="statTotal">0</span>
+            <span class="stat-label">Total Drones</span>
+        </div>
+        <div class="stat-item stat-idle">
+            <span class="stat-value" id="statIdle">0</span>
+            <span class="stat-label">Idle</span>
+        </div>
+        <div class="stat-item stat-inflight">
+            <span class="stat-value" id="statInflight">0</span>
+            <span class="stat-label">In Flight</span>
+        </div>
+        <div class="stat-item stat-landing">
+            <span class="stat-value" id="statLanding">0</span>
+            <span class="stat-label">Landing</span>
+        </div>
+        <div class="stat-item stat-malfunction">
+            <span class="stat-value" id="statMalfunction">0</span>
+            <span class="stat-label">Malfunction</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="statBattery">0%</span>
+            <span class="stat-label">Avg Battery</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="section-header">
+            <h2>Fleet Status</h2>
+            <button class="btn btn-refresh" onclick="loadDrones()">
+                🔄 Refresh
+            </button>
+        </div>
+
+        <!-- Drone Grid -->
+        <div class="drone-grid" id="droneGrid">
+            <div class="loading">Loading drones...</div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDrones();
+            loadStats();
+            // Auto-refresh every 10 seconds
+            setInterval(loadDrones, 10000);
+            setInterval(loadStats, 10000);
+        });
+    </script>
+<script>/* {{ url_for( not found in result */</script>
+</body>
+</html>

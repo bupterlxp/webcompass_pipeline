@@ -1,0 +1,33 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Device Maintenance Reminder</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .device-card { border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .device-card.green { background-color: #d4f4d4; border-color: #4caf50; }
+        .device-card.yellow { background-color: #fffacd; border-color: #ffeb3b; }
+        .device-card.red { background-color: #f8d7da; border-color: #dc3545; }
+        .device-card h3 { margin: 0; }
+        .device-card p { margin: 5px 0; }
+        .device-card a { color: #007bff; text-decoration: none; }
+        .device-card a:hover { text-decoration: underline; }
+        .device-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Device Maintenance Reminder</h1>
+    <div class="device-list">
+        {% for device in devices %}
+        <div class="device-card {% if device.status == 'green' %}green{% elif device.status == 'yellow' %}yellow{% elif device.status == 'red' %}red{% endif %}">
+            <h3>{{ device.name }}</h3>
+            <p><strong>Status:</strong> {{ device.status }}</p>
+            <p><strong>Last Maintenance:</strong> {{ device.last_maintenance }}</p>
+            <a href="/device/{{ device.id }}">View Details</a>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

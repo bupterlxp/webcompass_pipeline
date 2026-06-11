@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karaoke Lyrics Sync</title>
+<style>
+  :root {
+    --accent: #ff6b6b;
+    --accent-dark: #e53935;
+    --bg: #1a1a2e;
+    --bg-2: #252540;
+    --panel: #2a2a48;
+    --text: #e8e8f0;
+    --text-dim: #9a9ab0;
+    --word: #ffffff;
+    --word-hi: #ffd166;
+    --shadow: 0 10px 30px rgba(0,0,0,.4);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #2a2a48 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #3a3a58 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+  }
+
+  .title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    letter-spacing: .3px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    margin: 0 0 24px;
+    font-size: 14px;
+  }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), #1f1f3a);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+
+  .upload-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .upload-btn {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #3a3a58, #2a2a48);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform .2s, background .2s;
+  }
+  .upload-btn:hover { background: linear-gradient(180deg, #4a4a68, #3a3a58); transform: translateY(-1px); }
+  .upload-btn:active { transform: translateY(0); }
+
+  .file-info {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-dim);
+    min-height: 18px;
+  }
+  .file-info strong { color: var(--text); font-weight: 600; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  button {
+    background: linear-gradient(180deg, #3a3a58, #2a2a48);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: transform .2s, background .2s, border-color .2s;
+  }
+  button:hover { background: linear-gradient(180deg, #4a4a68, #3a3a58); border-color: rgba(255,255,255,.15); }
+  button:active { transform: translateY(1px); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .slider-row label { font-size: 13px; color: var(--text-dim); }
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+
+  .offset-value {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .lyrics {
+    margin-top: 16px;
+    font-size: 18px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .lyrics .line {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .lyrics .word {
+    display: inline-block;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background .15s ease;
+  }
+  .lyrics .word.highlight {
+    background: var(--word-hi);
+    color: var(--word);
+    box-shadow: 0 0 10px rgba(255,217,102,.5);
+  }
+
+  .progress {
+    margin-top: 16px;
+    height: 6px;
+    background: rgba(255,255,255,.08);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #ff8a6b);
+    width: 0%;
+    transition: width .1s linear;
+  }
+
+  .status {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .status strong { color: var(--accent); }
+
+  .export-btn {
+    background: linear-gradient(180deg, #4a96ff, #3a7bd8);
+    border-color: rgba(74,150,255,.3);
+  }
+  .export-btn:hover { background: linear-gradient(180deg, #5aa3ff, #4a8bd8); }
+
+  @media (max-width: 520px) {
+    .app { padding: 16px; }
+    .title { font-size: 22px; }
+    .lyrics { font-size: 16px; }
+    .upload-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1 class="title">Karaoke Lyrics Sync</h1>
+    <p class="subtitle">Upload an audio file and LRC lyrics to synchronize word-by-word highlighting.</p>
+
+    <div class="card">
+      <div class="upload-row">
+        <label class="upload-btn" id="audioBtn">Upload Audio File</label>
+        <label class="upload-btn" id="lrcBtn">Upload LRC File</label>
+      </div>
+      <div class="file-info" id="audioInfo"></div>
+      <div class="file-info" id="lrcInfo"></div>
+    </div>
+
+    <div class="card">
+      <div class="controls">
+        <button id="playBtn" disabled>Play</button>
+        <button id="pauseBtn" disabled>Pause</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="seekBack" disabled>⏮ -10s</button>
+        <button id="seekFwd" disabled>⏭ +10s</button>
+      </div>
+
+      <div class="slider-row">
+        <label for="offset">Offset (seconds)</label>
+        <input type="range" id="offset" min="-60" max="60" step="0.1" value="0">
+        <div class="offset-value" id="offsetValue">0.00</div>
+      </div>
+
+      <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px;font-size:16px;">Synchronized Lyrics</h3>
+      <div class="lyrics" id="lyrics"></div>
+    </div>
+
+    <div class="card">
+      <button class="export-btn" id="exportBtn" disabled>Export Modified LRC</button>
+    </div>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
+
+  <script>
+    (function () {
+      const audio = document.getElementById('audio');
+      const audioBtn = document.getElementById('audioBtn');
+      const lrcBtn = document.getElementById('lrcBtn');
+      const audioInfo = document.getElementById('audioInfo');
+      const lrcInfo = document.getElementById('lrcInfo');
+      const playBtn = document.getElementById('playBtn');
+      const pauseBtn = document.getElementById('pauseBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const seekBack = document.getElementById('seekBack');
+      const seekFwd = document.getElementById('seekFwd');
+      const offsetInput = document.getElementById('offset');
+      const offsetValue = document.getElementById('offsetValue');
+      const progressBar = document.getElementById('progressBar');
+      const statusEl = document.getElementById('status');
+      const lyricsEl = document.getElementById('lyrics');
+      const exportBtn = document.getElementById('exportBtn');
+
+      let currentOffset = 0;
+      let playing = false;
+      let timer = null;
+      let lyricsData = [];
+      let currentLineIndex = -1;
+      let currentWordIndex = -1;
+      let currentWordStart = 0;
+      let currentWordEnd = 0;
+      let currentWordText = '';
+      let lastPlayed = 0;
+      let lastSeek = 0;
+
+      // LRC format: [mm]:ss.xx text
+      function parseLrc(text) {
+        const lines = text.trim().split(/\r?\n/);
+        const parsed = [];
+        for (const line of lines) {
+          const m = line.match(/^\[(\d{2}):(\d{2})(\.(\d{1,3}))?\]\s*(.*)$/);
+          if (!m) continue;
+          const mm = parseInt(m[1], 10);
+          const ss = parseInt(m[2], 10);
+          const ms = m[4] ? parseFloat('0.' + m[4]) * 100 : 0;
+          const total = mm * 60 + ss + ms / 100;
+          parsed.push({ time: total, text: m[5].trim() });
+        }
+        return parsed;
+      }
+
+      function formatTime(sec) {
+        sec = Math.max(0, Math.floor(sec));
+        const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+        const ss = String(sec % 60).padStart(2, '0');
+        return `${mm}:${ss}`;
+      }
+
+      function getAudioDuration() {
+        if (audio.duration && !isNaN(audio.duration)) return audio.duration;
+        return 0;
+      }
+
+      function updateStatus() {
+        const dur = getAudioDuration();
+        const pos = audio.currentTime || 0;
+        const pct = dur > 0 ? (pos / dur) * 100 : 0;
+        progressBar.style.width = pct + '%';
+        offsetValue.textContent = currentOffset.toFixed(2);
+        statusEl.innerHTML = `<strong>${formatTime(pos)}</strong> / ${formatTime(dur)} · Offset: ${currentOffset.toFixed(2)}s`;
+      }
+
+      function renderLyrics() {
+        lyricsEl.innerHTML = '';
+        if (!lyricsData.length) {
+          lyricsEl.innerHTML = '<span style="color:var(--text-dim);font-size:14px;">No lyrics loaded.</span>';
+          return;
+        }
+
+        // Split into words
+        const wordLines = [];
+        for (const l of lyricsData) {
+          const words = splitIntoWords(l.text);
+          wordLines.push({ line: l, words });
+        }
+
+        for (const wl of wordLines) {
+          const lineEl = document.createElement('div');
+          lineEl.className = 'line';
+          for (const w of wl.words) {
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.textContent = w;
+            lineEl.appendChild(span);
+          }
+          lyricsEl.appendChild(lineEl);
+        }
+      }
+
+      function splitIntoWords(text) {
+        const words = [];
+        const re = /\s+/g;
+        const tokens = text.split(re);
+        for (const t of tokens) {
+          if (!t) continue;
+          // Try to split on punctuation attached to words
+          const split = t.match(/[A-Za-z0-9\u4e00-\u9fff]+|[^A-Za-z0-9\u4e00-\u9fff]+/g) || [t];
+          for (const s of split) {
+            if (s.trim()) words.push(s.trim());
+          }
+        }
+        return words;
+      }
+
+      function updateHighlight() {
+        const dur = getAudioDuration();
+        if (!dur || dur < 0.5) return;
+
+        const now = audio.currentTime || 0;
+        const adjusted = now + currentOffset;
+
+        // Find the word line that contains the current time
+        let found = false;
+        for (let i = 0; i < lyricsData.length; i++) {
+          const line = lyricsData[i];
+          const words = lyricsData[i].words;
+          if (!words.length) continue;
+
+          // Find the word range that contains adjusted time
+          let left = 0, right = words.length - 1;
+          while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const midStart = line.times[mid];
+            const midEnd = mid === words.length - 1
+              ? dur + 20
+              : line.times[mid + 1];
+
+            if (adjusted >= midStart && adjusted < midEnd) {
+              currentLineIndex = i;
+              currentWordIndex = mid;
+              currentWordStart = midStart;
+              currentWordEnd = midEnd;
+              currentWordText = words[mid];
+              found = true;
+              break;
+            }
+            if (adjusted < midStart) right = mid - 1;
+            else left = mid + 1;
+          }
+          if (found) break;
+        }
+
+        if (!found) {
+          currentLineIndex = -1;
+          currentWordIndex = -1;
+          currentWordStart = 0;
+          currentWordEnd = dur + 20;
+          currentWordText = '';
+        }
+
+        // Apply highlight
+        const words = lyricsEl.querySelectorAll('.word');
+        let idx = 0;
+        words.forEach((w, i) => {
+          const lineIdx = i % (lyricsData[i] ? lyricsData[i].words.length : 0);
+          const line = lyricsData[i];
+          const wordsInLine = line ? line.words : [];
+          if (lineIdx >= wordsInLine.length) return;
+          const wText = wordsInLine[lineIdx];
+          const wStart = line.times[lineIdx];
+          const wEnd = lineIdx === wordsInLine.length - 1
+            ? dur + 20
+            : line.times[lineIdx + 1];
+
+          if (wText === currentWordText) {
+            w.classList.add('highlight');
+          } else if (adjusted < wStart || adjusted >= wEnd) {
+            w.classList.remove('highlight');
+          }
+          idx++;
+        });
+      }
+
+      function applyOffsetToLrc() {
+        const modified = lyricsData.map(l => {
+          return {
+            time: l.time + currentOffset,
+            text: l.text,
+            words: l.words,
+            times: l.times
+          };
+        });
+        return modified;
+      }
+
+      function exportLrc() {
+        const modified = applyOffsetToLrc();
+        const header = `[ ${new Date().toISOString().slice(0,10)} ]\n`;
+        const lines = modified.map(l => `[${formatTime(l.times[0])}] ${l.text}`).join('\n');
+        const blob = new Blob([header + lines], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `karaoke-synced-${Date.now()}.lrc`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function handleFile(file, infoEl) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          infoEl.innerHTML = `<strong>${file.name}</strong> · ${formatBytes(file.size)} · ${file.type || 'unknown'}`;
+        };
+        reader.readAsText(file);
+      }
+
+      function formatBytes(b) {
+        if (b < 1024) return b + ' B';
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+        return (b / (1024 * 1024)).toFixed(2) + ' MB';
+      }
+
+      audioBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'audio/*';
+        input.onchange = (ev) => {
+          const f = ev.target.files[0];
+          if (f) {
+            audio.src = URL.createObjectURL(f);
+            audioInfo.innerHTML = `<strong>${f.name}</strong> · ${formatBytes(f.size)} · ${f.type || 'audio'} · ${formatTime(getAudioDuration())}`;
+          }
+        };
+        input.click();
+      });
+
+      lrcBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.lrc';
+        input.onchange = (ev) => {
+          const f = ev.target.files[0];
+          if (f) {
+            lrcInfo.innerHTML = `<strong>${f.name}</strong> · ${formatBytes(f.size)}`;
+            const text = f.text();
+            lyricsData = parseLrc(text);
+            renderLyrics();
+            // Build times array for each word
+            for (const l of lyricsData) {
+              l.words = splitIntoWords(l.text);
+              l.times = [];
+              for (let i = 0; i < l.words.length; i++) {
+                l.times.push(l.time + (i / l.words.length) * (lyricsData[lyricsData.indexOf(l)].time - l.time));
+              }
+            }
+            // Update controls
+            const dur = getAudioDuration();
+            if (dur > 0) {
+              playBtn.disabled = false;
+              pauseBtn.disabled = true;
+              stopBtn.disabled = false;
+              seekBack.disabled = false;
+              seekFwd.disabled = false;
+              exportBtn.disabled = false;
+            }
+          }
+        };
+        input.click();
+      });
+
+      playBtn.addEventListener('click', () => {
+        if (!audio.src || !audio.duration) return;
+        playing = true;
+        audio.play().then(() => {
+          playBtn.disabled = true;
+          pauseBtn.disabled = false;
+          updateHighlight();
+          updateStatus();
+          if (timer) clearInterval(timer);
+          timer = setInterval(() => {
+            updateHighlight();
+            updateStatus();
+          }, 150);
+        }).catch(() => {
+          alert('Unable to play audio. Please check your browser permissions.');
+        });
+      });
+
+      pauseBtn.addEventListener('click', () => {
+        if (!audio.src) return;
+        playing = false;
+        audio.pause();
+        playBtn.disabled = false;
+        pauseBtn.disabled = true;
+      });
+
+      stopBtn.addEventListener('click', () => {
+        if (!audio.src) return;
+        audio.pause();
+        audio.currentTime = 0;
+        currentOffset = 0;
+        offsetInput.value = 0;
+        offsetValue.textContent = '0.00';
+        playing = false;
+        playBtn.disabled = false;
+        pauseBtn.disabled = true;
+        updateHighlight();
+        updateStatus();
+        if (timer) clearInterval(timer);
+      });
+
+      seekBack.addEventListener('click', () => {
+        if (!audio.src) return;
+        audio.currentTime = Math.max(0, audio.currentTime - 10);
+        lastSeek = audio.currentTime;
+        updateHighlight();
+      });
+
+      seekFwd.addEventListener('click', () => {
+        if (!audio.src) return;
+        audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+        lastSeek = audio.currentTime;
+        updateHighlight();
+      });
+
+      offsetInput.addEventListener('input', () => {
+        currentOffset = parseFloat(offsetInput.value);
+        offsetValue.textContent = currentOffset.toFixed(2);
+        updateHighlight();
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        if (!playing) return;
+        updateHighlight();
+        updateStatus();
+      });
+
+      audio.addEventListener('ended', () => {
+        playing = false;
+        audio.currentTime = 0;
+        currentOffset = 0;
+        offsetInput.value = 0;
+        offsetValue.textContent = '0.00';
+        playBtn.disabled = false;
+        pauseBtn.disabled = true;
+        updateHighlight();
+        updateStatus();
+        if (timer) clearInterval(timer);
+      });
+
+      audio.addEventListener('loadedmetadata', () => {
+        const dur = getAudioDuration();
+        if (dur > 0) {
+          playBtn.disabled = false;
+          pauseBtn.disabled = true;
+          stopBtn.disabled = false;
+          seekBack.disabled = false;
+          seekFwd.disabled = false;
+          exportBtn.disabled = false;
+        }
+      });
+
+      audio.addEventListener('error', () => {
+        playBtn.disabled = true;
+        pauseBtn.disabled = true;
+        stopBtn.disabled = true;
+        seekBack.disabled = true;
+        seekFwd.disabled = true;
+        exportBtn.disabled = true;
+      });
+
+      exportBtn.addEventListener('click', exportLrc);
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        if (e.code === 'Space') {
+          e.preventDefault();
+          if (audio.paused) playBtn.click(); else pauseBtn.click();
+        } else if (e.key === 'ArrowLeft') seekBack.click();
+        else if (e.key === 'ArrowRight') seekFwd.click();
+      });
+
+      // Initial render
+      renderLyrics();
+    })();
+  </script>
+</body>
+</html>

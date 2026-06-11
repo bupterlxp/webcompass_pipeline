@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Neon Drift: Mission Runner</title>
+<style>body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  overflow: hidden;
+  font-family: 'Segoe UI', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#game-wrap {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  color: #fff;
+  text-shadow: 0 1px 4px #000;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-item {
+  background: rgba(0,0,0,0.5);
+  padding: 6px 12px;
+  border-radius: 8px;
+  min-width: 70px;
+}
+
+.hud-label {
+  display: block;
+  font-size: 10px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.hud-value {
+  display: block;
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+}
+
+#joystick-wrap {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #222;
+  cursor: grab;
+}
+
+.joystick.dragging { cursor: grabbing; }
+
+.stick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px #fff;
+  transition: transform 0.05s ease;
+}
+
+#steer-wrap {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.steering {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #222;
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+
+.steering:hover { transform: scale(1.05); }
+
+.steer-left,
+.steer-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 24px;
+  color: #fff;
+  text-shadow: 0 0 6px #fff;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+
+.steer-left:hover { transform: translateY(-50%) scale(1.1); }
+.steer-right:hover { transform: translateY(-50%) scale(1.1); }
+
+#buttons {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+}
+
+.btn {
+  background: #333;
+  color: #fff;
+  border: 2px solid #555;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn:hover:not(:disabled) { background: #555; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#vehicle-ui,
+#mission-ui,
+#inventory {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 260px;
+  padding: 10px;
+  background: rgba(0,0,0,0.7);
+  border: 2px solid #fff;
+  border-radius: 8px;
+  z-index: 10;
+  box-shadow: 0 0 15px #000;
+}
+
+.vehicle-info,
+.mission-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vehicle-info > div,
+.mission-info > div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.vehicle-info > div span:first-child {
+  color: #aaa;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.inv-item {
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.inv-item:hover { background: #444; }
+
+#mobile-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: #fff;
+  font-size: 16px;
+  text-align: center;
+  padding: 20px;
+}
+
+.mobile-hint {
+  color: #fff;
+  text-shadow: 0 1px 6px #000;
+}
+
+#controls-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="game" width="800" height="500"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-item"><span class="hud-label">HP</span><span class="hud-value" id="hp">100</span></div>
+    <div class="hud-item"><span class="hud-label">AMMO</span><span class="hud-value" id="ammo">∞</span></div>
+    <div class="hud-item"><span class="hud-label">MONEY</span><span class="hud-value" id="money">0</span></div>
+    <div class="hud-item"><span class="hud-label">MISSION</span><span class="hud-value" id="mission">None</span></div>
+  </div>
+
+  <!-- Joystick -->
+  <div id="joystick-wrap">
+    <div class="joystick" id="joystick">
+      <div class="stick"></div>
+    </div>
+  </div>
+
+  <!-- Vehicle Steering -->
+  <div id="steer-wrap">
+    <div class="steering" id="steering">
+      <div class="steer-left">◀</div>
+      <div class="steer-right">▶</div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div id="buttons">
+    <button id="btn-fire" class="btn" disabled>Fire</button>
+    <button id="btn-vehicle" class="btn">Vehicle</button>
+    <button id="btn-mission" class="btn">Mission</button>
+  </div>
+
+  <!-- Vehicle UI -->
+  <div id="vehicle-ui" class="hidden">
+    <div class="vehicle-info">
+      <div><span>VEHICLE</span><span id="v-name">None</span></div>
+      <div><span>SPEED</span><span id="v-speed">0</span></div>
+      <div><span>FUEL</span><span id="v-fuel">100</span></div>
+    </div>
+  </div>
+
+  <!-- Mission UI -->
+  <div id="mission-ui" class="hidden">
+    <div class="mission-info">
+      <div><span id="m-title">Mission</span></div>
+      <div><span id="m-desc">No mission</span></div>
+    </div>
+  </div>
+
+  <!-- Inventory -->
+  <div id="inventory" class="hidden">
+    <div class="inv-item" data-item="ammo">Ammo</div>
+    <div class="inv-item" data-item="money">Cash</div>
+  </div>
+
+  <!-- Mobile overlay -->
+  <div id="mobile-overlay" class="hidden">
+    <div class="mobile-hint">Tap joystick to move · Tap fire to shoot</div>
+  </div>
+
+  <!-- Controls hint -->
+  <div id="controls-hint">
+    <div>WASD / Joystick to move · SPACE / Fire to shoot · M to mission</div>
+  </div>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  // ---------- Canvas ----------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // ---------- Input ----------
+  const keys = {};
+  const mouse = { x: 0, y: 0, down: false };
+
+  window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === ' ') fire();
+    if (e.key === 'm') toggleMission();
+    if (e.key === 'v') toggleVehicle();
+    if (e.key === 'i') toggleInventory();
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+  canvas.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.down = false;
+  });
+  canvas.addEventListener('mousedown', (e) => { mouse.down = true; });
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // ---------- Joystick ----------
+  const joystick = document.getElementById('joystick');
+  const joystickWrap = document.getElementById('joystick-wrap');
+  let joystickPos = { x: 0, y: 0 };
+  let joystickDown = false;
+
+  joystick.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    joystickDown = true;
+    joystick.classList.add('dragging');
+    joystickPos = { x: e.clientX - joystick.offsetWidth / 2, y: e.clientY - joystick.offsetHeight / 2 };
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (joystickDown) {
+      const rect = joystickWrap.getBoundingClientRect();
+      const nx = e.clientX - rect.left;
+      const ny = e.clientY - rect.top;
+      joystickPos.x = Math.max(0, Math.min(joystick.offsetWidth, nx - joystick.offsetWidth / 2));
+      joystickPos.y = Math.max(0, Math.min(joystick.offsetHeight, ny - joystick.offsetHeight / 2));
+      joystick.style.transform = `translate(${joystickPos.x}px, ${joystickPos.y}px)`;
+    }
+  });
+  window.addEventListener('mouseup', () => {
+    joystickDown = false;
+    joystick.classList.remove('dragging');
+  });
+
+  // ---------- Steering ----------
+  const steering = document.getElementById('steering');
+  let steeringAngle = 0;
+  steering.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const rect = steering.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const w = rect.width;
+    steeringAngle = (x - w / 2) / (w / 2);
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (mouse.down) {
+      const rect = steering.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const w = rect.width;
+      steeringAngle = (x - w / 2) / (w / 2);
+    }
+  });
+
+  // ---------- Buttons ----------
+  document.getElementById('btn-fire').addEventListener('click', fire);
+  document.getElementById('btn-vehicle').addEventListener('click', toggleVehicle);
+  document.getElementById('btn-mission').addEventListener('click', toggleMission);
+
+  // ---------- Entities ----------
+  const player = {
+    x: 400, y: 300,
+    w: 20, h: 20,
+    speed: 200,
+    hp: 100, maxHp: 100,
+    ammo: 30,
+    maxAmmo: 30,
+    money: 0,
+    vehicle: null,
+    vehicleSpeed: 0,
+    vehicleFuel: 100,
+    vehicleMaxFuel: 100,
+    mission: null,
+    shooting: false,
+    onVehicle: false
+  };
+
+  const vehicles = [
+    { id: 'bike', name: 'Street Bike', baseSpeed: 280, baseFuel: 100, baseFuelMax: 100, baseCost: 500, x: 100, y: 150 },
+    { id: 'car', name: 'Sedan', baseSpeed: 220, baseFuel: 100, baseFuelMax: 100, baseCost: 1200, x: 600, y: 150 },
+    { id: 'truck', name: 'Cargo Truck', baseSpeed: 180, baseFuel: 100, baseFuelMax: 100, baseCost: 2500, x: 100, y: 350 },
+    { id: 'van', name: 'Delivery Van', baseSpeed: 200, baseFuel: 100, baseFuelMax: 100, baseCost: 1800, x: 600, y: 350 }
+  ];
+
+  const vehiclesOwned = new Set();
+  const vehiclesAvailable = vehicles.map(v => ({ ...v, owned: false, locked: false }));
+
+  const npcs = [];
+  const bullets = [];
+  const particles = [];
+  const missions = [
+    { id: 'm1', title: 'Rob the Bike', desc: 'Steal the street bike from the garage.', reward: 500, complete: false, x: 100, y: 150 },
+    { id: 'm2', title: 'Steal the Car', desc: 'Steal the sedan from the parking lot.', reward: 1200, complete: false, x: 600, y: 150 },
+    { id: 'm3', title: 'The Truck Heist', desc: 'Steal the cargo truck from the warehouse.', reward: 2500, complete: false, x: 100, y: 350 },
+    { id: 'm4', title: 'Van Escape', desc: 'Steal the delivery van and drive to the exit.', reward: 1800, complete: false, x: 600, y: 350 }
+  ];
+
+  // ---------- Map ----------
+  const tileW = 100, tileH = 100;
+  const map = [
+    'WWWWWWWWWWWW',
+    'W        W  W',
+    'W  W  W    W ',
+    'W  W  W    W ',
+    'W  W  W    W ',
+    'W  W  W    W ',
+    'W  W  W    W ',
+    'W        W  W',
+    'WWWWWWWWWWWW'
+  ];
+  const mapW = map[0].length, mapH = map.length;
+  const worldW = mapW * tileW, worldH = mapH * tileH;
+
+  // ---------- Spawn NPCs ----------
+  function spawnNpc() {
+    const spawn = [150, 250, 450, 550, 750, 850];
+    const y = [100, 200, 300, 400][Math.floor(Math.random() * 4)];
+    npcs.push({
+      x: spawn[Math.floor(Math.random() * spawn.length)],
+      y,
+      w: 18, h: 22,
+      hp: 60, maxHp: 60,
+      speed: 60,
+      target: null,
+      shootCooldown: 0,
+      shootInterval: 1200,
+      money: 200
+    });
+  }
+  for (let i = 0; i < 6; i++) spawnNpc();
+
+  // ---------- Shooting ----------
+  function fire() {
+    if (player.shooting) return;
+    if (player.ammo <= 0) return;
+    player.shooting = true;
+    bullets.push({
+      x: player.x + player.w / 2,
+      y: player.y + player.h / 2,
+      r: 3,
+      vx: 0, vy: -600,
+      life: 0
+    });
+    player.ammo--;
+  }
+
+  // ---------- Collision ----------
+  function collide(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  // ---------- Particles ----------
+  function spawnParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 120,
+        vy: (Math.random() - 0.5) * 120,
+        life: 60,
+        maxLife: 60,
+        color
+      });
+    }
+  }
+
+  // ---------- Update ----------
+  function update(dt) {
+    // Player movement
+    let px = 0, py = 0;
+    if (keys['w'] || keys['arrowup']) py -= 1;
+    if (keys['s'] || keys['arrowdown']) py += 1;
+    if (keys['a'] || keys['arrowleft']) px -= 1;
+    if (keys['d'] || keys['arrowright']) px += 1;
+
+    // Joystick
+    if (joystickPos.x !== 0 || joystickPos.y !== 0) {
+      const mag = Math.hypot(joystickPos.x, joystickPos.y);
+      px = joystickPos.x / mag;
+      py = joystickPos.y / mag;
+    }
+
+    if (px !== 0 || py !== 0) {
+      const len = Math.hypot(px, py);
+      px /= len; py /= len;
+    }
+
+    // Vehicle driving
+    let vx = 0, vy = 0;
+    if (keys['arrowup'] || keys['w']) vy -= 1;
+    if (keys['arrowdown'] || keys['s']) vy += 1;
+    if (keys['arrowleft'] || keys['a']) vx -= 1;
+    if (keys['arrowright'] || keys['d']) vx += 1;
+
+    if (vx !== 0 || vy !== 0) {
+      const len = Math.hypot(vx, vy);
+      vx /= len; vy /= len;
+    }
+
+    // Steering
+    const steer = steeringAngle;
+    const maxSpeed = player.vehicle ? player.vehicle.baseSpeed : 200;
+    const fuelCost = player.vehicle ? 0.5 : 0;
+    const fuelCostShoot = player.vehicle ? 0.1 : 0;
+
+    if (player.onVehicle) {
+      player.vehicleFuel -= fuelCost * dt;
+      if (player.vehicleFuel < 0) player.vehicleFuel = 0;
+      player.vehicleSpeed = maxSpeed * (0.5 + 0.5 * Math.abs(steer));
+      player.x += vx * player.vehicleSpeed * dt;
+      player.y += vy * player.vehicleSpeed * dt;
+    } else {
+      player.x += px * player.speed * dt;
+      player.y += py * player.speed * dt;
+    }
+
+    // Wrap around map
+    if (player.x < 0) player.x = worldW;
+    if (player.x > worldW) player.x = 0;
+    if (player.y < 0) player.y = worldH;
+    if (player.y > worldH) player.y = 0;
+
+    // Shooting
+    if (player.shooting) {
+      player.shooting = false;
+      fire();
+    }
+
+    // NPC AI
+    for (const npc of npcs) {
+      // Target player if close
+      if (!npc.target && collide(npc, player)) {
+        npc.target = player;
+      }
+      if (npc.target) {
+        const dx = npc.target.x - npc.x;
+        const dy = npc.target.y - npc.y;
+        const d = Math.hypot(dx, dy) || 1;
+        npc.x += (dx / d) * npc.speed * dt;
+        npc.y += (dy / d) * npc.speed * dt;
+        npc.shootCooldown--;
+        if (npc.shootCooldown <= 0) {
+          npc.shootCooldown = npc.shootInterval;
+          bullets.push({
+            x: npc.x + npc.w / 2,
+            y: npc.y + npc.h / 2,
+            r: 3,
+            vx: 0, vy: -450,
+            life: 0
+          });
+        }
+      } else {
+        // Wander
+        npc.x += (Math.random() - 0.5) * 80 * dt;
+        npc.y += (Math.random() - 0.5) * 80 * dt;
+        if (npc.x < 0) npc.x = 0; if (npc.x > worldW) npc.x = worldW;
+        if (npc.y < 0) npc.y = 0; if (npc.y > worldH) npc.y = worldH;
+      }
+    }
+
+    // Bullets
+    for (const b of bullets) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life++;
+      if (b.life > 120) bullets.splice(bullets.indexOf(b), 1);
+    }
+
+    // Particles
+    for (const p of particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.life--;
+    }
+    particles = particles.filter(p => p.life > 0);
+
+    // Damage
+    for (const b of bullets) {
+      for (const npc of npcs) {
+        if (collide(b, npc)) {
+          npc.hp -= 20;
+          spawnParticles(b.x, b.y, '#ff2222', 6);
+          bullets.splice(bullets.indexOf(b), 1);
+          if (npc.hp <= 0) {
+            spawnParticles(npc.x, npc.y, '#22ff22', 12);
+            player.money += npc.money;
+            npcs.splice(npcs.indexOf(npc), 1);
+          }
+        }
+      }
+    }
+
+    // Vehicle stealing
+    if (player.vehicle === null && player.onVehicle === false) {
+      for (const v of vehiclesAvailable) {
+        if (collide(player, v)) {
+          if (!v.owned) {
+            v.owned = true;
+            vehiclesOwned.add(v.id);
+            player.vehicle = v;
+            player.money -= v.baseCost;
+            spawnParticles(v.x, v.y, '#22ff22', 10);
+            spawnParticles(player.x, player.y, '#22ff22', 10);
+            player.vehicleFuel = v.baseFuel;
+            player.vehicleMaxFuel = v.baseFuelMax;
+            player.vehicleSpeed = v.baseSpeed;
+          } else {
+            spawnParticles(v.x, v.y, '#ff2222', 6);
+          }
+        }
+      }
+    }
+
+    // Mission completion
+    if (player.mission) {
+      const m = missions.find(x => x.id === player.mission);
+      if (m) {
+        if (collide(player, m)) {
+          m.complete = true;
+          player.money += m.reward;
+          player.mission = null;
+          spawnParticles(m.x, m.y, '#ffaa00', 20);
+        }
+      }
+    }
+  }
+
+  // ---------- Render ----------
+  function render() {
+    // Background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Parallax background
+    const bgW = worldW + W;
+    const bgH = worldH + H;
+    ctx.save();
+    ctx.translate(-player.x + W / 2, -player.y + H / 2);
+
+    // Draw map tiles
+    for (let y = 0; y < mapH; y++) {
+      for (let x = 0; x < mapW; x++) {
+        const c = map[y][x];
+        if (c === 'W') {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(x * tileW, y * tileH, tileW, tileH);
+          ctx.fillStyle = '#111';
+          ctx.fillRect(x * tileW + 2, y * tileH + 2, tileW - 4, tileH - 4);
+        }
+      }
+    }
+
+    // Vehicles
+    for (const v of vehiclesAvailable) {
+      if (v.owned) {
+        ctx.fillStyle = '#222';
+        ctx.fillRect(v.x, v.y, 20, 10);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(v.x + 2, v.y + 2, 16, 6);
+      }
+    }
+
+    // NPCs
+    for (const npc of npcs) {
+      ctx.fillStyle = '#ff2222';
+      ctx.fillRect(npc.x, npc.y, npc.w, npc.h);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(npc.x + 2, npc.y + 2, npc.w - 4, npc.h - 4);
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px Arial';
+      ctx.fillText(Math.floor(npc.hp), npc.x + 4, npc.y + 14);
+    }
+
+    // Bullets
+    for (const b of bullets) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Particles
+    for (const p of particles) {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // Player
+    ctx.fillStyle = '#22ff22';
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(player.x + 2, player.y + 2, player.w - 4, player.h - 4);
+
+    ctx.restore();
+
+    // HUD
+    document.getElementById('hp').textContent = Math.floor(player.hp);
+    document.getElementById('ammo').textContent = player.ammo > 0 ? player.ammo : '∞';
+    document.getElementById('money').textContent = player.money;
+    document.getElementById('mission').textContent = player.mission ? missions.find(m => m.id === player.mission).title : 'None';
+
+    // Vehicle UI
+    const vui = document.getElementById('vehicle-ui');
+    const vName = document.getElementById('v-name');
+    const vSpeed = document.getElementById('v-speed');
+    const vFuel = document.getElementById('v-fuel');
+    if (player.vehicle) {
+      vui.classList.remove('hidden');
+      vName.textContent = player.vehicle.name;
+      vSpeed.textContent = Math.floor(player.vehicleSpeed);
+      vFuel.textContent = Math.floor(player.vehicleFuel);
+    } else {
+      vui.classList.add('hidden');
+    }
+
+    // Mission UI
+    const mui = document.getElementById('mission-ui');
+    const mTitle = document.getElementById('m-title');
+    const mDesc = document.getElementById('m-desc');
+    if (player.mission) {
+      const m = missions.find(x => x.id === player.mission);
+      mui.classList.remove('hidden');
+      mTitle.textContent = m.title;
+      mDesc.textContent = m.desc;
+    } else {
+      mui.classList.add('hidden');
+    }
+
+    // Inventory
+    const inv = document.getElementById('inventory');
+    if (player.mission) {
+      inv.classList.remove('hidden');
+    } else {
+      inv.classList.add('hidden');
+    }
+  }
+
+  // ---------- Main loop ----------
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- UI toggles ----------
+  function toggleVehicle() {
+    if (player.onVehicle) {
+      player.onVehicle = false;
+      player.vehicle = null;
+      player.vehicleFuel = 100;
+      player.vehicleMaxFuel = 100;
+      player.vehicleSpeed = 200;
+    } else {
+      const v = vehiclesAvailable.find(v => v.owned);
+      if (v) {
+        player.onVehicle = true;
+        player.vehicle = v;
+        player.vehicleFuel = v.baseFuel;
+        player.vehicleMaxFuel = v.baseFuelMax;
+        player.vehicleSpeed = v.baseSpeed;
+      }
+    }
+  }
+
+  function toggleMission() {
+    if (!player.mission) {
+      const m = missions.find(m => !m.complete);
+      if (m) {
+        player.mission = m.id;
+        spawnParticles(m.x, m.y, '#ffaa00', 10);
+      }
+    } else {
+      player.mission = null;
+    }
+  }
+
+  function toggleInventory() {
+    const inv = document.getElementById('inventory');
+    if (inv.classList.contains('hidden')) {
+      inv.classList.remove('hidden');
+    } else {
+      inv.classList.add('hidden');
+    }
+  }
+
+  // ---------- Start ----------
+  requestAnimationFrame(loop);
+})();
+</script></script>
+</body>
+</html>

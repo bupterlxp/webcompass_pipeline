@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MusicTheoryLab — Learn Scales & Chords</title>
+<style>:root {
+  --bg: #f4f6fb;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --text: #1a1d29;
+  --text-muted: #5b6478;
+  --border: #e3e7ef;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: 0.2s ease;
+}
+
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --bg-elev: #161922;
+  --surface: #1b1f28;
+  --text: #e6e8ef;
+  --text-muted: #9aa3b8;
+  --border: #262b38;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-soft: #1e1f3a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  transition: background var(--transition), color var(--transition);
+}
+
+body { min-height: 100vh; }
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--accent-hover); }
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), #ec4899);
+  color: white;
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+}
+
+.nav a {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 15px;
+  transition: all var(--transition);
+}
+.nav a:hover { background: var(--accent-soft); color: var(--accent); }
+.nav a.active { background: var(--accent-soft); color: var(--accent); }
+
+.theme-toggle {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+.theme-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+[data-theme="dark"] .theme-toggle .icon { color: var(--accent); }
+
+.hero {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 80px 24px 64px;
+  text-align: center;
+}
+.hero h2 {
+  font-size: clamp(32px, 5vw, 48px);
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+.hero p {
+  font-size: clamp(16px, 2vw, 19px);
+  color: var(--text-muted);
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.btn {
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 15px;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--bg-elev); border-color: var(--accent); color: var(--accent); }
+
+.intro {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: grid;
+  gap: 24px;
+}
+
+.intro-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+.intro-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.card-head h2 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+.lead { color: var(--text); font-size: 16px; margin: 0 0 20px; }
+
+.audio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.audio-btn {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition);
+}
+.audio-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.audio-btn:active { transform: translateY(0); }
+
+.hint {
+  margin-top: 20px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.hint code {
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.site-footer {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* Practice */
+.practice {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+.practice-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+.practice-head h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+.practice-head .muted { margin: 0; color: var(--text-muted); }
+
+.practice-row {
+  display: flex;
+  gap: 16px;
+  margin: 20px 0 24px;
+}
+.root-chip, .chord-type-chip {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chip-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.chip-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.notes-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.note-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-card:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.note-card.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.note-name { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.note-key { font-size: 20px; font-weight: 700; }
+
+.practice-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.feedback {
+  min-height: 40px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition);
+}
+.feedback.success { background: #d1fae5; color: #065f46; }
+.feedback.error { background: #fee2e2; color: #991b1b; }
+.feedback.info { background: #ede9fe; color: #6d28d9; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .site-header { padding: 12px 16px; }
+  .nav { display: none; }
+  .hero { padding: 56px 20px 40px; }
+  .intro { padding: 20px 16px; }
+  .intro-card { padding: 20px; }
+  .notes-list { grid-template-columns: repeat(2, 1fr); }
+  .practice { padding: 24px 16px 60px; }
+  .practice-card { padding: 24px; }
+}
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo">♪</span>
+      <h1>MusicTheoryLab</h1>
+    </div>
+    <nav class="nav">
+      <a href="intro.html#scales" data-page="scales">Scales</a>
+      <a href="intro.html#chords" data-page="chords">Chords</a>
+      <a href="intro.html#intervals" data-page="intervals">Intervals</a>
+      <a href="practice.html" data-page="practice">Practice</a>
+      <a href="intro.html#about" data-page="about">About</a>
+    </nav>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <span class="icon">☾</span>
+    </button>
+  </header>
+
+  <main class="hero">
+    <h2>Learn Music Theory, One Note at a Time</h2>
+    <p>Interactive lessons on scales, chords, and intervals — with real audio so you can hear what you're learning.</p>
+    <div class="cta">
+      <a href="intro.html" class="btn btn-primary">Start Learning</a>
+      <a href="practice.html" class="btn btn-ghost">Go to Practice</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>© MusicTheoryLab · Built with HTML, CSS & Web Audio API</p>
+  </footer>
+
+  <script>// ---------- Audio Synthesis (Web Audio API) ----------
+const audioCtx = (() => {
+  let ctx = null;
+  try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+  catch (e) { return null; }
+  return ctx;
+})();
+
+function playNote(freq, duration = 0.5, type = 'triangle', volume = 0.25) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playChord(frequencies, duration = 1.2, type = 'triangle', volume = 0.25) {
+  if (!audioCtx) return;
+  frequencies.forEach(f => playNote(f, duration, type, volume));
+}
+
+function playScale(root, scaleName, duration = 0.5, type = 'triangle', volume = 0.2) {
+  const notes = getScale(root, scaleName);
+  notes.forEach(n => playNote(n, duration, type, volume));
+}
+
+function getScale(root, scaleName) {
+  const rootFreq = getFreq(root);
+  const intervals = {
+    'major': [0, 2, 4, 5, 7, 9, 11],
+    'minor': [0, 2, 3, 5, 7, 8, 10],
+    'dorian': [0, 2, 3, 5, 7, 9, 10],
+    'phrygian': [0, 1, 3, 5, 7, 8, 10],
+    'lydian': [0, 2, 4, 6, 7, 9, 11],
+    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+    'aeolian': [0, 2, 3, 5, 7, 8, 10],
+    'locrian': [0, 1, 3, 5, 6, 8, 10],
+    'majorPentatonic': [0, 2, 4, 7, 9],
+    'minorPentatonic': [0, 3, 5, 7, 10]
+  };
+  const semitones = intervals[scaleName] || intervals.major;
+  return semitones.map(s => rootFreq + s * 100);
+}
+
+function getFreq(note) {
+  const [letter, accidental] = note.match(/([A-G])(?:[b#]?)/i) || [];
+  const acc = (accidental || '').replace(/[^b#]/g, '');
+  const semitones = {
+    'A': 0, 'B': 2, 'C': 3, 'D': 5, 'E': 7, 'F': 8, 'G': 10
+  }[letter.toUpperCase()] || 0;
+  const sharp = acc.includes('#') ? 1 : 0;
+  const flat = acc.includes('b') ? -1 : 0;
+  return Math.pow(2, (semitones + sharp + flat + 12) / 12) * 440;
+}
+
+// ---------- Chord Theory ----------
+const CHORDS = {
+  'C major triad': { root: 'C', type: 'major', notes: ['C', 'E', 'G'] },
+  'Am minor triad': { root: 'A', type: 'minor', notes: ['A', 'C', 'E'] },
+  'G minor triad': { root: 'G', type: 'minor', notes: ['G', 'B♭', 'D'] },
+  'E diminished': { root: 'E', type: 'diminished', notes: ['E', 'G', 'B♭'] },
+  'C major 7': { root: 'C', type: 'maj7', notes: ['C', 'E', 'G', 'B'] },
+  'C7': { root: 'C', type: '7', notes: ['C', 'E', 'G', 'B♭'] },
+  'Cm7': { root: 'C', type: 'm7', notes: ['C', 'E♭', 'G', 'B♭'] },
+  'Cm7♭5': { root: 'C', type: 'm7♭5', notes: ['C', 'E♭', 'G♭', 'B♭'] }
+};
+
+// ---------- Practice Logic ----------
+const ROOTS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const TYPES = ['Major', 'Minor', 'Diminished', 'Maj7', '7', 'm7', 'm7♭5'];
+const CORRECT_CHORDS = [
+  { root: 'C', type: 'Major', notes: ['C', 'E', 'G'] },
+  { root: 'C', type: 'Minor', notes: ['C', 'E♭', 'G'] },
+  { root: 'C', type: 'Diminished', notes: ['C', 'E♭', 'G♭'] },
+  { root: 'C', type: 'Maj7', notes: ['C', 'E', 'G', 'B'] },
+  { root: 'C', type: '7', notes: ['C', 'E', 'G', 'B♭'] },
+  { root: 'C', type: 'm7', notes: ['C', 'E♭', 'G', 'B♭'] },
+  { root: 'C', type: 'm7♭5', notes: ['C', 'E♭', 'G♭', 'B♭'] }
+];
+
+let currentChord = null;
+let selectedNotes = [];
+let score = 0;
+
+function pickRandomChord() {
+  const pool = [...CORRECT_CHORDS];
+  const idx = Math.floor(Math.random() * pool.length);
+  const c = pool[idx];
+  currentChord = c;
+  selectedNotes = [];
+  document.getElementById('rootValue').textContent = c.root;
+  document.getElementById('typeValue').textContent = c.type;
+  document.querySelectorAll('.note-card').forEach(card => {
+    card.classList.remove('selected');
+    card.dataset.selected = 'false';
+  });
+  document.getElementById('feedback').innerHTML = '';
+}
+
+function toggleNote(card) {
+  const idx = card.dataset.note;
+  if (selectedNotes.includes(idx)) {
+    selectedNotes = selectedNotes.filter(n => n !== idx);
+    card.classList.remove('selected');
+    card.dataset.selected = 'false';
+  } else {
+    selectedNotes.push(idx);
+    card.classList.add('selected');
+    card.dataset.selected = 'true';
+  }
+}
+
+function checkChord() {
+  if (!currentChord) return;
+  const userNotes = [];
+  selectedNotes.forEach(idx => {
+    userNotes.push(currentChord.notes[idx]);
+  });
+  const expected = currentChord.notes;
+  const correct = userNotes.length === expected.length && userNotes.every((n, i) => n === expected[i]);
+  const feedbackEl = document.getElementById('feedback');
+  if (correct) {
+    score++;
+    feedbackEl.className = 'feedback success';
+    feedbackEl.innerHTML = '<span class="check">✓</span> Perfect chord! ' + currentChord.root + ' ' + currentChord.type;
+    playChord(expected.map(getFreq), 1.2, 'triangle', 0.25);
+  } else {
+    feedbackEl.className = 'feedback error';
+    feedbackEl.innerHTML = '<span class="x">✕</span> Try again — ' + currentChord.root + ' ' + currentChord.type;
+    playScale(currentChord.root, 'major', 0.8, 'triangle', 0.15);
+  }
+}
+
+// ---------- Audio Events ----------
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.audio-btn');
+  if (!btn) return;
+  const text = btn.dataset.scale || btn.dataset.chord || btn.dataset.interval;
+  if (btn.dataset.scale) {
+    playScale(btn.dataset.scale.split(' ')[0], btn.dataset.scale.split(' ')[1], 1.2, 'triangle', 0.2);
+  } else if (btn.dataset.chord) {
+    const chord = CHORDS[btn.dataset.chord];
+    if (chord) playChord(chord.notes.map(getFreq), 1.5, 'triangle', 0.25);
+  } else if (btn.dataset.interval) {
+    const interval = btn.dataset.interval;
+    const root = getFreq('C');
+    const intervalsMap = {
+      'Unison': 0, 'Minor 2nd': 1, 'Major 2nd': 2, 'Minor 3rd': 3, 'Major 3rd': 4,
+      'Perfect 4th': 5, 'Perfect 5th': 7, 'Major 6th': 9, 'Major 7th': 11
+    };
+    const semitones = intervalsMap[interval] || 0;
+    playNote(root + semitones * 100, 1, 'triangle', 0.2);
+  }
+});
+
+// ---------- Practice Events ----------
+document.getElementById('rootChip').addEventListener('click', () => {
+  pickRandomChord();
+});
+document.querySelectorAll('.note-card').forEach(card => {
+  card.addEventListener('click', () => toggleNote(card));
+});
+document.getElementById('checkBtn').addEventListener('click', checkChord);
+document.getElementById('resetBtn').addEventListener('click', () => {
+  selectedNotes = [];
+  document.querySelectorAll('.note-card').forEach(card => {
+    card.classList.remove('selected');
+    card.dataset.selected = 'false';
+  });
+  document.getElementById('feedback').innerHTML = '';
+});
+
+// ---------- Theme ----------
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const root = document.documentElement;
+  const current = root.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch (e) {}
+});
+
+// ---------- Init ----------
+(function init() {
+  const saved = (() => {
+    try { return localStorage.getItem('theme'); } catch (e) { return null; }
+  })();
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  pickRandomChord();
+})();
+</script></script>
+</body>
+</html>

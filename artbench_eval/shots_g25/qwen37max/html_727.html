@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunk Upload Demo</title>
+    <!-- SparkMD5 for calculating file hash -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .progress-container { width: 100%; background-color: #f3f3f3; border-radius: 5px; margin-top: 20px; display: none; }
+        .progress-bar { width: 0%; height: 30px; background-color: #4caf50; text-align: center; line-height: 30px; color: white; border-radius: 5px; transition: width 0.2s; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #status { margin-top: 15px; color: #555; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Chunk File Uploader</h2>
+    <input type="file" id="fileInput" />
+    <button id="uploadBtn" onclick="startUpload()">Upload</button>
+    
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+    <div id="status"></div>
+
+    <script>
+        const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB per chunk
+        const CONCURRENT_LIMIT = 3; // Max concurrent requests
+
+        async function calculateHash(file) {
+            return new Promise((resolve) => {
+                const blobSlice = File.prototype.slice;
+                const chunks = Math.ceil(file.size / CHUNK_SIZE);
+                let currentChunk = 0;
+                const spark = new SparkMD5.ArrayBuffer();
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    spark.append(e.target.result);
+                    currentChunk++;
+                    if (currentChunk < chunks) {
+                        loadNext();
+                    } else {
+                        resolve(spark.end());
+                    }
+                };
+
+                function loadNext() {
+                    const start = currentChunk * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE, file.size);
+                    reader.readAsArrayBuffer(blobSlice.call(file, start, end));
+                }
+                loadNext();
+            });
+        }
+
+        async function startUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return alert('Please select a file');
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            const status = document.getElementById('status');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            
+            uploadBtn.disabled = true;
+            status.innerText = 'Calculating file hash...';
+            progressContainer.style.display = 'block';
+
+            // 1. Calculate Hash
+            const hash = await calculateHash(file);
+            const filename = file.name;
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+            // 2. Verify with server (Quick upload / Resume)
+            status.innerText = 'Verifying file status...';
+            const verifyRes = await fetch(`/verify?hash=${hash}&filename=${encodeURIComponent(filename)}`);
+            const verifyData = await verifyRes.json();
+
+            if (!verifyData.shouldUpload) {
+                status.innerText = 'File already exists on server (Quick Upload Success)!';
+                progressBar.style.width = '100%';
+                progressBar.innerText = '100%';
+                uploadBtn.disabled = false;
+                return;
+            }
+
+            const uploadedChunks = verifyData.uploadedChunks || [];
+            
+            // 3. Create Chunks and Filter out already uploaded ones
+            const tasks = [];
+            for (let i = 0; i < totalChunks; i++) {
+                if (uploadedChunks.includes(i)) continue; // Skip uploaded chunks
+                
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+                
+                tasks.push({ index: i, chunk });
+            }
+
+            // 4. Upload Chunks with Concurrency Control
+            status.innerText = 'Uploading chunks...';
+            let uploadedCount = uploadedChunks.length;
+            const updateProgress = () => {
+                const percent = Math.round((uploadedCount / totalChunks) * 100);
+                progressBar.style.width = `${percent}%`;
+                progressBar.innerText = `${percent}%`;
+            };
+            updateProgress();
+
+            await asyncPool(CONCURRENT_LIMIT, tasks, async (task) => {
+                const formData = new FormData();
+                formData.append('hash', hash);
+                formData.append('index', task.index);
+                formData.append('chunk', task.chunk);
+
+                await fetch('/upload-chunk', { method: 'POST', body: formData });
+                uploadedCount++;
+                updateProgress();
+            });
+
+            // 5. Merge Chunks
+            status.innerText = 'Merging file on server...';
+            const mergeRes = await fetch('/merge-chunks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hash, filename, totalChunks })
+            });
+            
+            const mergeData = await mergeRes.json();
+            if (mergeData.success) {
+                status.innerText = 'Upload and Merge Successful!';
+                progressBar.style.backgroundColor = '#4caf50';
+            } else {
+                status.innerText = 'Error merging file.';
+                progressBar.style.backgroundColor = '#f44336';
+            }
+            
+            uploadBtn.disabled = false;
+        }
+
+        // Concurrency control utility
+        async function asyncPool(poolLimit, array, iteratorFn) {
+            const ret = [];
+            const executing = [];
+            for (const item of array) {
+                const p = Promise.resolve().then(() => iteratorFn(item));
+                ret.push(p);
+                if (poolLimit <= array.length) {
+                    const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+                    executing.push(e);
+                    if (executing.length >= poolLimit) {
+                        await Promise.race(executing);
+                    }
+                }
+            }
+            return Promise.all(ret);
+        }
+    </script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

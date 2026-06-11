@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destructible Terrain & Fluid Sim Shooter</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; color: white; font-family: sans-serif; }
+        canvas { display: block; margin: 0 auto; image-rendering: pixelated; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2>Pixel Physics Shooter</h2>
+        <p>WASD to Move/Jump | Mouse Click to Shoot</p>
+        <p>Shoot the blue container to release water. Water slows you down!</p>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<script>
+/**
+ * MINI PIXEL-PHYSICS ENGINE
+ * Features: Destructible terrain, Cellular Automata Fluids, Player Physics, Raycast Shooting
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game resolution (upscaled for performance)
+const SCALE = 4;
+const W = canvas.width / SCALE;
+const H = canvas.height / SCALE;
+
+// Material IDs
+const EMPTY = 0;
+const DIRT = 1;
+const WATER = 2;
+const CONTAINER = 3;
+const ENEMY = 4;
+
+// Colors (R, G, B, A)
+const colors = {
+    [EMPTY]: [30, 30, 40, 255],
+    [DIRT]: [101, 67, 33, 255],
+    [WATER]: [50, 150, 255, 200],
+    [CONTAINER]: [100, 100, 100, 255],
+    [ENEMY]: [255, 50, 50, 255]
+};
+
+// The World Grid
+let grid = new Uint8Array(W * H);
+let nextGrid = new Uint8Array(W * H);
+
+// Simple 1D Noise for Terrain (Simulating Perlin)
+function noise(x) {
+    return (Math.sin(x * 0.05) + Math.sin(x * 0.1) + Math.sin(x * 0.017)) / 3;
+}
+
+// Initialize World
+function initWorld() {
+    for (let x = 0; x < W; x++) {
+        let height = Math.floor((noise(x) * 0.5 + 0.5) * (H / 2)) + H / 3;
+        for (let y = 0; y < H; y++) {
+            let idx = y * W + x;
+            if (y > height) {
+                grid[idx] = DIRT;
+            } else {
+                grid[idx] = EMPTY;
+            }
+        }
+    }
+
+    // Spawn a water container
+    for (let x = 100; x < 130; x++) {
+        for (let y = 20; y < 50; y++) {
+            if (x === 100 || x === 129 || y === 49) grid[y * W + x] = CONTAINER; // Shell
+            else grid[y * W + x] = WATER; // Inside
+        }
+    }
+
+    // Spawn an enemy
+    for (let x = 160; x < 170; x++) {
+        for (let y = 60; y < 70; y++) {
+            grid[y * W + x] = ENEMY;
+        }
+    }
+}
+
+// Player Object
+const player = {
+    x: 50, y: 20, vx: 0, vy: 0, width: 4, height: 8, speed: 1, grounded: false
+};
+
+// Input State
+const keys = { w: false, a: false, s: false, d: false };
+window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+// Shooting
+let bullets = [];
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / SCALE;
+    const my = (e.clientY - rect.top) / SCALE;
+    
+    const angle = Math.atan2(my - player.y, mx - player.x);
+    bullets.push({
+        x: player.x, y: player.y,
+        vx: Math.cos(angle) * 5, vy: Math.sin(angle) * 5,
+        life: 100
+    });
+});
+
+// Explosion / Terrain Destruction
+function explode(cx, cy, radius) {
+    cx = Math.floor(cx); cy = Math.floor(cy);
+    for (let x = -radius; x <= radius; x++) {
+        for (let y = -radius; y <= radius; y++) {
+            if (x*x + y*y <= radius*radius) {
+                let px = cx + x, py = cy + y;
+                if (px >= 0 && px < W && py >= 0 && py < H) {
+                    grid[py * W + px] = EMPTY;
+                }
+            }
+        }
+    }
+}
+
+// Physics & Fluid Simulation Loop
+function updatePhysics() {
+    nextGrid.set(grid); // Copy current state
+
+    // Fluid Cellular Automata
+    for (let y = H - 2; y >= 0; y--) {
+        for (let x = 0; x < W; x++) {
+            let idx = y * W + x;
+            if (grid[idx] === WATER) {
+                let below = (y + 1) * W + x;
+                let belowLeft = (y + 1) * W + (x - 1);
+                let belowRight = (y + 1) * W + (x + 1);
+                let left = y * W + (x - 1);
+                let right = y * W + (x + 1);
+
+                // Fall down
+                if (grid[below] === EMPTY) {
+                    nextGrid[idx] = EMPTY; nextGrid[below] = WATER;
+                } 
+                // Flow diagonally
+                else if (x > 0 && grid[belowLeft] === EMPTY) {
+                    nextGrid[idx] = EMPTY; nextGrid[belowLeft] = WATER;
+                } 
+                else if (x < W - 1 && grid[belowRight] === EMPTY) {
+                    nextGrid[idx] = EMPTY; nextGrid[belowRight] = WATER;
+                }
+                // Flow sideways
+                else if (x > 0 && grid[left] === EMPTY) {
+                    nextGrid[idx] = EMPTY; nextGrid[left] = WATER;
+                }
+                else if (x < W - 1 && grid[right] === EMPTY) {
+                    nextGrid[idx] = EMPTY; nextGrid[right] = WATER;
+                }
+            }
+        }
+    }
+    grid.set(nextGrid);
+
+    // Player Physics
+    let inWater = grid[Math.floor(player.y) * W + Math.floor(player.x)] === WATER;
+    let currentSpeed = inWater ? player.speed * 0.4 : player.speed; // Water slows movement
+
+    if (keys.a) player.vx -= 0.2 * currentSpeed;
+    if (keys.d) player.vx += 0.2 * currentSpeed;
+    
+    player.vy += inWater ? 0.05 : 0.15; // Gravity (buoyancy in water)
+    player.vx *= inWater ? 0.8 : 0.9; // Friction
+
+    if (keys.w && player.grounded) {
+        player.vy = inWater ? -1.5 : -3;
+        player.grounded = false;
+    }
+
+    // Simple Collision
+    player.x += player.vx;
+    if (grid[Math.floor(player.y) * W + Math.floor(player.x)] === DIRT) {
+        player.x -= player.vx; player.vx = 0;
+    }
+    
+    player.y += player.vy;
+    player.grounded = false;
+    if (grid[Math.floor(player.y + player.height/2) * W + Math.floor(player.x)] === DIRT) {
+        player.y -= player.vy; player.vy = 0;
+        player.grounded = true;
+    }
+
+    // Bullet Physics
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+        
+        let bx = Math.floor(b.x), by = Math.floor(b.y);
+        if (bx >= 0 && bx < W && by >= 0 && by < H) {
+            let hitMat = grid[by * W + bx];
+            if (hitMat === DIRT || hitMat === CONTAINER || hitMat === ENEMY) {
+                explode(b.x, b.y, 8); // Destruct terrain/container
+                bullets.splice(i, 1);
+                continue;
+            }
+        }
+        if (b.life <= 0) bullets.splice(i, 1);
+    }
+}
+
+// Rendering
+const imageData = ctx.createImageData(W, H);
+function render() {
+    // Render Grid
+    for (let i = 0; i < grid.length; i++) {
+        let color = colors[grid[i]];
+        let px = i * 4;
+        imageData.data[px] = color[0];
+        imageData.data[px+1] = color[1];
+        imageData.data[px+2] = color[2];
+        imageData.data[px+3] = color[3];
+    }
+
+    // Draw to hidden canvas, then scale up to main canvas for pixelated look
+    let tempCanvas = document.createElement('canvas');
+    tempCanvas.width = W; tempCanvas.height = H;
+    tempCanvas.getContext('2d').putImageData(imageData, 0, 0);
+    
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+
+    // Render Player
+    ctx.fillStyle = 'lime';
+    ctx.fillRect((player.x - player.width/2) * SCALE, (player.y - player.height/2) * SCALE, player.width * SCALE, player.height * SCALE);
+
+    // Render Bullets
+    ctx.fillStyle = 'yellow';
+    for (let b of bullets) {
+        ctx.fillRect(b.x * SCALE, b.y * SCALE, 2 * SCALE, 2 * SCALE);
+    }
+}
+
+// Main Game Loop
+function loop() {
+    updatePhysics();
+    render();
+    requestAnimationFrame(loop);
+}
+
+initWorld();
+loop();
+</script>
+</body>
+</html>

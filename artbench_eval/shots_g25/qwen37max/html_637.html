@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Equestrian Show Jumping</title>
+<style>
+  /* ---------- Page layout ---------- */
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #1a1a2e;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+  #wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  canvas {
+    background: #87ceeb;
+    border: 4px solid #3a2a1a;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    max-width: 95vw;
+    max-height: 85vh;
+  }
+  #hint {
+    margin-top: 10px;
+    font-size: 14px;
+    opacity: 0.85;
+    text-align: center;
+  }
+  kbd {
+    background: #222;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="hint">
+    <kbd>→</kbd> Speed up &nbsp; <kbd>←</kbd> Slow down &nbsp;
+    <kbd>Space</kbd> Jump &nbsp; <kbd>R</kbd> Restart
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Equestrian Show Jumping Game
+   - Side-scrolling 2D arena
+   - Horse gallops, jumps over rails and water pits
+   - Score starts at 1000, deductions for collisions
+   - Finish line ends the run and shows final score
+   ========================================================= */
+
+const canvas = document.getElementById('game');
+const ctx    = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+/* ---------- World constants ---------- */
+const GROUND_Y      = H - 90;      // y-coordinate of the ground line
+const GRAVITY       = 0.9;         // gravity acceleration
+const JUMP_POWER    = 17;          // initial jump velocity
+const TRACK_LENGTH  = 6000;        // total length of the course
+const BASE_SPEED    = 5;           // default forward speed
+
+/* ---------- Input state ---------- */
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) {
+    e.preventDefault();
+  }
+  if (e.code === 'KeyR') resetGame();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+/* =========================================================
+   Horse class
+   - Handles position, velocity, jumping, and gallop animation
+   ========================================================= */
+class Horse {
+  constructor() {
+    this.x = 120;          // world x position
+    this.y = GROUND_Y;     // feet y position
+    this.vy = 0;           // vertical velocity
+    this.speed = BASE_SPEED;
+    this.onGround = true;
+    this.gallopPhase = 0;  // animation phase for legs
+    this.width = 110;
+    this.height = 80;
+  }
+
+  update() {
+    /* --- Horizontal speed control --- */
+    if (keys['ArrowRight']) this.speed = Math.min(this.speed + 0.15, 11);
+    else if (keys['ArrowLeft']) this.speed = Math.max(this.speed - 0.2, 1.5);
+    else {
+      // ease back to base speed
+      if (this.speed > BASE_SPEED) this.speed -= 0.05;
+      else if (this.speed < BASE_SPEED) this.speed += 0.05;
+    }
+
+    /* --- Jump --- */
+    if (keys['Space'] && this.onGround) {
+      this.vy = -JUMP_POWER;
+      this.onGround = false;
+    }
+
+    /* --- Apply gravity --- */
+    this.y += this.vy;
+    this.vy += GRAVITY;
+    if (this.y >= GROUND_Y) {
+      this.y = GROUND_Y;
+      this.vy = 0;
+      this.onGround = true;
+    }
+
+    /* --- Advance world position --- */
+    this.x += this.speed;
+
+    /* --- Gallop animation (faster when running faster) --- */
+    if (this.onGround) {
+      this.gallopPhase += 0.15 + this.speed * 0.02;
+    }
+  }
+
+  /* Bounding box used for collision detection */
+  getHitbox() {
+    return {
+      x: this.x - 45,
+      y: this.y - 70,
+      w: 95,
+      h: 70
+    };
+  }
+
+  /* Draw the horse + rider using simple shapes */
+  draw(camX) {
+    const sx = this.x - camX;   // screen x
+    const sy = this.y;          // screen y (feet)
+    const jumping = !this.onGround;
+    const phase = this.gallopPhase;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    /* --- Shadow on the ground --- */
+    const shadowScale = jumping ? 0.6 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 50 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* --- Leg animation offsets --- */
+    // Four legs: front-left, front-right, back-left, back-right
+    const legSwing = jumping ? 0 : Math.sin(phase) * 18;
+    const legSwing2 = jumping ? 0 : Math.sin(phase + Math.PI) * 18;
+    const legTuck = jumping ? -15 : 0;   // tuck legs when airborne
+
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+
+    // Back legs
+    ctx.beginPath();
+    ctx.moveTo(-25, -25);
+    ctx.lineTo(-25 + legSwing2 * 0.4, -5 + legTuck);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-15, -25);
+    ctx.lineTo(-15 + legSwing * 0.4, -5 + legTuck);
+    ctx.stroke();
+
+    // Front legs
+    ctx.beginPath();
+    ctx.moveTo(25, -25);
+    ctx.lineTo(25 + legSwing * 0.4, -5 + legTuck);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(35, -25);
+    ctx.lineTo(35 + legSwing2 * 0.4, -5 + legTuck);
+    ctx.stroke();
+
+    /* --- Horse body --- */
+    ctx.fillStyle = '#8b5a2b';
+    ctx.beginPath();
+    ctx.ellipse(0, -35, 45, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* --- Tail (wags slightly) --- */
+    const tailWag = Math.sin(phase * 0.8) * 6;
+    ctx.strokeStyle = '#3a2410';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-42, -38);
+    ctx.quadraticCurveTo(-60 + tailWag, -30, -55 + tailWag, -10);
+    ctx.stroke();
+
+    /* --- Neck & head --- */
+    ctx.fillStyle = '#8b5a2b';
+    ctx.beginPath();
+    ctx.moveTo(30, -45);
+    ctx.lineTo(55, -70);
+    ctx.lineTo(70, -65);
+    ctx.lineTo(60, -40);
+    ctx.closePath();
+    ctx.fill();
+
+    // Head
+    ctx.beginPath();
+    ctx.ellipse(68, -68, 14, 10, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snout
+    ctx.fillStyle = '#6b4420';
+    ctx.beginPath();
+    ctx.ellipse(80, -65, 7, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ear
+    ctx.fillStyle = '#5a3a1a';
+    ctx.beginPath();
+    ctx.moveTo(62, -76);
+    ctx.lineTo(66, -86);
+    ctx.lineTo(70, -76);
+    ctx.closePath();
+    ctx.fill();
+
+    // Eye
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(72, -70, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mane
+    ctx.fillStyle = '#3a2410';
+    ctx.beginPath();
+    ctx.moveTo(35, -50);
+    ctx.quadraticCurveTo(45, -75, 60, -72);
+    ctx.lineTo(55, -55);
+    ctx.closePath();
+    ctx.fill();
+
+    /* --- Rider --- */
+    // Legs (boots)
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(5, -35, 8, 18);
+    ctx.fillRect(-5, -35, 8, 18);
+
+    // Torso (red jacket)
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath();
+    ctx.moveTo(-8, -55);
+    ctx.lineTo(12, -55);
+    ctx.lineTo(14, -35);
+    ctx.lineTo(-10, -35);
+    ctx.closePath();
+    ctx.fill();
+
+    // Arms holding reins
+    ctx.strokeStyle = '#c0392b';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(8, -50);
+    ctx.lineTo(35, -55);
+    ctx.stroke();
+
+    // Reins
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(35, -55);
+    ctx.lineTo(70, -62);
+    ctx.stroke();
+
+    // Head
+    ctx.fillStyle = '#f1c27d';
+    ctx.beginPath();
+    ctx.arc(2, -62, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Helmet
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(2, -65, 8, Math.PI, 0);
+    ctx.fill();
+    ctx.fillRect(-6, -65, 16, 3);
+
+    ctx.restore();
+  }
+}
+
+/* =========================================================
+   Obstacle classes
+   ========================================================= */
+
+/* Rail obstacle: horizontal bar on two stands. Can be knocked down. */
+class Rail {
+  constructor(x) {
+    this.x = x;
+    this.y = GROUND_Y;
+    this.width = 70;
+    this.height = 55;
+    this.knocked = false;
+    this.knockAngle = 0;
+    this.knockVy = 0;
+    this.hit = false;
+  }
+  getHitbox() {
+    return { x: this.x - 5, y: this.y - this.height, w: this.width + 10, h: this.height };
+  }
+  knock() {
+    if (!this.knocked) {
+      this.knocked = true;
+      this.knockVy = -4 - Math.random() * 2;
+      this.knockAngleDir = Math.random() < 0.5 ? -1 : 1;
+    }
+  }
+  update() {
+    if (this.knocked) {
+      this.knockVy += 0.4;
+      this.y += this.knockVy;
+      this.knockAngle += 0.08 * this.knockAngleDir;
+    }
+  }
+  draw(camX) {
+    const sx = this.x - camX;
+    ctx.save();
+    ctx.translate(sx, this.y);
+    if (this.knocked) ctx.rotate(this.knockAngle);
+
+    // Stands (white with red stripes)
+    for (const ox of [0, this.width]) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ox - 4, -this.height, 8, this.height);
+      ctx.fillStyle = '#c0392b';
+      for (let i = 0; i < this.height; i += 14) {
+        ctx.fillRect(ox - 4, -this.height + i, 8, 7);
+      }
+      // Cup that holds the rail
+      ctx.fillStyle = '#333';
+      ctx.fillRect(ox - 6, -this.height + 6, 12, 4);
+    }
+
+    // The rail itself
+    ctx.fillStyle = this.knocked ? '#a0522d' : '#d2691e';
+    ctx.fillRect(-2, -this.height + 2, this.width + 4, 8);
+    ctx.strokeStyle = '#5a2d0c';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-2, -this.height + 2, this.width + 4, 8);
+
+    ctx.restore();
+  }
+}
+
+/* Water pit: must be jumped over. Hitting it deducts points. */
+class WaterPit {
+  constructor(x) {
+    this.x = x;
+    this.y = GROUND_Y;
+    this.width = 140;
+    this.height = 14;
+    this.hit = false;
+    this.ripple = 0;
+  }
+  getHitbox() {
+    return { x: this.x, y: this.y - 4, w: this.width, h: 10 };
+  }
+  update() { this.ripple += 0.1; }
+  draw(camX) {
+    const sx = this.x - camX;
+    // Sand border
+    ctx.fillStyle = '#d2b48c';
+    ctx.fillRect(sx - 4, this.y - 2, this.width + 8, this.height + 4);
+    // Water
+    const grad = ctx.createLinearGradient(0, this.y, 0, this.y + this.height);
+    grad.addColorStop(0, '#4aa3df');
+    grad.addColorStop(1, '#1e5f8e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(sx, this.y, this.width, this.height);
+    // Ripples
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const rx = sx + 20 + i * 40 + Math.sin(this.ripple + i) * 4;
+      ctx.beginPath();
+      ctx.moveTo(rx, this.y + 4);
+      ctx.lineTo(rx + 15, this.y + 4);
+      ctx.stroke();
+    }
+  }
+}
+
+/* Solid wall obstacle (brush fence) */
+class Wall {
+  constructor(x) {
+    this.x = x;
+    this.y = GROUND_Y;
+    this.width = 80;
+    this.height = 60;
+    this.hit = false;
+  }
+  getHitbox() {
+    return { x: this.x, y: this.y - this.height, w: this.width, h: this.height };
+  }
+  update() {}
+  draw(camX) {
+    const sx = this.x - camX;
+    // Wooden frame
+    ctx.fillStyle = '#6b4423';
+    ctx.fillRect(sx, this.y - this.height, this.width, this.height);
+    // Brush top
+    ctx.fillStyle = '#3e7d32';
+    for (let i = 0; i < this.width; i += 6) {
+      ctx.beginPath();
+      ctx.moveTo(sx + i, this.y - this.height);
+      ctx.lineTo(sx + i + 3, this.y - this.height - 8 - Math.random() * 2);
+      ctx.lineTo(sx + i + 6, this.y - this.height);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Planks
+    ctx.strokeStyle = '#3a2410';
+    ctx.lineWidth = 1;
+    for (let i = 10; i < this.height; i += 12) {
+      ctx.beginPath();
+      ctx.moveTo(sx, this.y - this.height + i);
+      ctx.lineTo(sx + this.width, this.y - this.height + i);
+      ctx.stroke();
+    }
+  }
+}
+
+/* =========================================================
+   Particle system (dust puffs when galloping / landing)
+   ========================================================= */
+const particles = [];
+function spawnDust(x, y, count = 3) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: -Math.random() * 2 - 0.5,
+      vy: -Math.random() * 1.5,
+      life: 30 + Math.random() * 15,
+      size: 4 + Math.random() * 4
+    });
+  }
+}
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles(camX) {
+  for (const p of particles) {
+    ctx.fillStyle = `rgba(210,180,140,${p.life / 45})`;
+    ctx.beginPath();
+    ctx.arc(p.x - camX, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* =========================================================
+   Game state
+   ========================================================= */
+let horse, obstacles, finishX, score, gameState, message, camX, dustTimer;
+
+function resetGame() {
+  horse = new Horse();
+  obstacles = [];
+  score = 1000;
+  gameState = 'playing';   // 'playing' | 'finished'
+  message = '';
+  camX = 0;
+  dustTimer = 0;
+
+  /* --- Build the course --- */
+  // Place obstacles between x=600 and x=TRACK_LENGTH-400
+  let cursor = 700;
+  const types = ['rail', 'rail', 'water', 'wall', 'rail', 'water', 'rail', 'wall', 'rail', 'water'];
+  for (const t of types) {
+    if (t === 'rail')   obstacles.push(new Rail(cursor));
+    if (t === 'water')  obstacles.push(new WaterPit(cursor));
+    if (t === 'wall')   obstacles.push(new Wall(cursor));
+    cursor += 420 + Math.random() * 120;
+  }
+  finishX = cursor + 300;
+}
+
+/* AABB collision test */
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/* =========================================================
+   Drawing helpers: background, ground, finish line, HUD
+   ========================================================= */
+function drawBackground(camX) {
+  /* Sky gradient */
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  sky.addColorStop(0, '#87ceeb');
+  sky.addColorStop(1, '#cdeefc');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  /* Distant hills (parallax) */
+  ctx.fillStyle = '#7fa77a';
+  for (let i = 0; i < 6; i++) {
+    const hx = (i * 400 - camX * 0.2) % (W + 400);
+    const x = hx < -200 ? hx + W + 400 : hx;
+    ctx.beginPath();
+    ctx.arc(x, GROUND_Y, 180, Math.PI, 0);
+    ctx.fill();
+  }
+
+  /* Arena fence (parallax) */
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  const fenceY = GROUND_Y - 40;
+  ctx.beginPath();
+  ctx.moveTo(0, fenceY);
+  ctx.lineTo(W, fenceY);
+  ctx.moveTo(0, fenceY + 15);
+  ctx.lineTo(W, fenceY + 15);
+  ctx.stroke();
+  // Fence posts
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 30; i++) {
+    const px = (i * 80 - camX * 0.6) % (W + 80);
+    const x = px < -40 ? px + W + 80 : px;
+    ctx.fillRect(x, fenceY - 10, 6, 55);
+  }
+
+  /* Ground (sand) */
+  const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+  groundGrad.addColorStop(0, '#e8c88a');
+  groundGrad.addColorStop(1, '#b8935a');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  /* Track lines */
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.setLineDash([20, 20]);
+  ctx.lineDashOffset = -camX;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y + 30);
+  ctx.lineTo(W, GROUND_Y + 30);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawFinishLine(camX) {
+  const sx = finishX - camX;
+  if (sx < -60 || sx > W + 60) return;
+  // Poles
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(sx - 4, GROUND_Y - 120, 8, 120);
+  ctx.fillRect(sx + 56, GROUND_Y - 120, 8, 120);
+  // Banner with checkered pattern
+  const bannerW = 60, bannerH = 30;
+  for (let i = 0; i < 6; i++) {
+    for (let j = 0; j < 3; j++) {
+      ctx.fillStyle = (i + j) % 2 === 0 ? '#000' : '#fff';
+      ctx.fillRect(sx + i * 10, GROUND_Y - 120 + j * 10, 10, 10);
+    }
+  }
+  ctx.fillStyle = '#c0392b';
+  ctx.fillRect(sx, GROUND_Y - 85, bannerW, 18);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('FINISH', sx + bannerW / 2, GROUND_Y - 72);
+}
+
+function drawHUD() {
+  // Score panel
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(15, 15, 220, 70);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(15, 15, 220, 70);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Score: ' + score, 30, 42);
+
+  // Progress bar
+  const progress = Math.min(1, horse.x / finishX);
+  ctx.fillStyle = '#444';
+  ctx.fillRect(30, 55, 190, 14);
+  ctx.fillStyle = '#27ae60';
+  ctx.fillRect(30, 55, 190 * progress, 14);
+  ctx.strokeStyle = '#fff';
+  ctx.strokeRect(30, 55, 190, 14);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px Arial';
+  ctx.fillText('Progress', 30, 52);
+
+  // Speed indicator
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(W - 150, 15, 135, 40);
+  ctx.strokeStyle = '#fff';
+  ctx.strokeRect(W - 150, 15, 135, 40);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Speed: ' + horse.speed.toFixed(1), W - 140, 40);
+}
+
+function drawEndScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 48px Arial';
+  ctx.fillText('Course Complete!', W / 2, H / 2 - 60);
+
+  ctx.font = 'bold 36px Arial';
+  ctx.fillStyle = score >= 800 ? '#2ecc71' : score >= 500 ? '#f1c40f' : '#e74c3c';
+  ctx.fillText('Final Score: ' + score, W / 2, H / 2);
+
+  ctx.font = '20px Arial';
+  ctx.fillStyle = '#fff';
+  let rating = score >= 900 ? 'Gold Medal 🥇' :
+               score >= 700 ? 'Silver Medal 🥈' :
+               score >= 500 ? 'Bronze Medal 🥉' : 'Keep Practicing!';
+  ctx.fillText(rating, W / 2, H / 2 + 40);
+
+  ctx.font = '16px Arial';
+  ctx.fillText('Press R to ride again', W / 2, H / 2 + 90);
+}
+
+/* =========================================================
+   Main update & render loop
+   ========================================================= */
+function update() {
+  if (gameState !== 'playing') return;
+
+  horse.update();
+
+  /* Camera follows the horse */
+  camX = horse.x - 200;
+  if (camX < 0) camX = 0;
+
+  /* Dust particles while galloping */
+  dustTimer++;
+  if (horse.onGround && dustTimer > 4) {
+    spawnDust(horse.x - 40, GROUND_Y - 2, 1);
+    dustTimer = 0;
+  }
+
+  /* Update obstacles and check collisions */
+  const hb = horse.getHitbox();
+  for (const o of obstacles) {
+    o.update();
+    if (!o.hit && rectsOverlap(hb, o.getHitbox())) {
+      o.hit = true;
+      if (o instanceof Rail) {
+        o.knock();
+        score -= 40;
+        spawnDust(o.x + 30, GROUND_Y - 30, 8);
+      } else if (o instanceof WaterPit) {
+        score -= 60;
+        spawnDust(o.x + 40, GROUND_Y, 10);
+      } else if (o instanceof Wall) {
+        score -= 80;
+        horse.speed *= 0.4;
+        spawnDust(o.x + 20, GROUND_Y - 20, 12);
+      }
+      if (score < 0) score = 0;
+    }
+  }
+
+  updateParticles();
+
+  /* Finish line check */
+  if (horse.x >= finishX) {
+    gameState = 'finished';
+  }
+}
+
+function render() {
+  drawBackground(camX);
+
+  // Draw obstacles
+  for (const o of obstacles) o.draw(camX);
+
+  // Finish line
+  drawFinishLine(camX);
+
+  // Particles behind horse
+  drawParticles(camX);
+
+  // Horse
+  horse.draw(camX);
+
+  // HUD
+  drawHUD();
+
+  if (gameState === 'finished') drawEndScreen();
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Start the game ---------- */
+resetGame();
+loop();
+</script>
+</body>
+</html>

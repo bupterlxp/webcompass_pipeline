@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Luna — Personal Blog</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<style>/* ---------- Design Tokens ---------- */
+:root {
+  --primary: #6366f1;
+  --primary-600: #4f46e5;
+  --primary-50: #eef2ff;
+  --accent: #f59e0b;
+  --success: #10b981;
+  --danger: #ef4444;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+  --shadow: 0 4px 12px rgba(15,23,42,.08);
+  --shadow-lg: 0 20px 40px rgba(15,23,42,.15);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+  --transition: .25s ease;
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1,h2,h3,h4 { margin: 0; line-height: 1.25; color: var(--text); }
+p { margin: 0; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: 14px;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-600); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn-block { width: 100%; justify-content: center; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text); transition: all var(--transition);
+}
+.icon-btn:hover { background: var(--surface-2); }
+.icon-btn .dot {
+  position: absolute; top: 9px; right: 10px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger); border: 2px solid var(--surface);
+}
+.link { color: var(--primary); font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; }
+.link:hover { text-decoration: underline; }
+
+/* ---------- Nav ---------- */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255,255,255,.85);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 1200px; margin: 0 auto;
+  padding: 14px 24px; display: flex; align-items: center; gap: 24px;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); }
+.brand-mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #8b5cf6); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a { padding: 8px 14px; border-radius: var(--radius-sm); color: var(--text-muted); font-weight: 500; font-size: 14px; transition: all var(--transition); }
+.nav-links a:hover { background: var(--surface-2); color: var(--text); }
+.nav-user { display: flex; gap: 4px; margin-left: auto; }
+
+/* ---------- App ---------- */
+.app { max-width: 1200px; margin: 0 auto; padding: 32px 24px 64px; }
+.view { display: none; animation: fadeIn .3s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Hero ---------- */
+.hero {
+  display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; align-items: center;
+  padding: 40px 0 56px; border-bottom: 1px solid var(--border);
+}
+.eyebrow {
+  display: inline-block; padding: 6px 14px; border-radius: 999px;
+  background: var(--primary-50); color: var(--primary-600);
+  font-size: 13px; font-weight: 600; margin-bottom: 16px;
+}
+.hero h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 700; margin-bottom: 16px; }
+.lede { color: var(--text-muted); font-size: 17px; max-width: 520px; margin-bottom: 24px; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-visual { display: flex; flex-direction: column; gap: 16px; }
+.card {
+  background: var(--surface); border-radius: var(--radius); overflow: hidden;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+.card-img { aspect-ratio: 16/10; overflow: hidden; background: var(--surface-2); }
+.card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+.card:hover .card-img img { transform: scale(1.05); }
+.card-body { padding: 20px; }
+.card-body h3 { font-size: 18px; margin: 8px 0 6px; }
+.card-body p { font-size: 14px; color: var(--text-muted); }
+.tag {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  background: var(--primary-50); color: var(--primary-600);
+  font-size: 12px; font-weight: 600; margin-bottom: 8px;
+}
+
+/* ---------- Sections ---------- */
+.section { padding: 48px 0; }
+.section-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+}
+.section-head h2 { font-size: 26px; font-weight: 700; }
+
+/* ---------- Grid ---------- */
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.photo-card, .video-card { aspect-ratio: 16/10; position: relative; overflow: hidden; }
+.photo-card img, .video-card video { width: 100%; height: 100%; object-fit: cover; }
+.video-card video { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- Article Detail ---------- */
+.article-detail { max-width: 820px; margin: 0 auto; }
+.back-btn { margin-bottom: 24px; }
+.article-hero { aspect-ratio: 16/8; overflow: hidden; border-radius: var(--radius); margin-bottom: 24px; }
+.article-hero img { width: 100%; height: 100%; object-fit: cover; }
+.article-body { padding: 24px; }
+.article-body h1 { font-size: 36px; font-weight: 700; margin-bottom: 12px; }
+.byline { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+.article-body p { font-size: 16px; line-height: 1.75; }
+.article-body blockquote {
+  margin: 24px 0; padding: 16px 20px; border-left: 4px solid var(--primary);
+  background: var(--primary-50); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-style: italic; color: var(--text);
+}
+
+/* ---------- Social ---------- */
+.social-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.friend-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
+  cursor: pointer; transition: all var(--transition);
+}
+.friend-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow); }
+.friend-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px; color: #fff;
+  flex-shrink: 0;
+}
+.avatar-lg { width: 80px; height: 80px; font-size: 28px; }
+.friend-info { flex: 1; min-width: 0; }
+.friend-name { font-weight: 600; font-size: 15px; }
+.friend-meta { font-size: 13px; color: var(--text-muted); }
+
+/* ---------- Footer ---------- */
+.footer {
+  border-top: 1px solid var(--border); padding: 32px 0;
+  background: var(--surface);
+}
+.footer-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+.footer-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.footer-links { display: flex; gap: 20px; }
+.footer-copy { font-size: 13px; color: var(--text-muted); }
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; opacity: 0; pointer-events: none;
+  transition: opacity var(--transition);
+  z-index: 100;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: auto; }
+.modal {
+  background: var(--surface); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); max-width: 440px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  position: relative;
+  transform: translateY(20px) scale(.96);
+  transition: transform var(--transition);
+}
+.modal-backdrop.open .modal { transform: none; }
+.modal-sm { max-width: 420px; }
+.modal-close {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: all var(--transition);
+}
+.modal-close:hover { background: var(--surface-2); color: var(--text); }
+.modal-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.tab {
+  flex: 1; padding: 12px; font-weight: 600; color: var(--text-muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all var(--transition);
+}
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.field input {
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  font: inherit; color: var(--text); transition: all var(--transition);
+}
+.field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
+.auth-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* ---------- Profile ---------- */
+.profile-card { padding: 32px; text-align: center; }
+.profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.stat { padding: 14px 8px; background: var(--surface-2); border-radius: var(--radius-sm); }
+.stat strong { display: block; font-size: 20px; font-weight: 700; color: var(--text); }
+.stat span { font-size: 12px; color: var(--text-muted); }
+.profile-actions { display: flex; justify-content: center; }
+
+/* ---------- Chat ---------- */
+.chat-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.chat-title { flex: 1; font-weight: 600; font-size: 16px; }
+.chat-count {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+}
+.chat-body { padding: 16px 20px; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.msg {
+  max-width: 70%; padding: 10px 14px; border-radius: 14px;
+  background: var(--surface-2); font-size: 14px; line-height: 1.5;
+  box-shadow: var(--shadow-sm); animation: slideIn .3s ease;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.msg.in { align-self: flex-start; background: var(--primary); color: #fff; border-bottom-left-radius: 4px; }
+.msg.out { align-self: flex-end; background: var(--surface); border-bottom-right-radius: 4px; }
+.msg-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.chat-compose {
+  display: flex; gap: 8px; padding: 12px 20px;
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.chat-compose input {
+  flex: 1; padding: 10px 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  font: inherit; color: var(--text); transition: all var(--transition);
+}
+.chat-compose input:focus { outline: none; border-color: var(--primary); background: var(--surface); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: #fff; padding: 12px 20px; border-radius: 999px;
+  font-size: 14px; font-weight: 500; box-shadow: var(--shadow-lg);
+  opacity: 0; pointer-events: none; transition: all .3s ease;
+  z-index: 200;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; gap: 32px; }
+  .hero-visual { flex-direction: row; }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .social-grid { grid-template-columns: repeat(2, 1fr); }
+  .footer-inner { flex-direction: column; text-align: center; }
+}
+@media (max-width: 600px) {
+  .nav-links { display: none; }
+  .app { padding: 20px 16px 48px; }
+  .section { padding: 32px 0; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .social-grid { grid-template-columns: 1fr; }
+  .profile-stats { grid-template-columns: 1fr; }
+  .hero { padding: 24px 0 40px; }
+  .modal { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="nav-inner">
+    <a href="#/" class="brand" data-route="/">
+      <span class="brand-mark"><i class="fa-solid fa-feather-pointed"></i></span>
+      <span class="brand-name">Luna</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#/" data-route="/">Home</a>
+      <a href="#/articles" data-route="/articles">Articles</a>
+      <a href="#/photos" data-route="/photos">Photos</a>
+      <a href="#/videos" data-route="/videos">Videos</a>
+      <a href="#/social" data-route="/social">Social</a>
+    </nav>
+    <div class="nav-user">
+      <button class="icon-btn" id="msgBtn" title="Messages"><i class="fa-regular fa-envelope"></i><span class="dot"></span></button>
+      <button class="icon-btn" id="profileBtn" title="Profile"><i class="fa-regular fa-user"></i></button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ MAIN ============ -->
+<main id="app" class="app">
+
+  <!-- HOME -->
+  <section id="view-home" class="view active">
+    <div class="hero">
+      <div class="hero-text">
+        <span class="eyebrow">Hello, I'm Luna 👋</span>
+        <h1>A journal of thoughts, photos, and small discoveries.</h1>
+        <p class="lede">Writer · Photographer · Coffee enthusiast. Welcome to my corner of the internet.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-route="/articles">Read my articles</button>
+          <button class="btn btn-ghost" data-route="/photos">Browse photos</button>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="card card-1"><i class="fa-solid fa-mountain-sun"></i><span>Mountains</span></div>
+        <div class="card card-2"><i class="fa-solid fa-palette"></i><span>Art</span></div>
+        <div class="card card-3"><i class="fa-solid fa-book-open"></i><span>Writing</span></div>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Latest from my journal</h2>
+        <a href="#/articles" class="link">View all <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="grid-3">
+        <article class="card article-card" data-route="/articles/1">
+          <div class="card-img"><img src="https://picsum.photos/seed/luna1/600/400" alt="Forest trail"/></div>
+          <div class="card-body">
+            <span class="tag">Travel</span>
+            <h3>The quiet joy of a solo morning hike</h3>
+            <p>Three hours, one trail, no destination. Just the sound of my boots on pine needles.</p>
+          </div>
+        </article>
+        <article class="card article-card" data-route="/articles/2">
+          <div class="card-img"><img src="https://picsum.photos/seed/luna2/600/400" alt="Cozy cafe"/></div>
+          <div class="card-body">
+            <span class="tag">Food</span>
+            <h3>5 cafés that changed how I see mornings</h3>
+            <p>A love letter to the little places that turn ordinary days into rituals.</p>
+          </div>
+        </article>
+        <article class="card article-card" data-route="/articles/3">
+          <div class="card-img"><img src="https://picsum.photos/seed/luna3/600/400" alt="City skyline"/></div>
+          <div class="card-body">
+            <span class="tag">City</span>
+            <h3>Walking the old quarter at dusk</h3>
+            <p>Streetlights, wet cobblestones, and the city exhaling after the day.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>From my camera roll</h2>
+        <a href="#/photos" class="link">View all <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="grid-3">
+        <div class="card photo-card"><img src="https://picsum.photos/seed/luna4/600/400" alt="Seascape"/></div>
+        <div class="card photo-card"><img src="https://picsum.photos/seed/luna5/600/400" alt="Street art"/></div>
+        <div class="card photo-card"><img src="https://picsum.photos/seed/luna6/600/400" alt="Flowers"/></div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ARTICLES -->
+  <section id="view-articles" class="view">
+    <div class="section-head">
+      <h2>All articles</h2>
+      <a href="#/" class="link" data-route="/"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    </div>
+    <div class="grid-3">
+      <article class="card article-card" data-route="/articles/1">
+        <div class="card-img"><img src="https://picsum.photos/seed/luna1/600/400" alt="Forest trail"/></div>
+        <div class="card-body">
+          <span class="tag">Travel</span>
+          <h3>The quiet joy of a solo morning hike</h3>
+          <p>Three hours, one trail, no destination. Just the sound of my boots on pine needles.</p>
+        </div>
+      </article>
+      <article class="card article-card" data-route="/articles/2">
+        <div class="card-img"><img src="https://picsum.photos/seed/luna2/600/400" alt="Cozy cafe"/></div>
+        <div class="card-body">
+          <span class="tag">Food</span>
+          <h3>5 cafés that changed how I see mornings</h3>
+          <p>A love letter to the little places that turn ordinary days into rituals.</p>
+        </div>
+      </article>
+      <article class="card article-card" data-route="/articles/3">
+        <div class="card-img"><img src="https://picsum.photos/seed/luna3/600/400" alt="City skyline"/></div>
+        <div class="card-body">
+          <span class="tag">City</span>
+          <h3>Walking the old quarter at dusk</h3>
+          <p>Streetlights, wet cobblestones, and the city exhaling after the day.</p>
+        </div>
+      </article>
+      <article class="card article-card" data-route="/articles/4">
+        <div class="card-img"><img src="https://picsum.photos/seed/luna7/600/400" alt="Desert"/></div>
+        <div class="card-body">
+          <span class="tag">Travel</span>
+          <h3>Desert skies at 4am</h3>
+          <p>Stars so bright you forget the moon exists.</p>
+        </div>
+      </article>
+      <article class="card article-card" data-route="/articles/5">
+        <div class="card-img"><img src="https://picsum.photos/seed/luna8/600/400" alt="Library"/></div>
+        <div class="card-body">
+          <span class="tag">Reading</span>
+          <h3>Why I read one book at a time</h3>
+          <p>On slow reading, deep focus, and the joy of finishing.</p>
+        </div>
+      </article>
+      <article class="card article-card" data-route="/articles/6">
+        <div class="card-img"><img src="https://picsum.photos/seed/luna9/600/400" alt="Beach"/></div>
+        <div class="card-body">
+          <span class="tag">Travel</span>
+          <h3>Seven days, seven different beaches</h3>
+          <p>A micro-travel diary from a week in the south.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ARTICLES DETAIL -->
+  <section id="view-article" class="view">
+    <article class="article-detail">
+      <button class="btn btn-ghost back-btn" data-route="/articles"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <div class="article-hero"><img src="https://picsum.photos/seed/luna1/1200/600" alt="Article hero"/></div>
+      <div class="article-body">
+        <span class="tag">Travel</span>
+        <h1>The quiet joy of a solo morning hike</h1>
+        <p class="byline">By Luna · March 14, 2025 · 6 min read</p>
+        <p>There is a particular kind of silence that only exists before the world wakes up. It settles over the forest like a blanket, soft and unhurried. I found it this morning on a trail I've walked a hundred times, but today it felt like the first.</p>
+        <p>Three hours, one trail, no destination. Just the sound of my boots on pine needles, the occasional bird call, and the slow unfurling of light across the canopy. I stopped counting steps somewhere around the third hour.</p>
+        <blockquote>"The mountains are calling, and I must go." — John Muir</blockquote>
+        <p>I carried nothing but a water bottle and a notebook. I wrote three sentences. I took two photos. I let the silence do the rest.</p>
+        <p>If you've never done a solo morning hike, I urge you. The world is too loud for its own good, and the forest remembers how to be quiet.</p>
+      </div>
+    </article>
+  </section>
+
+  <!-- PHOTOS -->
+  <section id="view-photos" class="view">
+    <div class="section-head">
+      <h2>Photo gallery</h2>
+      <a href="#/" class="link" data-route="/"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    </div>
+    <div class="grid-3">
+      <div class="card photo-card"><img src="https://picsum.photos/seed/luna4/600/400" alt="Seascape"/></div>
+      <div class="card photo-card"><img src="https://picsum.photos/seed/luna5/600/400" alt="Street art"/></div>
+      <div class="card photo-card"><img src="https://picsum.photos/seed/luna6/600/400" alt="Flowers"/></div>
+      <div class="card photo-card"><img src="https://picsum.photos/seed/luna10/600/400" alt="Mountains"/></div>
+      <div class="card photo-card"><img src="https://picsum.photos/seed/luna11/600/400" alt="Market"/></div>
+      <div class="card photo-card"><img src="https://picsum.photos/seed/luna12/600/400" alt="Night"/></div>
+    </div>
+  </section>
+
+  <!-- VIDEOS -->
+  <section id="view-videos" class="view">
+    <div class="section-head">
+      <h2>Video clips</h2>
+      <a href="#/" class="link" data-route="/"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    </div>
+    <div class="grid-3">
+      <div class="card video-card"><video controls><source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>
+      <div class="card video-card"><video controls><source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>
+      <div class="card video-card"><video controls><source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>
+    </div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section id="view-social" class="view">
+    <div class="section-head">
+      <h2>My social circle</h2>
+      <a href="#/" class="link" data-route="/"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    </div>
+    <div class="social-grid">
+      <div class="card friend-card" data-friend="marco">
+        <div class="avatar" style="background:#c9a2d3">M</div>
+        <div class="friend-info">
+          <div class="friend-name">Marco Rossi</div>
+          <div class="friend-meta">Photographer · 24 friends</div>
+        </div>
+      </div>
+      <div class="card friend-card" data-friend="sophia">
+        <div class="avatar" style="background:#a2d3c9">S</div>
+        <div class="friend-info">
+          <div class="friend-name">Sophia Chen</div>
+          <div class="friend-meta">Writer · 18 friends</div>
+        </div>
+      </div>
+      <div class="card friend-card" data-friend="henry">
+        <div class="avatar" style="background:#d3c9a2">H</div>
+        <div class="friend-info">
+          <div class="friend-name">Henry Park</div>
+          <div class="friend-meta">Chef · 31 friends</div>
+        </div>
+      </div>
+      <div class="card friend-card" data-friend="ana">
+        <div class="avatar" style="background:#d3a2c9">A</div>
+        <div class="friend-info">
+          <div class="friend-name">Ana Márquez</div>
+          <div class="friend-meta">Artist · 9 friends</div>
+        </div>
+      </div>
+      <div class="card friend-card" data-friend="leo">
+        <div class="avatar" style="background:#a2c9d3">L</div>
+        <div class="friend-info">
+          <div class="friend-name">Leo Nakamura</div>
+          <div class="friend-meta">Developer · 42 friends</div>
+        </div>
+      </div>
+      <div class="card friend-card" data-friend="julia">
+        <div class="avatar" style="background:#c9d3a2">J</div>
+        <div class="friend-info">
+          <div class="friend-name">Julia Weber</div>
+          <div class="friend-meta">Teacher · 15 friends</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark"><i class="fa-solid fa-feather-pointed"></i></span>
+      <span>Luna · Journal</span>
+    </div>
+    <div class="footer-links">
+      <a href="#/">Home</a>
+      <a href="#/articles">Articles</a>
+      <a href="#/photos">Photos</a>
+      <a href="#/videos">Videos</a>
+    </div>
+    <div class="footer-copy">© 2025 Luna. Made with ☕.</div>
+  </div>
+</footer>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal-backdrop" id="authModal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" id="authClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-tabs" role="tablist">
+      <button class="tab active" data-tab="login" role="tab">Login</button>
+      <button class="tab" data-tab="register" role="tab">Register</button>
+    </div>
+    <form class="auth-form" id="authForm" novalidate>
+      <div class="field" id="nameField">
+        <label for="name">Name</label>
+        <input type="text" id="name" required placeholder="Your name" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required placeholder="••••••••" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="authSubmit">Sign {login}</button>
+      <p class="auth-hint">By continuing you agree to our Terms.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ PROFILE ============ -->
+<div class="modal-backdrop" id="profileModal">
+  <div class="modal modal-sm">
+    <button class="modal-close" id="profileClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    <div class="profile-card">
+      <div class="avatar avatar-lg" id="profileAvatar">L</div>
+      <h3 id="profileName">Luna</h3>
+      <p class="muted" id="profileBio">Writer · Photographer · Coffee enthusiast</p>
+      <div class="profile-stats">
+        <div class="stat"><strong id="followerCount">0</strong><span>Followers</span></div>
+        <div class="stat"><strong id="followingCount">0</strong><span>Following</span></div>
+        <div class="stat"><strong id="postsCount">0</strong><span>Posts</span></div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn btn-ghost" id="followBtn"><i class="fa-regular fa-user"></i> Follow</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MESSAGES ============ -->
+<div class="modal-backdrop" id="msgModal">
+  <div class="modal modal-sm">
+    <div class="chat-header">
+      <button class="modal-close" id="msgClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      <div class="chat-title">Messages</div>
+      <div class="chat-count" id="msgCount">0</div>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+    <form class="chat-compose" id="chatForm">
+      <input type="text" id="chatInput" placeholder="Type a message..." />
+      <button type="submit" class="btn btn-primary" id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>/* =========================================================
+   Luna Blog — SPA with auth, messages, profile
+   ========================================================= */
+
+const STORAGE = {
+  users: 'luna_users',
+  friends: 'luna_friends',
+  messages: 'luna_messages',
+  followers: 'luna_followers',
+  auth: 'luna_auth'
+};
+
+const DEFAULT_AVATAR = 'L';
+
+const state = {
+  user: null,
+  currentView: '#/',
+  messages: {},
+  followers: {},
+  friends: {},
+  activeTab: 'login'
+};
+
+/* ---------- Storage helpers ---------- */
+function get(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+  catch { return fallback; }
+}
+function set(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+/* ---------- Seed data ---------- */
+function seed() {
+  const users = get(STORAGE.users, {});
+  if (Object.keys(users).length) return;
+  users['luna'] = { name: 'Luna', email: 'luna@journal.com', password: 'luna123', avatar: 'L', bio: 'Writer · Photographer · Coffee enthusiast' };
+  users['marco'] = { name: 'Marco', email: 'marco@pixel.com', password: 'marco123', avatar: 'M', bio: 'Photographer · Loves light.' };
+  users['sophia'] = { name: 'Sophia', email: 'sophia@novel.com', password: 'sophia123', avatar: 'S', bio: 'Writer · Slow reader.' };
+  users['henry'] = { name: 'Henry', email: 'henry@kitchen.com', password: 'henry123', avatar: 'H', bio: 'Chef · Home cook.' };
+  users['ana'] = { name: 'Ana', email: 'ana@studio.com', password: 'ana123', avatar: 'A', bio: 'Artist · Watercolor.' };
+  users['leo'] = { name: 'Leo', email: 'leo@code.com', password: 'leo123', avatar: 'L', bio: 'Developer · Open source.' };
+  users['julia'] = { name: 'Julia', email: 'julia@classroom.com', password: 'julia123', avatar: 'J', bio: 'Teacher · Storyteller.' };
+  set(STORAGE.users, users);
+
+  const friends = get(STORAGE.friends, {});
+  friends.luna = ['marco', 'sophia', 'henry', 'ana', 'leo', 'julia'];
+  set(STORAGE.friends, friends);
+
+  const followers = get(STORAGE.followers, {});
+  followers.luna = ['marco', 'sophia', 'henry', 'ana', 'leo', 'julia'];
+  set(STORAGE.followers, followers);
+
+  const messages = get(STORAGE.messages, {});
+  messages.luna = {
+    marco: [{ from: 'marco', text: 'Hey Luna! Did you see the sunrise yesterday?', time: Date.now() - 3600000 }],
+    sophia: [{ from: 'sophia', text: 'Your hike article made me want to go hiking!', time: Date.now() - 7200000 }],
+    henry: [{ from: 'henry', text: 'Coffee recommendation?', time: Date.now() - 1800000 }]
+  };
+  set(STORAGE.messages, messages);
+}
+
+/* ---------- Auth ---------- */
+function openAuth() { document.getElementById('authModal').classList.add('open'); }
+function closeAuth() { document.getElementById('authModal').classList.remove('open'); }
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('authForm').querySelectorAll('input').forEach(i => i.value = '');
+}
+
+function handleAuth(e) {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const users = get(STORAGE.users, {});
+  const tab = state.activeTab;
+
+  if (!name || !email || !password) {
+    showToast('Please fill all fields');
+    return;
+  }
+  if (tab === 'register' && users[email]) {
+    showToast('Email already registered');
+    return;
+  }
+  const user = { name, email, password, avatar: name.charAt(0).toUpperCase(), bio: 'New friend' };
+  users[email] = user;
+  set(STORAGE.users, users);
+  state.user = email;
+  set(STORAGE.auth, email);
+  closeAuth();
+  showToast('Welcome, ' + name + '!');
+  render();
+}
+
+/* ---------- Profile ---------- */
+function openProfile() {
+  document.getElementById('profileModal').classList.add('open');
+  renderProfile();
+}
+function closeProfile() { document.getElementById('profileModal').classList.remove('open'); }
+
+function renderProfile() {
+  const u = state.user || 'luna';
+  const users = get(STORAGE.users, {});
+  const user = users[u] || users['luna'];
+  const followers = get(STORAGE.followers, {});
+  const following = get(STORAGE.friends, {}) && get(STORAGE.friends, u) || [];
+  const posts = 6; // static
+
+  document.getElementById('profileAvatar').textContent = user.avatar;
+  document.getElementById('profileName').textContent = user.name;
+  document.getElementById('profileBio').textContent = user.bio;
+  document.getElementById('followerCount').textContent = followers[u] ? followers[u].length : 0;
+  document.getElementById('followingCount').textContent = following.length;
+  document.getElementById('postsCount').textContent = posts;
+
+  const followBtn = document.getElementById('followBtn');
+  followBtn.innerHTML = '<i class="fa-regular fa-user"></i> Follow';
+  followBtn.classList.remove('btn-primary');
+  followBtn.classList.add('btn-ghost');
+  followBtn.disabled = true;
+}
+
+/* ---------- Messages ---------- */
+function openMessages() {
+  const u = state.user || 'luna';
+  const msgs = get(STORAGE.messages, {});
+  const count = Object.values(msgs).reduce((s, arr) => s + arr.length, 0);
+  document.getElementById('msgCount').textContent = count;
+  document.getElementById('msgCount').style.background = count > 0 ? 'var(--danger)' : '';
+  document.getElementById('msgModal').classList.add('open');
+  renderChat();
+}
+function closeMessages() { document.getElementById('msgModal').classList.remove('open'); }
+
+function renderChat() {
+  const u = state.user || 'luna';
+  const msgs = get(STORAGE.messages, {});
+  const body = document.getElementById('chatBody');
+  body.innerHTML = '';
+  Object.entries(msgs).forEach(([friend, arr]) => {
+    const card = document.createElement('div');
+    card.className = 'card friend-card';
+    card.style.marginBottom = '8px';
+    card.innerHTML = `
+      <div class="avatar" style="background:${get(STORAGE.users, {})[friend]?.avatar || 'var(--primary)'}">${get(STORAGE.users, {})[friend]?.avatar || 'F'}</div>
+      <div class="friend-info">
+        <div class="friend-name">${get(STORAGE.users, {})[friend]?.name || friend}</div>
+        <div class="friend-meta">${arr.length} messages</div>
+      </div>`;
+    card.addEventListener('click', () => openChat(friend));
+    body.appendChild(card);
+  });
+}
+
+function openChat(friend) {
+  const u = state.user || 'luna';
+  const msgs = get(STORAGE.messages, {});
+  const arr = msgs[u] && msgs[u][friend] || [];
+  const body = document.getElementById('chatBody');
+  body.innerHTML = '';
+  arr.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'msg ' + (m.from === u ? 'in' : 'out');
+    el.innerHTML = `<div>${escapeHtml(m.text)}</div><div class="msg-time">${new Date(m.time).toLocaleTimeString()}</div>`;
+    body.appendChild(el);
+  });
+  document.getElementById('msgModal').classList.add('open');
+}
+
+function sendMessage(e) {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const u = state.user || 'luna';
+  const msgs = get(STORAGE.messages, {});
+  const friend = document.querySelector('.chat-header .chat-title').textContent.trim();
+  if (!friend) return;
+  msgs[u][friend] = msgs[u][friend] || [];
+  msgs[u][friend].push({ from: u, text, time: Date.now() });
+  set(STORAGE.messages, msgs);
+  input.value = '';
+  renderChat();
+  showToast('Message sent');
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- Routing ---------- */
+function navigate(route) {
+  const hash = route || '#/';
+  state.currentView = hash;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-home').classList.toggle('active', hash === '#/');
+  document.getElementById('view-articles').classList.toggle('active', hash === '#/articles');
+  document.getElementById('view-article').classList.toggle('active', hash === '#/articles/1');
+  document.getElementById('view-article').classList.toggle('active', hash === '#/articles/2');
+  document.getElementById('view-article').classList.toggle('active', hash === '#/articles/3');
+  document.getElementById('view-article').classList.toggle('active', hash === '#/articles/4');
+  document.getElementById('view-article').classList.toggle('active', hash === '#/articles/5');
+  document.getElementById('view-article').classList.toggle('active', hash === '#/articles/6');
+  document.getElementById('view-photos').classList.toggle('active', hash === '#/photos');
+  document.getElementById('view-videos').classList.toggle('active', hash === '#/videos');
+  document.getElementById('view-social').classList.toggle('active', hash === '#/social');
+
+  // scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // activate friend cards
+  document.querySelectorAll('.friend-card').forEach(c => {
+    c.classList.remove('active');
+    if (c.dataset.friend === hash.replace('#/social/', '') || c.dataset.friend === hash.replace('#/social', '')) {
+      c.classList.add('active');
+    }
+  });
+
+  // activate article cards
+  document.querySelectorAll('.article-card').forEach(c => {
+    c.classList.remove('active');
+    if (c.dataset.route === hash) c.classList.add('active');
+  });
+
+  // scroll active into view
+  const active = document.querySelector('.view.active .card.active');
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ---------- Toast ---------- */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ---------- Event delegation ---------- */
+document.addEventListener('click', e => {
+  const routeEl = e.target.closest('[data-route]');
+  if (routeEl) {
+    e.preventDefault();
+    navigate(routeEl.dataset.route);
+  }
+
+  const friendEl = e.target.closest('[data-friend]');
+  if (friendEl) {
+    e.preventDefault();
+    openChat(friendEl.dataset.friend);
+  }
+
+  const authClose = e.target.closest('#authClose');
+  if (authClose) { closeAuth(); return; }
+  const profileClose = e.target.closest('#profileClose');
+  if (profileClose) { closeProfile(); return; }
+  const msgClose = e.target.closest('#msgClose');
+  if (msgClose) { closeMessages(); return; }
+
+  const msgBtn = e.target.closest('#msgBtn');
+  if (msgBtn) { openMessages(); return; }
+  const profileBtn = e.target.closest('#profileBtn');
+  if (profileBtn) { openProfile(); return; }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+/* ---------- Init ---------- */
+seed();
+const savedUser = get(STORAGE.auth, null);
+if (savedUser) state.user = savedUser;
+
+renderProfile();
+renderChat();
+
+// initial route
+navigate(state.currentView);
+</script></script>
+</body>
+</html>

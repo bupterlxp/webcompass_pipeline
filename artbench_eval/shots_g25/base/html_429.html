@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Spacecraft Gravity Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        #gameInfo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <h3>Controls</h3>
+        <p>Arrow Keys or WASD: Move</p>
+        <p>Space: Increase Speed</p>
+        <p>Shift: Decrease Speed</p>
+        <p>Q: Decrease Speed (Alternative)</p>
+        <p>E: Increase Speed (Alternative)</p>
+        <p>Enter: Reset Game</p>
+    </div>
+    <div id="gameInfo">
+        <h3>Game Info</h3>
+        <p>Speed: <span id="speedDisplay">0.0</span> m/s</p>
+        <p>Distance to nearest planet: <span id="distanceDisplay">-</span> km</p>
+        <p>Gravity: <span id="gravityDisplay">0.0</span> m/s²</p>
+        <p>Score: <span id="scoreDisplay">0</span></p>
+    </div>
+
+    <script>
+        // Game setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas to full window size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Game state
+        let gameRunning = true;
+        let score = 0;
+        let gameSpeed = 0.1; // Base speed multiplier
+        let playerSpeed = 0.01; // Initial speed
+        let playerPosition = { x: canvas.width / 2, y: canvas.height / 2 };
+        let playerVelocity = { x: 0, y: 0 };
+        let planets = [];
+        let stars = [];
+        let camera = { x: 0, y: 0, z: 0 };
+        let cameraSpeed = 0.005;
+        let cameraRotation = { x: 0, y: 0 };
+        let keys = {};
+        
+        // Initialize planets
+        function initPlanets() {
+            planets = [
+                { 
+                    x: Math.random() * canvas.width, 
+                    y: Math.random() * canvas.height, 
+                    z: 100, 
+                    radius: 30 + Math.random() * 50, 
+                    mass: 10000 + Math.random() * 50000, 
+                    color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+                    name: `Planet ${Math.floor(Math.random() * 100)}`,
+                    gravity: 0.0001 + Math.random() * 0.0005
+                },
+                { 
+                    x: Math.random() * canvas.width, 
+                    y: Math.random() * canvas.height, 
+                    z: 150, 
+                    radius: 20 + Math.random() * 40, 
+                    mass: 8000 + Math.random() * 40000, 
+                    color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+                    name: `Planet ${Math.floor(Math.random() * 100)}`,
+                    gravity: 0.0001 + Math.random() * 0.0005
+                },
+                { 
+                    x: Math.random() * canvas.width, 
+                    y: Math.random() * canvas.height, 
+                    z: 200, 
+                    radius: 25 + Math.random() * 35, 
+                    mass: 12000 + Math.random() * 60000, 
+                    color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+                    name: `Planet ${Math.floor(Math.random() * 100)}`,
+                    gravity: 0.0001 + Math.random() * 0.0005
+                }
+            ];
+        }
+        
+        // Initialize stars
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 200; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random() * 0.8 + 0.2
+                });
+            }
+        }
+        
+        // Calculate gravity force
+        function calculateGravity(playerPos, planet) {
+            const dx = planet.x - playerPos.x;
+            const dy = planet.y - playerPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Calculate gravity force using Newton's law of universal gravitation
+            // F = G * (m1 * m2) / r^2
+            const gravityForce = (planet.mass * 0.00001) / (distance * distance);
+            
+            // Calculate direction vector
+            const forceX = (dx / distance) * gravityForce;
+            const forceY = (dy / distance) * gravityForce;
+            
+            return { x: forceX, y: forceY };
+        }
+        
+        // Update player position with gravity
+        function updatePlayer() {
+            // Calculate total gravity force from all planets
+            let totalGravityX = 0;
+            let totalGravityY = 0;
+            
+            for (const planet of planets) {
+                const gravity = calculateGravity(playerPosition, planet);
+                totalGravityX += gravity.x;
+                totalGravityY += gravity.y;
+            }
+            
+            // Apply gravity to player velocity
+            playerVelocity.x += totalGravityX * 0.1;
+            playerVelocity.y += totalGravityY * 0.1;
+            
+            // Update player position
+            playerPosition.x += playerVelocity.x * playerSpeed;
+            playerPosition.y += playerVelocity.y * playerSpeed;
+            
+            // Boundary checking
+            if (playerPosition.x < 0) playerPosition.x = 0;
+            if (playerPosition.x > canvas.width) playerPosition.x = canvas.width;
+            if (playerPosition.y < 0) playerPosition.y = 0;
+            if (playerPosition.y > canvas.height) playerPosition.y = canvas.height;
+        }
+        
+        // Draw stars
+        function drawStars() {
+            ctx.fillStyle = 'white';
+            for (const star of stars) {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Draw planets
+        function drawPlanets() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (const planet of planets) {
+                // Calculate distance to player
+                const dx = planet.x - playerPosition.x;
+                const dy = planet.y - playerPosition.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Calculate planet size based on distance (perspective)
+                const size = planet.radius * (1 - distance / 500);
+                const opacity = Math.max(0.1, 1 - distance / 1000);
+                
+                // Draw planet
+                ctx.save();
+                ctx.translate(planet.x, planet.y);
+                ctx.fillStyle = planet.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw planet name
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(planet.name, 0, size + 10);
+                
+                // Draw gravity indicator
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, size + 20);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+        
+        // Draw player spacecraft
+        function drawPlayer() {
+            // Calculate player size based on speed (for visual feedback)
+            const playerSize = 10 + (playerSpeed * 100);
+            
+            // Draw spacecraft
+            ctx.save();
+            ctx.translate(playerPosition.x, playerPosition.y);
+            
+            // Draw main body
+            ctx.fillStyle = 'blue';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, playerSize / 2, playerSize / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw thrusters (based on speed direction)
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.moveTo(-playerSize / 4, -playerSize / 4);
+            ctx.lineTo(0, 0);
+            ctx.lineTo(playerSize / 4, -playerSize / 4);
+            ctx.fill();
+            
+            // Draw thrusters (based on speed direction)
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.moveTo(-playerSize / 4, playerSize / 4);
+            ctx.lineTo(0, 0);
+            ctx.lineTo(playerSize / 4, playerSize / 4);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Update game state
+        function update() {
+            if (!gameRunning) return;
+            
+            // Update player
+            updatePlayer();
+            
+            // Update score based on speed
+            score += playerSpeed * 0.1;
+            
+            // Update gravity display
+            let nearestPlanet = null;
+            let minDistance = Infinity;
+            
+            for (const planet of planets) {
+                const dx = planet.x - playerPosition.x;
+                const dy = planet.y - playerPosition.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPlanet = planet;
+                }
+            }
+            
+            document.getElementById('speedDisplay').textContent = playerSpeed.toFixed(2);
+            document.getElementById('distanceDisplay').textContent = minDistance.toFixed(1);
+            document.getElementById('gravityDisplay').textContent = (nearestPlanet ? nearestPlanet.gravity : 0).toFixed(4);
+            document.getElementById('scoreDisplay').textContent = Math.floor(score);
+        }
+        
+        // Draw game
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            drawStars();
+            
+            // Draw planets
+            drawPlanets();
+            
+            // Draw player
+            drawPlayer();
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Handle keyboard input
+        function handleKeyDown(event) {
+            keys[event.key] = true;
+            
+            // Speed controls
+            if (event.key === ' ' || event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') {
+                playerSpeed = Math.min(0.5, playerSpeed + 0.005);
+            } else if (event.key === 'Shift' || event.key === 'Q' || event.key === 'q') {
+                playerSpeed = Math.max(0.001, playerSpeed - 0.005);
+            } else if (event.key === 'E' || event.key === 'e') {
+                playerSpeed = Math.min(0.5, playerSpeed + 0.005);
+            }
+            
+            // Movement controls
+            if (event.key === 'ArrowLeft' || event.key === 'a' || event.key === 'A') {
+                playerVelocity.x -= 0.01;
+            } else if (event.key === 'ArrowRight' || event.key === 'd' || event.key === 'D') {
+                playerVelocity.x += 0.01;
+            } else if (event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') {
+                playerVelocity.y -= 0.01;
+            } else if (event.key === 'ArrowDown' || event.key === 's' || event.key === 'S') {
+                playerVelocity.y += 0.01;
+            }
+            
+            // Reset game
+            if (event.key === 'Enter') {
+                resetGame();
+            }
+        }
+        
+        // Handle keyboard up
+        function handleKeyUp(event) {
+            keys[event.key] = false;
+        }
+        
+        // Reset game
+        function resetGame() {
+            playerPosition = { x: canvas.width / 2, y: canvas.height / 2 };
+            playerVelocity = { x: 0, y: 0 };
+            playerSpeed = 0.01;
+            score = 0;
+            initPlanets();
+            initStars();
+            document.getElementById('scoreDisplay').textContent = '0';
+        }
+        
+        // Initialize game
+        function init() {
+            initPlanets();
+            initStars();
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+            gameLoop();
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>

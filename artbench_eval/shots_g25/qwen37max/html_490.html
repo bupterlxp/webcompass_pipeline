@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Background Video Generator</title>
+<style>
+/* ========== Global Styles ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0a0a1a;
+  color: #e0e0e0;
+  overflow-x: hidden;
+}
+
+/* ========== Header ========== */
+.header {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  padding: 15px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #2a2a4a;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+}
+.header h1 {
+  font-size: 22px;
+  background: linear-gradient(90deg, #00d2ff, #7b2ff7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header-actions { display: flex; gap: 10px; }
+
+/* ========== Layout ========== */
+.app-container {
+  display: flex;
+  height: calc(100vh - 62px);
+}
+
+/* ========== Left Panel ========== */
+.left-panel {
+  width: 320px;
+  background: #111128;
+  border-right: 1px solid #2a2a4a;
+  overflow-y: auto;
+  padding: 15px;
+}
+.panel-section {
+  margin-bottom: 20px;
+  background: #1a1a35;
+  border-radius: 10px;
+  padding: 15px;
+  border: 1px solid #2a2a4a;
+}
+.panel-section h3 {
+  font-size: 14px;
+  color: #7b8cde;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.form-group { margin-bottom: 12px; }
+.form-group label {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 5px;
+}
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  background: #0d0d20;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: #7b2ff7;
+}
+.form-group input[type="range"] {
+  padding: 0;
+  -webkit-appearance: none;
+  height: 6px;
+  background: #333;
+  border-radius: 3px;
+  border: none;
+}
+.form-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  background: #7b2ff7;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.form-group input[type="color"] {
+  height: 36px;
+  cursor: pointer;
+  padding: 2px;
+}
+.range-value {
+  display: inline-block;
+  font-size: 11px;
+  color: #7b2ff7;
+  float: right;
+  margin-top: -18px;
+}
+
+/* ========== Buttons ========== */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #7b2ff7, #4a00e0);
+  color: white;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(123,47,247,0.4); }
+.btn-success {
+  background: linear-gradient(135deg, #00c853, #009624);
+  color: white;
+}
+.btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(0,200,83,0.4); }
+.btn-danger {
+  background: linear-gradient(135deg, #ff1744, #d50000);
+  color: white;
+}
+.btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(255,23,68,0.4); }
+.btn-secondary {
+  background: #2a2a4a;
+  color: #ccc;
+}
+.btn-secondary:hover { background: #3a3a5a; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-block { width: 100%; justify-content: center; }
+
+/* ========== Center - Preview ========== */
+.center-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0d0d1a;
+}
+.preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+}
+.canvas-wrapper {
+  position: relative;
+  box-shadow: 0 0 40px rgba(123,47,247,0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+#previewCanvas {
+  display: block;
+  border-radius: 8px;
+}
+.preview-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  background: #111128;
+  border-top: 1px solid #2a2a4a;
+}
+.time-display {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #7b2ff7;
+  min-width: 100px;
+  text-align: center;
+}
+
+/* ========== Timeline ========== */
+.timeline-panel {
+  height: 140px;
+  background: #111128;
+  border-top: 1px solid #2a2a4a;
+  padding: 10px 20px;
+  overflow-x: auto;
+}
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.timeline-header h3 { font-size: 13px; color: #7b8cde; }
+.timeline-ruler {
+  position: relative;
+  height: 20px;
+  background: #0d0d20;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  overflow: hidden;
+}
+.timeline-ruler canvas { width: 100%; height: 100%; }
+.timeline-tracks {
+  position: relative;
+  min-height: 60px;
+}
+.timeline-track {
+  height: 28px;
+  background: #1a1a35;
+  border-radius: 4px;
+  margin-bottom: 3px;
+  position: relative;
+  border: 1px solid #2a2a4a;
+}
+.track-item {
+  position: absolute;
+  height: 24px;
+  top: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s;
+}
+.track-item:hover { opacity: 0.85; }
+.track-item.text-item { background: linear-gradient(90deg, #7b2ff7, #4a00e0); }
+.track-item.image-item { background: linear-gradient(90deg, #00c853, #009624); }
+.playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #ff1744;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ========== Right Panel - Element List ========== */
+.right-panel {
+  width: 280px;
+  background: #111128;
+  border-left: 1px solid #2a2a4a;
+  overflow-y: auto;
+  padding: 15px;
+}
+.element-card {
+  background: #1a1a35;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.element-card:hover { border-color: #7b2ff7; }
+.element-card.selected { border-color: #7b2ff7; box-shadow: 0 0 10px rgba(123,47,247,0.3); }
+.element-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.element-card-header span { font-size: 13px; font-weight: 600; }
+.element-card-info { font-size: 11px; color: #888; }
+.element-type-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.badge-text { background: rgba(123,47,247,0.2); color: #7b2ff7; }
+.badge-image { background: rgba(0,200,83,0.2); color: #00c853; }
+
+/* ========== Background Presets ========== */
+.bg-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bg-preset {
+  padding: 10px;
+  background: #0d0d20;
+  border: 2px solid #2a2a4a;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 11px;
+  transition: all 0.3s;
+}
+.bg-preset:hover { border-color: #555; }
+.bg-preset.active { border-color: #7b2ff7; background: rgba(123,47,247,0.1); }
+.bg-preset-icon { font-size: 24px; margin-bottom: 4px; }
+
+/* ========== Modal ========== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: #1a1a35;
+  border-radius: 12px;
+  padding: 25px;
+  width: 450px;
+  max-width: 90%;
+  border: 1px solid #2a2a4a;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal h2 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #7b8cde;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* ========== Export Progress ========== */
+.export-progress {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.export-progress.active { display: flex; }
+.export-progress h2 { margin-bottom: 20px; color: #7b8cde; }
+.progress-bar {
+  width: 400px;
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7b2ff7, #00d2ff);
+  border-radius: 4px;
+  transition: width 0.3s;
+  width: 0%;
+}
+.progress-text { font-size: 14px; color: #999; }
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0a0a1a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ========== Animation Select Grid ========== */
+.anim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.anim-option {
+  padding: 6px;
+  background: #0d0d20;
+  border: 1px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+.anim-option:hover { border-color: #555; }
+.anim-option.active { border-color: #7b2ff7; background: rgba(123,47,247,0.15); }
+
+/* ========== Toast ========== */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1a1a35;
+  border: 1px solid #7b2ff7;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 3000;
+  transition: transform 0.4s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ========== Header ========== -->
+<div class="header">
+  <h1>🎬 Dynamic Background Video Generator</h1>
+  <div class="header-actions">
+    <button class="btn btn-secondary" onclick="resetProject()">🗑️ New Project</button>
+    <button class="btn btn-success" onclick="startExport()">📹 Export Video</button>
+  </div>
+</div>
+
+<!-- ========== Main Layout ========== -->
+<div class="app-container">
+
+  <!-- Left Panel: Controls -->
+  <div class="left-panel">
+
+    <!-- Background Selection -->
+    <div class="panel-section">
+      <h3>🎨 Background Effect</h3>
+      <div class="bg-presets">
+        <div class="bg-preset active" data-bg="particles" onclick="selectBackground('particles')">
+          <div class="bg-preset-icon">✨</div>Particles
+        </div>
+        <div class="bg-preset" data-bg="smoke" onclick="selectBackground('smoke')">
+          <div class="bg-preset-icon">🌫️</div>Smoke
+        </div>
+        <div class="bg-preset" data-bg="waves" onclick="selectBackground('waves')">
+          <div class="bg-preset-icon">🌊</div>Waves
+        </div>
+        <div class="bg-preset" data-bg="starfield" onclick="selectBackground('starfield')">
+          <div class="bg-preset-icon">⭐</div>Starfield
+        </div>
+        <div class="bg-preset" data-bg="matrix" onclick="selectBackground('matrix')">
+          <div class="bg-preset-icon">💚</div>Matrix
+        </div>
+        <div class="bg-preset" data-bg="fireflies" onclick="selectBackground('fireflies')">
+          <div class="bg-preset-icon">🔥</div>Fireflies
+        </div>
+      </div>
+    </div>
+
+    <!-- Background Settings -->
+    <div class="panel-section">
+      <h3>⚙️ Background Settings</h3>
+      <div class="form-group">
+        <label>Background Color 1</label>
+        <input type="color" id="bgColor1" value="#0a0a2e" onchange="updateBgSettings()">
+      </div>
+      <div class="form-group">
+        <label>Background Color 2</label>
+        <input type="color" id="bgColor2" value="#1a0a3e" onchange="updateBgSettings()">
+      </div>
+      <div class="form-group">
+        <label>Effect Intensity <span class="range-value" id="intensityVal">50</span></label>
+        <input type="range" id="bgIntensity" min="10" max="100" value="50" oninput="document.getElementById('intensityVal').textContent=this.value; updateBgSettings()">
+      </div>
+      <div class="form-group">
+        <label>Effect Speed <span class="range-value" id="speedVal">50</span></label>
+        <input type="range" id="bgSpeed" min="10" max="100" value="50" oninput="document.getElementById('speedVal').textContent=this.value; updateBgSettings()">
+      </div>
+    </div>
+
+    <!-- Add Text Element -->
+    <div class="panel-section">
+      <h3>📝 Add Text</h3>
+      <div class="form-group">
+        <label>Text Content</label>
+        <textarea id="textContent" rows="2" placeholder="Enter your text...">Hello World</textarea>
+      </div>
+      <div class="form-group">
+        <label>Font Size <span class="range-value" id="fontSizeVal">48</span></label>
+        <input type="range" id="textFontSize" min="12" max="120" value="48" oninput="document.getElementById('fontSizeVal').textContent=this.value">
+      </div>
+      <div class="form-group">
+        <label>Font Family</label>
+        <select id="textFont">
+          <option value="Arial">Arial</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Impact">Impact</option>
+          <option value="Comic Sans MS">Comic Sans MS</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Text Color</label>
+        <input type="color" id="textColor" value="#ffffff">
+      </div>
+      <div class="form-group">
+        <label>Animation</label>
+        <div class="anim-grid">
+          <div class="anim-option active" data-anim="fadeIn" onclick="selectTextAnim(this)">Fade In</div>
+          <div class="anim-option" data-anim="slideUp" onclick="selectTextAnim(this)">Slide Up</div>
+          <div class="anim-option" data-anim="scaleIn" onclick="selectTextAnim(this)">Scale In</div>
+          <div class="anim-option" data-anim="typewriter" onclick="selectTextAnim(this)">Typewriter</div>
+          <div class="anim-option" data-anim="bounce" onclick="selectTextAnim(this)">Bounce</div>
+          <div class="anim-option" data-anim="glow" onclick="selectTextAnim(this)">Glow</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Start Time (s) <span class="range-value" id="textStartVal">0.0</span></label>
+        <input type="range" id="textStartTime" min="0" max="10" step="0.1" value="0" oninput="document.getElementById('textStartVal').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div class="form-group">
+        <label>Duration (s) <span class="range-value" id="textDurVal">3.0</span></label>
+        <input type="range" id="textDuration" min="0.5" max="10" step="0.1" value="3" oninput="document.getElementById('textDurVal').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addTextElement()">➕ Add Text</button>
+    </div>
+
+    <!-- Add Image Element -->
+    <div class="panel-section">
+      <h3>🖼️ Add Image</h3>
+      <div class="form-group">
+        <label>Image Source</label>
+        <select id="imageSource" onchange="updateImagePreview()">
+          <option value="logo">Sample Logo</option>
+          <option value="icon">Sample Icon</option>
+          <option value="shape">Geometric Shape</option>
+          <option value="custom">Upload Custom</option>
+        </select>
+      </div>
+      <div class="form-group" id="customImageGroup" style="display:none;">
+        <label>Upload Image</label>
+        <input type="file" id="customImageFile" accept="image/*" onchange="handleImageUpload(event)">
+      </div>
+      <div class="form-group">
+        <label>Width <span class="range-value" id="imgWidthVal">150</span></label>
+        <input type="range" id="imgWidth" min="30" max="400" value="150" oninput="document.getElementById('imgWidthVal').textContent=this.value">
+      </div>
+      <div class="form-group">
+        <label>Animation</label>
+        <div class="anim-grid">
+          <div class="anim-option active" data-anim="fadeIn" onclick="selectImageAnim(this)">Fade In</div>
+          <div class="anim-option" data-anim="slideLeft" onclick="selectImageAnim(this)">Slide Left</div>
+          <div class="anim-option" data-anim="zoomIn" onclick="selectImageAnim(this)">Zoom In</div>
+          <div class="anim-option" data-anim="rotate" onclick="selectImageAnim(this)">Rotate</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Start Time (s) <span class="range-value" id="imgStartVal">0.0</span></label>
+        <input type="range" id="imgStartTime" min="0" max="10" step="0.1" value="0" oninput="document.getElementById('imgStartVal').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div class="form-group">
+        <label>Duration (s) <span class="range-value" id="imgDurVal">3.0</span></label>
+        <input type="range" id="imgDuration" min="0.5" max="10" step="0.1" value="3" oninput="document.getElementById('imgDurVal').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addImageElement()">➕ Add Image</button>
+    </div>
+
+    <!-- Video Settings -->
+    <div class="panel-section">
+      <h3>🎞️ Video Settings</h3>
+      <div class="form-group">
+        <label>Resolution</label>
+        <select id="resolution">
+          <option value="1280x720">1280 × 720 (HD)</option>
+          <option value="1920x1080" selected>1920 × 1080 (Full HD)</option>
+          <option value="640x480">640 × 480 (SD)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Duration (s) <span class="range-value" id="totalDurVal">5</span></label>
+        <input type="range" id="totalDuration" min="2" max="30" value="5" oninput="document.getElementById('totalDurVal').textContent=this.value">
+      </div>
+      <div class="form-group">
+        <label>Frame Rate</label>
+        <select id="frameRate">
+          <option value="24">24 FPS</option>
+          <option value="30" selected>30 FPS</option>
+          <option value="60">60 FPS</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center Panel: Preview + Timeline -->
+  <div class="center-panel">
+    <div class="preview-area">
+      <div class="canvas-wrapper">
+        <canvas id="previewCanvas" width="960" height="540"></canvas>
+      </div>
+    </div>
+    <div class="preview-controls">
+      <button class="btn btn-secondary btn-sm" onclick="skipToStart()">⏮</button>
+      <button class="btn btn-primary btn-sm" id="playBtn" onclick="togglePlay()">▶ Play</button>
+      <button class="btn btn-secondary btn-sm" onclick="skipToEnd()">⏭</button>
+      <div class="time-display" id="timeDisplay">00:00.0 / 00:05.0</div>
+      <button class="btn btn-secondary btn-sm" onclick="stopPlayback()">⏹ Stop</button>
+    </div>
+    <div class="timeline-panel">
+      <div class="timeline-header">
+        <h3>📐 Timeline</h3>
+        <span style="font-size:11px;color:#666;" id="timelineInfo">Click on timeline to seek</span>
+      </div>
+      <div class="timeline-ruler" id="timelineRuler" onclick="seekFromTimeline(event)">
+        <canvas id="rulerCanvas"></canvas>
+        <div class="playhead" id="playhead" style="left:0%"></div>
+      </div>
+      <div class="timeline-tracks" id="timelineTracks"></div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Element List -->
+  <div class="right-panel">
+    <div class="panel-section">
+      <h3>📋 Elements</h3>
+      <div id="elementList">
+        <p style="font-size:12px;color:#666;text-align:center;padding:20px;">No elements added yet.<br>Use the left panel to add text and images.</p>
+      </div>
+    </div>
+
+    <!-- Selected Element Properties -->
+    <div class="panel-section" id="propsPanel" style="display:none;">
+      <h3>🔧 Properties</h3>
+      <div class="form-group">
+        <label>Position X <span class="range-value" id="propXVal">480</span></label>
+        <input type="range" id="propX" min="0" max="960" value="480" oninput="updateElementProp('x', this.value)">
+      </div>
+      <div class="form-group">
+        <label>Position Y <span class="range-value" id="propYVal">270</span></label>
+        <input type="range" id="propY" min="0" max="540" value="270" oninput="updateElementProp('y', this.value)">
+      </div>
+      <div class="form-group">
+        <label>Opacity <span class="range-value" id="propOpVal">100</span></label>
+        <input type="range" id="propOpacity" min="0" max="100" value="100" oninput="updateElementProp('opacity', this.value)">
+      </div>
+      <div class="form-group">
+        <label>Rotation <span class="range-value" id="propRotVal">0</span>°</label>
+        <input type="range" id="propRotation" min="0" max="360" value="0" oninput="updateElementProp('rotation', this.value)">
+      </div>
+      <button class="btn btn-danger btn-sm btn-block" onclick="deleteSelectedElement()">🗑️ Delete Element</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Export Progress ========== -->
+<div class="export-progress" id="exportProgress">
+  <h2>🎬 Exporting Video...</h2>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text" id="progressText">Preparing...</div>
+</div>
+
+<!-- ========== Toast ========== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// APPLICATION STATE
+// ============================================================
+const state = {
+  // Background
+  bgType: 'particles',
+  bgColor1: '#0a0a2e',
+  bgColor2: '#1a0a3e',
+  bgIntensity: 50,
+  bgSpeed: 50,
+
+  // Elements
+  elements: [],
+  selectedElementId: null,
+  nextId: 1,
+
+  // Playback
+  isPlaying: false,
+  currentTime: 0,
+  totalDuration: 5,
+  animFrameId: null,
+  lastTimestamp: 0,
+
+  // Canvas
+  canvasWidth: 960,
+  canvasHeight: 540,
+  exportWidth: 1920,
+  exportHeight: 1080,
+
+  // Selected animations
+  selectedTextAnim: 'fadeIn',
+  selectedImageAnim: 'fadeIn',
+
+  // Background particles/objects
+  bgObjects: [],
+
+  // Custom uploaded image
+  customImage: null
+};
+
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+const canvas = document.getElementById('previewCanvas');
+const ctx = canvas.getContext('2d');
+
+// ============================================================
+// BACKGROUND EFFECTS
+// ============================================================
+
+// Initialize background objects based on type
+function initBackground() {
+  state.bgObjects = [];
+  const count = Math.floor(state.bgIntensity * 2);
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+
+  switch (state.bgType) {
+    case 'particles':
+      for (let i = 0; i < count; i++) {
+        state.bgObjects.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          radius: Math.random() * 3 + 1,
+          alpha: Math.random() * 0.8 + 0.2,
+          color: `hsl(${Math.random() * 60 + 240}, 80%, 70%)`
+        });
+      }
+      break;
+
+    case 'smoke':
+      for (let i = 0; i < Math.floor(count / 3); i++) {
+        state.bgObjects.push({
+          x: Math.random() * w,
+          y: h + Math.random() * 100,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -(Math.random() * 1.5 + 0.5),
+          radius: Math.random() * 60 + 30,
+          alpha: Math.random() * 0.15 + 0.05,
+          life: Math.random()
+        });
+      }
+      break;
+
+    case 'waves':
+      // Waves don't need individual objects, handled in render
+      break;
+
+    case 'starfield':
+      for (let i = 0; i < count * 2; i++) {
+        state.bgObjects.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          z: Math.random() * 3 + 0.5,
+          alpha: Math.random(),
+          twinkleSpeed: Math.random() * 3 + 1
+        });
+      }
+      break;
+
+    case 'matrix':
+      const cols = Math.floor(w / 14);
+      for (let i = 0; i < cols; i++) {
+        state.bgObjects.push({
+          x: i * 14,
+          y: Math.random() * h,
+          speed: Math.random() * 3 + 2,
+          chars: [],
+          length: Math.floor(Math.random() * 15 + 5)
+        });
+      }
+      break;
+
+    case 'fireflies':
+      for (let i = 0; i < Math.floor(count / 2); i++) {
+        state.bgObjects.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 1,
+          vy: (Math.random() - 0.5) * 1,
+          radius: Math.random() * 4 + 2,
+          phase: Math.random() * Math.PI * 2,
+          glowSpeed: Math.random() * 2 + 1,
+          hue: Math.random() * 60 + 20 // warm colors
+        });
+      }
+      break;
+  }
+}
+
+// Render background
+function renderBackground(time) {
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+  const speedMul = state.bgSpeed / 50;
+
+  // Draw gradient background
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, state.bgColor1);
+  grad.addColorStop(1, state.bgColor2);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  switch (state.bgType) {
+    case 'particles':
+      renderParticles(time, speedMul);
+      break;
+    case 'smoke':
+      renderSmoke(time, speedMul);
+      break;
+    case 'waves':
+      renderWaves(time, speedMul);
+      break;
+    case 'starfield':
+      renderStarfield(time, speedMul);
+      break;
+    case 'matrix':
+      renderMatrix(time, speedMul);
+      break;
+    case 'fireflies':
+      renderFireflies(time, speedMul);
+      break;
+  }
+}
+
+function renderParticles(time, speedMul) {
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+
+  state.bgObjects.forEach(p => {
+    p.x += p.vx * speedMul;
+    p.y += p.vy * speedMul;
+
+    // Wrap around
+    if (p.x < 0) p.x = w;
+    if (p.x > w) p.x = 0;
+    if (p.y < 0) p.y = h;
+    if (p.y > h) p.y = 0;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.alpha * (0.5 + 0.5 * Math.sin(time * 2 + p.x));
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  // Draw connections
+  ctx.strokeStyle = 'rgba(123, 47, 247, 0.1)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < state.bgObjects.length; i++) {
+    for (let j = i + 1; j < state.bgObjects.length; j++) {
+      const dx = state.bgObjects[i].x - state.bgObjects[j].x;
+      const dy = state.bgObjects[i].y - state.bgObjects[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 100) {
+        ctx.globalAlpha = (1 - dist / 100) * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(state.bgObjects[i].x, state.bgObjects[i].y);
+        ctx.lineTo(state.bgObjects[j].x, state.bgObjects[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function renderSmoke(time, speedMul) {
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+
+  state.bgObjects.forEach(p => {
+    p.x += p.vx * speedMul + Math.sin(time + p.life * 10) * 0.3;
+    p.y += p.vy * speedMul;
+    p.life += 0.002 * speedMul;
+
+    // Reset when off screen
+    if (p.y < -p.radius * 2 || p.life > 1) {
+      p.x = Math.random() * w;
+      p.y = h + Math.random() * 50;
+      p.life = 0;
+      p.alpha = Math.random() * 0.15 + 0.05;
+    }
+
+    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+    gradient.addColorStop(0, `rgba(180, 180, 200, ${p.alpha * (1 - p.life)})`);
+    gradient.addColorStop(1, 'rgba(180, 180, 200, 0)');
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  });
+}
+
+function renderWaves(time, speedMul) {
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+  const t = time * speedMul;
+
+  for (let wave = 0; wave < 5; wave++) {
+    ctx.beginPath();
+    const baseY = h * 0.3 + wave * (h * 0.15);
+    const amplitude = 30 + wave * 10;
+    const frequency = 0.005 - wave * 0.0005;
+    const alpha = 0.15 - wave * 0.02;
+
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 2) {
+      const y = baseY +
+        Math.sin(x * frequency + t * (1 + wave * 0.3)) * amplitude +
+        Math.sin(x * frequency * 2.5 + t * 0.7) * (amplitude * 0.3);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+
+    const hue = 240 + wave * 20;
+    ctx.fillStyle = `hsla(${hue}, 70%, 50%, ${alpha})`;
+    ctx.fill();
+  }
+}
+
+function renderStarfield(time, speedMul) {
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+
+  state.bgObjects.forEach(s => {
+    const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(time * s.twinkleSpeed + s.x));
+    const size = s.z * 1.5;
+
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${twinkle * s.alpha})`;
+    ctx.fill();
+
+    // Add glow to brighter stars
+    if (s.z > 2) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, size * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200, 220, 255, ${twinkle * 0.1})`;
+      ctx.fill();
+    }
+
+    // Slow drift
+    s.x += (s.z * 0.02) * speedMul;
+    if (s.x > w) s.x = 0;
+  });
+}
+
+function renderMatrix(time, speedMul) {
+  const h = state.canvasHeight;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*';
+
+  ctx.font = '14px Courier New';
+
+  state.bgObjects.forEach(col => {
+    col.y += col.speed * speedMul;
+    if (col.y > h + col.length * 14) {
+      col.y = -col.length * 14;
+    }
+
+    for (let i = 0; i < col.length; i++) {
+      const charY = col.y - i * 14;
+      if (charY < -14 || charY > h + 14) continue;
+
+      const alpha = i === 0 ? 1 : Math.max(0, 1 - i / col.length);
+      const green = i === 0 ? 255 : Math.floor(180 * alpha);
+
+      ctx.fillStyle = `rgba(0, ${green}, 0, ${alpha * 0.7})`;
+      const char = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillText(char, col.x, charY);
+    }
+  });
+}
+
+function renderFireflies(time, speedMul) {
+  const w = state.canvasWidth;
+  const h = state.canvasHeight;
+
+  state.bgObjects.forEach(f => {
+    f.x += f.vx * speedMul + Math.sin(time * 0.5 + f.phase) * 0.5;
+    f.y += f.vy * speedMul + Math.cos(time * 0.3 + f.phase) * 0.5;
+
+    // Wrap
+    if (f.x < -20) f.x = w + 20;
+    if (f.x > w + 20) f.x = -20;
+    if (f.y < -20) f.y = h + 20;
+    if (f.y > h + 20) f.y = -20;
+
+    const glow = 0.3 + 0.7 * Math.abs(Math.sin(time * f.glowSpeed + f.phase));
+    const r = f.radius * (0.8 + glow * 0.4);
+
+    // Outer glow
+    const gradient = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r * 6);
+    gradient.addColorStop(0, `hsla(${f.hue}, 100%, 70%, ${glow * 0.4})`);
+    gradient.addColorStop(0.5, `hsla(${f.hue}, 100%, 50%, ${glow * 0.1})`);
+    gradient.addColorStop(1, 'transparent');
+
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r * 6, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Core
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${f.hue}, 100%, 85%, ${glow})`;
+    ctx.fill();
+  });
+}
+
+// ============================================================
+// ELEMENT RENDERING
+// ============================================================
+
+function renderElements(time) {
+  state.elements.forEach(el => {
+    const elStart = el.startTime;
+    const elEnd = el.startTime + el.duration;
+
+    // Check if element is visible at current time
+    if (time < elStart || time > elEnd) return;
+
+    const elapsed = time - elStart;
+    const progress = elapsed / el.duration; // 0 to 1
+
+    ctx.save();
+
+    // Apply base transforms
+    const centerX = el.x;
+    const centerY = el.y;
+    ctx.translate(centerX, centerY);
+    ctx.rotate((el.rotation || 0) * Math.PI / 180);
+
+    // Apply animation
+    let animAlpha = el.opacity / 100;
+    let animOffsetX = 0;
+    let animOffsetY = 0;
+    let animScale = 1;
+    let animRotation = 0;
+
+    // Animation progress for enter (first 20%) and exit (last 20%)
+    const enterProgress = Math.min(1, progress / 0.2);
+    const exitProgress = Math.max(0, (progress - 0.8) / 0.2);
+    const easeEnter = easeOutCubic(enterProgress);
+    const easeExit = 1 - easeInCubic(exitProgress);
+    const visibility = Math.min(easeEnter, easeExit);
+
+    switch (el.animation) {
+      case 'fadeIn':
+        animAlpha *= visibility;
+        break;
+      case 'slideUp':
+        animAlpha *= visibility;
+        animOffsetY = (1 - easeEnter) * 80;
+        if (exitProgress > 0) animOffsetY = -(easeInCubic(exitProgress)) * 40;
+        break;
+      case 'scaleIn':
+        animScale = 0.2 + easeEnter * 0.8;
+        if (exitProgress > 0) animScale *= (1 - easeInCubic(exitProgress) * 0.5);
+        animAlpha *= visibility;
+        break;
+      case 'typewriter':
+        animAlpha *= el.opacity / 100;
+        break;
+      case 'bounce':
+        animAlpha *= visibility;
+        const bounceVal = easeOutBounce(enterProgress);
+        animOffsetY = (1 - bounceVal) * -100;
+        break;
+      case 'glow':
+        animAlpha *= visibility;
+        break;
+      case 'slideLeft':
+        animAlpha *= visibility;
+        animOffsetX = (1 - easeEnter) * -200;
+        if (exitProgress > 0) animOffsetX = easeInCubic(exitProgress) * 200;
+        break;
+      case 'zoomIn':
+        animScale = easeEnter * 1;
+        if (exitProgress > 0) animScale *= (1 - easeInCubic(exitProgress));
+        animAlpha *= visibility;
+        break;
+      case 'rotate':
+        animAlpha *= visibility;
+        animRotation = (1 - easeEnter) * Math.PI * 2;
+        animScale = easeEnter;
+        break;
+    }
+
+    ctx.globalAlpha = Math.max(0, Math.min(1, animAlpha));
+    ctx.translate(animOffsetX, animOffsetY);
+    ctx.rotate(animRotation);
+    ctx.scale(animScale, animScale);
+
+    if (el.type === 'text') {
+      renderTextElement(el, time, progress);
+    } else if (el.type === 'image') {
+      renderImageElement(el, time, progress);
+    }
+
+    ctx.restore();
+  });
+}
+
+function renderTextElement(el, time, progress) {
+  ctx.font = `${el.fontWeight || 'bold'} ${el.fontSize}px ${el.fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  let displayText = el.content;
+
+  // Typewriter effect
+  if (el.animation === 'typewriter') {
+    const charsToShow = Math.floor(progress * displayText.length * 1.5);
+    displayText = displayText.substring(0, Math.min(charsToShow, displayText.length));
+  }
+
+  // Glow effect
+  if (el.animation === 'glow') {
+    const glowIntensity = 10 + Math.sin(time * 5) * 10;
+    ctx.shadowColor = el.color;
+    ctx.shadowBlur = glowIntensity;
+  }
+
+  // Draw text stroke for better visibility
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 3;
+  ctx.strokeText(displayText, 0, 0);
+
+  // Draw text fill
+  ctx.fillStyle = el.color;
+  ctx.fillText(displayText, 0, 0);
+
+  // Reset shadow
+  ctx.shadowBlur = 0;
+}
+
+function renderImageElement(el, time, progress) {
+  if (el.imageObj && el.imageObj.complete) {
+    const w = el.width;
+    const aspectRatio = el.imageObj.height / el.imageObj.width;
+    const h = w * aspectRatio;
+    ctx.drawImage(el.imageObj, -w / 2, -h / 2, w, h);
+  } else {
+    // Draw placeholder
+    const w = el.width;
+    const h = w * 0.75;
+    ctx.fillStyle = 'rgba(123, 47, 247, 0.3)';
+    ctx.strokeStyle = 'rgba(123, 47, 247, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.strokeRect(-w / 2, -h / 2, w, h);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(el.imageLabel || 'Image', 0, 0);
+  }
+}
+
+// ============================================================
+// EASING FUNCTIONS
+// ============================================================
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeInCubic(t) { return t * t * t; }
+function easeOutBounce(t) {
+  const n1 = 7.5625, d1 = 2.75;
+  if (t < 1 / d1) return n1 * t * t;
+  if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
+  if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
+  return n1 * (t -= 2.625 / d1) * t + 0.984375;
+}
+
+// ============================================================
+// MAIN RENDER LOOP
+// ============================================================
+function render(time) {
+  ctx.clearRect(0, 0, state.canvasWidth, state.canvasHeight);
+  renderBackground(time);
+  renderElements(time);
+}
+
+function animationLoop(timestamp) {
+  if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+  const delta = (timestamp - state.lastTimestamp) / 1000;
+  state.lastTimestamp = timestamp;
+
+  if (state.isPlaying) {
+    state.currentTime += delta;
+    if (state.currentTime >= state.totalDuration) {
+      state.currentTime = state.totalDuration;
+      state.isPlaying = false;
+      document.getElementById('playBtn').textContent = '▶ Play';
+    }
+  }
+
+  render(state.currentTime);
+  updateTimeDisplay();
+  updatePlayhead();
+
+  state.animFrameId = requestAnimationFrame(animationLoop);
+}
+
+// ============================================================
+// PLAYBACK CONTROLS
+// ============================================================
+function togglePlay() {
+  state.isPlaying = !state.isPlaying;
+  document.getElementById('playBtn').textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
+  if (state.isPlaying && state.currentTime >= state.totalDuration) {
+    state.currentTime = 0;
+  }
+  state.lastTimestamp = 0;
+}
+
+function stopPlayback() {
+  state.isPlaying = false;
+  state.currentTime = 0;
+  state.lastTimestamp = 0;
+  document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+function skipToStart() {
+  state.currentTime = 0;
+  state.lastTimestamp = 0;
+}
+
+function skipToEnd() {
+  state.currentTime = state.totalDuration;
+  state.isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+function updateTimeDisplay() {
+  const cur = formatTime(state.currentTime);
+  const total = formatTime(state.totalDuration);
+  document.getElementById('timeDisplay').textContent = `${cur} / ${total}`;
+}
+
+function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, '0')}:${secs.toFixed(1).padStart(4, '0')}`;
+}
+
+function updatePlayhead() {
+  const pct = (state.currentTime / state.totalDuration) * 100;
+  document.getElementById('playhead').style.left = pct + '%';
+}
+
+function seekFromTimeline(event) {
+  const ruler = document.getElementById('timelineRuler');
+  const rect = ruler.getBoundingClientRect();
+  const pct = (event.clientX - rect.left) / rect.width;
+  state.currentTime = Math.max(0, Math.min(state.totalDuration, pct * state.totalDuration));
+  state.lastTimestamp = 0;
+}
+
+// ============================================================
+// BACKGROUND SELECTION
+// ============================================================
+function selectBackground(type) {
+  state.bgType = type;
+  document.querySelectorAll('.bg-preset').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.bg-preset[data-bg="${type}"]`).classList.add('active');
+  initBackground();
+}
+
+function updateBgSettings() {
+  state.bgColor1 = document.getElementById('bgColor1').value;
+  state.bgColor2 = document.getElementById('bgColor2').value;
+  state.bgIntensity = parseInt(document.getElementById('bgIntensity').value);
+  state.bgSpeed = parseInt(document.getElementById('bgSpeed').value);
+  initBackground();
+}
+
+// ============================================================
+// TEXT ANIMATION SELECTION
+// ============================================================
+function selectTextAnim(el) {
+  document.querySelectorAll('.panel-section:nth-child(3) .anim-option').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  state.selectedTextAnim = el.dataset.anim;
+}
+
+function selectImageAnim(el) {
+  document.querySelectorAll('.panel-section:nth-child(4) .anim-option').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  state.selectedImageAnim = el.dataset.anim;
+}
+
+// ============================================================
+// ADD ELEMENTS
+// ============================================================
+function addTextElement() {
+  const content = document.getElementById('textContent').value.trim();
+  if (!content) { showToast('Please enter text content'); return; }
+
+  const el = {
+    id: state.nextId++,
+    type: 'text',
+    content: content,
+    fontSize: parseInt(document.getElementById('textFontSize').value),
+    fontFamily: document.getElementById('textFont').value,
+    fontWeight: 'bold',
+    color: document.getElementById('textColor').value,
+    animation: state.selectedTextAnim,
+    startTime: parseFloat(document.getElementById('textStartTime').value),
+    duration: parseFloat(document.getElementById('textDuration').value),
+    x: state.canvasWidth / 2,
+    y: state.canvasHeight / 2,
+    opacity: 100,
+    rotation: 0
+  };
+
+  state.elements.push(el);
+  state.selectedElementId = el.id;
+  updateElementList();
+  updateTimeline();
+  updatePropsPanel();
+  showToast(`Text "${content}" added!`);
+}
+
+function addImageElement() {
+  const source = document.getElementById('imageSource').value;
+  const width = parseInt(document.getElementById('imgWidth').value);
+
+  const el = {
+    id: state.nextId++,
+    type: 'image',
+    imageSource: source,
+    imageLabel: source === 'custom' ? 'Custom Image' : source.charAt(0).toUpperCase() + source.slice(1),
+    width: width,
+    animation: state.selectedImageAnim,
+    startTime: parseFloat(document.getElementById('imgStartTime').value),
+    duration: parseFloat(document.getElementById('imgDuration').value),
+    x: state.canvasWidth / 2,
+    y: state.canvasHeight / 2,
+    opacity: 100,
+    rotation: 0,
+    imageObj: null
+  };
+
+  // Generate simulated image
+  generateSimulatedImage(el);
+
+  state.elements.push(el);
+  state.selectedElementId = el.id;
+  updateElementList();
+  updateTimeline();
+  updatePropsPanel();
+  showToast(`Image "${el.imageLabel}" added!`);
+}
+
+// Generate simulated images (since we can't access external resources)
+function generateSimulatedImage(el) {
+  const imgCanvas = document.createElement('canvas');
+  imgCanvas.width = 200;
+  imgCanvas.height = 150;
+  const imgCtx = imgCanvas.getContext('2d');
+
+  switch (el.imageSource) {
+    case 'logo':
+      // Draw a sample logo
+      imgCtx.fillStyle = '#1a1a35';
+      imgCtx.fillRect(0, 0, 200, 150);
+      imgCtx.beginPath();
+      imgCtx.arc(100, 65, 40, 0, Math.PI * 2);
+      const logoGrad = imgCtx.createLinearGradient(60, 25, 140, 105);
+      logoGrad.addColorStop(0, '#7b2ff7');
+      logoGrad.addColorStop(1, '#00d2ff');
+      imgCtx.fillStyle = logoGrad;
+      imgCtx.fill();
+      imgCtx.fillStyle = '#fff';
+      imgCtx.font = 'bold 28px Arial';
+      imgCtx.textAlign = 'center';
+      imgCtx.textBaseline = 'middle';
+      imgCtx.fillText('LOGO', 100, 65);
+      imgCtx.font = '12px Arial';
+      imgCtx.fillText('Your Brand', 100, 120);
+      break;
+
+    case 'icon':
+      // Draw a sample icon
+      imgCtx.fillStyle = 'transparent';
+      imgCtx.clearRect(0, 0, 200, 150);
+      imgCtx.beginPath();
+      const iconGrad = imgCtx.createRadialGradient(100, 75, 10, 100, 75, 60);
+      iconGrad.addColorStop(0, '#ff6b6b');
+      iconGrad.addColorStop(1, '#ee5a24');
+      imgCtx.fillStyle = iconGrad;
+      // Star shape
+      for (let i = 0; i < 5; i++) {
+        const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+        const x = 100 + Math.cos(angle) * 55;
+        const y = 75 + Math.sin(angle) * 55;
+        if (i === 0) imgCtx.moveTo(x, y);
+        else imgCtx.lineTo(x, y);
+      }
+      imgCtx.closePath();
+      imgCtx.fill();
+      imgCtx.fillStyle = '#fff';
+      imgCtx.font = 'bold 16px Arial';
+      imgCtx.textAlign = 'center';
+      imgCtx.textBaseline = 'middle';
+      imgCtx.fillText('★', 100, 72);
+      break;
+
+    case 'shape':
+      // Geometric shape
+      imgCtx.clearRect(0, 0, 200, 150);
+      // Hexagon
+      imgCtx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3 - Math.PI / 6;
+        const x = 100 + Math.cos(angle) * 55;
+        const y = 75 + Math.sin(angle) * 55;
+        if (i === 0) imgCtx.moveTo(x, y);
+        else imgCtx.lineTo(x, y);
+      }
+      imgCtx.closePath();
+      const hexGrad = imgCtx.createLinearGradient(45, 20, 155, 130);
+      hexGrad.addColorStop(0, '#00c853');
+      hexGrad.addColorStop(1, '#00bfa5');
+      imgCtx.fillStyle = hexGrad;
+      imgCtx.fill();
+      imgCtx.strokeStyle = '#fff';
+      imgCtx.lineWidth = 2;
+      imgCtx.stroke();
+      break;
+
+    case 'custom':
+      if (state.customImage) {
+        el.imageObj = state.customImage;
+        return;
+      }
+      // Fallback placeholder
+      imgCtx.fillStyle = '#2a2a4a';
+      imgCtx.fillRect(0, 0, 200, 150);
+      imgCtx.strokeStyle = '#7b2ff7';
+      imgCtx.lineWidth = 2;
+      imgCtx.setLineDash([5, 5]);
+      imgCtx.strokeRect(10, 10, 180, 130);
+      imgCtx.setLineDash([]);
+      imgCtx.fillStyle = '#888';
+      imgCtx.font = '14px Arial';
+      imgCtx.textAlign = 'center';
+      imgCtx.textBaseline = 'middle';
+      imgCtx.fillText('Upload Image', 100, 75);
+      break;
+  }
+
+  const img = new Image();
+  img.src = imgCanvas.toDataURL();
+  el.imageObj = img;
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      state.customImage = img;
+      showToast('Custom image loaded!');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateImagePreview() {
+  const source = document.getElementById('imageSource').value;
+  document.getElementById('customImageGroup').style.display = source === 'custom' ? 'block' : 'none';
+}
+
+// ============================================================
+// ELEMENT LIST & PROPERTIES
+// ============================================================
+function updateElementList() {
+  const container = document.getElementById('elementList');
+
+  if (state.elements.length === 0) {
+    container.innerHTML = '<p style="font-size:12px;color:#666;text-align:center;padding:20px;">No elements added yet.<br>Use the left panel to add text and images.</p>';
+    return;
+  }
+
+  container.innerHTML = state.elements.map(el => `
+    <div class="element-card ${el.id === state.selectedElementId ? 'selected' : ''}"
+         onclick="selectElement(${el.id})">
+      <div class="element-card-header">
+        <span>${el.type === 'text' ? '📝' : '🖼️'} ${el.type === 'text' ? el.content.substring(0, 15) : el.imageLabel}</span>
+        <span class="element-type-badge ${el.type === 'text' ? 'badge-text' : 'badge-image'}">${el.type}</span>
+      </div>
+      <div class="element-card-info">
+        ${el.animation} | ${el.startTime.toFixed(1)}s - ${(el.startTime + el.duration).toFixed(1)}s
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectElement(id) {
+  state.selectedElementId = id;
+  updateElementList();
+  updatePropsPanel();
+}
+
+function updatePropsPanel() {
+  const panel = document.getElementById('propsPanel');
+  const el = state.elements.find(e => e.id === state.selectedElementId);
+
+  if (!el) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  document.getElementById('propX').value = el.x;
+  document.getElementById('propXVal').textContent = Math.round(el.x);
+  document.getElementById('propY').value = el.y;
+  document.getElementById('propYVal').textContent = Math.round(el.y);
+  document.getElementById('propOpacity').value = el.opacity;
+  document.getElementById('propOpVal').textContent = el.opacity;
+  document.getElementById('propRotation').value = el.rotation || 0;
+  document.getElementById('propRotVal').textContent = el.rotation || 0;
+}
+
+function updateElementProp(prop, value) {
+  const el = state.elements.find(e => e.id === state.selectedElementId);
+  if (!el) return;
+
+  value = parseInt(value);
+  switch (prop) {
+    case 'x': el.x = value; document.getElementById('propXVal').textContent = value; break;
+    case 'y': el.y = value; document.getElementById('propYVal').textContent = value; break;
+    case 'opacity': el.opacity = value; document.getElementById('propOpVal').textContent = value; break;
+    case 'rotation': el.rotation = value; document.getElementById('propRotVal').textContent = value; break;
+  }
+}
+
+function deleteSelectedElement() {
+  state.elements = state.elements.filter(e => e.id !== state.selectedElementId);
+  state.selectedElementId = null;
+  updateElementList();
+  updateTimeline();
+  updatePropsPanel();
+  showToast('Element deleted');
+}
+
+// ============================================================
+// TIMELINE
+// ============================================================
+function updateTimeline() {
+  const container = document.getElementById('timelineTracks');
+  const totalDur = state.totalDuration;
+
+  // Group elements into tracks (simple: one track per element)
+  const tracks = [];
+  state.elements.forEach(el => {
+    tracks.push(el);
+  });
+
+  if (tracks.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#555;font-size:12px;padding:15px;">Add elements to see timeline</div>';
+    return;
+  }
+
+  container.innerHTML = tracks.map(el => {
+    const leftPct = (el.startTime / totalDur) * 100;
+    const widthPct = (el.duration / totalDur) * 100;
+    const itemClass = el.type === 'text' ? 'text-item' : 'image-item';
+    const label = el.type === 'text' ? el.content.substring(0, 20) : el.imageLabel;
+
+    return `
+      <div class="timeline-track">
+        <div class="track-item ${itemClass}"
+             style="left:${leftPct}%;width:${widthPct}%;"
+             onclick="selectElement(${el.id})"
+             title="${label} (${el.startTime.toFixed(1)}s - ${(el.startTime + el.duration).toFixed(1)}s)">
+          ${el.type === 'text' ? '📝' : '🖼️'} ${label}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Draw ruler
+  drawRuler();
+}
+
+function drawRuler() {
+  const rulerCanvas = document.getElementById('rulerCanvas');
+  const ruler = document.getElementById('timelineRuler');
+  rulerCanvas.width = ruler.offsetWidth;
+  rulerCanvas.height = 20;
+  const rCtx = rulerCanvas.getContext('2d');
+
+  rCtx.fillStyle = '#0d0d20';
+  rCtx.fillRect(0, 0, rulerCanvas.width, rulerCanvas.height);
+
+  const totalDur = state.totalDuration;
+  const step = totalDur <= 5 ? 0.5 : totalDur <= 15 ? 1 : 2;
+
+  for (let t = 0; t <= totalDur; t += step) {
+    const x = (t / totalDur) * rulerCanvas.width;
+    rCtx.strokeStyle = '#444';
+    rCtx.lineWidth = 1;
+    rCtx.beginPath();
+    rCtx.moveTo(x, 12);
+    rCtx.lineTo(x, 20);
+    rCtx.stroke();
+
+    rCtx.fillStyle = '#888';
+    rCtx.font = '9px Arial';
+    rCtx.textAlign = 'center';
+    rCtx.fillText(t.toFixed(1) + 's', x, 10);
+  }
+}
+
+// ============================================================
+// VIDEO EXPORT
+// ============================================================
+async function startExport() {
+  if (state.elements.length === 0) {
+    showToast('Add some elements before exporting!');
+    return;
+  }
+
+  const exportProgress = document.getElementById('exportProgress');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+
+  exportProgress.classList.add('active');
+  progressText.textContent = 'Preparing export...';
+  progressFill.style.width = '0%';
+
+  // Get export settings
+  const res = document.getElementById('resolution').value.split('x');
+  const exportW = parseInt(res[0]);
+  const exportH = parseInt(res[1]);
+  const fps = parseInt(document.getElementById('frameRate').value);
+  const duration = state.totalDuration;
+  const totalFrames = Math.ceil(duration * fps);
+
+  // Create offscreen canvas for export
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = exportW;
+  exportCanvas.height = exportH;
+  const exportCtx = exportCanvas.getContext('2d');
+
+  // Save current state
+  const origCanvas = canvas;
+  const origCtx = ctx;
+  const origW = state.canvasWidth;
+  const origH = state.canvasHeight;
+  const origTime = state.currentTime;
+  const origPlaying = state.isPlaying;
+
+  // Scale factors
+  const scaleX = exportW / origW;
+  const scaleY = exportH / origH;
+
+  // Setup MediaRecorder
+  const stream = exportCanvas.captureStream(fps);
+  const mediaRecorder = new MediaRecorder(stream, {
+    mimeType: 'video/webm;codecs=vp9',
+    videoBitsPerSecond: 8000000
+  });
+
+  const chunks = [];
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) chunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dynamic_video_${Date.now()}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    exportProgress.classList.remove('active');
+    showToast('Video exported successfully! 🎉');
+
+    // Restore state
+    state.currentTime = origTime;
+    state.isPlaying = origPlaying;
+  };
+
+  // Start recording
+  mediaRecorder.start();
+  state.isPlaying = false;
+
+  // Render frame by frame
+  const savedBgObjects = JSON.parse(JSON.stringify(state.bgObjects.map(o => ({...o}))));
+
+  for (let frame = 0; frame < totalFrames; frame++) {
+    const time = (frame / fps);
+    state.currentTime = time;
+
+    // Scale rendering to export resolution
+    exportCtx.save();
+    exportCtx.scale(scaleX, scaleY);
+
+    // Temporarily swap context
+    const tempCtx = ctx;
+    // We need to render to exportCtx, so we'll use a trick
+    // Re-render using exportCtx
+    renderToContext(exportCtx, time, origW, origH);
+
+    exportCtx.restore();
+
+    // Update progress
+    const pct = ((frame + 1) / totalFrames) * 100;
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `Rendering frame ${frame + 1} / ${totalFrames} (${Math.round(pct)}%)`;
+
+    // Yield to UI
+    if (frame % 5 === 0) {
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  // Small delay then stop
+  await new Promise(r => setTimeout(r, 500));
+  mediaRecorder.stop();
+
+  // Restore
+  state.canvasWidth = origW;
+  state.canvasHeight = origH;
+}
+
+// Render to a specific context (for export)
+function renderToContext(targetCtx, time, w, h) {
+  targetCtx.clearRect(0, 0, w, h);
+
+  // Background gradient
+  const grad = targetCtx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, state.bgColor1);
+  grad.addColorStop(1, state.bgColor2);
+  targetCtx.fillStyle = grad;
+  targetCtx.fillRect(0, 0, w, h);
+
+  // Render background effect (simplified for export)
+  const speedMul = state.bgSpeed / 50;
+
+  switch (state.bgType) {
+    case 'particles':
+      state.bgObjects.forEach(p => {
+        const px = (p.x + p.vx * speedMul * time * 30) % w;
+        const py = (p.y + p.vy * speedMul * time * 30) % h;
+        targetCtx.beginPath();
+        targetCtx.arc(px < 0 ? px + w : px, py < 0 ? py + h : py, p.radius, 0, Math.PI * 2);
+        targetCtx.fillStyle = p.color;
+        targetCtx.globalAlpha = p.alpha * (0.5 + 0.5 * Math.sin(time * 2 + p.x));
+        targetCtx.fill();
+        targetCtx.globalAlpha = 1;
+      });
+      break;
+
+    case 'smoke':
+      state.bgObjects.forEach(p => {
+        const py = p.y + p.vy * speedMul * time * 30;
+        const px = p.x + Math.sin(time + p.life * 10) * 20;
+        const life = (p.life + time * 0.1) % 1;
+        const gradient = targetCtx.createRadialGradient(px, py, 0, px, py, p.radius);
+        gradient.addColorStop(0, `rgba(180, 180, 200, ${p.alpha * (1 - life)})`);
+        gradient.addColorStop(1, 'rgba(180, 180, 200, 0)');
+        targetCtx.beginPath();
+        targetCtx.arc(px, py, p.radius, 0, Math.PI * 2);
+        targetCtx.fillStyle = gradient;
+        targetCtx.fill();
+      });
+      break;
+
+    case 'waves':
+      for (let wave = 0; wave < 5; wave++) {
+        targetCtx.beginPath();
+        const baseY = h * 0.3 + wave * (h * 0.15);
+        const amplitude = 30 + wave * 10;
+        const frequency = 0.005 - wave * 0.0005;
+        const alpha = 0.15 - wave * 0.02;
+        const t = time * speedMul;
+        targetCtx.moveTo(0, h);
+        for (let x = 0; x <= w; x += 2) {
+          const y = baseY + Math.sin(x * frequency + t * (1 + wave * 0.3)) * amplitude +
+            Math.sin(x * frequency * 2.5 + t * 0.7) * (amplitude * 0.3);
+          targetCtx.lineTo(x, y);
+        }
+        targetCtx.lineTo(w, h);
+        targetCtx.closePath();
+        const hue = 240 + wave * 20;
+        targetCtx.fillStyle = `hsla(${hue}, 70%, 50%, ${alpha})`;
+        targetCtx.fill();
+      }
+      break;
+
+    case 'starfield':
+      state.bgObjects.forEach(s => {
+        const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(time * s.twinkleSpeed + s.x));
+        const size = s.z * 1.5;
+        targetCtx.beginPath();
+        targetCtx.arc(s.x, s.y, size, 0, Math.PI * 2);
+        targetCtx.fillStyle = `rgba(255, 255, 255, ${twinkle * s.alpha})`;
+        targetCtx.fill();
+      });
+      break;
+
+    case 'matrix':
+      targetCtx.font = '14px Courier New';
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%';
+      state.bgObjects.forEach(col => {
+        const cy = (col.y + col.speed * speedMul * time * 30) % (h + col.length * 14);
+        for (let i = 0; i < col.length; i++) {
+          const charY = cy - i * 14;
+          if (charY < -14 || charY > h + 14) continue;
+          const alpha = i === 0 ? 1 : Math.max(0, 1 - i / col.length);
+          const green = i === 0 ? 255 : Math.floor(180 * alpha);
+          targetCtx.fillStyle = `rgba(0, ${green}, 0, ${alpha * 0.7})`;
+          const char = chars[Math.floor((time * 10 + i + col.x) % chars.length)];
+          targetCtx.fillText(char, col.x, charY);
+        }
+      });
+      break;
+
+    case 'fireflies':
+      state.bgObjects.forEach(f => {
+        const fx = f.x + Math.sin(time * 0.5 + f.phase) * 30;
+        const fy = f.y + Math.cos(time * 0.3 + f.phase) * 30;
+        const glow = 0.3 + 0.7 * Math.abs(Math.sin(time * f.glowSpeed + f.phase));
+        const r = f.radius * (0.8 + glow * 0.4);
+        const gradient = targetCtx.createRadialGradient(fx, fy, 0, fx, fy, r * 6);
+        gradient.addColorStop(0, `hsla(${f.hue}, 100%, 70%, ${glow * 0.4})`);
+        gradient.addColorStop(1, 'transparent');
+        targetCtx.beginPath();
+        targetCtx.arc(fx, fy, r * 6, 0, Math.PI * 2);
+        targetCtx.fillStyle = gradient;
+        targetCtx.fill();
+        targetCtx.beginPath();
+        targetCtx.arc(fx, fy, r, 0, Math.PI * 2);
+        targetCtx.fillStyle = `hsla(${f.hue}, 100%, 85%, ${glow})`;
+        targetCtx.fill();
+      });
+      break;
+  }
+
+  // Render elements
+  state.elements.forEach(el => {
+    const elStart = el.startTime;
+    const elEnd = el.startTime + el.duration;
+    if (time < elStart || time > elEnd) return;
+
+    const elapsed = time - elStart;
+    const progress = elapsed / el.duration;
+
+    targetCtx.save();
+    targetCtx.translate(el.x, el.y);
+    targetCtx.rotate((el.rotation || 0) * Math.PI / 180);
+
+    let animAlpha = el.opacity / 100;
+    let animOffsetX = 0, animOffsetY = 0, animScale = 1, animRotation = 0;
+
+    const enterProgress = Math.min(1, progress / 0.2);
+    const exitProgress = Math.max(0, (progress - 0.8) / 0.2);
+    const easeEnter = easeOutCubic(enterProgress);
+    const easeExit = 1 - easeInCubic(exitProgress);
+    const visibility = Math.min(easeEnter, easeExit);
+
+    switch (el.animation) {
+      case 'fadeIn': animAlpha *= visibility; break;
+      case 'slideUp':
+        animAlpha *= visibility;
+        animOffsetY = (1 - easeEnter) * 80;
+        if (exitProgress > 0) animOffsetY = -(easeInCubic(exitProgress)) * 40;
+        break;
+      case 'scaleIn':
+        animScale = 0.2 + easeEnter * 0.8;
+        if (exitProgress > 0) animScale *= (1 - easeInCubic(exitProgress) * 0.5);
+        animAlpha *= visibility;
+        break;
+      case 'typewriter': animAlpha *= el.opacity / 100; break;
+      case 'bounce':
+        animAlpha *= visibility;
+        animOffsetY = (1 - easeOutBounce(enterProgress)) * -100;
+        break;
+      case 'glow': animAlpha *= visibility; break;
+      case 'slideLeft':
+        animAlpha *= visibility;
+        animOffsetX = (1 - easeEnter) * -200;
+        if (exitProgress > 0) animOffsetX = easeInCubic(exitProgress) * 200;
+        break;
+      case 'zoomIn':
+        animScale = easeEnter;
+        if (exitProgress > 0) animScale *= (1 - easeInCubic(exitProgress));
+        animAlpha *= visibility;
+        break;
+      case 'rotate':
+        animAlpha *= visibility;
+        animRotation = (1 - easeEnter) * Math.PI * 2;
+        animScale = easeEnter;
+        break;
+    }
+
+    targetCtx.globalAlpha = Math.max(0, Math.min(1, animAlpha));
+    targetCtx.translate(animOffsetX, animOffsetY);
+    targetCtx.rotate(animRotation);
+    targetCtx.scale(animScale, animScale);
+
+    if (el.type === 'text') {
+      targetCtx.font = `${el.fontWeight || 'bold'} ${el.fontSize}px ${el.fontFamily}`;
+      targetCtx.textAlign = 'center';
+      targetCtx.textBaseline = 'middle';
+      let displayText = el.content;
+      if (el.animation === 'typewriter') {
+        const charsToShow = Math.floor(progress * displayText.length * 1.5);
+        displayText = displayText.substring(0, Math.min(charsToShow, displayText.length));
+      }
+      if (el.animation === 'glow') {
+        targetCtx.shadowColor = el.color;
+        targetCtx.shadowBlur = 10 + Math.sin(time * 5) * 10;
+      }
+      targetCtx.strokeStyle = 'rgba(0,0,0,0.5)';
+      targetCtx.lineWidth = 3;
+      targetCtx.strokeText(displayText, 0, 0);
+      targetCtx.fillStyle = el.color;
+      targetCtx.fillText(displayText, 0, 0);
+      targetCtx.shadowBlur = 0;
+    } else if (el.type === 'image' && el.imageObj && el.imageObj.complete) {
+      const w = el.width;
+      const aspectRatio = el.imageObj.height / el.imageObj.width;
+      const h = w * aspectRatio;
+      targetCtx.drawImage(el.imageObj, -w / 2, -h / 2, w, h);
+    }
+
+    targetCtx.restore();
+  });
+}
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function resetProject() {
+  if (!confirm('Start a new project? All current elements will be lost.')) return;
+  state.elements = [];
+  state.selectedElementId = null;
+  state.nextId = 1;
+  state.currentTime = 0;
+  state.isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶ Play';
+  updateElementList();
+  updateTimeline();
+  updatePropsPanel();
+  showToast('Project reset');
+}
+
+// ============================================================
+// DURATION CHANGE HANDLER
+// ============================================================
+document.getElementById('totalDuration').addEventListener('input', function() {
+  state.totalDuration = parseInt(this.value);
+  updateTimeline();
+});
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+function init() {
+  initBackground();
+  updateTimeline();
+  updateElementList();
+
+  // Start render loop
+  state.animFrameId = requestAnimationFrame(animationLoop);
+
+  // Handle window resize for ruler
+  window.addEventListener('resize', () => {
+    drawRuler();
+  });
+
+  // Initial ruler draw (delayed for layout)
+  setTimeout(drawRuler, 100);
+
+  showToast('Welcome! Choose a background and add elements to get started 🎬');
+}
+
+// Start the application
+init();
+</script>
+</body>
+</html>

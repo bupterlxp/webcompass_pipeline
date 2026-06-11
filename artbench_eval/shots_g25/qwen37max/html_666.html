@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Matting Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: #16213e;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: #4fc3f7;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #4fc3f7;
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            background: #81d4fa;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #2d3748;
+            color: #e2e8f0;
+            border: 1px solid #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #fc8181;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #38a169;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #68d391;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            width: 260px;
+            background: #16213e;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #2d3748;
+        }
+
+        .tool-section {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .tool-section h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4fc3f7;
+            margin-bottom: 12px;
+        }
+
+        .tool-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tool-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tool-row label {
+            font-size: 0.85rem;
+            color: #a0aec0;
+        }
+
+        .tool-row input[type="range"] {
+            width: 120px;
+            accent-color: #4fc3f7;
+        }
+
+        .tool-row .value-display {
+            font-size: 0.8rem;
+            color: #4fc3f7;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        /* Brush mode buttons */
+        .brush-modes {
+            display: flex;
+            gap: 8px;
+        }
+
+        .brush-mode-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #4a5568;
+            border-radius: 6px;
+            background: #2d3748;
+            color: #e2e8f0;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .brush-mode-btn.active {
+            border-color: #4fc3f7;
+            background: #1a365d;
+            color: #4fc3f7;
+        }
+
+        .brush-mode-btn:hover {
+            border-color: #4fc3f7;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            padding: 20px;
+            position: relative;
+            background: #0f0f1a;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .canvas-wrapper canvas {
+            display: block;
+        }
+
+        #maskCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Checkerboard background for transparency preview */
+        .checkerboard {
+            background-image:
+                linear-gradient(45deg, #333 25%, transparent 25%),
+                linear-gradient(-45deg, #333 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #333 75%),
+                linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 60px;
+            border: 3px dashed #4a5568;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            max-width: 500px;
+        }
+
+        .upload-area:hover {
+            border-color: #4fc3f7;
+            background: rgba(79, 195, 247, 0.05);
+        }
+
+        .upload-area svg {
+            width: 80px;
+            height: 80px;
+            fill: #4a5568;
+        }
+
+        .upload-area p {
+            color: #a0aec0;
+            font-size: 1.1rem;
+        }
+
+        .upload-area .hint {
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        /* Status bar */
+        .status-bar {
+            background: #16213e;
+            padding: 8px 20px;
+            font-size: 0.8rem;
+            color: #a0aec0;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #2d3748;
+        }
+
+        /* Brush cursor preview */
+        .brush-cursor {
+            position: fixed;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: none;
+        }
+
+        .brush-cursor.erase-mode {
+            border-color: rgba(255, 100, 100, 0.8);
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zoom-controls .btn {
+            padding: 4px 10px;
+            font-size: 1rem;
+        }
+
+        .zoom-value {
+            font-size: 0.85rem;
+            color: #4fc3f7;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        /* Instructions panel */
+        .instructions {
+            font-size: 0.8rem;
+            color: #718096;
+            line-height: 1.6;
+        }
+
+        .instructions li {
+            margin-bottom: 4px;
+        }
+
+        /* Hidden file input */
+        #fileInput {
+            display: none;
+        }
+
+        /* Opacity slider for mask overlay */
+        .opacity-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Preview modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .modal-content h2 {
+            color: #4fc3f7;
+        }
+
+        .modal-content .preview-canvas-wrapper {
+            max-width: 80vw;
+            max-height: 60vh;
+            overflow: auto;
+            border-radius: 8px;
+        }
+
+        .modal-content .preview-canvas-wrapper canvas {
+            display: block;
+            max-width: 100%;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🎨 Image Matting Tool</h1>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="btnLoadImage" title="Load a new image">
+                📂 Load Image
+            </button>
+            <button class="btn btn-secondary" id="btnPreview" disabled title="Preview the result">
+                👁️ Preview
+            </button>
+            <button class="btn btn-success" id="btnExport" disabled title="Export as PNG with transparency">
+                💾 Export PNG
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Toolbar -->
+        <div class="toolbar" id="toolbar" style="display: none;">
+            <!-- Brush Settings -->
+            <div class="tool-section">
+                <h3>Brush Settings</h3>
+                <div class="tool-group">
+                    <div class="brush-modes">
+                        <div class="brush-mode-btn active" id="btnKeepMode" title="Brush to keep areas">
+                            ✅ Keep
+                        </div>
+                        <div class="brush-mode-btn" id="btnEraseMode" title="Brush to erase from selection">
+                            ❌ Erase
+                        </div>
+                    </div>
+                    <div class="tool-row">
+                        <label>Size:</label>
+                        <input type="range" id="brushSize" min="1" max="100" value="20">
+                        <span class="value-display" id="brushSizeValue">20</span>
+                    </div>
+                    <div class="tool-row">
+                        <label>Hardness:</label>
+                        <input type="range" id="brushHardness" min="0" max="100" value="80">
+                        <span class="value-display" id="brushHardnessValue">80%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mask Overlay -->
+            <div class="tool-section">
+                <h3>Mask Overlay</h3>
+                <div class="tool-group">
+                    <div class="tool-row">
+                        <label>Opacity:</label>
+                        <input type="range" id="maskOpacity" min="0" max="100" value="40">
+                        <span class="value-display" id="maskOpacityValue">40%</span>
+                    </div>
+                    <div class="tool-row">
+                        <label>Color:</label>
+                        <input type="color" id="maskColor" value="#ff0000" style="width:40px; height:28px; border:none; cursor:pointer;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="tool-section">
+                <h3>Actions</h3>
+                <div class="tool-group">
+                    <button class="btn btn-secondary" id="btnUndo" style="width:100%;">↩️ Undo (Ctrl+Z)</button>
+                    <button class="btn btn-secondary" id="btnRedo" style="width:100%;">↪️ Redo (Ctrl+Y)</button>
+                    <button class="btn btn-secondary" id="btnFillAll" style="width:100%;">🟩 Select All</button>
+                    <button class="btn btn-danger" id="btnClearMask" style="width:100%;">🗑️ Clear Mask</button>
+                    <button class="btn btn-secondary" id="btnInvertMask" style="width:100%;">🔄 Invert Mask</button>
+                </div>
+            </div>
+
+            <!-- Zoom -->
+            <div class="tool-section">
+                <h3>Zoom</h3>
+                <div class="zoom-controls">
+                    <button class="btn btn-secondary" id="btnZoomOut">−</button>
+                    <span class="zoom-value" id="zoomValue">100%</span>
+                    <button class="btn btn-secondary" id="btnZoomIn">+</button>
+                    <button class="btn btn-secondary" id="btnZoomFit">Fit</button>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="tool-section">
+                <h3>Instructions</h3>
+                <ul class="instructions">
+                    <li>Use <strong>Keep</strong> mode to brush over areas you want to preserve</li>
+                    <li>Use <strong>Erase</strong> mode to remove areas from selection</li>
+                    <li>Scroll wheel to adjust brush size quickly</li>
+                    <li>Hold <strong>Space</strong> + drag to pan the image</li>
+                    <li>Export creates a PNG with transparent background</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area" id="canvasArea">
+            <!-- Upload prompt (shown when no image loaded) -->
+            <div class="upload-area" id="uploadArea">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                </svg>
+                <p>Click or drag an image here to start</p>
+                <span class="hint">Supports JPG, PNG, WebP, BMP</span>
+            </div>
+
+            <!-- Canvas wrapper (hidden until image loaded) -->
+            <div class="canvas-wrapper" id="canvasWrapper" style="display: none;">
+                <canvas id="imageCanvas"></canvas>
+                <canvas id="maskCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span id="statusLeft">No image loaded</span>
+        <span id="statusRight">Ready</span>
+    </div>
+
+    <!-- Brush Cursor -->
+    <div class="brush-cursor" id="brushCursor"></div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Preview Modal -->
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal-content">
+            <h2>Preview Result</h2>
+            <div class="preview-canvas-wrapper checkerboard">
+                <canvas id="previewCanvas"></canvas>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-success" id="btnExportFromPreview">💾 Export PNG</button>
+                <button class="btn btn-secondary" id="btnClosePreview">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" accept="image/*">
+
+    <script>
+        /**
+         * Image Matting Tool
+         * Allows users to brush-select areas to keep and export with transparent background.
+         */
+
+        // ============ State Management ============
+        const state = {
+            image: null,              // Original loaded image
+            imageWidth: 0,
+            imageHeight: 0,
+            zoom: 1,                  // Current zoom level
+            panX: 0,                  // Pan offset X
+            panY: 0,                  // Pan offset Y
+            isPanning: false,
+            panStartX: 0,
+            panStartY: 0,
+            brushMode: 'keep',        // 'keep' or 'erase'
+            brushSize: 20,
+            brushHardness: 80,
+            maskOpacity: 0.4,
+            maskColor: { r: 255, g: 0, b: 0 },
+            isDrawing: false,
+            lastX: 0,
+            lastY: 0,
+            undoStack: [],            // Stack of mask snapshots for undo
+            redoStack: [],            // Stack for redo
+            maxUndoSteps: 30,
+            spacePressed: false,      // For panning with space key
+        };
+
+        // ============ DOM Elements ============
+        const elements = {
+            fileInput: document.getElementById('fileInput'),
+            uploadArea: document.getElementById('uploadArea'),
+            canvasWrapper: document.getElementById('canvasWrapper'),
+            canvasArea: document.getElementById('canvasArea'),
+            imageCanvas: document.getElementById('imageCanvas'),
+            maskCanvas: document.getElementById('maskCanvas'),
+            toolbar: document.getElementById('toolbar'),
+            brushCursor: document.getElementById('brushCursor'),
+            toast: document.getElementById('toast'),
+            previewModal: document.getElementById('previewModal'),
+            previewCanvas: document.getElementById('previewCanvas'),
+            // Buttons
+            btnLoadImage: document.getElementById('btnLoadImage'),
+            btnPreview: document.getElementById('btnPreview'),
+            btnExport: document.getElementById('btnExport'),
+            btnKeepMode: document.getElementById('btnKeepMode'),
+            btnEraseMode: document.getElementById('btnEraseMode'),
+            btnUndo: document.getElementById('btnUndo'),
+            btnRedo: document.getElementById('btnRedo'),
+            btnFillAll: document.getElementById('btnFillAll'),
+            btnClearMask: document.getElementById('btnClearMask'),
+            btnInvertMask: document.getElementById('btnInvertMask'),
+            btnZoomIn: document.getElementById('btnZoomIn'),
+            btnZoomOut: document.getElementById('btnZoomOut'),
+            btnZoomFit: document.getElementById('btnZoomFit'),
+            btnExportFromPreview: document.getElementById('btnExportFromPreview'),
+            btnClosePreview: document.getElementById('btnClosePreview'),
+            // Inputs
+            brushSizeInput: document.getElementById('brushSize'),
+            brushHardnessInput: document.getElementById('brushHardness'),
+            maskOpacityInput: document.getElementById('maskOpacity'),
+            maskColorInput: document.getElementById('maskColor'),
+            // Displays
+            brushSizeValue: document.getElementById('brushSizeValue'),
+            brushHardnessValue: document.getElementById('brushHardnessValue'),
+            maskOpacityValue: document.getElementById('maskOpacityValue'),
+            zoomValue: document.getElementById('zoomValue'),
+            statusLeft: document.getElementById('statusLeft'),
+            statusRight: document.getElementById('statusRight'),
+        };
+
+        // ============ Canvas Contexts ============
+        const imageCtx = elements.imageCanvas.getContext('2d');
+        const maskCtx = elements.maskCanvas.getContext('2d');
+
+        // ============ Initialization ============
+        function init() {
+            bindEvents();
+            updateBrushCursor();
+        }
+
+        // ============ Event Binding ============
+        function bindEvents() {
+            // File loading
+            elements.btnLoadImage.addEventListener('click', () => elements.fileInput.click());
+            elements.uploadArea.addEventListener('click', () => elements.fileInput.click());
+            elements.fileInput.addEventListener('change', handleFileSelect);
+
+            // Drag and drop
+            elements.canvasArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                elements.uploadArea.style.borderColor = '#4fc3f7';
+            });
+            elements.canvasArea.addEventListener('dragleave', () => {
+                elements.uploadArea.style.borderColor = '#4a5568';
+            });
+            elements.canvasArea.addEventListener('drop', handleDrop);
+
+            // Brush mode
+            elements.btnKeepMode.addEventListener('click', () => setBrushMode('keep'));
+            elements.btnEraseMode.addEventListener('click', () => setBrushMode('erase'));
+
+            // Brush settings
+            elements.brushSizeInput.addEventListener('input', (e) => {
+                state.brushSize = parseInt(e.target.value);
+                elements.brushSizeValue.textContent = state.brushSize;
+                updateBrushCursor();
+            });
+            elements.brushHardnessInput.addEventListener('input', (e) => {
+                state.brushHardness = parseInt(e.target.value);
+                elements.brushHardnessValue.textContent = state.brushHardness + '%';
+            });
+            elements.maskOpacityInput.addEventListener('input', (e) => {
+                state.maskOpacity = parseInt(e.target.value) / 100;
+                elements.maskOpacityValue.textContent = e.target.value + '%';
+                renderMaskOverlay();
+            });
+            elements.maskColorInput.addEventListener('input', (e) => {
+                const hex = e.target.value;
+                state.maskColor = {
+                    r: parseInt(hex.substr(1, 2), 16),
+                    g: parseInt(hex.substr(3, 2), 16),
+                    b: parseInt(hex.substr(5, 2), 16)
+                };
+                renderMaskOverlay();
+            });
+
+            // Action buttons
+            elements.btnUndo.addEventListener('click', undo);
+            elements.btnRedo.addEventListener('click', redo);
+            elements.btnFillAll.addEventListener('click', fillAllMask);
+            elements.btnClearMask.addEventListener('click', clearMask);
+            elements.btnInvertMask.addEventListener('click', invertMask);
+
+            // Zoom
+            elements.btnZoomIn.addEventListener('click', () => setZoom(state.zoom * 1.25));
+            elements.btnZoomOut.addEventListener('click', () => setZoom(state.zoom / 1.25));
+            elements.btnZoomFit.addEventListener('click', zoomToFit);
+
+            // Preview & Export
+            elements.btnPreview.addEventListener('click', showPreview);
+            elements.btnExport.addEventListener('click', exportImage);
+            elements.btnExportFromPreview.addEventListener('click', () => {
+                elements.previewModal.classList.remove('show');
+                exportImage();
+            });
+            elements.btnClosePreview.addEventListener('click', () => {
+                elements.previewModal.classList.remove('show');
+            });
+
+            // Canvas mouse events
+            elements.maskCanvas.addEventListener('mousedown', onCanvasMouseDown);
+            elements.maskCanvas.addEventListener('mousemove', onCanvasMouseMove);
+            elements.maskCanvas.addEventListener('mouseup', onCanvasMouseUp);
+            elements.maskCanvas.addEventListener('mouseleave', onCanvasMouseLeave);
+            elements.maskCanvas.addEventListener('wheel', onCanvasWheel);
+
+            // Brush cursor tracking
+            document.addEventListener('mousemove', (e) => {
+                elements.brushCursor.style.left = e.clientX + 'px';
+                elements.brushCursor.style.top = e.clientY + 'px';
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                if (state.image) zoomToFit();
+            });
+        }
+
+        // ============ File Handling ============
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) loadImageFile(file);
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            elements.uploadArea.style.borderColor = '#4a5568';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                loadImageFile(file);
+            } else {
+                showToast('Please drop a valid image file.');
+            }
+        }
+
+        function loadImageFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    state.imageWidth = img.width;
+                    state.imageHeight = img.height;
+                    setupCanvases();
+                    drawImage();
+                    clearMaskData();
+                    zoomToFit();
+
+                    // Show UI elements
+                    elements.uploadArea.style.display = 'none';
+                    elements.canvasWrapper.style.display = 'block';
+                    elements.toolbar.style.display = 'flex';
+                    elements.btnPreview.disabled = false;
+                    elements.btnExport.disabled = false;
+                    elements.statusLeft.textContent = `${file.name} — ${img.width} × ${img.height}px`;
+                    showToast('Image loaded! Brush over areas you want to keep.');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ============ Canvas Setup ============
+        function setupCanvases() {
+            // Set canvas dimensions to match image
+            elements.imageCanvas.width = state.imageWidth;
+            elements.imageCanvas.height = state.imageHeight;
+            elements.maskCanvas.width = state.imageWidth;
+            elements.maskCanvas.height = state.imageHeight;
+
+            // Initialize mask as fully transparent (nothing selected)
+            maskCtx.clearRect(0, 0, state.imageWidth, state.imageHeight);
+        }
+
+        function drawImage() {
+            imageCtx.clearRect(0, 0, state.imageWidth, state.imageHeight);
+            imageCtx.drawImage(state.image, 0, 0);
+        }
+
+        // ============ Zoom & Pan ============
+        function setZoom(newZoom) {
+            state.zoom = Math.max(0.1, Math.min(10, newZoom));
+            applyTransform();
+            elements.zoomValue.textContent = Math.round(state.zoom * 100) + '%';
+        }
+
+        function zoomToFit() {
+            const areaRect = elements.canvasArea.getBoundingClientRect();
+            const padding = 40;
+            const availW = areaRect.width - padding * 2;
+            const availH = areaRect.height - padding * 2;
+            const scaleX = availW / state.imageWidth;
+            const scaleY = availH / state.imageHeight;
+            state.zoom = Math.min(scaleX, scaleY, 1);
+            state.panX = 0;
+            state.panY = 0;
+            applyTransform();
+            elements.zoomValue.textContent = Math.round(state.zoom * 100) + '%';
+        }
+
+        function applyTransform() {
+            const transform = `scale(${state.zoom}) translate(${state.panX}px, ${state.panY}px)`;
+            elements.canvasWrapper.style.transform = transform;
+            elements.canvasWrapper.style.transformOrigin = 'center center';
+        }
+
+        // ============ Brush Drawing ============
+        function getCanvasCoords(e) {
+            const rect = elements.maskCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / state.zoom;
+            const y = (e.clientY - rect.top) / state.zoom;
+            return { x, y };
+        }
+
+        function onCanvasMouseDown(e) {
+            if (state.spacePressed) {
+                // Start panning
+                state.isPanning = true;
+                state.panStartX = e.clientX - state.panX * state.zoom;
+                state.panStartY = e.clientY - state.panY * state.zoom;
+                elements.maskCanvas.style.cursor = 'grabbing';
+                return;
+            }
+
+            if (e.button !== 0) return; // Only left click
+
+            state.isDrawing = true;
+            const coords = getCanvasCoords(e);
+            state.lastX = coords.x;
+            state.lastY = coords.y;
+
+            // Save state for undo before starting a new stroke
+            saveUndoState();
+
+            // Draw a single dot at the click position
+            drawBrushStroke(coords.x, coords.y, coords.x, coords.y);
+            renderMaskOverlay();
+        }
+
+        function onCanvasMouseMove(e) {
+            if (state.isPanning) {
+                state.panX = (e.clientX - state.panStartX) / state.zoom;
+                state.panY = (e.clientY - state.panStartY) / state.zoom;
+                applyTransform();
+                return;
+            }
+
+            if (!state.isDrawing) return;
+
+            const coords = getCanvasCoords(e);
+            drawBrushStroke(state.lastX, state.lastY, coords.x, coords.y);
+            state.lastX = coords.x;
+            state.lastY = coords.y;
+            renderMaskOverlay();
+
+            // Update status
+            elements.statusRight.textContent = `Drawing at (${Math.round(coords.x)}, ${Math.round(coords.y)})`;
+        }
+
+        function onCanvasMouseUp(e) {
+            if (state.isPanning) {
+                state.isPanning = false;
+                elements.maskCanvas.style.cursor = 'crosshair';
+                return;
+            }
+            state.isDrawing = false;
+            elements.statusRight.textContent = 'Ready';
+        }
+
+        function onCanvasMouseLeave(e) {
+            if (state.isDrawing) {
+                state.isDrawing = false;
+            }
+            elements.brushCursor.style.display = 'none';
+        }
+
+        // Show brush cursor when hovering over canvas
+        elements.maskCanvas.addEventListener('mouseenter', () => {
+            elements.brushCursor.style.display = 'block';
+        });
+
+        function onCanvasWheel(e) {
+            e.preventDefault();
+            if (e.ctrlKey) {
+                // Zoom with Ctrl+Scroll
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                setZoom(state.zoom * delta);
+            } else {
+                // Change brush size with scroll
+                const delta = e.deltaY > 0 ? -2 : 2;
+                state.brushSize = Math.max(1, Math.min(100, state.brushSize + delta));
+                elements.brushSizeInput.value = state.brushSize;
+                elements.brushSizeValue.textContent = state.brushSize;
+                updateBrushCursor();
+            }
+        }
+
+        /**
+         * Draw a brush stroke from (x1,y1) to (x2,y2) on the mask canvas.
+         * The mask uses white (255) for "keep" areas and is transparent for "remove" areas.
+         */
+        function drawBrushStroke(x1, y1, x2, y2) {
+            const size = state.brushSize;
+            const hardness = state.brushHardness / 100;
+
+            maskCtx.save();
+
+            if (state.brushMode === 'keep') {
+                // Draw white with opacity based on hardness
+                maskCtx.globalCompositeOperation = 'source-over';
+                maskCtx.strokeStyle = `rgba(255, 255, 255, ${0.3 + hardness * 0.7})`;
+            } else {
+                // Erase mode: remove from mask
+                maskCtx.globalCompositeOperation = 'destination-out';
+                maskCtx.strokeStyle = `rgba(0, 0, 0, ${0.3 + hardness * 0.7})`;
+            }
+
+            maskCtx.lineWidth = size;
+            maskCtx.lineCap = 'round';
+            maskCtx.lineJoin = 'round';
+
+            maskCtx.beginPath();
+            maskCtx.moveTo(x1, y1);
+            maskCtx.lineTo(x2, y2);
+            maskCtx.stroke();
+
+            maskCtx.restore();
+        }
+
+        // ============ Mask Overlay Rendering ============
+        /**
+         * Renders the mask as a colored overlay on the mask canvas for visual feedback.
+         * We use a separate offscreen canvas to composite the overlay.
+         */
+        function renderMaskOverlay() {
+            // We'll use the mask canvas itself to store the actual mask data (white = keep)
+            // and render the overlay on the image canvas
+            // Actually, let's use a different approach:
+            // - maskCanvas stores the actual mask (white pixels = keep)
+            // - We render the colored overlay on top of the image canvas
+
+            // Get mask data
+            const maskData = maskCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+
+            // Redraw image
+            drawImage();
+
+            // Draw colored overlay where mask is present
+            const overlayData = imageCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            const { r, g, b } = state.maskColor;
+            const opacity = state.maskOpacity;
+
+            for (let i = 0; i < maskData.data.length; i += 4) {
+                const maskAlpha = maskData.data[i + 3] / 255; // Use alpha channel as mask value
+                if (maskAlpha > 0) {
+                    // Blend overlay color with image
+                    overlayData.data[i] = overlayData.data[i] * (1 - maskAlpha * opacity) + r * maskAlpha * opacity;
+                    overlayData.data[i + 1] = overlayData.data[i + 1] * (1 - maskAlpha * opacity) + g * maskAlpha * opacity;
+                    overlayData.data[i + 2] = overlayData.data[i + 2] * (1 - maskAlpha * opacity) + b * maskAlpha * opacity;
+                }
+            }
+
+            imageCtx.putImageData(overlayData, 0, 0);
+        }
+
+        // ============ Mask Operations ============
+        function clearMask() {
+            saveUndoState();
+            maskCtx.clearRect(0, 0, state.imageWidth, state.imageHeight);
+            renderMaskOverlay();
+            showToast('Mask cleared');
+        }
+
+        function clearMaskData() {
+            maskCtx.clearRect(0, 0, state.imageWidth, state.imageHeight);
+            state.undoStack = [];
+            state.redoStack = [];
+        }
+
+        function fillAllMask() {
+            saveUndoState();
+            maskCtx.save();
+            maskCtx.globalCompositeOperation = 'source-over';
+            maskCtx.fillStyle = 'rgba(255, 255, 255, 1)';
+            maskCtx.fillRect(0, 0, state.imageWidth, state.imageHeight);
+            maskCtx.restore();
+            renderMaskOverlay();
+            showToast('All areas selected');
+        }
+
+        function invertMask() {
+            saveUndoState();
+            const imageData = maskCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            const data = imageData.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                // Invert the alpha channel
+                data[i + 3] = 255 - data[i + 3];
+                // Set RGB to white where there's mask
+                if (data[i + 3] > 0) {
+                    data[i] = 255;
+                    data[i + 1] = 255;
+                    data[i + 2] = 255;
+                }
+            }
+
+            maskCtx.putImageData(imageData, 0, 0);
+            renderMaskOverlay();
+            showToast('Mask inverted');
+        }
+
+        // ============ Undo / Redo ============
+        function saveUndoState() {
+            const snapshot = maskCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            state.undoStack.push(snapshot);
+            if (state.undoStack.length > state.maxUndoSteps) {
+                state.undoStack.shift();
+            }
+            state.redoStack = []; // Clear redo stack on new action
+        }
+
+        function undo() {
+            if (state.undoStack.length === 0) {
+                showToast('Nothing to undo');
+                return;
+            }
+            // Save current state to redo
+            const current = maskCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            state.redoStack.push(current);
+
+            // Restore previous state
+            const previous = state.undoStack.pop();
+            maskCtx.putImageData(previous, 0, 0);
+            renderMaskOverlay();
+            showToast('Undo');
+        }
+
+        function redo() {
+            if (state.redoStack.length === 0) {
+                showToast('Nothing to redo');
+                return;
+            }
+            // Save current state to undo
+            const current = maskCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            state.undoStack.push(current);
+
+            // Restore redo state
+            const next = state.redoStack.pop();
+            maskCtx.putImageData(next, 0, 0);
+            renderMaskOverlay();
+            showToast('Redo');
+        }
+
+        // ============ Brush Mode ============
+        function setBrushMode(mode) {
+            state.brushMode = mode;
+            elements.btnKeepMode.classList.toggle('active', mode === 'keep');
+            elements.btnEraseMode.classList.toggle('active', mode === 'erase');
+            elements.brushCursor.classList.toggle('erase-mode', mode === 'erase');
+        }
+
+        // ============ Brush Cursor ============
+        function updateBrushCursor() {
+            const size = state.brushSize * state.zoom;
+            elements.brushCursor.style.width = size + 'px';
+            elements.brushCursor.style.height = size + 'px';
+        }
+
+        // ============ Keyboard Shortcuts ============
+        function onKeyDown(e) {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                state.spacePressed = true;
+                elements.maskCanvas.style.cursor = 'grab';
+            }
+            if (e.ctrlKey && e.code === 'KeyZ') {
+                e.preventDefault();
+                undo();
+            }
+            if (e.ctrlKey && e.code === 'KeyY') {
+                e.preventDefault();
+                redo();
+            }
+            if (e.code === 'BracketLeft') {
+                // Decrease brush size
+                state.brushSize = Math.max(1, state.brushSize - 3);
+                elements.brushSizeInput.value = state.brushSize;
+                elements.brushSizeValue.textContent = state.brushSize;
+                updateBrushCursor();
+            }
+            if (e.code === 'BracketRight') {
+                // Increase brush size
+                state.brushSize = Math.min(100, state.brushSize + 3);
+                elements.brushSizeInput.value = state.brushSize;
+                elements.brushSizeValue.textContent = state.brushSize;
+                updateBrushCursor();
+            }
+            if (e.code === 'KeyK') {
+                setBrushMode('keep');
+            }
+            if (e.code === 'KeyE') {
+                setBrushMode('erase');
+            }
+        }
+
+        function onKeyUp(e) {
+            if (e.code === 'Space') {
+                state.spacePressed = false;
+                elements.maskCanvas.style.cursor = 'crosshair';
+            }
+        }
+
+        // ============ Preview ============
+        function showPreview() {
+            const previewCtx = elements.previewCanvas.getContext('2d');
+            elements.previewCanvas.width = state.imageWidth;
+            elements.previewCanvas.height = state.imageHeight;
+
+            // Draw the result with transparency
+            generateResult(previewCtx);
+
+            elements.previewModal.classList.add('show');
+        }
+
+        // ============ Export ============
+        function exportImage() {
+            // Create an offscreen canvas for the final result
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = state.imageWidth;
+            exportCanvas.height = state.imageHeight;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            // Generate the matted result
+            generateResult(exportCtx);
+
+            // Download as PNG
+            const link = document.createElement('a');
+            link.download = 'matted_image.png';
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+
+            showToast('Image exported successfully!');
+        }
+
+        /**
+         * Generate the final matted image on the given context.
+         * Uses the mask to determine which pixels to keep (alpha = mask alpha).
+         */
+        function generateResult(ctx) {
+            // Draw original image
+            ctx.clearRect(0, 0, state.imageWidth, state.imageHeight);
+            ctx.drawImage(state.image, 0, 0);
+
+            // Get image data and mask data
+            const imageData = ctx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            const maskData = maskCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+
+            // Apply mask: set pixel alpha based on mask alpha
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const maskAlpha = maskData.data[i + 3]; // Mask alpha channel
+                // Multiply original alpha with mask alpha
+                imageData.data[i + 3] = Math.round(imageData.data[i + 3] * (maskAlpha / 255));
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // ============ Toast Notification ============
+        function showToast(message) {
+            elements.toast.textContent = message;
+            elements.toast.classList.add('show');
+            clearTimeout(elements.toast._timeout);
+            elements.toast._timeout = setTimeout(() => {
+                elements.toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // ============ Start ============
+        init();
+    </script>
+</body>
+</html>

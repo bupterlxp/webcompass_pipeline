@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Intelligent Email Template Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#6366f1;
+    --accent2:#8b5cf6; --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+    --border:#334155;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--text);font-size:14px}
+  header{padding:14px 22px;background:linear-gradient(90deg,#4f46e5,#7c3aed);
+         display:flex;justify-content:space-between;align-items:center}
+  header h1{margin:0;font-size:18px;font-weight:600}
+  .tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border)}
+  .tab{padding:12px 22px;cursor:pointer;border-bottom:2px solid transparent;
+       color:var(--muted);font-weight:500}
+  .tab.active{color:var(--text);border-color:var(--accent)}
+  .tab:hover{background:var(--panel2)}
+  .view{display:none;padding:20px}
+  .view.active{display:block}
+  .grid{display:grid;gap:16px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr 1fr}
+  .card{background:var(--panel);border:1px solid var(--border);
+        border-radius:10px;padding:16px}
+  .card h3{margin:0 0 12px;font-size:14px;color:var(--muted);
+           text-transform:uppercase;letter-spacing:.5px}
+  textarea,input,select{width:100%;background:var(--panel2);color:var(--text);
+    border:1px solid var(--border);border-radius:6px;padding:10px;
+    font-family:inherit;font-size:13px;outline:none}
+  textarea{min-height:260px;font-family:Menlo,Consolas,monospace;resize:vertical}
+  textarea:focus,input:focus{border-color:var(--accent)}
+  label{display:block;margin-bottom:6px;color:var(--muted);font-size:12px}
+  .field{margin-bottom:12px}
+  button{background:var(--accent);color:#fff;border:none;padding:9px 16px;
+         border-radius:6px;cursor:pointer;font-weight:500;font-size:13px}
+  button:hover{background:#4f46e5}
+  button.secondary{background:var(--panel2);border:1px solid var(--border)}
+  button.secondary:hover{background:var(--border)}
+  button.success{background:var(--ok)}
+  button.danger{background:var(--err)}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .chip{display:inline-block;padding:3px 9px;background:var(--panel2);
+        border:1px solid var(--border);border-radius:12px;font-size:11px;
+        margin:2px;cursor:pointer}
+  .chip:hover{background:var(--accent);border-color:var(--accent)}
+  .variant-tabs{display:flex;gap:4px;margin-bottom:10px}
+  .variant-tab{padding:6px 14px;background:var(--panel2);border:1px solid var(--border);
+               border-radius:6px 6px 0 0;cursor:pointer;font-size:12px}
+  .variant-tab.active{background:var(--accent);border-color:var(--accent)}
+  .preview-box{background:#fff;color:#111;padding:20px;border-radius:8px;
+               min-height:260px;line-height:1.6}
+  .preview-box h2{margin-top:0;color:#1e293b}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:10px;text-align:left;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase}
+  .badge{padding:3px 8px;border-radius:10px;font-size:11px;font-weight:500}
+  .badge.sent{background:rgba(99,102,241,.2);color:#a5b4fc}
+  .badge.opened{background:rgba(16,185,129,.2);color:#6ee7b7}
+  .badge.clicked{background:rgba(245,158,11,.2);color:#fcd34d}
+  .stat{display:flex;flex-direction:column;gap:4px}
+  .stat .num{font-size:26px;font-weight:700;color:var(--text)}
+  .stat .lbl{font-size:12px;color:var(--muted)}
+  .winner{background:linear-gradient(90deg,rgba(16,185,129,.15),transparent);
+          border-left:3px solid var(--ok);padding:10px 14px;border-radius:6px;
+          margin-top:10px}
+  .help{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+  code{background:var(--panel2);padding:1px 5px;border-radius:3px;font-size:11px}
+  .scroll{max-height:400px;overflow-y:auto}
+  .row{display:flex;gap:10px;align-items:center}
+  .flex-1{flex:1}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>✉️ Intelligent Email Template Generator</h1>
+  <div>
+    <button class="secondary" onclick="exportData()">Export</button>
+    <button class="secondary" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-view="editor">📝 Editor</div>
+  <div class="tab" data-view="preview">👁 Preview</div>
+  <div class="tab" data-view="send">🚀 Send & Track</div>
+  <div class="tab" data-view="analytics">📊 Analytics</div>
+</div>
+
+<!-- EDITOR VIEW -->
+<div class="view active" id="view-editor">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Template Variants (A/B Testing)</h3>
+      <div class="variant-tabs" id="variantTabs"></div>
+      <div class="field">
+        <label>Subject Line</label>
+        <input id="subject" placeholder="Hello {name}, special offer inside!" />
+      </div>
+      <div class="field">
+        <label>Body (HTML supported)</label>
+        <textarea id="body"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="secondary" onclick="addVariant()">+ Add Variant</button>
+        <button class="danger" onclick="removeVariant()">Remove Current</button>
+        <button onclick="saveTemplate()">💾 Save</button>
+      </div>
+      <div class="help">
+        <b>Syntax:</b><br>
+        • Variables: <code>{name}</code>, <code>{company}</code>, <code>{discount}</code><br>
+        • Conditionals: <code>{{#if isVip}}VIP content{{else}}Regular{{/if}}</code><br>
+        • Nested conditions supported.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Quick Insert & Sample Data</h3>
+      <div class="field">
+        <label>Insert Variable</label>
+        <div>
+          <span class="chip" onclick="insertVar('{name}')">{name}</span>
+          <span class="chip" onclick="insertVar('{email}')">{email}</span>
+          <span class="chip" onclick="insertVar('{company}')">{company}</span>
+          <span class="chip" onclick="insertVar('{discount}')">{discount}</span>
+          <span class="chip" onclick="insertVar('{isVip}')">{isVip}</span>
+          <span class="chip" onclick="insertVar('{plan}')">{plan}</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Insert Conditional Block</label>
+        <div>
+          <span class="chip" onclick="insertBlock('if')">{{#if}}...{{/if}}</span>
+          <span class="chip" onclick="insertBlock('ifelse')">{{#if}}...{{else}}...{{/if}}</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Sample Recipient Data (JSON)</label>
+        <textarea id="sampleData" style="min-height:180px"></textarea>
+      </div>
+      <button onclick="applySample()">Apply Sample to Preview</button>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW VIEW -->
+<div class="view" id="view-preview">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Recipient Data</h3>
+      <textarea id="previewData" style="min-height:200px"></textarea>
+      <div class="btn-row">
+        <button onclick="renderPreview()">🔄 Render</button>
+        <button class="secondary" onclick="cycleSample()">Next Sample</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Live Preview — Variant <span id="previewVariant">A</span></h3>
+      <div class="variant-tabs" id="previewVariantTabs"></div>
+      <div style="margin-bottom:8px;color:var(--muted);font-size:12px">
+        Subject: <b id="previewSubject" style="color:var(--text)"></b>
+      </div>
+      <div class="preview-box" id="previewBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SEND VIEW -->
+<div class="view" id="view-send">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Recipients List</h3>
+      <textarea id="recipients" style="min-height:220px"></textarea>
+      <div class="help">JSON array of recipient objects. Each object's fields become template variables.</div>
+      <div class="btn-row">
+        <button onclick="loadSampleRecipients()">Load Sample (20)</button>
+        <button class="success" onclick="sendCampaign()">🚀 Send Campaign</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Send Records</h3>
+      <div class="scroll">
+        <table id="recordsTable">
+          <thead><tr><th>Time</th><th>Recipient</th><th>Variant</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS VIEW -->
+<div class="view" id="view-analytics">
+  <div class="grid grid-3" style="margin-bottom:16px">
+    <div class="card stat"><span class="num" id="statSent">0</span><span class="lbl">Total Sent</span></div>
+    <div class="card stat"><span class="num" id="statOpen">0%</span><span class="lbl">Open Rate</span></div>
+    <div class="card stat"><span class="num" id="statClick">0%</span><span class="lbl">Click Rate</span></div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>A/B Variant Performance</h3>
+      <canvas id="chartVariants" height="220"></canvas>
+      <div id="winnerBox"></div>
+    </div>
+    <div class="card">
+      <h3>Open Rate Over Time</h3>
+      <canvas id="chartTimeline" height="220"></canvas>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Per-Recipient Breakdown</h3>
+    <div class="scroll">
+      <table id="breakdownTable">
+        <thead><tr><th>Recipient</th><th>Variant</th><th>Sent</th><th>Opened</th><th>Clicked</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   STATE
+========================================================= */
+const DEFAULT_VARIANTS = [
+  {
+    name:'A',
+    subject:'Hi {name}, a special {discount}% offer just for you!',
+    body:`<h2>Hello {name} 👋</h2>
+<p>We noticed you're part of <b>{company}</b>, and we have something special.</p>
+{{#if isVip}}
+<p style="background:#fef3c7;padding:10px;border-radius:6px">
+🌟 As a <b>VIP member</b>, enjoy an exclusive <b>{discount}%</b> discount!
+</p>
+{{else}}
+<p>Get <b>{discount}%</b> off your next purchase with us.</p>
+{{/if}}
+<p>Use code: <code>SAVE{discount}</code></p>
+<p>Best,<br>The Team</p>`
+  },
+  {
+    name:'B',
+    subject:'{name}, your {discount}% discount is waiting',
+    body:`<h2>Hey {name}!</h2>
+<p>Quick reminder — your <b>{discount}%</b> discount at {company} is waiting.</p>
+{{#if isVip}}
+<p>✨ VIP perk: free shipping included!</p>
+{{/if}}
+<p><a href="#" style="background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Claim Now</a></p>`
+  }
+];
+
+const SAMPLE_RECIPIENTS = [
+  {name:'Alice Chen', email:'alice@acme.com', company:'Acme Corp', discount:20, isVip:true, plan:'Enterprise'},
+  {name:'Bob Smith', email:'bob@globex.com', company:'Globex', discount:15, isVip:false, plan:'Starter'},
+  {name:'Carol Diaz', email:'carol@initech.com', company:'Initech', discount:25, isVip:true, plan:'Pro'},
+  {name:'Dan Kumar', email:'dan@umbrella.com', company:'Umbrella', discount:10, isVip:false, plan:'Starter'},
+  {name:'Eve Park', email:'eve@wayne.com', company:'Wayne Ent.', discount:30, isVip:true, plan:'Enterprise'}
+];
+
+let state = {
+  variants: JSON.parse(JSON.stringify(DEFAULT_VARIANTS)),
+  currentVariant: 0,
+  records: [],
+  sampleIdx: 0
+};
+
+/* =========================================================
+   TEMPLATE ENGINE
+========================================================= */
+function interpolate(str, data){
+  return str.replace(/\{(\w+)\}/g, (_,k)=> data[k]!==undefined ? data[k] : '');
+}
+
+function evaluateConditionals(template, data){
+  // Process {{#if var}}...{{else}}...{{/if}} — supports nesting via recursion
+  const re = /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/;
+  let out = template, safety=0;
+  // Use a stack-based approach: find innermost first
+  while(re.test(out) && safety++<100){
+    out = out.replace(re, (_,varName, body)=>{
+      let thenPart = body, elsePart = '';
+      const elseIdx = findTopLevelElse(body);
+      if(elseIdx !== -1){
+        thenPart = body.slice(0, elseIdx);
+        elsePart = body.slice(elseIdx + '{{else}}'.length);
+      }
+      return data[varName] ? thenPart : elsePart;
+    });
+  }
+  return out;
+}
+
+function findTopLevelElse(body){
+  // Find {{else}} not inside nested {{#if}}...{{/if}}
+  let depth=0, i=0;
+  while(i<body.length){
+    if(body.startsWith('{{#if', i)) { depth++; i+=5; }
+    else if(body.startsWith('{{/if}}', i)) { depth--; i+=7; }
+    else if(body.startsWith('{{else}}', i) && depth===0) return i;
+    else i++;
+  }
+  return -1;
+}
+
+function render(template, data){
+  const withConds = evaluateConditionals(template, data);
+  return interpolate(withConds, data);
+}
+
+/* =========================================================
+   UI: TABS
+========================================================= */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('view-'+t.dataset.view).classList.add('active');
+    if(t.dataset.view==='preview') renderPreview();
+    if(t.dataset.view==='analytics') renderAnalytics();
+    if(t.dataset.view==='send') renderRecords();
+  };
+});
+
+/* =========================================================
+   EDITOR
+========================================================= */
+function renderVariantTabs(){
+  const c = document.getElementById('variantTabs');
+  c.innerHTML = '';
+  state.variants.forEach((v,i)=>{
+    const el = document.createElement('div');
+    el.className = 'variant-tab'+(i===state.currentVariant?' active':'');
+    el.textContent = 'Variant '+v.name;
+    el.onclick = ()=>{ saveCurrentToState(); state.currentVariant=i; loadCurrentToUI(); renderVariantTabs(); };
+    c.appendChild(el);
+  });
+}
+
+function saveCurrentToState(){
+  const v = state.variants[state.currentVariant];
+  v.subject = document.getElementById('subject').value;
+  v.body = document.getElementById('body').value;
+}
+
+function loadCurrentToUI(){
+  const v = state.variants[state.currentVariant];
+  document.getElementById('subject').value = v.subject;
+  document.getElementById('body').value = v.body;
+}
+
+function addVariant(){
+  saveCurrentToState();
+  const letter = String.fromCharCode(65 + state.variants.length);
+  state.variants.push({name:letter, subject:'', body:''});
+  state.currentVariant = state.variants.length-1;
+  renderVariantTabs(); loadCurrentToUI();
+}
+
+function removeVariant(){
+  if(state.variants.length<=1){ alert('At least one variant required'); return; }
+  state.variants.splice(state.currentVariant,1);
+  state.currentVariant = 0;
+  renderVariantTabs(); loadCurrentToUI();
+}
+
+function saveTemplate(){
+  saveCurrentToState();
+  localStorage.setItem('emailGen', JSON.stringify(state));
+  alert('Template saved ✓');
+}
+
+function insertVar(v){
+  const ta = document.getElementById('body');
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.slice(0,s)+v+ta.value.slice(e);
+  ta.focus();
+}
+
+function insertBlock(type){
+  const tpl = type==='if'
+    ? '{{#if isVip}}\n  VIP-only content here\n{{/if}}'
+    : '{{#if isVip}}\n  VIP content\n{{else}}\n  Regular content\n{{/if}}';
+  const ta = document.getElementById('body');
+  const s = ta.selectionStart;
+  ta.value = ta.value.slice(0,s)+tpl+ta.value.slice(s);
+  ta.focus();
+}
+
+function applySample(){
+  try{
+    const data = JSON.parse(document.getElementById('sampleData').value);
+    document.getElementById('previewData').value = JSON.stringify(data, null, 2);
+    document.querySelector('[data-view="preview"]').click();
+  }catch(e){ alert('Invalid JSON: '+e.message); }
+}
+
+/* =========================================================
+   PREVIEW
+========================================================= */
+function renderPreviewVariantTabs(){
+  const c = document.getElementById('previewVariantTabs');
+  c.innerHTML = '';
+  state.variants.forEach((v,i)=>{
+    const el = document.createElement('div');
+    el.className = 'variant-tab'+(i===state.currentVariant?' active':'');
+    el.textContent = 'Variant '+v.name;
+    el.onclick = ()=>{ state.currentVariant=i; renderPreview(); renderPreviewVariantTabs(); };
+    c.appendChild(el);
+  });
+}
+
+function renderPreview(){
+  saveCurrentToState();
+  renderPreviewVariantTabs();
+  const v = state.variants[state.currentVariant];
+  let data = {};
+  try{ data = JSON.parse(document.getElementById('previewData').value); }
+  catch(e){ data = SAMPLE_RECIPIENTS[0]; }
+  document.getElementById('previewVariant').textContent = v.name;
+  document.getElementById('previewSubject').textContent = render(v.subject, data);
+  document.getElementById('previewBody').innerHTML = render(v.body, data);
+}
+
+function cycleSample(){
+  state.sampleIdx = (state.sampleIdx+1) % SAMPLE_RECIPIENTS.length;
+  document.getElementById('previewData').value = JSON.stringify(SAMPLE_RECIPIENTS[state.sampleIdx], null, 2);
+  renderPreview();
+}
+
+/* =========================================================
+   SEND & TRACK
+========================================================= */
+function loadSampleRecipients(){
+  // Generate 20 recipients
+  const list = [];
+  const firstNames = ['Alice','Bob','Carol','Dan','Eve','Frank','Grace','Hank','Ivy','Jack','Kim','Leo','Mia','Noah','Olivia'];
+  const companies = ['Acme','Globex','Initech','Umbrella','Wayne','Stark','Oscorp','Cyberdyne'];
+  for(let i=0;i<20;i++){
+    const n = firstNames[i%firstNames.length];
+    list.push({
+      name: n+' User'+i,
+      email: n.toLowerCase()+i+'@example.com',
+      company: companies[i%companies.length],
+      discount: 10 + (i%4)*5,
+      isVip: i%3===0,
+      plan: ['Starter','Pro','Enterprise'][i%3]
+    });
+  }
+  document.getElementById('recipients').value = JSON.stringify(list, null, 2);
+}
+
+function sendCampaign(){
+  let list;
+  try{ list = JSON.parse(document.getElementById('recipients').value); }
+  catch(e){ alert('Invalid recipients JSON'); return; }
+  if(!Array.isArray(list) || !list.length){ alert('Empty recipients'); return; }
+  saveCurrentToState();
+
+  const variantCount = state.variants.length;
+  const now = Date.now();
+  list.forEach((r,i)=>{
+    const variantIdx = i % variantCount;
+    const opened = Math.random() < 0.55;
+    const clicked = opened && Math.random() < 0.35;
+    state.records.push({
+      id: 'r'+now+'_'+i,
+      time: now + i*1000,
+      recipient: r.email || r.name,
+      name: r.name,
+      variant: state.variants[variantIdx].name,
+      variantIdx,
+      status: clicked ? 'clicked' : (opened ? 'opened' : 'sent'),
+      opened, clicked
+    });
+  });
+  localStorage.setItem('emailGen', JSON.stringify(state));
+  renderRecords();
+  alert(`Campaign sent to ${list.length} recipients ✓`);
+}
+
+function renderRecords(){
+  const tbody = document.querySelector('#recordsTable tbody');
+  tbody.innerHTML = '';
+  state.records.slice().reverse().slice(0,100).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${new Date(r.time).toLocaleString()}</td>
+      <td>${r.recipient}</td>
+      <td>Variant ${r.variant}</td>
+      <td><span class="badge ${r.status}">${r.status}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* =========================================================
+   ANALYTICS
+========================================================= */
+let chartVariants=null, chartTimeline=null;
+
+function renderAnalytics(){
+  const total = state.records.length;
+  const opened = state.records.filter(r=>r.opened).length;
+  const clicked = state.records.filter(r=>r.clicked).length;
+  document.getElementById('statSent').textContent = total;
+  document.getElementById('statOpen').textContent = total ? (opened/total*100).toFixed(1)+'%' : '0%';
+  document.getElementById('statClick').textContent = total ? (clicked/total*100).toFixed(1)+'%' : '0%';
+
+  // Per-variant stats
+  const byVariant = {};
+  state.variants.forEach(v=> byVariant[v.name]={sent:0,opened:0,clicked:0});
+  state.records.forEach(r=>{
+    if(!byVariant[r.variant]) byVariant[r.variant]={sent:0,opened:0,clicked:0};
+    byVariant[r.variant].sent++;
+    if(r.opened) byVariant[r.variant].opened++;
+    if(r.clicked) byVariant[r.variant].clicked++;
+  });
+
+  const labels = Object.keys(byVariant);
+  const openRates = labels.map(l=> byVariant[l].sent ? (byVariant[l].opened/byVariant[l].sent*100) : 0);
+  const clickRates = labels.map(l=> byVariant[l].sent ? (byVariant[l].clicked/byVariant[l].sent*100) : 0);
+
+  if(chartVariants) chartVariants.destroy();
+  chartVariants = new Chart(document.getElementById('chartVariants'),{
+    type:'bar',
+    data:{
+      labels: labels.map(l=>'Variant '+l),
+      datasets:[
+        {label:'Open Rate %', data:openRates, backgroundColor:'#6366f1'},
+        {label:'Click Rate %', data:clickRates, backgroundColor:'#8b5cf6'}
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#e2e8f0'}}},
+      scales:{
+        y:{ticks:{color:'#94a3b8'}, grid:{color:'#334155'}},
+        x:{ticks:{color:'#94a3b8'}, grid:{color:'#334155'}}
+      }
+    }
+  });
+
+  // Winner
+  const wb = document.getElementById('winnerBox');
+  if(labels.length>=2 && total>0){
+    let best = labels[0], bestScore = openRates[0]*0.6 + clickRates[0]*0.4;
+    labels.forEach((l,i)=>{
+      const s = openRates[i]*0.6 + clickRates[i]*0.4;
+      if(s>bestScore){ bestScore=s; best=l; }
+    });
+    wb.innerHTML = `<div class="winner">🏆 <b>Winner: Variant ${best}</b> — composite score ${bestScore.toFixed(1)} (60% open + 40% click)</div>`;
+  } else wb.innerHTML='';
+
+  // Timeline (open rate per hour bucket)
+  const buckets = {};
+  state.records.forEach(r=>{
+    const h = new Date(r.time);
+    const key = h.toLocaleDateString()+' '+h.getHours()+':00';
+    if(!buckets[key]) buckets[key]={sent:0,opened:0};
+    buckets[key].sent++;
+    if(r.opened) buckets[key].opened++;
+  });
+  const tLabels = Object.keys(buckets).slice(-12);
+  const tData = tLabels.map(k=> buckets[k].sent ? (buckets[k].opened/buckets[k].sent*100) : 0);
+
+  if(chartTimeline) chartTimeline.destroy();
+  chartTimeline = new Chart(document.getElementById('chartTimeline'),{
+    type:'line',
+    data:{
+      labels: tLabels,
+      datasets:[{label:'Open Rate %', data:tData, borderColor:'#10b981',
+                 backgroundColor:'rgba(16,185,129,.2)', fill:true, tension:.3}]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#e2e8f0'}}},
+      scales:{
+        y:{ticks:{color:'#94a3b8'}, grid:{color:'#334155'}},
+        x:{ticks:{color:'#94a3b8'}, grid:{color:'#334155'}}
+      }
+    }
+  });
+
+  // Breakdown table
+  const bt = document.querySelector('#breakdownTable tbody');
+  bt.innerHTML = '';
+  state.records.slice(-50).reverse().forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.recipient}</td><td>Variant ${r.variant}</td>
+      <td>✓</td><td>${r.opened?'✓':'—'}</td><td>${r.clicked?'✓':'—'}</td>`;
+    bt.appendChild(tr);
+  });
+}
+
+/* =========================================================
+   UTIL
+========================================================= */
+function exportData(){
+  saveCurrentToState();
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'email-template-export.json';
+  a.click();
+}
+
+function resetAll(){
+  if(!confirm('Reset all templates and records?')) return;
+  localStorage.removeItem('emailGen');
+  location.reload();
+}
+
+/* =========================================================
+   INIT
+========================================================= */
+(function init(){
+  const saved = localStorage.getItem('emailGen');
+  if(saved){
+    try{ state = Object.assign(state, JSON.parse(saved)); }catch(e){}
+  }
+  document.getElementById('sampleData').value = JSON.stringify(SAMPLE_RECIPIENTS[0], null, 2);
+  document.getElementById('previewData').value = JSON.stringify(SAMPLE_RECIPIENTS[0], null, 2);
+  document.getElementById('recipients').value = JSON.stringify(SAMPLE_RECIPIENTS, null, 2);
+  renderVariantTabs();
+  loadCurrentToUI();
+})();
+</script>
+</body>
+</html>

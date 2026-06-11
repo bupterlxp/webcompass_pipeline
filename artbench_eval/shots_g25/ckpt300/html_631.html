@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScreenCapture Pro</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #f3f4f6;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.logo {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #4f46e5, #06b6d4);
+  border-radius: 10px;
+  color: white;
+}
+.brand h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-group {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+.mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.mode-btn:hover { color: #1f2937; background: #f3f4f6; }
+.mode-btn.active {
+  background: #e5e7eb;
+  color: #111827;
+  border-color: #d1d5db;
+}
+.mode-btn .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+}
+
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #1f2937;
+  transition: all .2s ease;
+}
+.icon-btn:hover { background: #e5e7eb; transform: translateY(-1px); }
+.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s ease;
+}
+.primary-btn:hover { background: #1e293b; }
+.primary-btn:active { transform: translateY(1px); }
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 260px;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar h2 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.tool-group { display: flex; flex-direction: column; gap: 8px; }
+.tool-group label { display: flex; flex-direction: column; gap: 4px; }
+
+.tool {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #1f2937;
+  transition: all .2s ease;
+}
+.tool:hover { background: #e5e7eb; transform: translateY(-1px); }
+.tool.active {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.tool:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
+
+.swatch input[type="color"] {
+  width: 40px; height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.swatch input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.swatch input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; }
+
+.swatch input[type="range"] {
+  width: 100%;
+  accent-color: #0f172a;
+}
+.swatch select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.editor {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #1f2937;
+}
+.stage {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  outline: none;
+}
+.stage:focus { outline: 2px solid #0f172a; outline-offset: -2px; }
+
+#canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+#canvas.hidden { display: none; }
+
+.preview {
+  position: absolute;
+  top: 16px; left: 16px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.95);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 32px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tooltip {
+  position: absolute;
+  padding: 6px 10px;
+  background: rgba(15,23,42,.95);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+}
+.tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(15,23,42,.95);
+}
+
+.status {
+  padding: 8px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.status .sep { color: #d1d5db; }
+
+/* Scrollbar */
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+/* Responsive */
+@media (max-width: 720px) {
+  .mode-group { display: none; }
+  .brand h1 { font-size: 14px; }
+  .sidebar { width: 100%; }
+  .tool-group { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .tool { width: 36px; height: 36px; }
+  .swatch input[type="color"], .swatch select, .swatch input[type="range"] { width: 36px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 3v18"/>
+        </svg>
+      </div>
+      <h1>ScreenCapture Pro</h1>
+    </div>
+    <div class="mode-group" role="tablist">
+      <button class="mode-btn active" data-mode="area" role="tab" aria-selected="true">
+        <span class="dot"></span>Area
+      </button>
+      <button class="mode-btn" data-mode="window" role="tab" aria-selected="false">
+        <span class="dot"></span>Window
+      </button>
+      <button class="mode-btn" data-mode="page" role="tab" aria-selected="false">
+        <span class="dot"></span>Page
+      </button>
+    </div>
+    <div class="topbar-actions">
+      <button id="undoBtn" class="icon-btn" title="Undo (Ctrl+Z)" aria-label="Undo">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+      </button>
+      <button id="redoBtn" class="icon-btn" title="Redo (Ctrl+Y)" aria-label="Redo">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg>
+      </button>
+      <button id="saveBtn" class="primary-btn" title="Save as PNG">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Save
+      </button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar">
+      <h2>Tools</h2>
+      <div class="tool-group">
+        <button class="tool active" data-tool="select" title="Select">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7 18 14-10L21 12"/></svg>
+        </button>
+        <button class="tool" data-tool="text" title="Text">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 8h16M8 4v16"/></svg>
+        </button>
+        <button class="tool" data-tool="rect" title="Rectangle">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
+        </button>
+        <button class="tool" data-tool="arrow" title="Arrow">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M12 3l9 9-9 9M12 3v18"/></svg>
+        </button>
+        <button class="tool" data-tool="line" title="Line">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M12 3v18"/></svg>
+        </button>
+        <button class="tool" data-tool="free" title="Freehand">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      <div class="tool-group">
+        <label class="swatch" title="Color">
+          <input type="color" id="colorPicker" value="#000000" />
+        </label>
+        <label class="swatch" title="Opacity">
+          <input type="range" id="opacity" min="10" max="100" value="100" />
+        </label>
+        <label class="swatch" title="Thickness">
+          <input type="range" id="thickness" min="1" max="20" value="3" />
+        </label>
+      </div>
+
+      <div class="tool-group">
+        <label class="swatch" title="Text size">
+          <input type="range" id="textSize" min="12" max="60" value="28" />
+        </label>
+        <label class="swatch" title="Text align">
+          <select id="textAlign">
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+      </div>
+    </aside>
+
+    <main class="editor">
+      <div id="stage" class="stage" tabindex="0" aria-label="Screenshot editor">
+        <canvas id="canvas"></canvas>
+        <div id="preview" class="preview"></div>
+      </div>
+      <div id="tooltip" class="tooltip" hidden></div>
+    </main>
+  </div>
+
+  <footer class="status">
+    <span id="statusText">Ready</span>
+    <span class="sep">•</span>
+    <span id="statusMeta">0 edits</span>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    mode: 'area',
+    tool: 'select',
+    color: '#000000',
+    opacity: 1,
+    thickness: 3,
+    textSize: 28,
+    textAlign: 'left',
+    history: [],
+    redoStack: [],
+    current: [],
+    editing: false,
+    startX: 0, startY: 0,
+    isDrawing: false,
+    startX2: 0, startY2: 0,
+    currentPath: [],
+    previewText: 'Click to capture',
+  };
+
+  // ---------- DOM ----------
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const preview = document.getElementById('preview');
+  const tooltip = document.getElementById('tooltip');
+  const statusText = document.getElementById('statusText');
+  const statusMeta = document.getElementById('statusMeta');
+
+  const colorPicker = document.getElementById('colorPicker');
+  const opacityInput = document.getElementById('opacity');
+  const thicknessInput = document.getElementById('thickness');
+  const textSizeInput = document.getElementById('textSize');
+  const textAlignSelect = document.getElementById('textAlign');
+
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const saveBtn = document.getElementById('saveBtn');
+
+  const modeBtns = document.querySelectorAll('.mode-btn');
+  const toolBtns = document.querySelectorAll('.tool');
+
+  // ---------- Canvas sizing ----------
+  function resizeCanvas() {
+    const rect = stage.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(0, 0, rect.width, rect.height);
+  }
+
+  let lastRect = null;
+  function updatePreview() {
+    if (!lastRect) return;
+    const { x, y, w, h } = lastRect;
+    preview.style.left = `${x}px`;
+    preview.style.top = `${y}px`;
+    preview.style.width = `${w}px`;
+    preview.style.height = `${h}px`;
+    preview.textContent = state.previewText;
+  }
+
+  // ---------- Mode ----------
+  function setMode(m) {
+    state.mode = m;
+    modeBtns.forEach(b => {
+      const active = b.dataset.mode === m;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active);
+    });
+    if (m === 'area') {
+      lastRect = null;
+      updatePreview();
+    }
+  }
+
+  // ---------- Tool ----------
+  function setTool(t) {
+    state.tool = t;
+    toolBtns.forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+    if (t === 'select') {
+      state.editing = false;
+      state.currentPath = [];
+    }
+  }
+
+  // ---------- Drawing ----------
+  function drawRect(x, y, w, h) {
+    ctx.save();
+    ctx.globalAlpha = state.opacity;
+    ctx.strokeStyle = state.color;
+    ctx.lineWidth = state.thickness;
+    ctx.setLineDash([]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
+  function drawArrow(x1, y1, x2, y2) {
+    ctx.save();
+    ctx.globalAlpha = state.opacity;
+    ctx.strokeStyle = state.color;
+    ctx.lineWidth = state.thickness;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const ax = (dx / len) * 12, ay = (dy / len) * 12;
+    const x3 = x2 - ay, y3 = y2 + ax;
+    const x4 = x2 + ay, y4 = y2 - ax;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x3, y3);
+    ctx.lineTo(x4, y4);
+    ctx.closePath();
+    ctx.fillStyle = state.color;
+    ctx.fill('evenodd');
+    ctx.restore();
+  }
+
+  function drawLine(x1, y1, x2, y2) {
+    ctx.save();
+    ctx.globalAlpha = state.opacity;
+    ctx.strokeStyle = state.color;
+    ctx.lineWidth = state.thickness;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFree(x1, y1, x2, y2) {
+    ctx.save();
+    ctx.globalAlpha = state.opacity;
+    ctx.strokeStyle = state.color;
+    ctx.lineWidth = state.thickness;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawText(x, y, text) {
+    ctx.save();
+    ctx.globalAlpha = state.opacity;
+    ctx.fillStyle = state.color;
+    ctx.font = `600 ${state.textSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.textAlign = state.textAlign;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function drawSelectionRect(x1, y1, x2, y2) {
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.restore();
+  }
+
+  function updateSelectionRect(x, y) {
+    const r = lastRect;
+    if (!r) return;
+    const w = Math.abs(x - r.x);
+    const h = Math.abs(y - r.y);
+    const x2 = Math.min(r.x, x);
+    const y2 = Math.min(r.y, y);
+    lastRect = { x: x2, y: y2, w, h };
+    updatePreview();
+  }
+
+  // ---------- Capture ----------
+  async function captureArea(x, y, w, h) {
+    const { width, height } = stage.getBoundingClientRect();
+    const offscreen = document.createElement('canvas');
+    offscreen.width = w;
+    offscreen.height = h;
+    const octx = offscreen.getContext('2d');
+    octx.fillStyle = '#1f2937';
+    octx.fillRect(0, 0, w, h);
+    octx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+    return offscreen;
+  }
+
+  async function captureWindow() {
+    const rect = stage.getBoundingClientRect();
+    return await captureArea(0, 0, rect.width, rect.height);
+  }
+
+  async function capturePage() {
+    const html = document.documentElement;
+    const scrollX = window.scrollX || 0;
+    const scrollY = window.scrollY || 0;
+    const w = html.scrollWidth;
+    const h = html.scrollHeight;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = w;
+    offscreen.height = h;
+    const octx = offscreen.getContext('2d');
+    octx.fillStyle = '#1f2937';
+    octx.fillRect(0, 0, w, h);
+    octx.save();
+    octx.translate(scrollX, scrollY);
+    octx.scale(1, -1);
+    octx.translate(0, -h);
+    html.scrollIntoView(false);
+    const clone = html.cloneNode(true);
+    clone.querySelectorAll('*').forEach(el => {
+      if (el.style.position === 'fixed') {
+        el.style.position = 'absolute';
+        el.style.top = '0';
+        el.style.left = '0';
+      }
+      if (el.style.width === '100%') el.style.width = 'auto';
+      if (el.style.height === '100%') el.style.height = 'auto';
+    });
+    octx.drawImage(clone, 0, 0, w, h);
+    octx.restore();
+    return offscreen;
+  }
+
+  // ---------- History ----------
+  function snapshot() {
+    return {
+      mode: state.mode,
+      tool: state.tool,
+      color: state.color,
+      opacity: state.opacity,
+      thickness: state.thickness,
+      textSize: state.textSize,
+      textAlign: state.textAlign,
+      current: state.current.slice(),
+    };
+  }
+
+  function restore(s) {
+    state.mode = s.mode;
+    state.tool = s.tool;
+    state.color = s.color;
+    state.opacity = s.opacity;
+    state.thickness = s.thickness;
+    state.textSize = s.textSize;
+    state.textAlign = s.textAlign;
+    state.current = s.current;
+    state.editing = false;
+    state.currentPath = [];
+  }
+
+  function pushHistory() {
+    state.history.push(snapshot());
+    if (state.history.length > 100) state.history.shift();
+    if (state.redoStack.length) state.redoStack = [];
+    renderStatus();
+  }
+
+  function undo() {
+    if (state.history.length <= 1) return;
+    state.redoStack.push(snapshot());
+    const prev = state.history.pop();
+    restore(prev);
+    renderStatus();
+  }
+
+  function redo() {
+    if (state.redoStack.length <= 0) return;
+    state.history.push(snapshot());
+    const next = state.redoStack.pop();
+    restore(next);
+    renderStatus();
+  }
+
+  function renderStatus() {
+    statusMeta.textContent = `${state.history.length} edits`;
+    undoBtn.disabled = state.history.length <= 1;
+    redoBtn.disabled = state.redoStack.length <= 0;
+  }
+
+  // ---------- Canvas events ----------
+  function getPoint(e) {
+    const rect = canvas.getBoundingClientRect();
+    const p = canvas.getPoint(e.clientX - rect.left, e.clientY - rect.top);
+    return p;
+  }
+
+  function getPointFromEvent(e) {
+    if (e.touches && e.touches.length) {
+      return getPoint(e.touches[0]);
+    }
+    return getPoint(e);
+  }
+
+  function setTooltip(x, y, text) {
+    tooltip.textContent = text;
+    tooltip.hidden = false;
+    const rect = stage.getBoundingClientRect();
+    const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
+    const left = Math.max(8, Math.min(rect.width - tw - 8, x - tw / 2));
+    const top = Math.max(8, Math.min(rect.height - th - 8, y - th / 2));
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  function hideTooltip() {
+    tooltip.hidden = true;
+  }
+
+  function clearSelection() {
+    lastRect = null;
+    updatePreview();
+    hideTooltip();
+  }
+
+  function startSelection(x, y) {
+    lastRect = { x, y, w: 0, h: 0 };
+    updatePreview();
+    setTooltip(x, y, 'Drag to select area');
+    state.editing = true;
+  }
+
+  function endSelection(x, y) {
+    if (!lastRect) return;
+    const w = Math.abs(x - lastRect.x);
+    const h = Math.abs(y - lastRect.y);
+    if (w < 3 || h < 3) { clearSelection(); return; }
+    state.current.push({ type: 'rect', x: Math.min(lastRect.x, x), y: Math.min(lastRect.y, y), w, h, color: state.color, opacity: state.opacity, thickness: state.thickness });
+    clearSelection();
+    pushHistory();
+  }
+
+  function startDraw(x, y) {
+    state.isDrawing = true;
+    state.startX = x; state.startY = y;
+    state.startX2 = x; state.startY2 = y;
+    state.currentPath = [];
+  }
+
+  function endDraw(x, y) {
+    if (!state.isDrawing) return;
+    state.isDrawing = false;
+    const tool = state.tool;
+    const x1 = state.startX, y1 = state.startY;
+    const x2 = x, y2 = y;
+    if (tool === 'rect') {
+      const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+      const x3 = Math.min(x1, x2), y3 = Math.min(y1, y2);
+      state.current.push({ type: 'rect', x: x3, y: y3, w, h, color: state.color, opacity: state.opacity, thickness: state.thickness });
+    } else if (tool === 'arrow') {
+      state.current.push({ type: 'arrow', x1, y1, x2, y2, color: state.color, opacity: state.opacity, thickness: state.thickness });
+    } else if (tool === 'line') {
+      state.current.push({ type: 'line', x1, y1, x2, y2, color: state.color, opacity: state.opacity, thickness: state.thickness });
+    } else if (tool === 'free') {
+      state.current.push({ type: 'free', x1, y1, x2, y2, color: state.color, opacity: state.opacity, thickness: state.thickness });
+    } else if (tool === 'text') {
+      state.current.push({ type: 'text', x: x1, y: y1, text: state.previewText, color: state.color, opacity: state.opacity, thickness: state.textSize, textAlign: state.textAlign });
+    }
+    pushHistory();
+  }
+
+  function moveDraw(x, y) {
+    if (!state.isDrawing) return;
+    state.startX2 = x; state.startY2 = y;
+    if (state.tool === 'free') {
+      state.currentPath.push({ x, y });
+      drawFree(state.currentPath[0].x, state.currentPath[0].y, x, y);
+    } else {
+      drawSelectionRect(state.startX, state.startY, x, y);
+    }
+  }
+
+  function cancelDraw() {
+    if (!state.isDrawing) return;
+    state.isDrawing = false;
+    state.startX = 0; state.startY = 0;
+    state.startX2 = 0; state.startY2 = 0;
+    state.currentPath = [];
+    drawSelectionRect(state.startX, state.startY, state.startX2, state.startY2);
+  }
+
+  function clearAll() {
+    state.current = [];
+    pushHistory();
+  }
+
+  function updateCanvas() {
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    state.current.forEach(item => {
+      if (item.type === 'rect') drawRect(item.x, item.y, item.w, item.h);
+      else if (item.type === 'arrow') drawArrow(item.x1, item.y1, item.x2, item.y2);
+      else if (item.type === 'line') drawLine(item.x1, item.y1, item.x2, item.y2);
+      else if (item.type === 'free') drawFree(item.x1, item.y1, item.x2, item.y2);
+      else if (item.type === 'text') drawText(item.x, item.y, item.text);
+    });
+  }
+
+  // ---------- Bindings ----------
+  stage.addEventListener('mousedown', (e) => {
+    const p = getPointFromEvent(e);
+    if (state.mode === 'area') {
+      if (state.editing) {
+        endSelection(p.x, p.y);
+      } else {
+        startSelection(p.x, p.y);
+      }
+    } else {
+      if (state.tool === 'select') {
+        startSelection(p.x, p.y);
+      } else {
+        startDraw(p.x, p.y);
+      }
+    }
+  });
+
+  stage.addEventListener('mousemove', (e) => {
+    const p = getPointFromEvent(e);
+    if (state.mode === 'area') {
+      if (state.editing) {
+        updateSelectionRect(p.x, p.y);
+      } else if (state.tool === 'select') {
+        updateSelectionRect(p.x, p.y);
+      } else {
+        moveDraw(p.x, p.y);
+      }
+    } else {
+      if (state.tool === 'select') {
+        updateSelectionRect(p.x, p.y);
+      } else {
+        moveDraw(p.x, p.y);
+      }
+    }
+  });
+
+  stage.addEventListener('mouseup', (e) => {
+    const p = getPointFromEvent(e);
+    if (state.mode === 'area') {
+      if (state.editing) {
+        endSelection(p.x, p.y);
+      } else {
+        endSelection(p.x, p.y);
+      }
+    } else {
+      endDraw(p.x, p.y);
+    }
+  });
+
+  stage.addEventListener('mouseleave', () => {
+    if (state.isDrawing) cancelDraw();
+  });
+
+  stage.addEventListener('click', (e) => {
+    if (state.mode === 'area') {
+      if (state.editing) {
+        endSelection(e.clientX, e.clientY);
+      } else {
+        endSelection(e.clientX, e.clientY);
+      }
+    } else {
+      if (state.tool === 'select') {
+        endSelection(e.clientX, e.clientY);
+      } else {
+        endDraw(e.clientX, e.clientY);
+      }
+    }
+  });
+
+  stage.addEventListener('dblclick', (e) => {
+    if (state.mode === 'area') {
+      if (state.editing) {
+        endSelection(e.clientX, e.clientY);
+      } else {
+        endSelection(e.clientX, e.clientY);
+      }
+    } else {
+      if (state.tool === 'select') {
+        endSelection(e.clientX, e.clientY);
+      } else {
+        endDraw(e.clientX, e.clientY);
+      }
+    }
+  });
+
+  // Touch support
+  stage.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const p = getPoint(t);
+    if (state.mode === 'area') {
+      if (state.editing) {
+        endSelection(p.x, p.y);
+      } else {
+        startSelection(p.x, p.y);
+      }
+    } else {
+      if (state.tool === 'select') {
+        startSelection(p.x, p.y);
+      } else {
+        startDraw(p.x, p.y);
+      }
+    }
+  }, { passive: false });
+
+  stage.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const p = getPoint(t);
+    if (state.mode === 'area') {
+      if (state.editing) {
+        updateSelectionRect(p.x, p.y);
+      } else {
+        moveDraw(p.x, p.y);
+      }
+    } else {
+      if (state.tool === 'select') {
+        updateSelectionRect(p.x, p.y);
+      } else {
+        moveDraw(p.x, p.y);
+      }
+    }
+  }, { passive: false });
+
+  stage.addEventListener('touchend', () => {
+    if (state.isDrawing) cancelDraw();
+  });
+
+  // Keyboard
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'Escape') {
+      clearSelection();
+      cancelDraw();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      clearAll();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      undo();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
+      e.preventDefault();
+      redo();
+    } else if (e.key === ' ' && !e.shiftKey) {
+      e.preventDefault();
+      const next = state.mode === 'area' ? 'window' : state.mode === 'window' ? 'page' : 'area';
+      setMode(next);
+    }
+  });
+
+  // Mode buttons
+  modeBtns.forEach(b => {
+    b.addEventListener('click', () => setMode(b.dataset.mode));
+  });
+
+  // Tool buttons
+  toolBtns.forEach(b => {
+    b.addEventListener('click', () => setTool(b.dataset.tool));
+  });
+
+  // Color
+  colorPicker.addEventListener('input', (e) => {
+    state.color = e.target.value;
+    pushHistory();
+  });
+
+  // Opacity
+  opacityInput.addEventListener('input', (e) => {
+    state.opacity = e.target.value / 100;
+    pushHistory();
+  });
+
+  // Thickness
+  thicknessInput.addEventListener('input', (e) => {
+    state.thickness = e.target.value;
+    pushHistory();
+  });
+
+  // Text size
+  textSizeInput.addEventListener('input', (e) => {
+    state.textSize = e.target.value;
+    pushHistory();
+  });
+
+  // Text align
+  textAlignSelect.addEventListener('change', (e) => {
+    state.textAlign = e.target.value;
+    pushHistory();
+  });
+
+  // Undo/Redo
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+
+  // Save
+  saveBtn.addEventListener('click', async () => {
+    const rect = stage.getBoundingClientRect();
+    const offscreen = document.createElement('canvas');
+    offscreen.width = rect.width;
+    offscreen.height = rect.height;
+    const octx = offscreen.getContext('2d');
+    octx.fillStyle = '#1f2937';
+    octx.fillRect(0, 0, rect.width, rect.height);
+    octx.save();
+    octx.translate(rect.left, rect.top);
+    octx.scale(1, -1);
+    octx.translate(0, -rect.height);
+    octx.drawImage(canvas, 0, 0);
+    octx.restore();
+
+    const link = document.createElement('a');
+    link.download = `screenshot-${Date.now()}.png`;
+    link.href = offscreen.toDataURL('image/png');
+    link.click();
+    statusText.textContent = 'Saved';
+    setTimeout(() => { statusText.textContent = 'Ready'; }, 1500);
+  });
+
+  // Clear
+  stage.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    clearAll();
+  });
+
+  // ---------- Init ----------
+  function init() {
+    resizeCanvas();
+    updateCanvas();
+    setMode('area');
+    setTool('select');
+    renderStatus();
+  }
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    updateCanvas();
+  });
+
+  init();
+})();
+</script></script>
+</body>
+</html>

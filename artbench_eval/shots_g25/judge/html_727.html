@@ -1,0 +1,80 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunk Upload Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #progress-container { width: 100%; background-color: #f3f3f3; margin-top: 20px; display: none; }
+        #progress-bar { width: 0%; height: 30px; background-color: #4caf50; text-align: center; line-height: 30px; color: white; }
+    </style>
+</head>
+<body>
+    <h2>Large File Chunk Uploader</h2>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload</button>
+
+    <div id="progress-container">
+        <div id="progress-bar">0%</div>
+    </div>
+    <p id="status"></p>
+
+    <script>
+        const CHUNK_SIZE = 1024 * 1024; // 1MB per chunk
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return alert('Please select a file first.');
+
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            const filename = file.name;
+            
+            document.getElementById('progress-container').style.display = 'block';
+            const progressBar = document.getElementById('progress-bar');
+            const statusText = document.getElementById('status');
+
+            statusText.innerText = 'Uploading chunks...';
+
+            // Upload each chunk
+            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('chunk', chunk);
+                formData.append('filename', filename);
+                formData.append('chunkIndex', chunkIndex);
+
+                await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                // Update progress
+                const percentComplete = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressBar.innerText = percentComplete + '%';
+            }
+
+            // Request backend to merge chunks
+            statusText.innerText = 'Merging file on server...';
+            const mergeResponse = await fetch('/merge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, totalChunks })
+            });
+
+            if (mergeResponse.ok) {
+                statusText.innerText = 'Upload and merge complete! File saved in the "file" folder.';
+            } else {
+                statusText.innerText = 'Error merging file.';
+            }
+        }
+    </script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

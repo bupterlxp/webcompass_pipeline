@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bubble Shooter</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    cursor: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #hud {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    font-family: monospace;
+    font-size: 16px;
+    pointer-events: none;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 10;
+  }
+  #hud .bar {
+    display: inline-block;
+    margin-right: 16px;
+  }
+  #hud .bar span {
+    display: inline-block;
+    width: 120px;
+    height: 10px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid #fff;
+    margin-right: 8px;
+  }
+  #hud .bar span > div {
+    height: 100%;
+    background: #ff4444;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="bar"><span><div style="width:60%"></div></span>Score <span id="score">0</span></div>
+  <div class="bar"><span><div style="width:30%"></div></span>Combo <span id="combo">0</span></div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = Math.max(1, window.devicePixelRatio || 1);
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ---------- Constants ----------
+const COLORS = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff', '#44ffff'];
+const ROWS = 11;
+const COLS = 13;
+const HEX_SIZE = 42;
+const HEX_PAD_X = 20;
+const HEX_PAD_Y = 14;
+const GRAVITY = 0.35;
+const BUBBLE_RADIUS = 14;
+const MAX_SPEED = 20;
+const ADHESION_STRENGTH = 320;
+const SPRING_K = 0.18;
+const SPRING_DAMP = 0.995;
+const CHAIN_DELAY = 160;
+
+// ---------- Matrix ----------
+let matrix = [];
+function initMatrix() {
+  matrix = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) {
+      const colorIdx = (r * COLS + c) % COLORS.length;
+      row.push({ color: COLORS[colorIdx], x: 0, y: 0, vx: 0, vy: 0, alive: true });
+    }
+    matrix.push(row);
+  }
+  updateMatrixPositions();
+}
+function updateMatrixPositions() {
+  const startX = W / 2 + HEX_PAD_X;
+  const startY = H * 0.18;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const col = c % 2 === 0 ? 0 : HEX_SIZE / 2;
+      matrix[r][c].x = startX + c * HEX_SIZE + col;
+      matrix[r][c].y = startY + r * HEX_SIZE * 1.15;
+    }
+  }
+}
+initMatrix();
+
+// ---------- Cannon ----------
+let cannon = {
+  x: W / 2,
+  y: H * 0.82,
+  angle: 0,
+  color: COLORS[0],
+  cooldown: 0,
+  lastShot: 0,
+  shootDelay: 0.35,
+  shootTimer: 0,
+};
+
+// ---------- Physics ----------
+function distance(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function shootBubble() {
+  if (cannon.cooldown > 0) return;
+  const speed = MAX_SPEED;
+  const dx = Math.cos(cannon.angle);
+  const dy = Math.sin(cannon.angle);
+  const bubble = {
+    x: cannon.x,
+    y: cannon.y,
+    vx: dx * speed,
+    vy: dy * speed,
+    color: cannon.color,
+    alive: true,
+    life: 0,
+    adhesion: 0,
+  };
+  bubbles.push(bubble);
+  cannon.shootTimer = cannon.shootDelay;
+  cannon.cooldown = 2;
+  cannon.color = COLORS[(COLORS.indexOf(cannon.color) + 1) % COLORS.length];
+  cannon.lastShot = performance.now();
+}
+
+let bubbles = [];
+let nextBubbleId = 1;
+
+// ---------- Input ----------
+let mouseX = W / 2;
+let mouseY = H * 0.82;
+
+canvas.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  const dx = mouseX - W / 2;
+  const angle = Math.atan2(mouseY - H * 0.82, dx);
+  cannon.angle = angle;
+});
+
+canvas.addEventListener('click', (e) => {
+  shootBubble();
+});
+
+// ---------- Chain detection ----------
+function getConnected(b, visited) {
+  const group = [b];
+  visited.add(b.id);
+  for (const other of bubbles) {
+    if (visited.has(other.id)) continue;
+    if (other === b) continue;
+    const d = distance(b, other);
+    if (d < BUBBLE_RADIUS * 2 + 4) {
+      group.push(...getConnected(other, visited));
+    }
+  }
+  return group;
+}
+
+function findGroups() {
+  const visited = new Set();
+  const groups = [];
+  for (const b of bubbles) {
+    if (visited.has(b.id)) continue;
+    const group = getConnected(b, visited);
+    if (group.length >= 3) groups.push(group);
+  }
+  return groups;
+}
+
+// ---------- Update ----------
+function update(dt) {
+  // Cannon cooldown
+  if (cannon.cooldown > 0) cannon.cooldown -= dt;
+  if (cannon.shootTimer > 0) cannon.shootTimer -= dt;
+  if (cannon.shootTimer <= 0) cannon.shootDelay = 0.35;
+
+  // Mouse follow
+  const dx = mouseX - W / 2;
+  const targetAngle = Math.atan2(mouseY - H * 0.82, dx);
+  cannon.angle += (targetAngle - cannon.angle) * 0.15;
+
+  // Cannon bob
+  const bob = Math.sin(performance.now() * 0.002) * 2;
+  cannon.y = H * 0.82 + bob;
+
+  // Bubble physics
+  for (const b of bubbles) {
+    b.life += dt;
+    b.vx += GRAVITY * dt;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+
+    // Adhesion
+    for (const other of bubbles) {
+      if (other === b || !other.alive) continue;
+      const d = distance(b, other);
+      if (d < BUBBLE_RADIUS * 2 + 4) {
+        const nx = (other.x - b.x) / d;
+        const ny = (other.y - b.y) / d;
+        const overlap = Math.max(0, BUBBLE_RADIUS * 2 + 4 - d);
+        b.x += nx * overlap * 0.5;
+        other.x -= nx * overlap * 0.5;
+        const force = ADHESION_STRENGTH * overlap;
+        b.vx -= nx * force;
+        b.vy -= ny * force;
+        other.vx += nx * force;
+        other.vy += ny * force;
+      }
+    }
+
+    // Floor bounce
+    if (b.y > H - BUBBLE_RADIUS) {
+      b.y = H - BUBBLE_RADIUS;
+      b.vy = -b.vy * 0.6;
+    }
+
+    // Wall bounce
+    if (b.x < BUBBLE_RADIUS) {
+      b.x = BUBBLE_RADIUS;
+      b.vx = Math.abs(b.vx);
+    }
+    if (b.x > W - BUBBLE_RADIUS) {
+      b.x = W - BUBBLE_RADIUS;
+      b.vx = -Math.abs(b.vx);
+    }
+
+    // Cannon collision
+    if (distance(b, cannon) < BUBBLE_RADIUS + 8) {
+      const nx = (cannon.x - b.x) / distance(b, cannon);
+      const ny = (cannon.y - b.y) / distance(b, cannon);
+      b.x += nx * (BUBBLE_RADIUS + 8 - distance(b, cannon));
+      b.vx = -b.vx * 0.5;
+      b.vy = -b.vy * 0.5;
+    }
+
+    // Remove old bubbles
+    if (b.life > 4) {
+      b.alive = false;
+    }
+  }
+
+  // Remove dead bubbles
+  bubbles = bubbles.filter(b => b.alive);
+
+  // Chain elimination
+  const groups = findGroups();
+  if (groups.length > 0) {
+    // Sort by size descending to apply largest first
+    groups.sort((a, b) => b.length - a.length);
+    for (const group of groups) {
+      for (const b of group) {
+        b.alive = false;
+      }
+      combo++;
+    }
+    chainTimer = CHAIN_DELAY;
+    score += group.length * 10;
+  }
+
+  // Matrix bubbles also need to be updated
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!matrix[r][c].alive) continue;
+      matrix[r][c].vx *= SPRING_DAMP;
+      matrix[r][c].vy *= SPRING_DAMP;
+      matrix[r][c].x += matrix[r][c].vx;
+      matrix[r][c].y += matrix[r][c].vy;
+      // Floor
+      if (matrix[r][c].y > H - BUBBLE_RADIUS) {
+        matrix[r][c].y = H - BUBBLE_RADIUS;
+        matrix[r][c].vy = -matrix[r][c].vy * 0.6;
+      }
+      // Wall
+      if (matrix[r][c].x < BUBBLE_RADIUS) {
+        matrix[r][c].x = BUBBLE_RADIUS;
+        matrix[r][c].vx = Math.abs(matrix[r][c].vx);
+      }
+      if (matrix[r][c].x > W - BUBBLE_RADIUS) {
+        matrix[r][c].x = W - BUBBLE_RADIUS;
+        matrix[r][c].vx = -Math.abs(matrix[r][c].vx);
+      }
+    }
+  }
+}
+
+// ---------- Rendering ----------
+function drawHexagon(x, y, r, color, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  const points = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3 * i) + (Math.PI / 3);
+    points.push([x + Math.cos(a) * r, y + Math.sin(a) * r]);
+  }
+  ctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i][0], points[i][1]);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBubble(b) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1 - b.life / 4);
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, BUBBLE_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCannon() {
+  const angle = cannon.angle;
+  const headX = cannon.x + Math.cos(angle) * 40;
+  const headY = cannon.y + Math.sin(angle) * 40;
+  ctx.save();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cannon.x, cannon.y);
+  ctx.lineTo(headX, headY);
+  ctx.stroke();
+  ctx.strokeStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(cannon.x, cannon.y);
+  ctx.lineTo(headX, headY);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTrajectory() {
+  if (bubbles.length === 0) return;
+  const b = bubbles[bubbles.length - 1];
+  const steps = 200;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.setLineDash([6, 6]);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = b.x + b.vx * t;
+    const y = b.y + b.vy * t + 0.5 * GRAVITY * t * t;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawMatrix() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!matrix[r][c].alive) continue;
+      drawHexagon(matrix[r][c].x, matrix[r][c].y, BUBBLE_RADIUS, matrix[r][c].color, 0.9);
+    }
+  }
+}
+
+function drawHUD() {
+  const bar = document.querySelector('#hud .bar span > div');
+  bar.style.width = Math.min(100, score / 20) + '%';
+  document.getElementById('score').textContent = score;
+  document.getElementById('combo').textContent = combo;
+}
+
+let chainTimer = 0;
+let score = 0;
+let combo = 0;
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  drawMatrix();
+
+  for (const b of bubbles) {
+    drawBubble(b);
+  }
+
+  drawTrajectory();
+  drawCannon();
+
+  if (chainTimer > 0) {
+    chainTimer -= 1;
+    if (chainTimer <= 0) {
+      // Replenish matrix bubbles
+      const toSpawn = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (!matrix[r][c].alive) {
+            const colorIdx = (r * COLS + c) % COLORS.length;
+            toSpawn.push({ color: COLORS[colorIdx], x: matrix[r][c].x, y: matrix[r][c].y, vx: 0, vy: 0, alive: true });
+          }
+        }
+      }
+      for (const s of toSpawn) {
+        bubbles.push(s);
+      }
+      combo = 0;
+    }
+  }
+
+  drawHUD();
+}
+
+// ---------- Main loop ----------
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- Keyboard control (optional) ----------
+window.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    shootBubble();
+  }
+});
+</script>
+</body>
+</html>

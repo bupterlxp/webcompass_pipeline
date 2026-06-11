@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Subtitle Tool</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1a1a1a;
+  padding: 16px 24px;
+  border-radius: 12px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 32px; }
+.brand h1 { margin: 0; color: #fff; font-size: 20px; letter-spacing: 0.5px; }
+
+.actions { display: flex; gap: 8px; }
+
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0062cc; }
+.btn-secondary { background: #2d2d2d; color: #fff; }
+.btn-secondary:hover { background: #3d3d3d; }
+.btn-ghost { background: transparent; color: #fff; border: 1px solid #555; }
+.btn-ghost:hover { background: #333; }
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  min-height: 500px;
+}
+
+.video-container {
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+#videoEl {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.video-overlay.hidden { opacity: 0; }
+
+.timeline {
+  background: #0f0f0f;
+  border-radius: 10px;
+  padding: 12px;
+  overflow: auto;
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.timeline-track {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.timeline-track:hover { background: rgba(255,255,255,0.1); }
+.timeline-track.active { background: rgba(0,123,255,0.2); }
+.timeline-track .time { font-family: 'SF Mono', monospace; font-size: 12px; color: #fff; }
+.timeline-track .dur { font-family: 'SF Mono', monospace; font-size: 11px; color: #888; }
+.timeline-track .text { color: #fff; font-size: 13px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.subtitle-list {
+  background: #1a1a1a;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.subtitle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.subtitle-item:hover { background: rgba(255,255,255,0.1); }
+.subtitle-item .info { display: flex; flex-direction: column; gap: 2px; }
+.subtitle-item .title { font-size: 13px; color: #fff; font-weight: 500; }
+.subtitle-item .meta { font-size: 11px; color: #888; }
+.subtitle-item .actions { display: flex; gap: 4px; }
+.subtitle-item .actions button {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.subtitle-item .actions button:hover { color: #fff; }
+
+.section-title {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #bbb;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.field span { font-size: 12px; color: #ddd; font-weight: 500; }
+.field input[type="number"],
+.field select,
+.field input[type="color"] {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+}
+.field input[type="number"] { width: 70px; }
+.field input[type="range"] {
+  width: 100%;
+  accent-color: #007bff;
+}
+.range-val { font-size: 12px; color: #888; font-family: 'SF Mono', monospace; }
+
+.status {
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+}
+.status strong { color: #007bff; }
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .editor { max-height: 50vh; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top-bar">
+    <div class="brand">
+      <div class="logo">🎬</div>
+      <h1>Subtitle Tool</h1>
+    </div>
+    <nav class="actions">
+      <button id="uploadBtn" class="btn btn-primary">Upload Video</button>
+      <input type="file" id="fileInput" accept="video/*" hidden />
+      <button id="exportBtn" class="btn btn-secondary" disabled>Export Video</button>
+    </nav>
+  </header>
+
+  <section class="workspace">
+    <div class="video-panel">
+      <div id="videoContainer" class="video-container">
+        <video id="videoEl" controls muted></video>
+        <div id="videoOverlay" class="video-overlay">
+          <div class="loader">Loading video…</div>
+        </div>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+
+    <aside class="editor">
+      <h2>Subtitles</h2>
+      <div class="subtitle-list" id="subtitleList"></div>
+      <button id="addSubtitleBtn" class="btn btn-ghost">+ Add Caption</button>
+
+      <h3 class="section-title">Style</h3>
+      <label class="field">
+        <span>Font</span>
+        <select id="fontSelect"></select>
+      </label>
+      <label class="field">
+        <span>Font Size</span>
+        <input type="number" id="fontSize" min="18" max="100" value="32" />
+      </label>
+      <label class="field">
+        <span>Color</span>
+        <input type="color" id="colorInput" value="#ffffff" />
+      </label>
+      <label class="field">
+        <span>Background Opacity</span>
+        <input type="range" id="bgOpacity" min="0" max="100" value="60" />
+        <span class="range-val" id="bgOpacityVal">60%</span>
+      </label>
+      <label class="field">
+        <span>Position</span>
+        <select id="positionSelect">
+          <option value="bottom">Bottom</option>
+          <option value="top">Top</option>
+          <option value="center">Center</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Align</span>
+        <select id="alignSelect">
+          <option value="center">Center</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </label>
+    </aside>
+  </section>
+
+  <footer class="status">
+    <span id="statusText">Ready</span>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const state = {
+    videoUrl: '',
+    videoDuration: 0,
+    subtitles: [],
+    currentFont: 'Arial, sans-serif',
+    fontSize: 32,
+    color: '#ffffff',
+    bgOpacity: 60,
+    position: 'bottom',
+    align: 'center',
+    uploadedFile: null,
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- UI refs ----------
+  const uploadBtn = $('uploadBtn');
+  const fileInput = $('fileInput');
+  const videoEl = $('videoEl');
+  const videoContainer = $('videoContainer');
+  const videoOverlay = $('videoOverlay');
+  const timeline = $('timeline');
+  const subtitleList = $('subtitleList');
+  const addSubtitleBtn = $('addSubtitleBtn');
+  const exportBtn = $('exportBtn');
+  const statusText = $('statusText');
+  const fontSelect = $('fontSelect');
+  const fontSizeInput = $('fontSize');
+  const colorInput = $('colorInput');
+  const bgOpacityInput = $('bgOpacity');
+  const bgOpacityVal = $('bgOpacityVal');
+  const positionSelect = $('positionSelect');
+  const alignSelect = $('alignSelect');
+
+  // ---------- Fonts ----------
+  const fonts = ['Arial', 'Helvetica', 'Georgia', 'Courier New', 'Times New Roman', 'Verdana', 'Impact', 'Tahoma', 'Roboto', 'Segoe UI'];
+  fonts.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f;
+    opt.textContent = f;
+    fontSelect.appendChild(opt);
+  });
+
+  // ---------- Upload ----------
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    state.uploadedFile = file;
+    loadVideo(file);
+  });
+
+  async function loadVideo(file) {
+    const url = URL.createObjectURL(file);
+    videoEl.src = url;
+    state.videoUrl = url;
+    videoEl.load();
+    videoOverlay.classList.remove('hidden');
+    videoOverlay.textContent = 'Preparing…';
+    await new Promise(r => videoEl.addEventListener('loadedmetadata', r, { once: true }));
+    videoOverlay.textContent = 'Ready';
+    state.videoDuration = videoEl.duration;
+    renderTimeline();
+    updateSubtitleList();
+    exportBtn.disabled = false;
+    statusText.textContent = `Loaded: ${file.name} (${formatTime(state.videoDuration)})`;
+  }
+
+  // ---------- Timeline ----------
+  function renderTimeline() {
+    timeline.innerHTML = '';
+    if (state.subtitles.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'timeline-track';
+      empty.textContent = 'No subtitles yet. Add one to see it here.';
+      empty.style.cursor = 'default';
+      empty.style.justifyContent = 'center';
+      empty.style.gridTemplateColumns = '1fr';
+      empty.style.gap = '0';
+      timeline.appendChild(empty);
+      return;
+    }
+    state.subtitles.forEach((s, i) => {
+      const track = document.createElement('div');
+      track.className = 'timeline-track';
+      track.dataset.index = i;
+      const start = formatTime(s.start);
+      const end = formatTime(s.end);
+      const dur = formatTime(s.end - s.start);
+      track.innerHTML = `
+        <span class="time">${start} → ${end}</span>
+        <span class="dur">${dur}</span>
+        <span class="text">${s.text}</span>
+      `;
+      track.addEventListener('click', () => {
+        const idx = parseInt(track.dataset.index, 10);
+        const s2 = state.subtitles[idx];
+        if (!s2) return;
+        const t = s2.start + (s2.end - s2.start) / 2;
+        videoEl.currentTime = t;
+        videoEl.play().catch(() => {});
+      });
+      timeline.appendChild(track);
+    });
+  }
+
+  // ---------- Subtitles ----------
+  function addSubtitle() {
+    const s = {
+      id: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      start: 0,
+      end: state.videoDuration || 5,
+      text: 'New caption',
+      font: state.currentFont,
+      size: state.fontSize,
+      color: state.color,
+      bgOpacity: state.bgOpacity,
+      position: state.position,
+      align: state.align,
+    };
+    state.subtitles.push(s);
+    renderTimeline();
+    updateSubtitleList();
+    statusText.textContent = `Added caption · ${state.subtitles.length} total`;
+  }
+
+  addSubtitleBtn.addEventListener('click', addSubtitle);
+
+  function deleteSubtitle(id) {
+    state.subtitles = state.subtitles.filter(s => s.id !== id);
+    renderTimeline();
+    updateSubtitleList();
+    statusText.textContent = `Deleted caption · ${state.subtitles.length} total`;
+  }
+
+  function updateSubtitleList() {
+    subtitleList.innerHTML = '';
+    if (state.subtitles.length === 0) {
+      const empty = document.createElement('div');
+      empty.textContent = 'No captions yet. Click "+ Add Caption" to begin.';
+      empty.style.padding = '24px';
+      empty.style.color = '#888';
+      subtitleList.appendChild(empty);
+      return;
+    }
+    state.subtitles.forEach((s, i) => {
+      const item = document.createElement('div');
+      item.className = 'subtitle-item';
+      item.innerHTML = `
+        <div class="info">
+          <div class="title">${escapeHtml(s.text)}</div>
+          <div class="meta">${formatTime(s.start)} – ${formatTime(s.end)}</div>
+        </div>
+        <div class="actions">
+          <button data-act="edit" data-i="${i}">✎</button>
+          <button data-act="del" data-i="${i}">✕</button>
+        </div>
+      `;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('[data-act]')) return;
+        videoEl.currentTime = s.start;
+        videoEl.play().catch(() => {});
+      });
+      item.querySelector('[data-act="del"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteSubtitle(s.id);
+      });
+      item.querySelector('[data-act="edit"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditDialog(s, i);
+      });
+      subtitleList.appendChild(item);
+    });
+  }
+
+  function openEditDialog(s, i) {
+    const dialog = document.createElement('div');
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+      <div class="dialog-header">Edit Caption</div>
+      <div class="dialog-body">
+        <label>Text<input type="text" id="edText" value="${escapeHtml(s.text)}" /></label>
+        <label>Start<input type="time" id="edStart" value="${formatTimeCode(s.start)}" /></label>
+        <label>End<input type="time" id="edEnd" value="${formatTimeCode(s.end)}" /></label>
+        <div class="dialog-actions">
+          <button id="edCancel">Cancel</button>
+          <button id="edSave">Save</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dialog);
+    const text = dialog.querySelector('#edText');
+    const start = dialog.querySelector('#edStart');
+    const end = dialog.querySelector('#edEnd');
+    const cancel = dialog.querySelector('#edCancel');
+    const save = dialog.querySelector('#edSave');
+    cancel.addEventListener('click', () => dialog.remove());
+    save.addEventListener('click', () => {
+      s.text = text.value.trim() || 'Untitled';
+      s.start = parseTimeCode(start.value);
+      s.end = parseTimeCode(end.value);
+      renderTimeline();
+      updateSubtitleList();
+      dialog.remove();
+      statusText.textContent = `Edited caption · ${state.subtitles.length} total`;
+    });
+    // Focus
+    requestAnimationFrame(() => text.focus());
+  }
+
+  function formatTimeCode(t) {
+    if (!t) return '00:00:00.000';
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = Math.floor(t % 60);
+    const ms = Math.floor((t - Math.floor(t)) * 1000);
+    return `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms, 3)}`;
+  }
+  function parseTimeCode(s) {
+    const [h, m, sec] = s.split(':').map(Number);
+    const [s2, ms] = sec.split('.');
+    const total = (h * 3600 + m * 60 + s2) + (ms ? ms / 1000 : 0);
+    return total;
+  }
+  function pad(n, w = 2) { return String(n).padStart(w, '0'); }
+  function formatTime(sec) {
+    if (!isFinite(sec)) return '0:00';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    const ms = Math.floor((sec - Math.floor(sec)) * 1000);
+    return `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms, 3)}`;
+  }
+  function formatTimeShort(sec) {
+    if (!isFinite(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    const ms = Math.floor((sec - Math.floor(sec)) * 1000);
+    return `${pad(m)}:${pad(s)}.${pad(ms, 3)}`;
+  }
+
+  // ---------- Style sync ----------
+  fontSizeInput.addEventListener('input', (e) => {
+    state.fontSize = parseInt(e.target.value, 10);
+    state.subtitles.forEach(s => { if (s.size === 32) s.size = state.fontSize; });
+    renderTimeline();
+    updateSubtitleList();
+  });
+  colorInput.addEventListener('input', (e) => {
+    state.color = e.target.value;
+    state.subtitles.forEach(s => { if (s.color === '#ffffff') s.color = state.color; });
+    renderTimeline();
+    updateSubtitleList();
+  });
+  bgOpacityInput.addEventListener('input', (e) => {
+    state.bgOpacity = parseInt(e.target.value, 10);
+    state.subtitles.forEach(s => { if (s.bgOpacity === 60) s.bgOpacity = state.bgOpacity; });
+    bgOpacityVal.textContent = `${e.target.value}%`;
+    renderTimeline();
+    updateSubtitleList();
+  });
+  positionSelect.addEventListener('change', (e) => {
+    state.position = e.target.value;
+    state.subtitles.forEach(s => { if (s.position === 'bottom') s.position = state.position; });
+    renderTimeline();
+    updateSubtitleList();
+  });
+  alignSelect.addEventListener('change', (e) => {
+    state.align = e.target.value;
+    state.subtitles.forEach(s => { if (s.align === 'center') s.align = state.position; });
+    renderTimeline();
+    updateSubtitleList();
+  });
+
+  // ---------- Export ----------
+  exportBtn.addEventListener('click', async () => {
+    if (!state.videoUrl || state.subtitles.length === 0) {
+      statusText.textContent = 'No video or subtitles to export';
+      return;
+    }
+    statusText.textContent = 'Generating subtitles file…';
+    const ass = await generateASS();
+    statusText.textContent = 'Embedding subtitles into video…';
+    const output = await embedASS(state.videoUrl, ass);
+    statusText.textContent = 'Export complete. Download your video.';
+    const a = document.createElement('a');
+    a.href = output;
+    a.download = `subtitle-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  async function generateASS() {
+    const subs = state.subtitles.map(s => {
+      const pos = s.position === 'bottom' ? 'Bottom' : s.position === 'top' ? 'Top' : 'Center';
+      const align = s.align === 'center' ? 'Center' : s.align === 'left' ? 'Left' : 'Right';
+      const color = s.color;
+      const bg = s.bgOpacity > 0 ? `Alpha=${s.bgOpacity},` : '';
+      return `[${pos}]${align},${bg}Color=${color}`;
+    }).join('\n');
+    return `[Script Info]
+ScriptType: v4.00
+Collisions: Normal
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+${subs}
+`;
+  }
+
+  // ---------- FFmpeg worker ----------
+  const worker = new Worker('worker.js');
+
+  worker.onmessage = (e) => {
+    if (e.data.type === 'progress') {
+      statusText.textContent = `Processing… ${e.data.msg}`;
+    } else if (e.data.type === 'done') {
+      statusText.textContent = 'Export complete. Download your video.';
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = e.data.output;
+        a.download = `subtitle-${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, 500);
+    } else if (e.data.type === 'error') {
+      statusText.textContent = `Error: ${e.data.msg}`;
+    }
+  };
+
+  async function embedASS(videoUrl, ass) {
+    return new Promise((resolve, reject) => {
+      worker.postMessage({
+        cmd: 'ffmpeg',
+        args: [
+          '-y',
+          '-i', videoUrl,
+          '-vf', `ass="${encodeURIComponent(ass)}"`,
+          '-c:v', 'copy',
+          '-c:a', 'copy',
+          'output.mp4',
+        ],
+      });
+      worker.onmessage = (e) => {
+        if (e.data.type === 'done') {
+          resolve(e.data.output);
+        } else if (e.data.type === 'error') {
+          reject(e.data.msg);
+        }
+      };
+    });
+  }
+
+  // ---------- Helpers ----------
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // ---------- Keyboard shortcuts ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'Enter') addSubtitle();
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (state.subtitles.length > 0) deleteSubtitle(state.subtitles[state.subtitles.length - 1].id);
+    }
+  });
+
+})();
+</script></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

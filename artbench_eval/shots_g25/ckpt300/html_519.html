@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HomeStyle — Virtual Furniture Shopping</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>/* Custom styles */
+.container { max-width: 1400px; }
+
+#room {
+  cursor: grab;
+  transition: cursor 0.1s;
+}
+#room:active { cursor: grabbing; }
+
+.furniture-item {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 2;
+}
+.furniture-item:hover { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+.furniture-item.dragging { opacity: 0.4; }
+
+#dragGhost {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 140px;
+  height: 140px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  z-index: 5;
+}
+
+#shopList { grid-template-columns: repeat(2, 1fr); gap-4; }
+
+.furniture-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: grab;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.furniture-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+.furniture-card:active { cursor: grabbing; }
+.furniture-card.dragging { opacity: 0.4; }
+
+.f-card-img {
+  aspect-ratio: 1;
+  background-size: cover;
+  background-position: center;
+}
+.f-card-body { padding: 12px; }
+.f-card-name { font-weight: 600; font-size: 14px; }
+.f-card-desc { font-size: 12px; color: gray; }
+.f-card-price { font-weight: 700; color: purple; font-size: 15px; }
+
+#cartList { max-height: 200px; overflow-y: auto; }
+.cart-item {
+  display: flex justify-between items-center py-2 border-b;
+  font-size: 14px;
+}
+.cart-item .price { color: purple; font-weight: 600; }
+
+/* Mobile */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .lg\:hidden { display: block !important; }
+  .furniture-item { width: 100px; height: 100px; }
+  .furniture-card { cursor: default; }
+  .furniture-card:hover { transform: none; box-shadow: none; }
+  .furniture-card { cursor: grab; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="bg-white shadow-sm">
+  <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg>
+      </div>
+      <span class="text-xl font-bold text-gray-800">HomeStyle</span>
+    </div>
+
+    <nav class="hidden md:flex space-x-8">
+      <a href="#" class="text-gray-600 hover:text-gray-900 font-medium">Shop</a>
+      <a href="#" class="text-gray-600 hover:text-gray-900 font-medium">Rooms</a>
+      <a href="#" class="text-gray-600 hover:text-gray-900 font-medium">Plans</a>
+      <a href="#" class="text-gray-600 hover:text-gray-900 font-medium">Account</a>
+    </nav>
+
+    <div class="flex items-center space-x-3">
+      <button id="openCartBtn" class="hidden md:block text-gray-600">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <span id="cartCount" class="ml-1 text-sm font-bold text-red-600">0</span>
+      </button>
+      <button id="userBtn" class="hidden md:block text-gray-600">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+      <button id="mobileMenuBtn" class="md:hidden text-gray-600">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobileMenu" class="md:hidden bg-gray-50">
+    <div class="container mx-auto px-4 py-2 space-y-2">
+      <a href="#" class="block text-gray-700 py-2">Shop</a>
+      <a href="#" class="block text-gray-700 py-2">Rooms</a>
+      <a href="#" class="block text-gray-700 py-2">Plans</a>
+      <a href="#" class="block text-gray-700 py-2">Account</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ MAIN ============ -->
+<main class="container mx-auto px-4 py-8">
+
+  <!-- LEFT: CATEGORIES -->
+  <section class="w-full lg:w-1/4 space-y-4 hidden lg:block">
+    <div class="bg-white rounded-xl shadow-sm p-4 sticky top-8">
+      <h2 class="font-bold text-lg mb-4">Categories</h2>
+      <ul id="categoryList" class="space-y-2">
+        <li><button data-cat="sofa" class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Sofas</button></li>
+        <li><button data-cat="table" class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Tables</button></li>
+        <li><button data-cat="chair" class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Chairs</button></li>
+        <li><button data-cat="bed" class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Beds</button></li>
+        <li><button data-cat="desk" class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Desks</button></li>
+        <li><button data-cat="decor" class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Decor</button></li>
+      </ul>
+
+      <div class="mt-6">
+        <h3 class="font-bold text-sm uppercase text-gray-500 mb-2">Popular</h3>
+        <div class="space-y-2">
+          <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Modern Living Room</button>
+          <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Minimalist Bedroom</button>
+          <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition">Office Workspace</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <h3 class="font-bold text-lg mb-4">Your Plan</h3>
+      <div id="planSummary" class="space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span>Items</span>
+          <span id="planCount">0</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Total</span>
+          <span id="planTotal">$0</span>
+        </div>
+        <button id="savePlanBtn" class="w-full mt-2 py-2 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 transition">Save Plan</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CENTER: ROOM + SHOP -->
+  <section class="w-full lg:w-2/4 space-y-6 lg:space-y-8">
+
+    <!-- ROOM VIEW -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="bg-gradient-to-r from-purple-600 to-pink-500 p-4 flex justify-between items-center">
+        <h2 class="text-white font-bold text-lg">Virtual Room</h2>
+        <div class="flex items-center space-x-2 text-white">
+          <span class="text-xs uppercase tracking-wide">Preview</span>
+          <span id="viewMode" class="px-2 py-1 rounded bg-white text-purple-600 font-bold">Drag to place</span>
+        </div>
+      </div>
+      <div id="room" class="relative h-96 md:h-[500px] w-full bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+        <div class="absolute inset-0 bg-center bg-cover" id="roomBackground"></div>
+        <div id="furnitureLayer" class="absolute inset-0 pointer-events-none"></div>
+        <div id="dragGhost" class="absolute pointer-events-none z-40"></div>
+      </div>
+    </div>
+
+    <!-- SHOP LIST -->
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-bold text-lg">Shop Now</h2>
+        <span id="shopCount" class="text-sm text-gray-500">Showing 0 items</span>
+      </div>
+      <div id="shopList" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- CART -->
+    <div class="bg-white rounded-xl shadow-sm p-4 hidden lg:block">
+      <h3 class="font-bold text-lg mb-4">Shopping Cart</h3>
+      <div id="cartList" class="space-y-2"></div>
+      <div class="border-t pt-4 flex justify-between text-lg font-bold">
+        <span>Total</span>
+        <span id="cartTotal">$0</span>
+      </div>
+      <button id="checkoutBtn" class="w-full mt-4 py-3 rounded bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium hover:shadow-lg transition">Checkout</button>
+    </div>
+
+  </section>
+
+  <!-- RIGHT: ROOM TEMPLATE -->
+  <aside class="w-full lg:w-1/4 space-y-4 hidden lg:block">
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <h3 class="font-bold text-lg mb-4">Room Templates</h3>
+      <div class="space-y-2">
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition" data-template="modern">
+          <span class="font-bold">Modern Living Room</span>
+          <span class="text-xs text-gray-500">Sofa, coffee table, lamp</span>
+        </button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition" data-template="minimal">
+          <span class="font-bold">Minimalist Bedroom</span>
+          <span class="text-xs text-gray-500">Bed, nightstand, decor</span>
+        </button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 transition" data-template="office">
+          <span class="font-bold">Office Workspace</span>
+          <span class="text-xs text-gray-500">Desk, chair, shelf</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <h3 class="font-bold text-lg mb-4">How to Use</h3>
+      <ol class="text-sm text-gray-600 space-y-2">
+        <li>Drag a furniture item from the shop into the room.</li>
+        <li>Click an item to add it to your cart.</li>
+        <li>Save your arrangement as a plan.</li>
+        <li>Share the link with friends!</li>
+      </ol>
+    </div>
+  </aside>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="bg-gray-800 text-white py-6 mt-8">
+  <div class="container mx-auto px-4 text-center">
+    <p>© 2025 HomeStyle. Crafted with care for your dream home.</p>
+  </div>
+</footer>
+
+<!-- ============ LOGIN MODAL ============ -->
+<div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm">
+    <h2 class="font-bold text-2xl mb-4">Welcome back</h2>
+    <form id="loginForm" class="space-y-4">
+      <input type="email" id="loginEmail" placeholder="Email" class="w-full p-2 border rounded" required />
+      <input type="password" id="loginPass" placeholder="Password" class="w-full p-2 border rounded" required />
+      <button type="submit" class="w-full py-2 rounded bg-purple-600 text-white font-medium">Login</button>
+      <p class="text-center text-sm text-gray-500">Don't have an account? <a href="#" class="text-purple-600 underline">Sign up</a></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded shadow-lg hidden z-50">
+  <span id="toastMsg"></span>
+</div>
+
+<script>/* =========================================================
+   HomeStyle — Furniture Shopping Platform
+   ========================================================= */
+
+const state = {
+  furniture: [],
+  cart: [],
+  plans: [],
+  currentPlan: null,
+  currentCategory: 'all',
+  currentTemplate: null,
+  user: null,
+};
+
+/* ---------- DATA ---------- */
+const FURNITURE = [
+  { id: 1,  cat: 'sofa',    name: 'Modern Sofa',    desc: 'Leather 3-seater',    price: 1299,  img: 'https://images.unsplash.com/photo-1567682009949-57fbb1a62014?w=400&q=80', w: 180, h: 90, depth: 80 },
+  { id: 2,  cat: 'sofa',    name: 'Minimal Sofa',   desc: 'Fabric 2-seater',    price: 899,   img: 'https://images.unsplash.com/photo-1601925261601-1b3f54994460?w=400&q=80', w: 160, h: 90, depth: 70 },
+  { id: 3,  cat: 'table',   name: 'Oak Coffee Table', desc: 'Solid oak',        price: 349,   img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80', w: 140, h: 50, depth: 60 },
+  { id: 4,  cat: 'table',   name: 'Glass Coffee',   desc: 'Tempered glass',    price: 229,   img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80', w: 120, h: 50, depth: 40 },
+  { id: 5,  cat: 'chair',   name: 'Designer Chair', desc: 'Leather armchair',  price: 549,   img: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80', w: 70,  h: 85, depth: 65 },
+  { id: 6,  cat: 'chair',   name: 'Ergonomic Chair',desc: 'Office chair',      price: 399,   img: 'https://images.unsplash.com/photo-1591527598496-126e02e86327?w=400&q=80', w: 70,  h: 85, depth: 65 },
+  { id: 7,  cat: 'bed',     name: 'Queen Bed',      desc: 'Platform mattress', price: 999,   img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=400&q=80', w: 180, h: 110, depth: 140 },
+  { id: 8,  cat: 'bed',     name: 'King Bed',       desc: 'Luxury mattress',   price: 1499,  img: 'https://images.unsplash.com/photo-1581793283181-48f975521306?w=400&q=80', w: 200, h: 110, depth: 160 },
+  { id: 9,  cat: 'desk',    name: 'Writing Desk',   desc: 'Oak desk',          price: 449,   img: 'https://images.unsplash.com/photo-1516846540851-445a79175c7c?w=400&q=80', w: 140, h: 75, depth: 60 },
+  { id: 10, cat: 'desk',    name: 'Executive Desk', desc: 'Glass top',        price: 699,   img: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80', w: 150, h: 75, depth: 70 },
+  { id: 11, cat: 'decor',   name: 'Floor Lamp',     desc: 'Modern lamp',       price: 199,   img: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&q=80', w: 50,  h: 140, depth: 30 },
+  { id: 12, cat: 'decor',   name: 'Throw Pillow',   desc: 'Cushion set',       price: 79,    img: 'https://images.unsplash.com/photo-1584603983496-7365e3889248?w=400&q=80', w: 40,  h: 40, depth: 20 },
+];
+
+const TEMPLATES = {
+  modern:   { bg: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=80', items: [1, 3, 5, 11] },
+  minimal:  { bg: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=1200&q=80', items: [7, 4, 6, 12] },
+  office:   { bg: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=1200&q=80', items: [9, 2, 10, 11] },
+};
+
+/* ---------- STORAGE ---------- */
+function save() {
+  localStorage.setItem('homestyle_furniture', JSON.stringify(FURNITURE));
+  localStorage.setItem('homestyle_cart', JSON.stringify(state.cart));
+  localStorage.setItem('homestyle_plans', JSON.stringify(state.plans));
+  localStorage.setItem('homestyle_user', JSON.stringify(state.user));
+  localStorage.setItem('homestyle_current', JSON.stringify({
+    category: state.currentCategory,
+    template: state.currentTemplate,
+  }));
+}
+
+function load() {
+  const saved = localStorage.getItem('homestyle_furniture');
+  if (saved) FURNITURE.length = 0; // clear and repopulate for demo
+  FURNITURE.push(...FURNITURE.slice(0, 12));
+  state.cart = JSON.parse(localStorage.getItem('homestyle_cart') || '[]');
+  state.plans = JSON.parse(localStorage.getItem('homestyle_plans') || '[]');
+  state.user = JSON.parse(localStorage.getItem('homestyle_user') || 'null');
+  const s = localStorage.getItem('homestyle_current');
+  if (s) {
+    state.currentCategory = JSON.parse(s).category || 'all';
+    state.currentTemplate = JSON.parse(s).template || null;
+  }
+}
+
+/* ---------- RENDER ---------- */
+function renderShop() {
+  const list = document.getElementById('shopList');
+  list.innerHTML = '';
+  const items = state.currentCategory === 'all'
+    ? FURNITURE
+    : FURNITURE.filter(f => f.cat === state.currentCategory);
+
+  if (items.length === 0) {
+    list.innerHTML = '<p class="text-center text-gray-500 py-8">No items in this category yet.</p>';
+    return;
+  }
+
+  items.forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'furniture-card';
+    card.dataset.id = f.id;
+    card.draggable = true;
+    card.innerHTML = `
+      <div class="f-card-img" style="background-image:url('${f.img}')"></div>
+      <div class="f-card-body">
+        <div class="f-card-name">${f.name}</div>
+        <div class="f-card-desc">${f.desc}</div>
+        <div class="f-card-price">$${f.price}</div>
+      </div>
+    `;
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', f.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    card.addEventListener('click', () => addToCart(f.id));
+    list.appendChild(card);
+  });
+  document.getElementById('shopCount').textContent = `Showing ${items.length} item${items.length !== 1 ? 's' : ''}`;
+}
+
+function renderCart() {
+  const list = document.getElementById('cartList');
+  list.innerHTML = '';
+  if (state.cart.length === 0) {
+    list.innerHTML = '<p class="text-center text-gray-500 py-4">Your cart is empty.</p>';
+    document.getElementById('cartTotal').textContent = '$0';
+    return;
+  }
+  state.cart.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'cart-item';
+    el.innerHTML = `
+      <span>${FURNITURE.find(f => f.id === item.id).name}</span>
+      <span class="price">$${item.price}</span>
+    `;
+    list.appendChild(el);
+  });
+  const total = state.cart.reduce((s, i) => s + i.price, 0);
+  document.getElementById('cartTotal').textContent = `$${total}`;
+  document.getElementById('cartCount').textContent = state.cart.length;
+}
+
+function renderPlan() {
+  const list = document.getElementById('planSummary');
+  list.innerHTML = '';
+  if (state.currentPlan) {
+    const items = state.currentPlan.items;
+    items.forEach(id => {
+      const el = document.createElement('div');
+      el.className = 'flex justify-between items-center';
+      el.innerHTML = `<span>${FURNITURE.find(f => f.id === id).name}</span><span>$${FURNITURE.find(f => f.id === id).price}</span>`;
+      list.appendChild(el);
+    });
+    const total = items.reduce((s, id) => s + FURNITURE.find(f => f.id === id).price, 0);
+    document.getElementById('planCount').textContent = items.length;
+    document.getElementById('planTotal').textContent = `$${total}`;
+  } else {
+    document.getElementById('planCount').textContent = '0';
+    document.getElementById('planTotal').textContent = '$0';
+  }
+}
+
+function renderRoom() {
+  const room = document.getElementById('room');
+  const layer = document.getElementById('furnitureLayer');
+  layer.innerHTML = '';
+  if (state.currentTemplate) {
+    const t = TEMPLATES[state.currentTemplate];
+    room.style.backgroundImage = `url('${t.bg}')`;
+  } else {
+    room.style.backgroundImage = 'none';
+  }
+
+  state.currentPlan?.items.forEach(id => {
+    const f = FURNITURE.find(x => x.id === id);
+    if (!f) return;
+    const el = document.createElement('div');
+    el.className = 'furniture-item';
+    el.style.left = `${Math.random() * 80}%`;
+    el.style.top = `${Math.random() * 80}%`;
+    el.style.width = `${f.w}px`;
+    el.style.height = `${f.h}px`;
+    el.style.backgroundImage = `url('${f.img}')`;
+    el.dataset.id = f.id;
+    el.setAttribute('draggable', 'false');
+    layer.appendChild(el);
+  });
+}
+
+/* ---------- ACTIONS ---------- */
+function addToCart(id) {
+  const f = FURNITURE.find(x => x.id === id);
+  if (!f) return;
+  state.cart.push({ id, price: f.price });
+  renderCart();
+  toast(`Added ${f.name} to cart`);
+}
+
+function removeFromCart(id) {
+  state.cart = state.cart.filter(i => i.id !== id);
+  renderCart();
+}
+
+function savePlan() {
+  if (!state.currentPlan) {
+    state.currentPlan = { id: Date.now(), items: [] };
+    state.plans.push(state.currentPlan);
+  }
+  state.currentPlan.items = state.currentPlan.items.filter(i => i !== id);
+  renderPlan();
+  toast('Plan saved');
+}
+
+function openLogin() {
+  document.getElementById('loginModal').classList.remove('hidden');
+}
+function closeLogin() {
+  document.getElementById('loginModal').classList.add('hidden');
+}
+document.getElementById('loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  state.user = { email };
+  localStorage.setItem('homestyle_user', JSON.stringify(state.user));
+  closeLogin();
+  toast('Welcome, ' + email.split('@')[0] + '!');
+});
+
+/* ---------- DRAG & DROP ---------- */
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+}
+function handleDrop(e) {
+  e.preventDefault();
+  const id = parseInt(e.dataTransfer.getData('text/plain'));
+  if (!id) return;
+  const f = FURNITURE.find(x => x.id === id);
+  if (!f) return;
+  state.currentPlan = state.currentPlan || { id: Date.now(), items: [] };
+  state.currentPlan.items.push(id);
+  renderRoom();
+  renderPlan();
+  toast(`Placed ${f.name} in your plan`);
+}
+
+/* ---------- EVENT BINDINGS ---------- */
+document.getElementById('categoryList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-cat]');
+  if (!btn) return;
+  state.currentCategory = btn.dataset.cat;
+  renderShop();
+});
+
+document.getElementById('savePlanBtn').addEventListener('click', () => {
+  if (!state.currentPlan) {
+    state.currentPlan = { id: Date.now(), items: [] };
+    state.plans.push(state.currentPlan);
+  }
+  state.currentPlan.items = state.currentPlan.items.filter(i => i !== id);
+  renderPlan();
+  toast('Plan saved');
+});
+
+document.getElementById('checkoutBtn').addEventListener('click', () => {
+  if (state.cart.length === 0) return;
+  toast('Checkout: ' + state.cart.length + ' items');
+});
+
+document.getElementById('openCartBtn').addEventListener('click', () => {
+  toast('Cart: ' + state.cart.length + ' items');
+});
+
+document.getElementById('userBtn').addEventListener('click', () => {
+  if (!state.user) openLogin();
+  else toast('Signed in as ' + state.user.email.split('@')[0]);
+});
+
+document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+  document.getElementById('mobileMenu').classList.toggle('hidden');
+});
+
+/* Room drag events */
+document.getElementById('room').addEventListener('dragover', handleDragOver);
+document.getElementById('room').addEventListener('drop', handleDrop);
+
+/* Template buttons */
+document.querySelectorAll('[data-template]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.currentTemplate = btn.dataset.template;
+    state.currentPlan = { id: Date.now(), items: TEMPLATES[state.currentTemplate].items };
+    state.plans.push(state.currentPlan);
+    renderRoom();
+    renderPlan();
+    toast('Applied ' + btn.dataset.template + ' template');
+  });
+});
+
+/* ---------- TOAST ---------- */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+/* ---------- INIT ---------- */
+load();
+renderShop();
+renderCart();
+renderPlan();
+renderRoom();
+save();
+</script></script>
+</body>
+</html>

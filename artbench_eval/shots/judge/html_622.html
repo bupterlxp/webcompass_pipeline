@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Video Editor</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #2d2d2d;
+            --border-color: #444;
+            --accent-color: #007acc;
+            --text-color: #fff;
+            --track-bg: #333;
+            --clip-video: #4caf50;
+            --clip-audio: #ff9800;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 10px 20px;
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #005f9e;
+        }
+
+        .main-workspace {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 300px);
+        }
+
+        .media-library {
+            width: 300px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .library-header {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .library-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .media-item {
+            background-color: var(--track-bg);
+            padding: 10px;
+            border-radius: 4px;
+            cursor: grab;
+            user-select: none;
+            border: 1px solid transparent;
+        }
+
+        .media-item:hover {
+            border-color: var(--accent-color);
+        }
+
+        .preview-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #000;
+            position: relative;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            background-color: #000;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .timeline-area {
+            height: 250px;
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-header {
+            padding: 5px 10px;
+            background-color: #252526;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .timeline-tracks {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+            padding-top: 20px;
+        }
+
+        .track {
+            height: 60px;
+            background-color: var(--track-bg);
+            margin-bottom: 10px;
+            position: relative;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .track::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #888;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .clip {
+            position: absolute;
+            height: 100%;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            overflow: hidden;
+            white-space: nowrap;
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+        }
+
+        .clip.video { background-color: var(--clip-video); }
+        .clip.audio { background-color: var(--clip-audio); }
+
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: red;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -4px;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Hidden elements for processing */
+        #hidden-media {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>Web Video Editor</h2>
+        <button id="exportBtn">Export Video</button>
+    </header>
+
+    <div class="main-workspace">
+        <div class="media-library">
+            <div class="library-header">
+                <span>Media Library</span>
+                <button onclick="document.getElementById('fileInput').click()">+ Add</button>
+                <input type="file" id="fileInput" accept="video/*,audio/*" multiple>
+            </div>
+            <div class="library-items" id="libraryItems">
+                <!-- Media items will be injected here -->
+            </div>
+        </div>
+
+        <div class="preview-area">
+            <canvas id="previewCanvas" width="800" height="450"></canvas>
+            <div class="controls">
+                <button id="playPauseBtn">Play</button>
+                <span id="timeDisplay" style="line-height: 32px; margin-left: 10px;">00:00.0 / 00:00.0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-area">
+        <div class="timeline-header">
+            <span>Timeline (Drag & Drop media here)</span>
+            <span>Scale: 10px = 1s</span>
+        </div>
+        <div class="timeline-tracks" id="timelineTracks">
+            <div class="playhead" id="playhead" style="left: 0px;"></div>
+            <div class="track" data-label="Video Track" id="videoTrack" data-type="video"></div>
+            <div class="track" data-label="Audio Track" id="audioTrack" data-type="audio"></div>
+        </div>
+    </div>
+
+    <div id="hidden-media"></div>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            assets: [], // Uploaded files
+            clips: [],  // Clips on timeline
+            isPlaying: false,
+            currentTime: 0,
+            duration: 30, // Default timeline duration in seconds
+            pixelsPerSecond: 20, // Zoom level
+            animationFrameId: null,
+            lastTimestamp: 0
+        };
+
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('fileInput');
+        const libraryItems = document.getElementById('libraryItems');
+        const videoTrack = document.getElementById('videoTrack');
+        const audioTrack = document.getElementById('audioTrack');
+        const playhead = document.getElementById('playhead');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const ctx = previewCanvas.getContext('2d');
+        const hiddenMediaContainer = document.getElementById('hidden-media');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // --- File Upload & Media Handling ---
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            for (const file of files) {
+                const type = file.type.startsWith('video') ? 'video' : 'audio';
+                const url = URL.createObjectURL(file);
+                
+                // Create hidden element to get duration
+                const mediaEl = document.createElement(type);
+                mediaEl.src = url;
+                mediaEl.preload = 'metadata';
+                
+                await new Promise((resolve) => {
+                    mediaEl.onloadedmetadata = () => {
+                        const asset = {
+                            id: 'asset_' + Date.now() + Math.random().toString(36).substr(2, 9),
+                            name: file.name,
+                            type: type,
+                            url: url,
+                            duration: mediaEl.duration,
+                            element: mediaEl // Keep reference for playback
+                        };
+                        state.assets.push(asset);
+                        hiddenMediaContainer.appendChild(mediaEl);
+                        renderLibrary();
+                        resolve();
+                    };
+                });
+            }
+        });
+
+        function renderLibrary() {
+            libraryItems.innerHTML = '';
+            state.assets.forEach(asset => {
+                const div = document.createElement('div');
+                div.className = 'media-item';
+                div.draggable = true;
+                div.textContent = `${asset.name} (${asset.duration.toFixed(1)}s)`;
+                
+                div.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', asset.id);
+                });
+                
+                libraryItems.appendChild(div);
+            });
+        }
+
+        // --- Drag and Drop to Timeline ---
+        [videoTrack, audioTrack].forEach(track => {
+            track.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+
+            track.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const assetId = e.dataTransfer.getData('text/plain');
+                const asset = state.assets.find(a => a.id === assetId);
+                
+                if (!asset) return;
+                
+                // Ensure video goes to video track, audio to audio track
+                const trackType = track.getAttribute('data-type');
+                if (asset.type !== trackType && asset.type !== 'video') {
+                    // Allow video in audio track (extracts audio), but not audio in video track
+                    if (trackType === 'video') {
+                        alert('Cannot place audio-only file in video track.');
+                        return;
+                    }
+                }
+
+                // Calculate start time based on drop position
+                const rect = track.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left + track.parentElement.scrollLeft;
+                const startTime = Math.max(0, offsetX / state.pixelsPerSecond);
+
+                const clip = {
+                    id: 'clip_' + Date.now(),
+                    assetId: asset.id,
+                    type: trackType,
+                    startTime: startTime,
+                    duration: asset.duration,
+                    asset: asset
+                };
+
+                state.clips.push(clip);
+                
+                // Update total duration if needed
+                const clipEnd = clip.startTime + clip.duration;
+                if (clipEnd > state.duration) {
+                    state.duration = clipEnd + 10;
+                }
+
+                renderTimeline();
+            });
+        });
+
+        function renderTimeline() {
+            // Clear existing clips
+            document.querySelectorAll('.clip').forEach(el => el.remove());
+
+            state.clips.forEach(clip => {
+                const div = document.createElement('div');
+                div.className = `clip ${clip.type}`;
+                div.style.left = `${clip.startTime * state.pixelsPerSecond}px`;
+                div.style.width = `${clip.duration * state.pixelsPerSecond}px`;
+                div.textContent = clip.asset.name;
+                
+                // Simple click to delete for demonstration
+                div.addEventListener('dblclick', () => {
+                    state.clips = state.clips.filter(c => c.id !== clip.id);
+                    renderTimeline();
+                });
+
+                if (clip.type === 'video') {
+                    videoTrack.appendChild(div);
+                } else {
+                    audioTrack.appendChild(div);
+                }
+            });
+        }
+
+        // --- Playback Engine ---
+        playPauseBtn.addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            playPauseBtn.textContent = state.isPlaying ? 'Pause' : 'Play';
+            
+            if (state.isPlaying) {
+                state.lastTimestamp = performance.now();
+                playbackLoop(performance.now());
+            } else {
+                cancelAnimationFrame(state.animationFrameId);
+                pauseAllMedia();
+            }
+        });
+
+        function pauseAllMedia() {
+            state.assets.forEach(asset => {
+                asset.element.pause();
+            });
+        }
+
+        function playbackLoop(timestamp) {
+            if (!state.isPlaying) return;
+
+            const delta = (timestamp - state.lastTimestamp) / 1000; // in seconds
+            state.lastTimestamp = timestamp;
+            state.currentTime += delta;
+
+            if (state.currentTime > state.duration) {
+                state.currentTime = 0;
+                state.isPlaying = false;
+                playPauseBtn.textContent = 'Play';
+                pauseAllMedia();
+                updateUI();
+                return;
+            }
+
+            updateUI();
+            renderFrame();
+
+            state.animationFrameId = requestAnimationFrame(playbackLoop);
+        }
+
+        function updateUI() {
+            // Update playhead
+            playhead.style.left = `${state.currentTime * state.pixelsPerSecond}px`;
+            
+            // Update time display
+            const formatTime = (time) => {
+                const m = Math.floor(time / 60).toString().padStart(2, '0');
+                const s = (time % 60).toFixed(1).padStart(4, '0');
+                return `${m}:${s}`;
+            };
+            timeDisplay.textContent = `${formatTime(state.currentTime)} / ${formatTime(state.duration)}`;
+        }
+
+        function renderFrame() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+            // Find active clips at current time
+            const activeClips = state.clips.filter(clip => 
+                state.currentTime >= clip.startTime && 
+                state.currentTime <= (clip.startTime + clip.duration)
+            );
+
+            // Handle Video
+            const activeVideoClip = activeClips.find(c => c.type === 'video');
+            if (activeVideoClip) {
+                const mediaEl = activeVideoClip.asset.element;
+                const clipTime = state.currentTime - activeVideoClip.startTime;
+                
+                // Sync video time if it drifts
+                if (Math.abs(mediaEl.currentTime - clipTime) > 0.1) {
+                    mediaEl.currentTime = clipTime;
+                }
+                
+                if (mediaEl.paused) mediaEl.play().catch(e => console.log("Autoplay prevented"));
+                
+                // Draw to canvas
+                try {
+                    ctx.drawImage(mediaEl, 0, 0, previewCanvas.width, previewCanvas.height);
+                } catch (e) {
+                    // Ignore draw errors if video isn't ready
+                }
+            } else {
+                // Pause all videos if no active video clip
+                state.assets.filter(a => a.type === 'video').forEach(a => a.element.pause());
+            }
+
+            // Handle Audio
+            const activeAudioClips = activeClips.filter(c => c.type === 'audio');
+            state.assets.filter(a => a.type === 'audio').forEach(asset => {
+                const clip = activeAudioClips.find(c => c.assetId === asset.id);
+                if (clip) {
+                    const clipTime = state.currentTime - clip.startTime;
+                    if (Math.abs(asset.element.currentTime - clipTime) > 0.1) {
+                        asset.element.currentTime = clipTime;
+                    }
+                    if (asset.element.paused) asset.element.play().catch(e => {});
+                } else {
+                    asset.element.pause();
+                }
+            });
+        }
+
+        // --- Export Functionality (Mock/Basic) ---
+        exportBtn.addEventListener('click', () => {
+            if (state.clips.length === 0) {
+                alert("Timeline is empty. Add media before exporting.");
+                return;
+            }
+
+            alert("Starting export process... (This is a simulated export for the browser environment)");
+            
+            // In a real application, we would use MediaRecorder API to capture the canvas stream
+            // and Web Audio API destination stream, play through the timeline from 0 to duration,
+            // and save the resulting Blob.
+            
+            exportBtn.disabled = true;
+            exportBtn.textContent = "Exporting...";
+            
+            // Simulate rendering time
+            setTimeout(() => {
+                alert("Export complete! (Mock)");
+                exportBtn.disabled = false;
+                exportBtn.textContent = "Export Video";
+            }, 2000);
+        });
+
+        // Initial UI update
+        updateUI();
+    </script>
+</body>
+</html>

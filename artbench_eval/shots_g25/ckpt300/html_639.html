@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Modular Synthesizer</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.app { max-width: 1400px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #2a2a2a; color: #fff; border-radius: 8px; }
+.topbar h1 { margin: 0; font-size: 18px; }
+.topbar-right { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { background: #4a4a4a; color: #fff; border: 1px solid #666; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.btn:hover { background: #5a5a5a; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn.active { background: #0077ff; border-color: #0066cc; }
+.canvas-wrap { position: relative; background: #1a1a1a; border-radius: 8px; overflow: hidden; }
+#canvas { display: block; width: 100%; height: auto; cursor: grab; }
+#canvas:active { cursor: grabbing; }
+#canvas-hint {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px;
+  font-size: 12px; pointer-events: none; opacity: 0.8;
+}
+.workspace { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+.panel {
+  background: #2a2a2a; border-radius: 8px; padding: 12px; overflow-y: auto;
+  max-height: calc(100vh - 140px);
+}
+.panel h2 { margin: 8px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; }
+.module-list { display: flex; flex-direction: column; gap: 6px; }
+.module-list button {
+  display: flex; align-items: center; gap: 10px;
+  background: #3a3a3a; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 6px;
+  cursor: grab; font-size: 13px;
+}
+.module-list button:hover { background: #4a4a4a; border-color: #555; }
+.module-list button:active { cursor: grabbing; }
+.module-list button .icon { width: 20px; height: 20px; display: inline-block; }
+.module-list button .name { flex: 1; }
+.module-list button .count { font-size: 11px; color: #888; background: #444; padding: 2px 6px; border-radius: 4px; }
+.preset-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.preset-list button {
+  background: #3a3a3a; color: #fff; border: 1px solid #444; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+}
+.preset-list button:hover { background: #4a4a4a; }
+.preset-list button.active { background: #0077ff; border-color: #0066cc; }
+
+.status { text-align: center; color: #888; font-size: 12px; padding: 4px 8px; background: #2a2a2a; border-radius: 4px; }
+
+/* Canvas module styling */
+.module { position: absolute; cursor: grab; user-select: none; }
+.module.dragging { opacity: 0.4; }
+.module .title { font-size: 11px; color: #fff; font-weight: 600; margin-bottom: 4px; }
+.module .params { display: flex; flex-direction: column; gap: 4px; }
+.param { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cfcfcf; }
+.param input[type="range"] { flex: 1; accent-color: #0077ff; }
+.param input[type="number"] { width: 50px; font-size: 11px; color: #fff; text-align: center; background: #3a3a3a; border: 1px solid #444; border-radius: 4px; }
+.param input[type="number"]:focus { outline: none; border-color: #0077ff; }
+.param .label { color: #aaa; font-size: 10px; }
+
+.cable { pointer-events: none; stroke: #0077ff; stroke-width: 2; fill: none; }
+.cable .start { fill: #0077ff; }
+.cable .end { fill: #0077ff; }
+.cable .mid { stroke: #0077ff; stroke-width: 1; fill: none; }
+
+.module .remove-btn {
+  position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,0.6); border: 1px solid #444; color: #fff; font-size: 10px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.module .remove-btn:hover { background: #0077ff; border-color: #0077ff; }
+
+/* Drag ghost */
+.ghost { position: fixed; pointer-events: none; z-index: 1000; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>Modular Synthesizer</h1>
+    <div class="topbar-right">
+      <button id="btn-play" class="btn" title="Play/Pause">⏸ Play</button>
+      <button id="btn-record" class="btn" title="Record (WAV export)">⏺ Record</button>
+      <button id="btn-undo" class="btn" title="Undo">↶ Undo</button>
+      <button id="btn-redo" class="btn" title="Redo">↷ Redo</button>
+      <button id="btn-reset" class="btn" title="Reset">↻ Reset</button>
+      <input type="file" id="file-import" accept=".json" hidden />
+      <button id="btn-import" class="btn" title="Import patch">Import</button>
+      <button id="btn-export" class="btn" title="Export patch">Export</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="panel">
+      <h2>Modules</h2>
+      <div class="module-list" id="module-list"></div>
+      <h2>Presets</h2>
+      <div class="preset-list" id="preset-list"></div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <canvas id="canvas" width="1200" height="600"></canvas>
+      <div id="canvas-hint">Drag modules from the list onto the canvas</div>
+    </main>
+  </div>
+
+  <footer class="status">
+    <span id="status">Ready</span>
+  </footer>
+</div>
+
+<script>/* =========================================================
+   Modular Synthesizer — Web Audio API
+   ========================================================= */
+
+const MOD_TYPES = [
+  { id: 'osc', name: 'Oscillator', icon: 'sine' },
+  { id: 'filter', name: 'Filter', icon: 'filter' },
+  { id: 'adsr', name: 'ADSR', icon: 'envelope' },
+  { id: 'lfo', name: 'LFO', icon: 'lfo' },
+  { id: 'mixer', name: 'Mixer', icon: 'mix' },
+  { id: 'noise', name: 'Noise', icon: 'noise' },
+  { id: 'ring', name: 'Ring Mod', icon: 'ring' },
+];
+
+const OSC_WAVES = ['sine', 'square', 'sawtooth', 'triangle'];
+const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass'];
+const LFO_WAVES = ['sine', 'square', 'triangle', 'sawtooth'];
+
+class Synth {
+  constructor() {
+    this.audioCtx = null;
+    this.masterGain = null;
+    this.modules = new Map();          // id -> module
+    this.moduleIds = [];               // list of ids (for order)
+    this.connections = [];             // [fromId, fromPort, toId, toPort]
+    this.playback = false;
+    this.recordBuffer = null;
+    this.recordStartTime = 0;
+    this.recordLen = 0;
+    this.undoStack = [];
+    this.redoStack = [];
+    this.presetList = [];
+    this.currentPreset = null;
+
+    this._setupCanvas();
+    this._setupAudio();
+    this._setupUI();
+    this._setupEvents();
+  }
+
+  _setupCanvas() {
+    const canvas = document.getElementById('canvas');
+    this.ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    this.canvasW = rect.width;
+    this.canvasH = rect.height;
+    this.scale = this.canvasW / 1200; // target 1200px width
+    this.dpr = window.devicePixelRatio || 1;
+    this.canvasEl = canvas;
+  }
+
+  _setupAudio() {
+    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    this.masterGain = this.audioCtx.createGain();
+    this.masterGain.gain.value = 0;
+    this.masterGain.connect(this.audioCtx.destination);
+  }
+
+  _setupUI() {
+    // Module list
+    const list = document.getElementById('module-list');
+    MOD_TYPES.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'module-list-item';
+      btn.innerHTML = `<span class="icon" style="background:#${t.id === 'osc' ? '0077ff' : t.id === 'filter' ? 'ff8800' : t.id === 'adsr' ? '88ff00' : t.id === 'lfo' ? 'ff0088' : t.id === 'mixer' ? 'ffaa00' : t.id === 'noise' ? 'aa00ff' : '00ffaa'}; border-radius:4px"></span><span class="name">${t.name}</span><span class="count">${this._countType(t.id)}</span>`;
+      btn.dataset.type = t.id;
+      btn.addEventListener('click', () => this._addModule(t.id));
+      list.appendChild(btn);
+    });
+
+    // Presets
+    const presetList = document.getElementById('preset-list');
+    presetList.innerHTML = '<button class="btn-add" data-add="true">✚ New Preset</button>';
+    presetList.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (b && b.dataset.add) {
+        this._addPreset('Untitled');
+      }
+    });
+  }
+
+  _setupEvents() {
+    window.addEventListener('resize', () => {
+      const rect = this.canvasEl.getBoundingClientRect();
+      this.canvasW = rect.width;
+      this.canvasH = rect.height;
+      this.scale = this.canvasW / 1200;
+      this._render();
+    });
+
+    // Drag module
+    this.canvasEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      this.canvasEl.style.background = 'rgba(0,0,0,0.25)';
+    });
+    this.canvasEl.addEventListener('dragleave', e => {
+      if (!this.canvasEl.contains(e.relatedTarget)) {
+        this.canvasEl.style.background = '';
+      }
+    });
+    this.canvasEl.addEventListener('drop', e => {
+      e.preventDefault();
+      this.canvasEl.style.background = '';
+      const type = e.dataTransfer.getData('text/module-type');
+      if (type) this._addModule(type, e.clientX, e.clientY);
+    });
+
+    // Drag module from list
+    document.querySelectorAll('.module-list-item').forEach(btn => {
+      btn.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/module-type', btn.dataset.type);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+    });
+  }
+
+  // =========================================================
+  // Module creation
+  // =========================================================
+  _countType(type) {
+    return [...this.modules.values()].filter(m => m.type === type).length;
+  }
+
+  _addModule(type, x = null, y = null) {
+    const id = `m${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+    const mod = this._createModule(type, id);
+    this.modules.set(id, mod);
+    this.moduleIds.push(id);
+
+    if (x !== null && y !== null) {
+      mod.x = x;
+      mod.y = y;
+    } else {
+      this._autoPlace(mod);
+    }
+
+    this._render();
+    this._renderConnections();
+    this._updateUndo();
+    this._renderPresetList();
+  }
+
+  _createModule(type, id) {
+    const params = {};
+    if (type === 'osc') {
+      params.wave = 'sine';
+      params.freq = 440;
+      params.gain = 0.3;
+      params.octaves = 2;
+    } else if (type === 'filter') {
+      params.type = 'lowpass';
+      params.freq = 2200;
+      params.q = 1;
+      params.gain = 0.8;
+    } else if (type === 'adsr') {
+      params.attack = 0.05;
+      params.decay = 0.1;
+      params.sustain = 0.7;
+      params.release = 0.5;
+    } else if (type === 'lfo') {
+      params.wave = 'sine';
+      params.freq = 1;
+      params.depth = 0.5;
+      params.target = 'freq';
+    } else if (type === 'mixer') {
+      params.channels = 2;
+      params.gain = 0.5;
+    } else if (type === 'noise') {
+      params.gain = 0.3;
+    } else if (type === 'ring') {
+      params.gain = 0.5;
+    }
+    return { id, type, params, x: 0, y: 0, audioNode: null, connections: [] };
+  }
+
+  _autoPlace(mod) {
+    const rect = this.canvasEl.getBoundingClientRect();
+    let x = 100;
+    let y = 100 + (mod.type === 'osc' ? 0 : 80);
+    const existing = [...this.modules.values()].filter(m => m.type !== 'mixer' && m.type !== 'noise' && m.type !== 'ring');
+    const counts = {};
+    existing.forEach(m => { counts[m.type] = (counts[m.type] || 0) + 1; });
+    const offsets = {
+      osc: [0, 80, 160, 240],
+      filter: [0, 80, 160, 240],
+      adsr: [0, 80, 160, 240],
+      lfo: [0, 80, 160, 240],
+      mixer: [0, 80, 160, 240],
+      noise: [0, 80, 160, 240],
+      ring: [0, 80, 160, 240],
+    };
+    if (counts[mod.type] > 0) {
+      const off = offsets[mod.type][counts[mod.type] - 1];
+      y += off;
+    }
+    mod.x = x;
+    mod.y = y;
+  }
+
+  _render() {
+    const rect = this.canvasEl.getBoundingClientRect();
+    this.ctx.clearRect(0, 0, rect.width, rect.height);
+    this.moduleIds.forEach(id => {
+      const m = this.modules.get(id);
+      if (!m) return;
+      this._drawModule(m);
+    });
+  }
+
+  _drawModule(mod) {
+    const rect = this.canvasEl.getBoundingClientRect();
+    const sx = mod.x * this.scale;
+    const sy = mod.y * this.scale;
+    const w = 120 * this.scale;
+    const h = 70 * this.scale;
+    const r = 6 * this.scale;
+
+    // Background
+    this.ctx.save();
+    this.ctx.translate(sx, sy);
+    this.ctx.scale(this.scale, this.scale);
+    this.ctx.fillStyle = '#2a2a2a';
+    this.ctx.fillRect(0, 0, w, h);
+
+    // Title
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 11px sans-serif';
+    this.ctx.fillText(mod.type, 10, 16);
+
+    // Ports
+    this.ctx.fillStyle = '#0077ff';
+    this.ctx.beginPath();
+    this.ctx.arc(6, 12, r, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.beginPath();
+    this.ctx.arc(w - 6, 12, r, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.beginPath();
+    this.ctx.arc(6, h - 12, r, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.beginPath();
+    this.ctx.arc(w - 6, h - 12, r, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    // Remove button
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 10px sans-serif';
+    this.ctx.fillText('✕', w - 18, 16);
+
+    // Params
+    const paramY = 26;
+    const paramH = 12;
+    this.ctx.fillStyle = '#cfcfcf';
+    this.ctx.font = '10px sans-serif';
+    Object.entries(mod.params).forEach(([k, v], i) => {
+      const label = this._paramLabel(k);
+      const labelW = this.ctx.measureText(label).width + 10;
+      this.ctx.fillText(label, 10, paramY + i * paramH + 2);
+      this.ctx.fillRect(10 + labelW, paramY + i * paramH + 2, 30, paramH);
+      this.ctx.fillStyle = '#fff';
+      this.ctx.fillText(v.toFixed(2), 10 + labelW + 30, paramY + i * paramH + 8);
+    });
+
+    this.ctx.restore();
+  }
+
+  _paramLabel(k) {
+    const map = {
+      wave: 'Wave',
+      freq: 'Freq',
+      gain: 'Gain',
+      type: 'Type',
+      q: 'Q',
+      attack: 'A',
+      decay: 'D',
+      sustain: 'S',
+      release: 'R',
+      depth: 'Depth',
+      target: 'Target',
+      channels: 'Ch',
+      octaves: 'Oct',
+    };
+    return map[k] || k;
+  }
+
+  _renderConnections() {
+    const rect = this.canvasEl.getBoundingClientRect();
+    this.ctx.save();
+    this.ctx.translate(rect.left, rect.top);
+    this.ctx.scale(this.scale, this.scale);
+    this.connections.forEach(conn => {
+      const from = this.modules.get(conn[0]);
+      const to = this.modules.get(conn[2]);
+      if (!from || !to) return;
+      const sx = from.x * this.scale;
+      const sy = from.y * this.scale;
+      const tx = to.x * this.scale;
+      const ty = to.y * this.scale;
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2;
+      this.ctx.strokeStyle = '#0077ff';
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.moveTo(sx, sy);
+      this.ctx.lineTo(mx, my);
+      this.ctx.stroke();
+    });
+    this.ctx.restore();
+  }
+
+  // =========================================================
+  // Connections
+  // =========================================================
+  _connect(fromId, fromPort, toId, toPort) {
+    if (this.connections.some(c => c[0] === fromId && c[2] === toId)) return;
+    this.connections.push([fromId, fromPort, toId, toPort]);
+    this._renderConnections();
+    this._updateUndo();
+  }
+
+  _disconnect(fromId, fromPort, toId, toPort) {
+    this.connections = this.connections.filter(c =>
+      !(c[0] === fromId && c[2] === toId && c[1] === fromPort && c[3] === toPort)
+    );
+    this._renderConnections();
+    this._updateUndo();
+  }
+
+  // =========================================================
+  // Audio building
+  // =========================================================
+  _buildAudioGraph() {
+    // Clear existing
+    this._cleanupAudio();
+
+    // Build in order of moduleIds
+    const graph = [];
+    const nodes = {};
+    const gains = {};
+
+    this.moduleIds.forEach(id => {
+      const mod = this.modules.get(id);
+      const node = this._buildNode(mod);
+      nodes[id] = node;
+      if (mod.type === 'mixer') {
+        this.masterGain.disconnect();
+        this.masterGain.connect(node);
+      } else {
+        this.masterGain.connect(node);
+      }
+      graph.push(node);
+    });
+
+    // Connections
+    this.connections.forEach(c => {
+      const from = nodes[c[0]];
+      const to = nodes[c[2]];
+      const fromPort = c[1];
+      const toPort = c[3];
+      if (fromPort === 'out' && toPort === 'in') {
+        from.connect(to);
+      } else if (fromPort === 'out' && toPort === 'in') {
+        from.connect(to);
+      }
+    });
+
+    this.audioNodes = nodes;
+    this.audioGraph = graph;
+  }
+
+  _buildNode(mod) {
+    if (!this.audioCtx) return null;
+    if (mod.type === 'mixer') {
+      return this._buildMixer(mod);
+    } else if (mod.type === 'noise') {
+      return this._buildNoise(mod);
+    } else if (mod.type === 'ring') {
+      return this._buildRing(mod);
+    } else if (mod.type === 'lfo') {
+      return this._buildLFO(mod);
+    } else if (mod.type === 'adsr') {
+      return this._buildADSR(mod);
+    } else if (mod.type === 'filter') {
+      return this._buildFilter(mod);
+    } else if (mod.type === 'osc') {
+      return this._buildOsc(mod);
+    }
+    return null;
+  }
+
+  _buildOsc(mod) {
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = mod.params.wave;
+    osc.frequency.value = mod.params.freq;
+    gain.gain.value = mod.params.gain;
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start();
+    mod.audioNode = { osc, gain };
+    return gain;
+  }
+
+  _buildFilter(mod) {
+    const filter = this.audioCtx.createBiquadFilter();
+    filter.type = mod.params.type;
+    filter.frequency.value = mod.params.freq;
+    filter.Q.value = mod.params.q;
+    const gain = this.audioCtx.createGain();
+    gain.gain.value = mod.params.gain;
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    mod.audioNode = { filter, gain };
+    return gain;
+  }
+
+  _buildADSR(mod) {
+    const env = this.audioCtx.createGain();
+    const now = this.audioCtx.currentTime;
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(mod.params.sustain, now + mod.params.attack);
+    env.gain.linearRampToValueAtTime(0, now + mod.params.attack + mod.params.decay);
+    env.gain.linearRampToValueAtTime(0, now + mod.params.attack + mod.params.decay + mod.params.release);
+    const gain = this.audioCtx.createGain();
+    gain.gain.value = 1;
+    env.connect(gain);
+    gain.connect(this.masterGain);
+    mod.audioNode = { env, gain };
+    return gain;
+  }
+
+  _buildLFO(mod) {
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = mod.params.wave;
+    osc.frequency.value = mod.params.freq;
+    gain.gain.value = mod.params.depth;
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start();
+    mod.audioNode = { osc, gain };
+    return gain;
+  }
+
+  _buildMixer(mod) {
+    const channels = mod.params.channels;
+    const inputs = [];
+    for (let i = 0; i < channels; i++) {
+      const g = this.audioCtx.createGain();
+      g.gain.value = mod.params.gain / channels;
+      inputs.push(g);
+    }
+    const mixer = this.audioCtx.createChannelMerger(channels);
+    const gain = this.audioCtx.createGain();
+    gain.gain.value = mod.params.gain;
+    mixer.connect(gain);
+    gain.connect(this.masterGain);
+    mod.audioNode = { mixer, gain, inputs };
+    return gain;
+  }
+
+  _buildNoise(mod) {
+    const noise = this.audioCtx.createBufferSource();
+    const bufferSize = 2 * this.audioCtx.sampleRate;
+    const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    noise.buffer = buffer;
+    const gain = this.audioCtx.createGain();
+    gain.gain.value = mod.params.gain;
+    noise.connect(gain);
+    gain.connect(this.masterGain);
+    noise.loop = true;
+    noise.start();
+    mod.audioNode = { noise, gain };
+    return gain;
+  }
+
+  _buildRing(mod) {
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 220;
+    gain.gain.value = mod.params.gain;
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start();
+    mod.audioNode = { osc, gain };
+    return gain;
+  }
+
+  _cleanupAudio() {
+    this.moduleIds.forEach(id => {
+      const mod = this.modules.get(id);
+      if (mod && mod.audioNode) {
+        if (mod.audioNode.osc) mod.audioNode.osc.stop();
+        if (mod.audioNode.noise) mod.audioNode.noise.stop();
+        mod.audioNode = null;
+      }
+    });
+  }
+
+  // =========================================================
+  // Playback
+  // =========================================================
+  async _playback() {
+    if (this.playback) return;
+    this.playback = true;
+    document.getElementById('btn-play').textContent = '❚❚ Pause';
+    this._buildAudioGraph();
+    this._updateUndo();
+    this._renderPresetList();
+  }
+
+  async _stopPlayback() {
+    if (!this.playback) return;
+    this.playback = false;
+    document.getElementById('btn-play').textContent = '⏸ Play';
+    if (this.audioNodes) {
+      Object.values(this.audioNodes).forEach(n => {
+        if (n.osc) n.osc.stop();
+        if (n.noise) n.noise.stop();
+      });
+    }
+  }
+
+  // =========================================================
+  // Export / Import
+  // =========================================================
+  async exportWAV() {
+    if (!this.playback) {
+      this._buildAudioGraph();
+      this._updateUndo();
+    }
+    const offline = new OfflineAudioContext(1, 44100 * 4, 44100);
+    const master = offline.createGain();
+    master.gain.value = 1;
+    master.connect(offline.destination);
+
+    const nodes = this._buildOfflineNodes(offline);
+    if (!nodes) return;
+
+    const start = offline.currentTime;
+    const end = start + 4;
+    const now = offline.currentTime;
+    nodes.forEach(n => {
+      if (n.env) {
+        n.env.gain.setValueAtTime(0, now);
+        n.env.gain.linearRampToValueAtTime(1, now + 0.1);
+      }
+    });
+    offline.startRendering().then(buffer => {
+      const array = new Float32Array(buffer.length);
+      for (let i = 0; i < buffer.length; i++) {
+        array[i] = buffer.getChannelData(0)[i];
+      }
+      const wav = this._floatToWav(array, buffer.sampleRate);
+      const blob = new Blob([wav], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'synth.wav';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  _buildOfflineNodes(offline) {
+    // Build same graph as live, but offline
+    const nodes = {};
+    const graph = [];
+    this.moduleIds.forEach(id => {
+      const mod = this.modules.get(id);
+      const node = this._buildNodeOffline(mod, offline);
+      nodes[id] = node;
+      graph.push(node);
+    });
+    this.connections.forEach(c => {
+      const from = nodes[c[0]];
+      const to = nodes[c[2]];
+      if (from && to) {
+        from.connect(to);
+      }
+    });
+    return graph;
+  }
+
+  _buildNodeOffline(mod, offline) {
+    if (mod.type === 'mixer') return this._buildMixerOffline(mod, offline);
+    if (mod.type === 'noise') return this._buildNoiseOffline(mod, offline);
+    if (mod.type === 'ring') return this._buildRingOffline(mod, offline);
+    if (mod.type === 'lfo') return this._buildLFOOffline(mod, offline);
+    if (mod.type === 'adsr') return this._buildADSROffline(mod, offline);
+    if (mod.type === 'filter') return this._buildFilterOffline(mod, offline);
+    if (mod.type === 'osc') return this._buildOscOffline(mod, offline);
+    return null;
+  }
+
+  _buildOscOffline(mod, offline) {
+    const osc = offline.createOscillator();
+    const gain = offline.createGain();
+    osc.type = mod.params.wave;
+    osc.frequency.value = mod.params.freq;
+    gain.gain.value = mod.params.gain;
+    osc.connect(gain);
+    gain.connect(offline.destination);
+    osc.start(0);
+    return { osc, gain };
+  }
+
+  _buildFilterOffline(mod, offline) {
+    const filter = offline.createBiquadFilter();
+    filter.type = mod.params.type;
+    filter.frequency.value = mod.params.freq;
+    filter.Q.value = mod.params.q;
+    const gain = offline.createGain();
+    gain.gain.value = mod.params.gain;
+    filter.connect(gain);
+    gain.connect(offline.destination);
+    return { filter, gain };
+  }
+
+  _buildADSROffline(mod, offline) {
+    const env = offline.createGain();
+    env.gain.value = 1;
+    const gain = offline.createGain();
+    gain.gain.value = mod.params.gain;
+    env.connect(gain);
+    gain.connect(offline.destination);
+    return { env, gain };
+  }
+
+  _buildLFOOffline(mod, offline) {
+    const osc = offline.createOscillator();
+    const gain = offline.createGain();
+    osc.type = mod.params.wave;
+    osc.frequency.value = mod.params.freq;
+    gain.gain.value = mod.params.depth;
+    osc.connect(gain);
+    gain.connect(offline.destination);
+    osc.start(0);
+    return { osc, gain };
+  }
+
+  _buildNoiseOffline(mod, offline) {
+    const bufferSize = 2 * offline.sampleRate;
+    const buffer = offline.createBuffer(1, bufferSize, offline.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = offline.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(offline.destination);
+    return { src };
+  }
+
+  _buildRingOffline(mod, offline) {
+    const osc = offline.createOscillator();
+    const gain = offline.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 220;
+    gain.gain.value = mod.params.gain;
+    osc.connect(gain);
+    gain.connect(offline.destination);
+    osc.start(0);
+    return { osc, gain };
+  }
+
+  _buildMixerOffline(mod, offline) {
+    const channels = mod.params.channels;
+    const inputs = [];
+    for (let i = 0; i < channels; i++) {
+      const g = offline.createGain();
+      g.gain.value = mod.params.gain / channels;
+      inputs.push(g);
+    }
+    const merger = offline.createChannelMerger(channels);
+    const gain = offline.createGain();
+    gain.gain.value = mod.params.gain;
+    merger.connect(gain);
+    gain.connect(offline.destination);
+    return { merger, gain, inputs };
+  }
+
+  _floatToWav(data, sampleRate) {
+    const numSamples = data.length;
+    const blockAlign = 1;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = numSamples * 2;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    let offset = 0;
+    writeString(view, offset, 'RIFF');
+    view.setUint32(offset + 4, 36 + dataSize, true);
+    writeString(view, offset + 8, 'WAVE');
+    writeString(view, offset + 12, 'fmt ');
+    view.setUint32(offset + 16, 16, true);
+    view.setUint16(offset + 20, 1, true);
+    view.setUint16(offset + 22, blockAlign, true);
+    view.setUint32(offset + 24, sampleRate, true);
+    view.setUint32(offset + 28, sampleRate * blockAlign, true);
+    view.setUint16(offset + 32, blockAlign, true);
+    view.setUint16(offset + 34, 8, true);
+    writeString(view, offset + 36, 'data');
+    view.setUint32(offset + 40, dataSize, true);
+    offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      const s = Math.max(-1, Math.min(1, data[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+    return view;
+  }
+
+  _savePatch() {
+    const state = {
+      modules: [...this.moduleIds].map(id => {
+        const m = this.modules.get(id);
+        return { id, type: m.type, x: m.x, y: m.y, params: m.params };
+      }),
+      connections: this.connections.map(c => [c[0], c[1], c[2], c[3]]),
+      preset: this.currentPreset,
+    };
+    try {
+      localStorage.setItem('synth-patch', JSON.stringify(state));
+    } catch (e) { /* ignore */ }
+  }
+
+  _loadPatch() {
+    try {
+      const raw = localStorage.getItem('synth-patch');
+      if (!raw) return;
+      const state = JSON.parse(raw);
+      this.moduleIds = state.modules.map(m => m.id);
+      this.connections = state.connections.map(c => [c[0], c[1], c[2], c[3]]);
+      this.currentPreset = state.preset;
+      state.modules.forEach(m => {
+        const mod = this._createModule(m.type, m.id);
+        mod.x = m.x;
+        mod.y = m.y;
+        mod.params = m.params;
+        this.modules.set(m.id, mod);
+      });
+      this._render();
+      this._renderConnections();
+      this._renderPresetList();
+    } catch (e) { /* ignore */ }
+  }
+
+  _addPreset(name) {
+    this.presetList.push({ id: 'p' + Date.now(), name });
+    this._renderPresetList();
+  }
+
+  _renderPresetList() {
+    const list = document.getElementById('preset-list');
+    list.innerHTML = '';
+    this.presetList.forEach(p => {
+      const b = document.createElement('button');
+      b.textContent = p.name;
+      b.addEventListener('click', () => {
+        this.currentPreset = p.name;
+        this._renderPresetList();
+      });
+      list.appendChild(b);
+    });
+  }
+
+  // =========================================================
+  // Undo / Redo
+  // =========================================================
+  _updateUndo() {
+    this.undoStack.push(JSON.stringify(this._state()));
+    if (this.undoStack.length > 50) this.undoStack.shift();
+    this.redoStack = [];
+    this._renderPresetList();
+  }
+
+  _state() {
+    return {
+      modules: [...this.moduleIds].map(id => {
+        const m = this.modules.get(id);
+        return { id, type: m.type, x: m.x, y: m.y, params: m.params };
+      }),
+      connections: this.connections.map(c => [c[0], c[1], c[2], c[3]]),
+      preset: this.currentPreset,
+    };
+  }
+
+  _applyState(state) {
+    this.moduleIds = state.modules.map(m => m.id);
+    this.connections = state.connections.map(c => [c[0], c[1], c[2], c[3]]);
+    this.currentPreset = state.preset;
+    state.modules.forEach(m => {
+      const mod = this._createModule(m.type, m.id);
+      mod.x = m.x;
+      mod.y = m.y;
+      mod.params = m.params;
+      this.modules.set(m.id, mod);
+    });
+    this._render();
+    this._renderConnections();
+    this._renderPresetList();
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return;
+    const s = this.undoStack.pop();
+    this.redoStack.push(s);
+    this._applyState(JSON.parse(s));
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return;
+    const s = this.redoStack.pop();
+    this.undoStack.push(s);
+    this._applyState(JSON.parse(s));
+  }
+
+  // =========================================================
+  // Module parameter UI
+  // =========================================================
+  _showModuleUI(id) {
+    const mod = this.modules.get(id);
+    if (!mod) return;
+    const rect = this.canvasEl.getBoundingClientRect();
+    const sx = mod.x * this.scale;
+    const sy = mod.y * this.scale;
+    const w = 120 * this.scale;
+    const h = 70 * this.scale;
+
+    const params = Object.entries(mod.params).map(([k, v]) => {
+      const label = this._paramLabel(k);
+      const min = this._paramMin(k);
+      const max = this._paramMax(k);
+      const step = this._paramStep(k);
+      const fmt = this._paramFmt(k);
+      return { k, v, label, min, max, step, fmt };
+    });
+
+    // Build HTML
+    let html = `<div style="position:fixed; left:${sx}px; top:${sy}px; width:${w}px; height:${h}px; background:#1a1a1a; border:2px solid #0077ff; border-radius:8px; padding:10px; z-index:500;">`;
+    html += `<div style="font-size:11px; color:#fff; font-weight:600; margin-bottom:6px;">${mod.type}</div>`;
+    params.forEach(p => {
+      html += `<div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#cfcfcf; margin-bottom:4px;">`;
+      html += `<span style="width:50px;">${p.label}</span>`;
+      if (p.k === 'freq' || p.k === 'depth') {
+        html += `<input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.v}" style="flex:1; accent-color:#0077ff;" data-k="${p.k}" data-v="${p.v}" />`;
+      } else {
+        html += `<input type="number" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.v}" style="width:50px; font-size:11px; color:#fff; text-align:center; background:#3a3a3a; border:1px solid #444; border-radius:4px;" data-k="${p.k}" data-v="${p.v}" />`;
+      }
+      html += `<span style="color:#888; font-size:10px;">${p.fmt}</span>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+
+    // Remove button
+    html += `<button style="position:fixed; left:${sx}px; top:${sy}px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,0.6); border:1px solid #444; color:#fff; font-size:10px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; z-index:500;">✕</button>`;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+    const rangeInputs = document.querySelectorAll(`[data-k]`);
+    rangeInputs.forEach(inp => {
+      inp.addEventListener('input', e => {
+        const k = e.target.dataset.k;
+        const v = parseFloat(e.target.value);
+        this._setParam(mod.id, k, v);
+        this._render();
+        this._renderConnections();
+        this._updateUndo();
+      });
+    });
+  }
+
+  _setParam(id, k, v) {
+    const mod = this.modules.get(id);
+    if (!mod) return;
+    if (k === 'wave') mod.params.wave = v;
+    else if (k === 'freq') mod.params.freq = v;
+    else if (k === 'gain') mod.params.gain = v;
+    else if (k === 'type') mod.params.type = v;
+    else if (k === 'q') mod.params.q = v;
+    else if (k === 'attack') mod.params.attack = v;
+    else if (k === 'decay') mod.params.decay = v;
+    else if (k === 'sustain') mod.params.sustain = v;
+    else if (k === 'release') mod.params.release = v;
+    else if (k === 'depth') mod.params.depth = v;
+    else if (k === 'target') mod.params.target = v;
+    else if (k === 'channels') mod.params.channels = v;
+    else if (k === 'octaves') mod.params.octaves = v;
+    this._updateUndo();
+  }
+
+  _paramMin(k) {
+    return { wave: 0, freq: 20, gain: 0, type: 0, q: 0.01, attack: 0, decay: 0, sustain: 0, release: 0, depth: 0, target: 0, channels: 1, octaves: 0 }[k] || 0;
+  }
+  _paramMax(k) {
+    return { wave: 1, freq: 20000, gain: 1, type: 1, q: 10, attack: 5, decay: 5, sustain: 1, release: 5, depth: 1, target: 1, channels: 4, octaves: 5 }[k] || 1;
+  }
+  _paramStep(k) {
+    return { wave: 1, freq: 0.01, gain: 0.01, type: 1, q: 0.01, attack: 0.01, decay: 0.01, sustain: 0.01, release: 0.01, depth: 0.01, target: 1, channels: 1, octaves: 0.01 }[k] || 0.01;
+  }
+  _paramFmt(k) {
+    return { wave: 'Hz', freq: 'Hz', gain: 'Gain', type: 'Type', q: 'Q', attack: 's', decay: 's', sustain: 'Gain', release: 's', depth: 'Gain', target: 'Target', channels: 'Ch', octaves: 'Oct' }[k] || '';
+  }
+
+  // =========================================================
+  // Event wiring
+  // =========================================================
+  _setupUI() {
+    // Buttons
+    document.getElementById('btn-play').addEventListener('click', () => {
+      if (this.playback) this._stopPlayback();
+      else this._playback();
+    });
+    document.getElementById('btn-record').addEventListener('click', () => this.exportWAV());
+    document.getElementById('btn-undo').addEventListener('click', () => this.undo());
+    document.getElementById('btn-redo').addEventListener('click', () => this.redo());
+    document.getElementById('btn-reset').addEventListener('click', () => this._reset());
+    document.getElementById('btn-import').addEventListener('click', () => document.getElementById('file-import').click());
+    document.getElementById('btn-export').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(this._state())], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'synth-patch.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('file-import').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const text = file.text().then(t => {
+        try {
+          const s = JSON.parse(t);
+          this.moduleIds = s.modules.map(m => m.id);
+          this.connections = s.connections.map(c => [c[0], c[1], c[2], c[3]]);
+          this.currentPreset = s.preset;
+          s.modules.forEach(m => {
+            const mod = this._createModule(m.type, m.id);
+            mod.x = m.x;
+            mod.y = m.y;
+            mod.params = m.params;
+            this.modules.set(m.id, mod);
+          });
+          this._render();
+          this._renderConnections();
+          this._renderPresetList();
+          this._savePatch();
+        } catch (e) { /* ignore */ }
+      });
+    });
+
+    // Canvas click to open module UI
+    this.canvasEl.addEventListener('click', e => {
+      const rect = this.canvasEl.getBoundingClientRect();
+      const sx = (e.clientX - rect.left) / this.scale;
+      const sy = (e.clientY - rect.top) / this.scale;
+      const mod = this.moduleIds.find(id => {
+        const m = this.modules.get(id);
+        return m && m.x <= sx && m.x + 120 >= sx && m.y <= sy && m.y + 70 >= sy;
+      });
+      if (mod) this._showModuleUI(mod.id);
+    });
+
+    // Module remove
+    this.canvasEl.addEventListener('click', e => {
+      const rect = this.canvasEl.getBoundingClientRect();
+      const sx = (e.clientX - rect.left) / this.scale;
+      const sy = (e.clientY - rect.top) / this.scale;
+      const mod = this.moduleIds.find(id => {
+        const m = this.modules.get(id);
+        return m && m.x <= sx && m.x + 120 >= sx && m.y <= sy && m.y + 70 >= sy;
+      });
+      if (mod) {
+        this._disconnectAllFrom(mod.id);
+        this.modules.delete(mod.id);
+        this.moduleIds = this.moduleIds.filter(id => id !== mod.id);
+        this._render();
+        this._renderConnections();
+        this._updateUndo();
+      }
+    });
+
+    // Drag module from list
+    document.querySelectorAll('.module-list-item').forEach(btn => {
+      btn.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/module-type', btn.dataset.type);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+    });
+  }
+
+  _disconnectAllFrom(id) {
+    this.connections = this.connections.filter(c => c[0] !== id);
+  }
+
+  _reset() {
+    this._cleanupAudio();
+    this.modules.clear();
+    this.connections = [];
+    this.moduleIds = [];
+    this._render();
+    this._renderConnections();
+    this._updateUndo();
+    this._renderPresetList();
+  }
+
+  // =========================================================
+  // Boot
+  // =========================================================
+  init() {
+    this._loadPatch();
+  }
+}
+
+// Boot
+window.addEventListener('load', () => {
+  const synth = new Synth();
+  synth.init();
+});
+</script></script>
+</body>
+</html>

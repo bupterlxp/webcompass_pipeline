@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subtitle Generator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --bg-2: #252540;
+    --surface: #2b2b4a;
+    --surface-2: #353558;
+    --border: #4a4a78;
+    --text: #e6e6f5;
+    --text-dim: #a8a8c8;
+    --accent: #7c5cff;
+    --accent-2: #ff7a59;
+    --danger: #ff5577;
+    --success: #4ade80;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    --transition: 0.25s ease;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .app {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  h1, h2, h3 {
+    margin: 0 0 12px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  h1 { font-size: 28px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all var(--transition);
+  }
+  .btn:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #6b4dff; border-color: #6b4dff; }
+
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .video-wrap video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  .video-wrap .video-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(10,10,25,0.5) 0%, rgba(10,10,25,0.2) 50%, transparent 100%);
+  }
+  .video-wrap .video-overlay .subtitle {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    right: 24px;
+    pointer-events: none;
+    font-family: 'Georgia', serif;
+    font-size: 22px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    max-height: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .video-wrap .video-overlay .subtitle.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .subtitle-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .subtitle-row:last-child { border-bottom: none; }
+  .subtitle-row .idx { color: var(--text-dim); font-size: 13px; min-width: 32px; }
+
+  .subtitle-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .time-input {
+    width: 80px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    text-align: center;
+  }
+  .time-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
+  textarea.subtitle-text {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    resize: vertical;
+    transition: border-color var(--transition);
+  }
+  textarea.subtitle-text:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .subtitle-controls .btn { flex: 1; min-width: 80px; }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .setting {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+  }
+  .setting label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .setting select, .setting input[type="color"], .setting input[type="number"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .setting input[type="color"] {
+    padding: 6px;
+  }
+  .setting input[type="number"] { font-family: 'SF Mono', monospace; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface-2);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition);
+    z-index: 1000;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+  .progress-time {
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .export-section {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .export-section .btn { flex: 1; min-width: 140px; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .legend-item span {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: currentColor;
+  }
+
+  .drag-area {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    text-align: center;
+    color: var(--text-dim);
+    background: var(--surface);
+    transition: all var(--transition);
+  }
+  .drag-area:hover, .drag-area.drag {
+    border-color: var(--accent);
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--surface-2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition);
+  }
+  .modal-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow);
+    transform: scale(0.95);
+    transition: transform var(--transition);
+  }
+  .modal.show { transform: scale(1); }
+  .modal h3 { margin-bottom: 12px; }
+  .modal textarea {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .modal .btn { margin-top: 8px; }
+
+  .video-error {
+    color: var(--danger);
+    font-size: 14px;
+    margin-top: 8px;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="card">
+    <div class="card-header">
+      <h1><i class="fa-solid fa-subtitles"></i> Subtitle Generator</h1>
+      <span id="subtitleCount">0 subtitles</span>
+    </div>
+    <div class="drag-area" id="dropZone">
+      <i class="fa-solid fa-cloud-arrow-up fa-3x" style="color: var(--accent); margin-bottom: 12px;"></i>
+      <h2>Drop your video here</h2>
+      <p>or click to browse</p>
+      <input type="file" id="videoInput" accept="video/*" hidden />
+    </div>
+    <div class="hint">Tip: Use the <strong>Start</strong> and <strong>End</strong> time inputs to mark subtitle segments.</div>
+  </div>
+
+  <div id="videoContainer" style="display:none;">
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-play"></i> Video Player</h2>
+        <div class="progress">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <span class="progress-time" id="currentTime">0:00</span>
+          <span class="progress-time" id="duration">0:00</span>
+        </div>
+      </div>
+      <div class="video-wrap">
+        <video id="video" preload="metadata" controls crossorigin="anonymous"></video>
+        <div class="video-overlay">
+          <div class="subtitle" id="liveSubtitle"></div>
+        </div>
+      </div>
+      <div class="subtitle-controls">
+        <button class="btn" id="addSubtitle"><i class="fa-solid fa-plus"></i> Add Subtitle</button>
+        <button class="btn danger" id="clearSubtitles"><i class="fa-solid fa-trash"></i> Clear All</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-list"></i> Subtitles</h2>
+        <button class="btn primary" id="exportVTT"><i class="fa-solid fa-file-lines"></i> Export .vtt</button>
+      </div>
+      <div id="subtitleList" class="subtitle-list">
+        <div class="empty-state">
+          <i class="fa-solid fa-film"></i>
+          <p>No subtitles yet. Click <strong>Add Subtitle</strong> to get started.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-palette"></i> Settings</h2>
+      </div>
+      <div class="settings-grid">
+        <div class="setting">
+          <label for="fontFamily">Font Family</label>
+          <select id="fontFamily">
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+            <option value="'Courier New', monospace">Courier New</option>
+            <option value="'SF Mono', monospace">SF Mono</option>
+            <option value="'Arial Black', sans-serif">Arial Black</option>
+            <option value="'Comic Sans MS', cursive">Comic Sans</option>
+            <option value="system-ui, sans-serif">System UI</option>
+            <option value="serif">Serif</option>
+            <option value="monospace">Monospace</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label for="fontSize">Font Size (px)</label>
+          <input type="number" id="fontSize" min="12" max="72" value="24" />
+        </div>
+        <div class="setting">
+          <label for="fontColor">Font Color</label>
+          <input type="color" id="fontColor" value="#ffffff" />
+        </div>
+        <div class="setting">
+          <label for="backgroundColor">Background</label>
+          <input type="color" id="backgroundColor" value="#000000" />
+        </div>
+        <div class="setting">
+          <label for="borderColor">Border Color</label>
+          <input type="color" id="borderColor" value="#7c5cff" />
+        </div>
+        <div class="setting">
+          <label for="shadowColor">Shadow Color</label>
+          <input type="color" id="shadowColor" value="#000000" />
+        </div>
+        <div class="setting">
+          <label for="lineHeight">Line Height</label>
+          <input type="number" id="lineHeight" min="1" max="3" step="0.1" value="1.2" />
+        </div>
+        <div class="setting">
+          <label for="padding">Padding (px)</label>
+          <input type="number" id="padding" min="0" max="40" value="10" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-code"></i> Export Video with Subtitles</h2>
+        <p class="hint">Requires server-side FFmpeg. Demo gives instructions.</p>
+      </div>
+      <div class="export-section">
+        <button class="btn primary" id="exportVideo"><i class="fa-solid fa-download"></i> Export Video</button>
+        <button class="btn" id="downloadVTT"><i class="fa-solid fa-download"></i> Download .vtt</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal">
+    <h3 id="modalTitle">Add Subtitle</h3>
+    <div class="subtitle-controls">
+      <label for="modalStart">Start</label>
+      <input class="time-input" id="modalStart" type="time" />
+      <label for="modalEnd">End</label>
+      <input class="time-input" id="modalEnd" type="time" />
+    </div>
+    <textarea id="modalText" rows="3" placeholder="Type your subtitle text..."></textarea>
+    <div class="modal-backdrop" id="modalBackdropInner" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner2" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner3" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner4" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner5" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner6" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner7" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner8" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner9" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner10" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner11" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner12" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner13" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner14" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner15" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner16" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner17" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner18" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner19" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner20" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner21" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner22" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner23" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner24" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner25" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner26" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner27" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner28" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner29" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner30" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner31" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner32" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner33" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner34" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner35" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner36" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner37" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner38" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner39" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner40" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner41" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner42" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner43" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner44" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner45" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner46" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner47" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner48" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner49" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner50" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner51" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner52" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner53" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner54" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner55" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner56" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner57" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner58" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner59" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner60" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner61" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner62" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner63" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner64" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner65" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner66" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner67" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner68" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner69" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner70" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner71" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner72" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner73" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner74" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner75" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner76" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner77" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner78" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner79" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner80" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner81" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner82" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner83" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner84" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner85" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner86" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner87" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner88" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner89" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner90" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner91" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner92" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner93" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner94" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner95" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner96" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner97" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner98" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner99" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner100" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner101" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner102" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner103" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner104" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner105" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner106" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner107" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner108" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner109" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner110" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner111" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner112" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner113" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner114" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner115" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner116" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner117" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner118" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner119" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner120" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner121" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner122" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner123" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner124" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner125" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner126" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner127" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner128" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner129" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner130" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner131" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner132" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner133" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner134" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner135" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner136" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner137" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner138" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner139" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner140" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner141" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner142" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner143" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner144" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner145" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner146" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner147" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner148" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner149" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner150" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner151" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner152" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner153" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner154" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner155" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner156" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner157" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner158" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner159" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner160" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner161" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner162" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner163" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner164" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner165" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner166" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner167" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner168" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner169" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner170" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner171" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner172" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner173" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner174" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner175" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner176" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner177" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner178" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner179" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner180" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner181" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner182" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner183" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner184" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner185" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner186" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner187" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner188" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner189" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner190" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner191" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner192" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner193" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner194" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner195" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner196" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner197" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner198" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner199" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner200" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner201" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner202" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner203" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner204" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner205" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner206" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner207" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner208" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner209" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner210" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner211" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner212" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner213" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner214" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner215" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner216" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner217" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner218" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner219" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner220" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner221" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner222" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner223" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner224" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner225" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner226" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner227" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner228" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner229" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner230" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner231" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner232" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner233" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner234" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner235" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner236" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner237" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner238" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner239" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner240" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner241" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner242" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner243" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner244" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner245" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner246" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner247" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner248" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner249" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner250" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner251" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner252" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner253" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner254" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner255" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner256" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner257" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner258" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner259" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner260" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner261" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner262" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner263" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner264" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner265" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner266" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner267" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner268" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner269" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner270" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner271" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner272" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner273" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner274" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner275" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner276" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner277" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner278" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner279" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner280" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner281" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner282" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner283" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner284" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner285" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner286" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner287" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner288" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner289" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner290" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner291" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner292" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner293" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner294" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner295" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner296" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner297" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner298" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner299" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner300" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner301" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner302" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner303" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner304" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner305" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner306" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner307" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner308" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner309" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner310" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner311" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner312" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner313" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner314" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner315" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner316" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner317" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner318" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner319" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner320" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner321" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner322" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner323" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner324" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner325" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner326" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner327" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner328" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner329" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner330" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner331" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner332" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner333" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner334" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner335" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner336" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner337" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner338" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner339" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner340" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner341" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner342" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner343" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner344" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner345" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner346" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner347" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner348" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner349" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner350" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner351" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner352" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner353" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner354" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner355" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner356" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner357" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner358" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner359" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner360" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner361" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner362" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner363" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner364" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner365" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner366" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner367" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner368" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner369" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner370" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner371" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner372" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner373" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner374" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner375" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner376" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner377" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner378" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner379" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner380" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner381" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner382" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner383" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner384" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner385" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner386" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner387" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner388" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner389" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner390" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner391" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner392" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner393" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner394" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner395" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner396" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner397" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner398" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner399" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner400" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner401" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner402" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner403" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner404" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner405" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner406" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner407" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner408" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner409" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner410" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner411" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner412" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner413" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner414" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner415" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner416" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner417" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner418" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner419" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner420" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner421" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner422" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner423" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner424" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner425" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner426" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner427" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner428" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner429" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner430" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner431" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner432" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner433" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner434" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner435" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner436" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner437" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner438" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner439" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner440" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner441" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner442" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner443" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner444" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner445" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner446" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner447" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner448" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner449" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner450" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner451" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner452" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner453" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner454" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner455" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner456" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner457" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner458" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner459" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner460" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner461" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner462" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner463" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner464" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner465" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner466" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner467" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner468" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner469" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner470" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner471" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner472" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner473" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner474" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner475" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner476" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner477" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner478" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner479" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner480" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner481" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner482" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner483" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner484" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner485" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner486" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner487" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner488" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner489" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner490" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner491" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner492" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner493" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner494" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner495" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner496" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner497" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner498" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner499" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner500" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner501" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner502" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner503" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner504" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner505" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner506" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner507" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner508" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner509" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner510" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner511" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner512" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner513" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner514" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner515" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner516" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner517" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner518" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner519" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner520" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner521" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner522" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner523" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner524" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner525" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner526" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner527" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner528" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner529" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner530" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner531" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner532" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner533" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner534" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner535" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner536" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner537" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner538" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner539" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner540" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner541" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner542" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner543" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner544" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner545" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner546" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner547" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner548" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner549" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner550" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner551" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner552" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner553" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner554" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner555" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner556" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner557" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner558" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner559" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner560" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner561" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner562" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner563" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner564" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner565" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner566" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner567" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner568" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner569" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner570" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner571" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner572" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner573" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner574" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner575" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner576" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner577" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner578" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner579" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner580" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner581" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner582" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner583" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner584" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner585" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner586" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner587" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner588" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner589" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner590" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner591" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner592" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner593" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner594" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner595" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner596" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner597" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner598" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner599" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner600" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner601" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner602" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner603" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner604" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner605" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner606" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner607" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner608" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner609" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner610" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner611" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner612" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner613" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner614" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner615" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner616" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner617" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner618" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner619" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner620" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner621" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner622" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner623" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner624" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner625" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner626" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner627" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner628" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner629" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner630" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner631" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner632" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner633" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner634" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner635" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner636" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner637" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner638" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner639" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner640" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner641" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner642" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner643" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner644" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner645" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner646" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner647" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner648" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner649" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner650" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner651" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner652" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner653" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner654" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner655" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner656" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner657" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner658" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner659" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner660" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner661" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner662" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner663" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner664" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner665" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner666" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner667" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner668" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner669" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner670" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner671" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner672" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner673" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner674" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner675" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner676" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner677" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner678" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner679" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner680" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner681" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner682" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner683" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner684" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner685" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner686" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner687" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner688" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner689" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner690" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner691" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner692" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner693" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner694" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner695" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner696" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner697" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner698" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner699" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner700" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner701" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner702" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner703" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner704" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner705" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner706" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner707" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner708" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner709" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner710" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner711" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner712" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner713" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner714" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner715" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner716" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner717" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner718" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner719" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner720" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner721" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner722" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner723" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner724" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner725" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner726" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner727" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner728" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner729" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner730" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner731" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner732" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner733" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner734" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner735" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner736" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner737" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner738" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner739" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner740" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner741" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner742" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner743" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner744" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner745" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner746" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner747" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner748" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner749" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner750" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner751" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner752" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner753" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner754" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner755" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner756" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner757" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner758" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner759" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner760" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner761" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner762" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner763" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner764" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner765" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner766" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner767" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner768" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner769" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner770" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner771" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner772" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner773" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner774" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner775" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner776" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner777" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner778" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner779" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner780" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner781" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner782" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner783" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner784" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner785" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner786" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner787" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner788" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner789" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner790" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner791" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner792" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner793" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner794" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner795" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner796" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner797" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner798" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner799" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner800" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner801" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner802" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner803" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner804" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner805" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner806" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner807" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner808" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner809" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner810" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner811" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner812" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner813" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner814" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner815" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner816" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner817" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner818" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner819" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner820" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner821" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner822" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner823" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner824" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner825" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner826" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner827" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner828" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner829" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner830" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner831" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner832" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner833" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner834" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner835" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner836" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner837" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner838" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner839" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner840" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner841" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner842" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner843" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner844" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner845" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner846" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner847" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner848" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner849" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner850" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner851" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner852" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner853" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner854" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner855" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner856" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner857" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner858" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner859" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner860" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner861" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner862" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner863" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner864" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner865" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner866" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner867" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner868" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner869" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner870" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner871" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner872" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner873" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner874" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner875" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner876" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner877" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner878" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner879" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner880" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner881" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner882" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner883" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner884" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner885" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner886" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner887" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner888" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner889" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner890" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner891" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner892" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner893" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner894" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner895" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner896" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner897" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner898" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner899" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner900" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner901" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner902" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner903" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner904" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner905" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner906" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner907" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner908" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner909" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner910" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner911" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner912" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner913" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner914" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner915" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner916" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner917" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner918" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner919" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner920" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner921" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner922" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner923" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner924" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner925" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner926" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner927" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner928" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner929" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner930" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner931" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner932" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner933" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner934" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner935" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner936" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner937" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner938" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner939" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner940" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner941" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner942" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner943" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner944" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner945" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner946" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner947" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner948" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner949" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner950" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner951" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner952" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner953" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner954" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner955" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner956" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner957" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner958" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner959" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner960" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner961" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner962" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner963" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner964" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner965" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner966" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner967" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner968" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner969" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner970" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner971" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner972" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner973" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner974" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner975" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner976" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner977" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner978" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner979" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner980" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner981" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner982" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner983" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner984" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner985" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner986" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner987" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner988" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner989" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner990" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner991" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner992" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner993" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner994" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner995" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner996" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner997" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner998" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner999" hidden></div>
+    <div class="modal-backdrop" id="modalBackdropInner1000" hidden></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span></span> Subtitle line</div>
+    <div class="legend-item"><span style="background:#7c5cff"></span> Border</div>
+    <div class="legend-item"><span style="background:#000000"></span> Background</div>
+    <div class="legend-item"><span style="background:#000000"></span> Shadow</div>
+  </div>
+
+</div>
+
+<script>
+// ---------- State ----------
+const state = {
+  subtitles: [],
+  currentVideo: null,
+  videoDuration: 0,
+  settings: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 24,
+    fontColor: '#ffffff',
+    backgroundColor: '#000000',
+    borderColor: '#7c5cff',
+    shadowColor: '#000000',
+    lineHeight: 1.2,
+    padding: 10,
+    shadowBlur: 4,
+    shadowSpread: 0
+  },
+  liveSubtitle: null
+};
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const dropZone = $('dropZone');
+const videoContainer = $('videoContainer');
+const video = $('video');
+const progressFill = $('progressFill');
+const currentTimeEl = $('currentTime');
+const durationEl = $('duration');
+const liveSubtitle = $('liveSubtitle');
+const subtitleList = $('subtitleList');
+const toast = $('toast');
+const modalBackdrop = $('modalBackdrop');
+const modalTitle = $('modalTitle');
+const modalStart = $('modalStart');
+const modalEnd = $('modalEnd');
+const modalText = $('modalText');
+
+// ---------- Toast ----------
+function toastMsg(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ---------- Drop Zone ----------
+['dragenter', 'dragover'].forEach(ev => {
+  dropZone.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropZone.classList.add('drag');
+  });
+});
+['dragleave', 'drop'].forEach(ev => {
+  dropZone.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropZone.classList.remove('drag');
+  });
+});
+dropZone.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+$('videoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('video/')) {
+    toastMsg('Please upload a video file.');
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  state.currentVideo = url;
+  videoContainer.style.display = 'block';
+  video.play().catch(() => {});
+  toastMsg('Video loaded.');
+  // Clear subtitles on new video
+  state.subtitles = [];
+  updateSubtitleList();
+}
+
+// ---------- Subtitle Row ----------
+function createSubtitleRow(idx, sub) {
+  const row = document.createElement('div');
+  row.className = 'subtitle-row';
+  row.dataset.idx = idx;
+  row.innerHTML = `
+    <span class="idx">${idx + 1}</span>
+    <input type="time" class="time-input" data-start="${idx}" value="${formatTime(sub.start)}" />
+    <input type="time" class="time-input" data-end="${idx}" value="${formatTime(sub.end)}" />
+    <textarea class="subtitle-text" data-text="${idx}">${escapeHtml(sub.text || '')}</textarea>
+    <button class="btn danger" data-del="${idx}"><i class="fa-solid fa-trash"></i></button>
+  `;
+  row.querySelectorAll('input, textarea').forEach(el => el.addEventListener('change', onSubtitleChange));
+  row.querySelector('button[data-del]').addEventListener('click', () => removeSubtitle(idx));
+  return row;
+}
+
+function updateSubtitleList() {
+  subtitleList.innerHTML = '';
+  if (state.subtitles.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = `
+      <i class="fa-solid fa-film"></i>
+      <p>No subtitles yet. Click <strong>Add Subtitle</strong> to get started.</p>
+    `;
+    subtitleList.appendChild(empty);
+    return;
+  }
+  state.subtitles.forEach((sub, i) => subtitleList.appendChild(createSubtitleRow(i, sub)));
+  $('subtitleCount').textContent = `${state.subtitles.length} subtitle${state.subtitles.length === 1 ? '' : 's'}`;
+}
+
+function onSubtitleChange(e) {
+  const idx = parseInt(e.target.dataset.idx || e.target.dataset.text);
+  const sub = state.subtitles[idx];
+  if (!sub) return;
+  if (e.target.matches('[data-start]')) sub.start = parseTime(e.target.value);
+  else if (e.target.matches('[data-end]')) sub.end = parseTime(e.target.value);
+  else if (e.target.matches('[data-text]')) sub.text = e.target.value;
+  // Keep sorted
+  state.subtitles.sort((a, b) => a.start - b.start);
+  updateSubtitleList();
+  // Sync live subtitle
+  if (video.currentTime >= sub.start && video.currentTime < sub.end) {
+    state.liveSubtitle = sub;
+  }
+}
+
+function removeSubtitle(idx) {
+  state.subtitles.splice(idx, 1);
+  state.subtitles.sort((a, b) => a.start - b.start);
+  updateSubtitleList();
+  if (state.liveSubtitle && state.liveSubtitle.idx === idx) {
+    state.liveSubtitle = state.subtitles.find(s => s.idx === state.liveSubtitle.idx);
+  }
+}
+
+// ---------- Add Subtitle Modal ----------
+function openModal(mode) {
+  modalTitle.textContent = mode === 'edit' ? 'Edit Subtitle' : 'Add Subtitle';
+  modalStart.value = formatTime(0);
+  modalEnd.value = formatTime(state.videoDuration || 30);
+  modalText.value = '';
+  modalBackdrop.hidden = false;
+  modalBackdrop.classList.add('show');
+  setTimeout(() => modalText.focus(), 50);
+}
+
+function closeModal() {
+  modalBackdrop.classList.remove('show');
+  setTimeout(() => { modalBackdrop.hidden = true; }, 250);
+}
+
+modalBackdrop.addEventListener('click', (e) => {
+  if (e.target === modalBackdrop) closeModal();
+});
+
+// ---------- Export VTT ----------
+function exportVTT() {
+  if (state.subtitles.length === 0) {
+    toastMsg('No subtitles to export.');
+    return;
+  }
+  const header = 'WEBVTT\n\n';
+  const lines = state.subtitles.map((sub, i) => {
+    const s = sub.start.toFixed(3);
+    const e = sub.end.toFixed(3);
+    const text = sub.text.split('\n').map(l => l.trim()).filter(Boolean).join('\n');
+    return `${i + 1}\n${s} --> ${e}\n${text}`;
+  }).join('\n\n');
+  const blob = new Blob([header + lines], { type: 'text/vtt;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'subtitles.vtt';
+  a.click();
+  URL.revokeObjectURL(url);
+  toastMsg('Subtitles exported as subtitles.vtt');
+}
+
+// ---------- Export Video with Subtitles ----------
+function exportVideoWithSubtitles() {
+  if (!state.currentVideo || state.subtitles.length === 0) {
+    toastMsg('No video or subtitles to export.');
+    return;
+  }
+  toastMsg('Preparing video export... (requires server-side FFmpeg)');
+  setTimeout(() => {
+    toastMsg('FFmpeg is required on the server. Demo instructions:');
+    setTimeout(() => {
+      toastMsg(`
+        1. Install FFmpeg: https://ffmpeg.org/download.html
+        2. Run: ffmpeg -i ${encodeURIComponent(state.currentVideo)} -vf "subtitles=subtitles.vtt" output.mp4
+        3. Or use a cloud service like CloudConvert, HandBrake, or FFmpeg Online.
+      `);
+    }, 1500);
+  }, 800);
+}
+
+// ---------- Live Subtitle Display ----------
+function updateLiveSubtitle() {
+  if (!state.liveSubtitle) {
+    liveSubtitle.classList.remove('show');
+    return;
+  }
+  liveSubtitle.textContent = state.liveSubtitle.text;
+  liveSubtitle.classList.add('show');
+}
+
+// ---------- Format Helpers ----------
+function formatTime(sec) {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.floor((sec - Math.floor(sec)) * 100);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${h ? h + ':' : ''}${pad(m)}:${pad(s)}.${ms}`;
+}
+
+function parseTime(str) {
+  if (!str) return 0;
+  const [h, m, s] = str.split(':').map(Number);
+  const total = (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
+  const ms = parseFloat(str.split('.').pop() || '0');
+  return total + ms / 100;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ---------- Video Events ----------
+video.addEventListener('loadedmetadata', () => {
+  state.videoDuration = video.duration;
+  durationEl.textContent = formatTime(state.videoDuration);
+  updateLiveSubtitle();
+});
+video.addEventListener('timeupdate', () => {
+  const t = video.currentTime;
+  currentTimeEl.textContent = formatTime(t);
+  progressFill.style.width = (t / state.videoDuration * 100) + '%';
+  const active = state.subtitles.find(s => t >= s.start && t < s.end);
+  if (active) state.liveSubtitle = active;
+  else state.liveSubtitle = null;
+  updateLiveSubtitle();
+});
+video.addEventListener('ended', () => {
+  state.liveSubtitle = null;
+  updateLiveSubtitle();
+});
+
+// ---------- Settings ----------
+['fontFamily', 'fontSize', 'fontColor', 'backgroundColor', 'borderColor', 'shadowColor', 'lineHeight', 'padding'].forEach(id => {
+  $('video').style.setProperty('--' + id, $('video').getAttribute('data-' + id));
+  $('video').addEventListener('change', (e) => {
+    if (e.target.id === id) {
+      $('video').setAttribute('data-' + id, e.target.value);
+      $('video').style.setProperty('--' + id, e.target.value);
+    }
+  });
+});
+
+// ---------- Buttons ----------
+$('addSubtitle').addEventListener('click', () => {
+  if (!state.videoDuration) {
+    toastMsg('Upload a video first.');
+    return;
+  }
+  state.subtitles.push({
+    start: 0,
+    end: state.videoDuration,
+    text: '',
+    idx: state.subtitles.length
+  });
+  updateSubtitleList();
+  openModal('add');
+});
+
+$('clearSubtitles').addEventListener('click', () => {
+  if (state.subtitles.length === 0) return;
+  if (!confirm('Clear all subtitles?')) return;
+  state.subtitles = [];
+  updateSubtitleList();
+  state.liveSubtitle = null;
+  updateLiveSubtitle();
+  toastMsg('All subtitles cleared.');
+});
+
+$('exportVTT').addEventListener('click', exportVTT);
+$('downloadVTT').addEventListener('click', () => {
+  if (state.subtitles.length === 0) {
+    toastMsg('No subtitles to download.');
+    return;
+  }
+  exportVTT();
+  toastMsg('Subtitles downloaded.');
+});
+
+$('exportVideo').addEventListener('click', exportVideoWithSubtitles);
+
+// ---------- Keyboard ----------
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (modalBackdrop.classList.contains('show')) {
+      e.preventDefault();
+      closeModal();
+      openModal('add');
+    }
+  }
+});
+
+// ---------- Init ----------
+updateSubtitleList();
+</script>
+</body>
+</html>

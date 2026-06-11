@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Echo Effect Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .upload-section {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .preview-section {
+            margin: 20px 0;
+        }
+        .audio-player {
+            margin: 20px 0;
+        }
+        .audio-controls {
+            margin: 10px 0;
+        }
+        .download-btn {
+            background-color: #28a745;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .info {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Echo Effect Tool</h1>
+        
+        <div class="upload-section">
+            <input type="file" id="audioFile" accept="audio/*" />
+            <button onclick="processAudio()">Process Audio</button>
+        </div>
+        
+        <div class="controls">
+            <label for="echoIntensity">Echo Intensity (0-100):</label>
+            <input type="range" id="echoIntensity" min="0" max="100" value="50" />
+            <span id="echoIntensityValue">50%</span>
+            
+            <label for="delayTime">Delay Time (ms):</label>
+            <input type="range" id="delayTime" min="0" max="2000" value="500" />
+            <span id="delayTimeValue">500ms</span>
+        </div>
+        
+        <div class="preview-section">
+            <h3>Preview</h3>
+            <div class="audio-player">
+                <audio id="previewAudio" controls></audio>
+            </div>
+        </div>
+        
+        <div class="audio-controls">
+            <button onclick="saveAudio()" class="download-btn">Save Echoed Audio</button>
+        </div>
+        
+        <div class="info">
+            <p>Upload an audio file, adjust echo parameters, and listen to the result.</p>
+        </div>
+    </div>
+
+    <script>
+        // Audio context for processing
+        let audioContext = null;
+        let originalAudioBuffer = null;
+        let echoedAudioBuffer = null;
+        
+        // DOM elements
+        const audioFileInput = document.getElementById('audioFile');
+        const echoIntensityInput = document.getElementById('echoIntensity');
+        const delayTimeInput = document.getElementById('delayTime');
+        const previewAudio = document.getElementById('previewAudio');
+        const saveButton = document.querySelector('.download-btn');
+        
+        // Event listeners
+        echoIntensityInput.addEventListener('input', function() {
+            document.getElementById('echoIntensityValue').textContent = this.value + '%';
+        });
+        
+        delayTimeInput.addEventListener('input', function() {
+            document.getElementById('delayTimeValue').textContent = this.value + 'ms';
+        });
+        
+        // Process audio function
+        async function processAudio() {
+            const file = audioFileInput.files[0];
+            if (!file) {
+                alert('Please select an audio file first.');
+                return;
+            }
+            
+            try {
+                // Create audio context if not exists
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // Load audio file
+                const arrayBuffer = await file.arrayBuffer();
+                originalAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                // Create echo effect
+                const echoIntensity = parseFloat(echoIntensityInput.value) / 100;
+                const delayTime = parseFloat(delayTimeInput.value) / 1000; // Convert to seconds
+                
+                // Generate echoed audio
+                echoedAudioBuffer = createEchoEffect(originalAudioBuffer, echoIntensity, delayTime);
+                
+                // Play preview
+                previewAudio.src = URL.createObjectURL(await createAudioBlob(echoedAudioBuffer));
+                previewAudio.play();
+                
+                // Update UI
+                document.getElementById('echoIntensityValue').textContent = echoIntensityInput.value + '%';
+                document.getElementById('delayTimeValue').textContent = delayTimeInput.value + 'ms';
+                
+            } catch (error) {
+                console.error('Error processing audio:', error);
+                alert('Error processing audio: ' + error.message);
+            }
+        }
+        
+        // Create echo effect function
+        function createEchoEffect(originalBuffer, intensity, delay) {
+            // Create new audio buffer with same length
+            const newBuffer = audioContext.createBuffer(
+                originalBuffer.numberOfChannels,
+                originalBuffer.length,
+                originalBuffer.sampleRate
+            );
+            
+            // Get channel data
+            const originalData = originalBuffer.getChannelData(0);
+            const newData = newBuffer.getChannelData(0);
+            
+            // Copy original data
+            for (let i = 0; i < originalData.length; i++) {
+                newData[i] = originalData[i];
+            }
+            
+            // Add echo effect
+            for (let i = 0; i < originalData.length; i++) {
+                // Calculate echo position
+                const echoPosition = Math.floor(i + delay * audioContext.sampleRate);
+                if (echoPosition < originalData.length) {
+                    // Add echo with intensity
+                    newData[echoPosition] += originalData[i] * intensity;
+                }
+            }
+            
+            // Create buffer source
+            const source = audioContext.createBufferSource();
+            source.buffer = newBuffer;
+            
+            // Connect to destination
+            source.connect(audioContext.destination);
+            
+            return newBuffer;
+        }
+        
+        // Create audio blob from buffer
+        async function createAudioBlob(buffer) {
+            return new Promise((resolve, reject) => {
+                const audioBuffer = buffer;
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create audio buffer source
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                
+                // Create audio stream
+                const stream = audioContext.createMediaStreamDestination();
+                source.connect(stream);
+                
+                // Create audio stream from buffer
+                const audioStream = stream.stream;
+                const audioData = audioContext.createScriptProcessor(4096, 1, 1);
+                audioData.connect(audioContext.destination);
+                
+                // Create audio blob
+                const audioBlob = new Blob([audioStream], { type: 'audio/wav' });
+                
+                // Resolve with audio blob
+                resolve(audioBlob);
+            });
+        }
+        
+        // Save audio function
+        function saveAudio() {
+            if (!echoedAudioBuffer) {
+                alert('Please process audio first.');
+                return;
+            }
+            
+            // Create audio blob
+            const audioBlob = new Blob([echoedAudioBuffer], { type: 'audio/wav' });
+            
+            // Create download link
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(audioBlob);
+            downloadLink.download = 'echoed-audio.wav';
+            downloadLink.click();
+        }
+    </script>
+</body>
+</html>

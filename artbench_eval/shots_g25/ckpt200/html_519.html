@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FurniSpace — Virtual Furniture Shopping</title>
+<style>:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --surface-2: #f8f6f2;
+  --border: #e6e2da;
+  --text: #2b2a28;
+  --text-soft: #6b6862;
+  --primary: #c97b5a;
+  --primary-dark: #a85a3a;
+  --accent: #2b2a28;
+  --shadow: 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: 0.2s ease;
+}
+
+body.dark {
+  --bg: #1a1a1a;
+  --surface: #262626;
+  --surface-2: #2e2e2e;
+  --border: #3a3a3a;
+  --text: #f5f3ef;
+  --text-soft: #a8a8a8;
+  --primary: #d4a074;
+  --primary-dark: #b8865a;
+  --accent: #f5f3ef;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  transition: background var(--transition), color var(--transition);
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input { font-family: inherit; }
+
+.app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+}
+.brand-logo {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: 12px;
+  display: grid; place-items: center;
+  font-size: 22px;
+  box-shadow: var(--shadow);
+}
+.brand h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.brand span { font-size: 12px; color: var(--text-soft); }
+
+.categories {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cat-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  transition: all var(--transition);
+}
+.cat-btn:hover { background: #e8e4dc; }
+.cat-btn.active {
+  background: var(--primary);
+  color: var(--accent);
+  border-color: var(--primary);
+}
+
+.account {
+  margin-top: auto;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: grid; place-items: center;
+  font-size: 20px;
+}
+.account-info { flex: 1; min-width: 0; }
+.account-name { font-weight: 600; font-size: 14px; }
+.account-email { font-size: 12px; color: var(--text-soft); }
+
+/* Main */
+.main { padding: 20px; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+.topbar-left h2 { margin: 0; font-size: 20px; }
+.room-hint { font-size: 13px; color: var(--text-soft); }
+
+.icon-btn {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--text-soft);
+  transition: all var(--transition);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--accent);
+}
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-secondary:hover { background: #e8e4dc; }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--surface-2); }
+.btn-block { width: 100%; }
+
+/* Workspace */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  min-height: calc(100vh - 140px);
+}
+
+.room {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  aspect-ratio: 16 / 10;
+}
+#roomCanvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+.room-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.room-items {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.room-item {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+.room-item.dragging { opacity: 0.4; }
+.room-item:hover { box-shadow: 0 0 0 3px rgba(201,123,90,0.2); }
+.room-item .item-label {
+  position: absolute;
+  bottom: 4px; left: 4px;
+  background: rgba(43,42,40,0.9);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+
+.room-wall {
+  position: absolute;
+  background: #d9d4cc;
+  border: 1px solid #c4bfbd;
+}
+.wall-left { left: 0; top: 0; bottom: 0; width: 18px; }
+.wall-right { right: 0; top: 0; bottom: 0; width: 18px; }
+.wall-back { top: 0; left: 18px; right: 18px; height: 18px; }
+.wall-front { top: 18px; left: 18px; right: 18px; height: 18px; }
+.room-floor {
+  position: absolute;
+  left: 18px; right: 18px; bottom: 0;
+  height: 18px;
+  background: #c9c4bc;
+}
+.room-ceiling {
+  position: absolute;
+  left: 18px; right: 18px; top: 0;
+  height: 18px;
+  background: #e6e2da;
+}
+
+/* Panels */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.panel-count {
+  font-size: 12px;
+  color: var(--text-soft);
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Furniture list */
+.furniture-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 500px;
+}
+.furniture-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: grab;
+  transition: all var(--transition);
+}
+.furniture-item:hover {
+  border-color: var(--primary);
+  background: #fff;
+  transform: translateX(2px);
+}
+.furniture-item .f-img {
+  width: 48px; height: 48px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+.furniture-item .f-info { flex: 1; min-width: 0; }
+.f-name { font-weight: 600; font-size: 14px; }
+.f-cat { font-size: 11px; color: var(--text-soft); }
+.f-price { font-weight: 600; color: var(--primary); font-size: 14px; }
+
+/* Cart */
+.cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cart-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+.cart-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.cart-row .c-img {
+  width: 48px; height: 48px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+}
+.cart-row .c-info { min-width: 0; }
+.c-name { font-weight: 600; font-size: 14px; }
+.c-price { font-size: 13px; color: var(--primary); font-weight: 600; }
+.cart-remove {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: grid; place-items: center;
+  color: var(--text-soft);
+  transition: all var(--transition);
+}
+.cart-remove:hover { background: #e8e4dc; color: var(--text); }
+
+.cart-total {
+  margin-top: auto;
+  padding: 16px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.total-row span:first-child { color: var(--text-soft); }
+.total-row.total {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.total-row.total span:first-child { display: none; }
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal[hidden] { display: none; }
+.modal-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow);
+}
+.modal-card h3 { margin: 0 0 16px; font-size: 18px; }
+.modal-card label {
+  display: block;
+  font-size: 13px;
+  margin: 10px 0 6px;
+  color: var(--text-soft);
+}
+.modal-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 14px;
+  transition: all var(--transition);
+}
+.modal-card input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 280px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform var(--transition);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .workspace { grid-template-columns: 1fr; }
+  .room { aspect-ratio: 4 / 3; }
+  .room-wall { width: 12px; }
+  .room-floor, .room-ceiling { height: 12px; }
+  .room-back, .room-front { height: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo">🛋</div>
+      <div>
+        <h1>FurniSpace</h1>
+        <span>Virtual Furniture</span>
+      </div>
+    </div>
+
+    <nav class="categories" id="categories">
+      <button class="cat-btn active" data-cat="all">All</button>
+      <button class="cat-btn" data-cat="living">Living Room</button>
+      <button class="cat-btn" data-cat="bedroom">Bedroom</button>
+      <button class="cat-btn" data-cat="dining">Dining</button>
+      <button class="cat-btn" data-cat="office">Office</button>
+      <button class="cat-btn" data-cat="outdoor">Outdoor</button>
+    </nav>
+
+    <div class="account">
+      <div class="avatar" id="avatar">👤</div>
+      <div class="account-info">
+        <span class="account-name" id="accountName">Guest</span>
+        <span class="account-email" id="accountEmail">—</span>
+      </div>
+      <button class="btn btn-primary" id="loginBtn">Login</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 id="roomTitle">My Living Room</h2>
+        <span class="room-hint">Drag items from catalog to place them</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="themeToggle" title="Toggle theme">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+        <button class="icon-btn" id="resetBtn" title="Reset room">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+        <button class="btn btn-ghost" id="shareBtn">Share</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <!-- Canvas room -->
+      <div class="room" id="room" aria-label="Virtual room">
+        <canvas id="roomCanvas"></canvas>
+        <div class="room-grid" id="roomGrid"></div>
+        <div class="room-items" id="roomItems"></div>
+        <div class="room-wall wall-left"></div>
+        <div class="room-wall wall-right"></div>
+        <div class="room-wall wall-back"></div>
+        <div class="room-wall wall-front"></div>
+        <div class="room-floor"></div>
+        <div class="room-ceiling"></div>
+      </div>
+
+      <!-- Left panel -->
+      <div class="panel panel-left">
+        <div class="panel-head">
+          <h3>Catalog</h3>
+          <span class="panel-count" id="itemCount">0 items</span>
+        </div>
+        <div class="furniture-list" id="furnitureList"></div>
+      </div>
+
+      <!-- Right panel -->
+      <div class="panel panel-right">
+        <div class="panel-head">
+          <h3>Shopping Cart</h3>
+          <span class="panel-count" id="cartCount">0</span>
+        </div>
+        <div class="cart-items" id="cartItems"></div>
+        <div class="cart-total">
+          <div class="total-row"><span>Subtotal</span><span id="subtotal">$0</span></div>
+          <div class="total-row"><span>Shipping</span><span id="shipping">$0</span></div>
+          <div class="total-row"><span>Tax (8%)</span><span id="tax">$0</span></div>
+          <div class="total-row total"><span>Total</span><span id="total">$0</span></div>
+        </div>
+        <button class="btn btn-primary btn-block" id="checkoutBtn">Checkout</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Login Modal -->
+<div class="modal" id="loginModal" hidden>
+  <div class="modal-card">
+    <h3>Login / Register</h3>
+    <label>Username</label>
+    <input type="text" id="usernameInput" placeholder="furni_user">
+    <label>Email</label>
+    <input type="email" id="emailInput" placeholder="you@example.com">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="closeLogin">Cancel</button>
+      <button class="btn btn-primary" id="submitLogin">Login</button>
+    </div>
+  </div>
+</div>
+
+<script>/* =========================================================
+   FurniSpace — Virtual Furniture Shopping Platform
+   ========================================================= */
+
+const STORAGE_KEY = 'furnispace.v1';
+
+const state = {
+  items: [],          // all furniture catalog
+  room: {             // room state: items placed, title, theme
+    items: [],
+    title: 'My Living Room',
+    theme: 'light'
+  },
+  cart: [],
+  account: null,
+  currentCat: 'all',
+  theme: 'light'
+};
+
+// ---------- Furniture catalog ----------
+const CATALOG = [
+  { id: 'c1', name: 'Modern Sofa', cat: 'living', price: 899, img: 'https://images.unsplash.com/photo-1567294626211-1a1396a9370f?w=200&q=70' },
+  { id: 'c2', name: 'Leather Armchair', cat: 'living', price: 420, img: 'https://images.unsplash.com/photo-1548383719-77977a593f02?w=200&q=70' },
+  { id: 'c3', name: 'Coffee Table', cat: 'living', price: 189, img: 'https://images.unsplash.com/photo-1581793258026-176e48543d4d?w=200&q=70' },
+  { id: 'c4', name: 'Floor Lamp', cat: 'living', price: 129, img: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&q=70' },
+  { id: 'c5', name: 'Side Table', cat: 'living', price: 95, img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&q=70' },
+  { id: 'c6', name: 'Ottoman', cat: 'living', price: 149, img: 'https://images.unsplash.com/photo-1569283530883-9472c5f3448c?w=200&q=70' },
+
+  { id: 'c7', name: 'King Bed', cat: 'bedroom', price: 1299, img: 'https://images.unsplash.com/photo-1542054031-54ba8657307a?w=200&q=70' },
+  { id: 'c8', name: 'Queen Bed', cat: 'bedroom', price: 949, img: 'https://images.unsplash.com/photo-1567294626211-1a1396a9370f?w=200&q=70' },
+  { id: 'c9', name: 'Nightstand', cat: 'bedroom', price: 119, img: 'https://images.unsplash.com/photo-1581793258026-176e48543d4d?w=200&q=70' },
+  { id: 'c10', name: 'Bedside Lamp', cat: 'bedroom', price: 79, img: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&q=70' },
+  { id: 'c11', name: 'Dresser', cat: 'bedroom', price: 399, img: 'https://images.unsplash.com/photo-1552376542-92889006d508?w=200&q=70' },
+  { id: 'c12', name: 'Mirror', cat: 'bedroom', price: 159, img: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&q=70' },
+
+  { id: 'c13', name: 'Rectangular Table', cat: 'dining', price: 549, img: 'https://images.unsplash.com/photo-1555215695-3004980ad74e?w=200&q=70' },
+  { id: 'c14', name: 'Round Table', cat: 'dining', price: 499, img: 'https://images.unsplash.com/photo-1555214342-811920649fad?w=200&q=70' },
+  { id: 'c15', name: 'Dining Chair', cat: 'dining', price: 129, img: 'https://images.unsplash.com/photo-1552580314-0657410ae990?w=200&q=70' },
+  { id: 'c16', name: 'Bar Stool', cat: 'dining', price: 89, img: 'https://images.unsplash.com/photo-1581811839412-4393b4495041?w=200&q=70' },
+  { id: 'c17', name: 'Bench', cat: 'dining', price: 199, img: 'https://images.unsplash.com/photo-1505628228370-7f3f1703b866?w=200&q=70' },
+
+  { id: 'c18', name: 'Ergonomic Desk', cat: 'office', price: 699, img: 'https://images.unsplash.com/photo-1572587886648-00617d22187d?w=200&q=70' },
+  { id: 'c19', name: 'Office Chair', cat: 'office', price: 549, img: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=200&q=70' },
+  { id: 'c20', name: 'Task Lamp', cat: 'office', price: 149, img: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&q=70' },
+  { id: 'c21', name: 'Desk Organizer', cat: 'office', price: 79, img: 'https://images.unsplash.com/photo-1552580314-0657410ae990?w=200&q=70' },
+  { id: 'c22', name: 'Bookshelf', cat: 'office', price: 349, img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&q=70' },
+
+  { id: 'c23', name: 'Rattan Chair', cat: 'outdoor', price: 249, img: 'https://images.unsplash.com/photo-1569163691592-6180199211c8?w=200&q=70' },
+  { id: 'c24', name: 'Outdoor Table', cat: 'outdoor', price: 329, img: 'https://images.unsplash.com/photo-1579698025768-305374e06618?w=200&q=70' },
+  { id: 'c25', name: 'Patio Umbrella', cat: 'outdoor', price: 199, img: 'https://images.unsplash.com/photo-1555996918-42722931195d?w=200&q=70' },
+  { id: 'c26', name: 'Outdoor Rug', cat: 'outdoor', price: 149, img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&q=70' },
+  { id: 'c27', name: 'Adirondack Chair', cat: 'outdoor', price: 219, img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&q=70' },
+];
+
+// ---------- Helpers ----------
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = { ...state, ...JSON.parse(raw) };
+  } catch (e) { /* ignore */ }
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+}
+
+function fmt(n) {
+  return '$' + n.toFixed(2);
+}
+
+// ---------- Account ----------
+function getAccount() {
+  if (state.account) return state.account;
+  const raw = localStorage.getItem('furnispace.account');
+  if (raw) {
+    try { state.account = JSON.parse(raw); return state.account; }
+    catch { /* ignore */ }
+  }
+  return null;
+}
+
+function setAccount(acc) {
+  state.account = acc;
+  localStorage.setItem('furnispace.account', JSON.stringify(acc));
+  renderAccount();
+}
+
+function logout() {
+  state.account = null;
+  localStorage.removeItem('furnispace.account');
+  renderAccount();
+}
+
+function renderAccount() {
+  const a = document.getElementById('avatar');
+  const n = document.getElementById('accountName');
+  const e = document.getElementById('accountEmail');
+  if (state.account) {
+    a.textContent = state.account.initials || '👤';
+    n.textContent = state.account.username || 'Guest';
+    e.textContent = state.account.email || '—';
+  } else {
+    a.textContent = '👤';
+    n.textContent = 'Guest';
+    e.textContent = '—';
+  }
+}
+
+// ---------- Rendering ----------
+function renderCatalog() {
+  const list = document.getElementById('furnitureList');
+  const cat = state.currentCat;
+  const items = cat === 'all' ? CATALOG : CATALOG.filter(i => i.cat === cat);
+  list.innerHTML = '';
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'furniture-item';
+    el.draggable = true;
+    el.dataset.id = item.id;
+    el.innerHTML = `
+      <div class="f-img" style="background-image:url('${item.img}')"></div>
+      <div class="f-info">
+        <div class="f-name">${item.name}</div>
+        <div class="f-cat">${item.cat}</div>
+      </div>
+      <div class="f-price">${fmt(item.price)}</div>
+    `;
+    el.addEventListener('dragstart', e => onDragStart(e, item));
+    el.addEventListener('dragend', onDragEnd);
+    list.appendChild(el);
+  });
+  document.getElementById('itemCount').textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+}
+
+function renderRoom() {
+  const canvas = document.getElementById('roomCanvas');
+  const ctx = canvas.getContext('2d');
+  const room = state.room;
+
+  // Resize canvas
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  // Background
+  ctx.fillStyle = '#d9d4cc';
+  ctx.fillRect(0, 0, rect.width, rect.height);
+
+  // Walls
+  ctx.fillStyle = '#c9c4bc';
+  ctx.fillRect(18, 18, rect.width - 36, 18);
+  ctx.fillRect(18, 18, 18, rect.height - 36);
+  ctx.fillRect(rect.width - 18, 18, 18, rect.height - 36);
+  ctx.fillRect(18, rect.height - 18, rect.width - 36, 18);
+
+  // Floor
+  ctx.fillStyle = '#b8b2a8';
+  ctx.fillRect(18, rect.height - 18, rect.width - 36, 18);
+
+  // Ceiling
+  ctx.fillStyle = '#e6e2da';
+  ctx.fillRect(18, 0, rect.width - 36, 18);
+
+  // Items
+  room.items.forEach(item => {
+    const img = CATALOG.find(c => c.id === item.id);
+    if (!img) return;
+    const x = item.x * (rect.width - 36) / 100;
+    const y = item.y * (rect.height - 36) / 100;
+    const w = item.w * (rect.width - 36) / 100;
+    const h = item.h * (rect.height - 36) / 100;
+    const bw = Math.max(4, w * 0.15);
+    const bh = Math.max(4, h * 0.15);
+    ctx.save();
+    ctx.shadowColor = '#c97b5a';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#c97b5a';
+    ctx.lineWidth = bw;
+    ctx.strokeRect(x + bw/2, y + bh/2, w - bw, h - bh);
+    ctx.fillStyle = '#c97b5a';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(img.name, x + w/2, y + h - 4);
+    ctx.restore();
+  });
+
+  // Room title
+  ctx.fillStyle = '#2b2a28';
+  ctx.font = '14px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(room.title, rect.width / 2, 24);
+}
+
+function renderCart() {
+  const list = document.getElementById('cartItems');
+  const total = document.getElementById('total');
+  const subtotal = document.getElementById('subtotal');
+  const shipping = document.getElementById('shipping');
+  const tax = document.getElementById('tax');
+
+  if (state.cart.length === 0) {
+    list.innerHTML = `<div class="cart-empty">Your cart is empty. Add some furniture to get started.</div>`;
+    total.textContent = '$0';
+    subtotal.textContent = '$0';
+    shipping.textContent = '$0';
+    tax.textContent = '$0';
+    return;
+  }
+
+  list.innerHTML = '';
+  let sub = 0;
+  state.cart.forEach(item => {
+    sub += item.price;
+    const el = document.createElement('div');
+    el.className = 'cart-row';
+    el.innerHTML = `
+      <div class="c-img" style="background-image:url('${item.img}')"></div>
+      <div class="c-info">
+        <div class="c-name">${item.name}</div>
+        <div class="c-price">${fmt(item.price)}</div>
+      </div>
+      <button class="cart-remove" title="Remove" data-id="${item.id}">×</button>
+    `;
+    el.querySelector('.cart-remove').addEventListener('click', e => {
+      e.stopPropagation();
+      removeFromCart(item.id);
+    });
+    list.appendChild(el);
+  });
+
+  const shippingVal = sub > 1000 ? 0 : Math.min(sub * 0.05, 25);
+  const taxVal = sub * 0.08;
+  const totalVal = sub + shippingVal + taxVal;
+
+  subtotal.textContent = fmt(sub);
+  shipping.textContent = fmt(shippingVal);
+  tax.textContent = fmt(taxVal);
+  total.textContent = fmt(totalVal);
+}
+
+function removeFromCart(id) {
+  state.cart = state.cart.filter(i => i.id !== id);
+  saveState();
+  renderCart();
+  renderRoom();
+}
+
+// ---------- Room operations ----------
+function placeItem(id, x, y, w, h) {
+  const img = CATALOG.find(c => c.id === id);
+  if (!img) return;
+  const existing = state.room.items.find(i => i.id === id);
+  if (existing) {
+    existing.x = x; existing.y = y;
+  } else {
+    state.room.items.push({ id, x, y, w, h });
+  }
+  saveState();
+  renderRoom();
+}
+
+function removeItem(id) {
+  state.room.items = state.room.items.filter(i => i.id !== id);
+  saveState();
+  renderRoom();
+}
+
+function clearRoom() {
+  state.room.items = [];
+  saveState();
+  renderRoom();
+}
+
+function shareRoom() {
+  const key = state.room.title || 'my-room';
+  const shareUrl = window.location.origin + '#' + encodeURIComponent(key);
+  if (navigator.share) {
+    navigator.share({ title: 'FurniSpace', text: 'Check out my room!', url: shareUrl });
+  } else {
+    const url = window.location.href.split('#')[0] + '#' + encodeURIComponent(key);
+    navigator.clipboard?.writeText(url);
+    alert('Link copied to clipboard:\n' + url);
+  }
+}
+
+// ---------- Drag & Drop ----------
+let dragItem = null;
+let dragOffset = { x: 0, y: 0 };
+
+function onDragStart(e, item) {
+  dragItem = item;
+  dragOffset = { x: e.clientX - item.x, y: e.clientY - item.y };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', item.id);
+  e.dataTransfer.setData('text/furniture', JSON.stringify(item));
+  e.currentTarget.classList.add('dragging');
+}
+
+function onDragEnd(e) {
+  if (dragItem) {
+    e.currentTarget.classList.remove('dragging');
+    dragItem = null;
+  }
+}
+
+function onDragOver(e) {
+  if (!dragItem) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDrop(e) {
+  if (!dragItem) return;
+  e.preventDefault();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  placeItem(dragItem.id, x, y, dragItem.w, dragItem.h);
+}
+
+// ---------- Event wiring ----------
+function wireEvents() {
+  // Categories
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.currentCat = btn.dataset.cat;
+      renderCatalog();
+    });
+  });
+
+  // Login
+  document.getElementById('loginBtn').addEventListener('click', () => {
+    document.getElementById('loginModal').hidden = false;
+  });
+  document.getElementById('closeLogin').addEventListener('click', () => {
+    document.getElementById('loginModal').hidden = true;
+  });
+  document.getElementById('submitLogin').addEventListener('click', () => {
+    const username = document.getElementById('usernameInput').value.trim();
+    const email = document.getElementById('emailInput').value.trim();
+    if (!username) { alert('Please enter a username'); return; }
+    setAccount({ username, email, initials: username[0].toUpperCase() });
+    document.getElementById('loginModal').hidden = true;
+  });
+
+  // Theme toggle
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    state.theme = state.theme === 'light' ? 'dark' : 'light';
+    document.body.classList.toggle('dark', state.theme === 'dark');
+    saveState();
+  });
+
+  // Reset
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (confirm('Reset the room to empty?')) {
+      clearRoom();
+    }
+  });
+
+  // Share
+  document.getElementById('shareBtn').addEventListener('click', shareRoom);
+
+  // Checkout
+  document.getElementById('checkoutBtn').addEventListener('click', () => {
+    if (state.cart.length === 0) {
+      alert('Your cart is empty.');
+      return;
+    }
+    const total = state.cart.reduce((s, i) => s + i.price, 0);
+    const shipping = total > 1000 ? 0 : Math.min(total * 0.05, 25);
+    const tax = total * 0.08;
+    alert(`Checkout:\n\nItems: ${state.cart.length}\nSubtotal: ${fmt(total)}\nShipping: ${fmt(shipping)}\nTax: ${fmt(tax)}\n\nTotal: ${fmt(total + shipping + tax)}\n\nThanks for shopping!`);
+  });
+
+  // Canvas drop
+  document.getElementById('room').addEventListener('dragover', onDragOver);
+  document.getElementById('room').addEventListener('drop', onDrop);
+
+  // Room resize
+  window.addEventListener('resize', renderRoom);
+}
+
+// ---------- Init ----------
+function init() {
+  loadState();
+  renderAccount();
+  renderCatalog();
+  renderCart();
+  renderRoom();
+  wireEvents();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script></script>
+</body>
+</html>

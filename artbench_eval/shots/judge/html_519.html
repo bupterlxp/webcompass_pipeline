@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Furniture Studio</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --bg: #ecf0f1;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        header button:hover { background-color: #2980b9; }
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 250px;
+            background: white;
+            padding: 1rem;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .main-area {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .virtual-room {
+            width: 100%;
+            max-width: 800px;
+            height: 500px;
+            background-color: #fff;
+            border: 2px dashed #bdc3c7;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .furniture-item {
+            background: var(--bg);
+            border: 1px solid #bdc3c7;
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: center;
+            cursor: grab;
+            border-radius: 4px;
+            user-select: none;
+        }
+        .furniture-item:active { cursor: grabbing; }
+        .furniture-item .icon { font-size: 2rem; }
+        
+        .room-item {
+            position: absolute;
+            cursor: move;
+            font-size: 3rem;
+            user-select: none;
+            transform: translate(-50%, -50%);
+        }
+
+        .cart-panel {
+            width: 300px;
+            background: white;
+            padding: 1rem;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        .cart-total {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid var(--primary);
+            text-align: right;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #27ae60;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>🛋️ Virtual Furniture Studio</h2>
+        <div>
+            <button onclick="savePlan()">Save to Account</button>
+            <button onclick="sharePlan()">Share Link</button>
+            <button onclick="clearRoom()">Clear Room</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Catalog Sidebar -->
+        <div class="sidebar">
+            <h3>Catalog</h3>
+            <div id="catalog"></div>
+        </div>
+
+        <!-- Virtual Room -->
+        <div class="main-area">
+            <h3>Virtual Room (Drag & Drop Here)</h3>
+            <div class="virtual-room" id="virtual-room"></div>
+        </div>
+
+        <!-- Shopping Cart -->
+        <div class="cart-panel">
+            <h3>Shopping Cart</h3>
+            <div class="cart-items" id="cart-items"></div>
+            <div class="cart-total">Total: $<span id="total-price">0</span></div>
+            <button style="width: 100%; padding: 10px; margin-top: 10px; background: var(--accent); color: white; border: none; cursor: pointer;">Checkout</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Action successful!</div>
+
+    <script>
+        // Furniture Database
+        const furnitureDB = [
+            { id: 'f1', name: 'Modern Sofa', price: 599, icon: '🛋️', category: 'Living Room' },
+            { id: 'f2', name: 'Lounge Chair', price: 249, icon: '🪑', category: 'Living Room' },
+            { id: 'f3', name: 'Dining Table', price: 399, icon: '🪚', category: 'Dining' },
+            { id: 'f4', name: 'King Bed', price: 899, icon: '🛏️', category: 'Bedroom' },
+            { id: 'f5', name: 'Potted Plant', price: 45, icon: '🪴', category: 'Decor' },
+            { id: 'f6', name: 'Floor Lamp', price: 120, icon: '💡', category: 'Decor' }
+        ];
+
+        let roomState = []; // Stores items placed in the room
+        let draggedItem = null;
+
+        // Initialize App
+        function init() {
+            renderCatalog();
+            setupDragAndDrop();
+            loadFromURL();
+        }
+
+        // Render Catalog
+        function renderCatalog() {
+            const catalogDiv = document.getElementById('catalog');
+            furnitureDB.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'furniture-item';
+                el.draggable = true;
+                el.innerHTML = `
+                    <div class="icon">${item.icon}</div>
+                    <div><strong>${item.name}</strong></div>
+                    <div>$${item.price}</div>
+                `;
+                
+                el.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    e.dataTransfer.setData('text/plain', item.id);
+                });
+                
+                catalogDiv.appendChild(el);
+            });
+        }
+
+        // Setup Drag and Drop for Virtual Room
+        function setupDragAndDrop() {
+            const room = document.getElementById('virtual-room');
+
+            room.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Necessary to allow dropping
+            });
+
+            room.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!draggedItem) return;
+
+                // Calculate position relative to the room
+                const rect = room.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const instanceId = 'item_' + Date.now();
+                
+                const placedItem = {
+                    instanceId: instanceId,
+                    itemId: draggedItem.id,
+                    x: x,
+                    y: y
+                };
+
+                roomState.push(placedItem);
+                renderRoom();
+                updateCart();
+                draggedItem = null;
+            });
+        }
+
+        // Render items in the virtual room
+        function renderRoom() {
+            const room = document.getElementById('virtual-room');
+            room.innerHTML = ''; // Clear current
+
+            roomState.forEach(placed => {
+                const itemData = furnitureDB.find(f => f.id === placed.itemId);
+                if (!itemData) return;
+
+                const el = document.createElement('div');
+                el.className = 'room-item';
+                el.innerHTML = itemData.icon;
+                el.style.left = placed.x + 'px';
+                el.style.top = placed.y + 'px';
+                
+                // Allow removing item on double click
+                el.title = "Double click to remove";
+                el.addEventListener('dblclick', () => {
+                    roomState = roomState.filter(i => i.instanceId !== placed.instanceId);
+                    renderRoom();
+                    updateCart();
+                });
+
+                room.appendChild(el);
+            });
+        }
+
+        // Update Shopping Cart
+        function updateCart() {
+            const cartDiv = document.getElementById('cart-items');
+            const totalSpan = document.getElementById('total-price');
+            cartDiv.innerHTML = '';
+            
+            let total = 0;
+            
+            // Group items by ID for the cart
+            const cartCounts = {};
+            roomState.forEach(placed => {
+                cartCounts[placed.itemId] = (cartCounts[placed.itemId] || 0) + 1;
+            });
+
+            for (const [id, count] of Object.entries(cartCounts)) {
+                const itemData = furnitureDB.find(f => f.id === id);
+                const cost = itemData.price * count;
+                total += cost;
+
+                const el = document.createElement('div');
+                el.className = 'cart-item';
+                el.innerHTML = `
+                    <span>${itemData.icon} ${itemData.name} x${count}</span>
+                    <span>$${cost}</span>
+                `;
+                cartDiv.appendChild(el);
+            }
+
+            totalSpan.innerText = total;
+        }
+
+        // Clear Room
+        function clearRoom() {
+            roomState = [];
+            renderRoom();
+            updateCart();
+        }
+
+        // Save Plan (Simulated to LocalStorage)
+        function savePlan() {
+            localStorage.setItem('savedFurniturePlan', JSON.stringify(roomState));
+            showToast("Plan saved to your personal account!");
+        }
+
+        // Share Plan (Encodes state to URL Hash)
+        function sharePlan() {
+            const stateString = JSON.stringify(roomState);
+            const encoded = btoa(stateString);
+            window.location.hash = encoded;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showToast("Shareable link copied to clipboard!");
+            });
+        }
+
+        // Load Plan from URL Hash
+        function loadFromURL() {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                try {
+                    const decoded = atob(hash);
+                    roomState = JSON.parse(decoded);
+                    renderRoom();
+                    updateCart();
+                    showToast("Loaded shared plan!");
+                } catch (e) {
+                    console.error("Failed to load plan from URL");
+                }
+            } else {
+                // Try loading from local storage if no URL hash
+                const saved = localStorage.getItem('savedFurniturePlan');
+                if (saved) {
+                    roomState = JSON.parse(saved);
+                    renderRoom();
+                    updateCart();
+                }
+            }
+        }
+
+        // UI Toast Notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // Run init on load
+        window.onload = init;
+    </script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Scheduler</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f4f4f4; padding: 10px; border: 1px solid #ddd; height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>Browser Task Scheduler</h1>
+    <p>Please allow notification permissions when prompted.</p>
+    <button onclick="scheduler.start()">Start Scheduler</button>
+    <button onclick="scheduler.stop()">Stop Scheduler</button>
+    
+    <h3>Execution Log:</h3>
+    <div class="log" id="log"></div>
+
+    <script>
+        class TaskScheduler {
+            constructor() {
+                this.tasks = [];
+                this.intervalId = null;
+                this.requestNotificationPermission();
+            }
+
+            // Request system notification permission
+            async requestNotificationPermission() {
+                if (!("Notification" in window)) {
+                    this.log("This browser does not support desktop notification");
+                } else if (Notification.permission !== "denied" && Notification.permission !== "granted") {
+                    await Notification.requestPermission();
+                }
+            }
+
+            /**
+             * Add a new task
+             * @param {string} name - Task name
+             * @param {Object} schedule - { hour: Number (optional), minute: Number }
+             * @param {string} notificationText - Text to display in the notification
+             * @param {string} codeSnippet - JS code to execute
+             */
+            addTask(name, schedule, notificationText, codeSnippet) {
+                this.tasks.push({
+                    name,
+                    schedule,
+                    notificationText,
+                    codeSnippet,
+                    lastRun: null // Prevent multiple executions in the same minute
+                });
+                this.log(`Task added: ${name}`);
+            }
+
+            start() {
+                if (this.intervalId) return;
+                this.log("Scheduler started. Checking tasks every minute...");
+                
+                // Check immediately, then every 60 seconds
+                this.checkTasks();
+                this.intervalId = setInterval(() => this.checkTasks(), 60000);
+            }
+
+            stop() {
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                    this.log("Scheduler stopped.");
+                }
+            }
+
+            checkTasks() {
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+                const dateString = now.toDateString();
+
+                this.tasks.forEach(task => {
+                    const { schedule } = task;
+                    let isDue = false;
+
+                    // Check if it's an hourly task (only minute is specified)
+                    if (schedule.hour === undefined && schedule.minute === currentMinute) {
+                        isDue = true;
+                    } 
+                    // Check if it's a daily task (both hour and minute specified)
+                    else if (schedule.hour === currentHour && schedule.minute === currentMinute) {
+                        isDue = true;
+                    }
+
+                    // Ensure it only runs once per scheduled minute
+                    const runKey = `${dateString}-${currentHour}-${currentMinute}`;
+                    if (isDue && task.lastRun !== runKey) {
+                        task.lastRun = runKey;
+                        this.executeTask(task);
+                    }
+                });
+            }
+
+            executeTask(task) {
+                this.log(`Executing task: ${task.name}`);
+
+                // 1. Show System Notification
+                if (Notification.permission === "granted") {
+                    new Notification(task.name, {
+                        body: task.notificationText,
+                        icon: "https://cdn-icons-png.flaticon.com/512/825/825590.png" // Placeholder icon
+                    });
+                }
+
+                // 2. Execute Custom JS Code Snippet
+                if (task.codeSnippet) {
+                    try {
+                        // Using new Function creates a safe execution scope compared to eval()
+                        const executeCode = new Function(task.codeSnippet);
+                        executeCode();
+                        this.log(`Code executed successfully for: ${task.name}`);
+                    } catch (error) {
+                        this.log(`Error executing code for ${task.name}: ${error.message}`);
+                        console.error(error);
+                    }
+                }
+            }
+
+            log(message) {
+                const logDiv = document.getElementById('log');
+                const time = new Date().toLocaleTimeString();
+                logDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        }
+
+        // --- Initialization and Usage ---
+        const scheduler = new TaskScheduler();
+
+        // Example 1: Daily 9:00 AM Reminder
+        scheduler.addTask(
+            "Morning Standup",
+            { hour: 9, minute: 0 },
+            "Time for the daily 9:00 AM standup meeting!",
+            "console.log('Standup time!');"
+        );
+
+        // Example 2: Hourly Time Announcement (Runs at minute 0 of every hour)
+        scheduler.addTask(
+            "Hourly Chime",
+            { minute: 0 },
+            "Another hour has passed.",
+            "console.log('Hourly chime executed.');"
+        );
+
+        // Example 3: Dynamic Test Task (Runs 1 minute from now to test functionality)
+        const testTime = new Date(Date.now() + 60000);
+        scheduler.addTask(
+            "Test Task",
+            { hour: testTime.getHours(), minute: testTime.getMinutes() },
+            "This is a test notification!",
+            "alert('Custom JS Executed: Test Task Complete!');"
+        );
+
+        // Note: To test location.reload(), you can add a task like this:
+        /*
+        scheduler.addTask(
+            "Page Reload",
+            { hour: 12, minute: 0 },
+            "Reloading the page...",
+            "location.reload();"
+        );
+        */
+    </script>
+</body>
+</html>

@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Graphic Video Generator</title>
+<style>* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e8e8f0;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #2a2a42;
+  border: 1px solid #3a3a5a;
+  border-radius: 12px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.5px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn {
+  background: #3a3a5a;
+  color: #e8e8f0;
+  border: 1px solid #4a4a6a;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn:hover { background: #4a4a6a; border-color: #5a5a7a; }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: #ff6b6b;
+  color: #fff;
+  border-color: #ff8b8b;
+}
+.btn-primary:hover { background: #ff8b8b; }
+
+.fps {
+  font-size: 12px;
+  color: #9a9ab8;
+  background: #2a2a42;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a3a5a;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 24px;
+  min-height: 70vh;
+}
+
+.canvas-wrap {
+  position: relative;
+  background: #0a0a1a;
+  border: 1px solid #2a2a42;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+#canvas:active { cursor: grabbing; }
+
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 26, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.canvas-overlay.active { opacity: 1; pointer-events: auto; }
+
+.overlay-inner {
+  text-align: center;
+  color: #e8e8f0;
+  max-width: 400px;
+}
+.overlay-inner h2 { margin: 0 0 8px; font-size: 18px; }
+.overlay-inner p { margin: 4px 0; font-size: 13px; }
+kbd {
+  background: #2a2a42;
+  border: 1px solid #3a3a5a;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #e8e8f0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.panel {
+  background: #2a2a42;
+  border: 1px solid #3a3a5a;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.panel h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9a9ab8;
+}
+
+.element-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.el-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #3a3a5a;
+  border: 1px solid #4a4a6a;
+  border-radius: 8px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.el-item:hover { background: #4a4a6a; border-color: #5a5a7a; }
+.el-item:active { cursor: grabbing; }
+.el-item.dragging { opacity: 0.5; }
+
+.el-handle {
+  width: 16px; height: 16px;
+  background: #6b6b88;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: grab;
+  transition: background 0.2s ease;
+}
+.el-item:hover .el-handle { background: #9a9ab8; }
+
+.el-icon {
+  width: 20px; height: 20px;
+  flex-shrink: 0;
+}
+.el-label { flex: 1; font-size: 13px; }
+.el-delete {
+  width: 22px; height: 22px;
+  background: #6b6b88;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #e8e8f0;
+  display: grid; place-items: center;
+  transition: all 0.2s ease;
+}
+.el-delete:hover { background: #9a9ab8; }
+
+.prop-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.prop-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.prop-row label {
+  font-size: 12px;
+  color: #9a9ab8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.prop-row input[type="text"],
+.prop-row input[type="number"],
+.prop-row input[type="color"] {
+  background: #3a3a5a;
+  border: 1px solid #4a4a6a;
+  color: #e8e8f0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  width: 100%;
+}
+.prop-row select {
+  background: #3a3a5a;
+  border: 1px solid #4a4a6a;
+  color: #e8e8f0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  width: 100%;
+}
+.prop-row input:focus,
+.prop-row select:focus {
+  outline: 2px solid #ff6b6b;
+  outline-offset: 1px;
+}
+
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #3a3a5a;
+  border: 1px solid #4a4a6a;
+  border-radius: 8px;
+  min-height: 160px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #4a4a6a;
+  border-radius: 6px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.timeline-item:hover { background: #5a5a7a; }
+.timeline-item:active { cursor: grabbing; }
+.timeline-item.dragging { opacity: 0.5; }
+.tl-handle {
+  width: 12px; height: 12px;
+  background: #6b6b88;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: grab;
+}
+.tl-item-info {
+  flex: 1;
+  font-size: 12px;
+  color: #e8e8f0;
+}
+.tl-item-info .tl-label { font-weight: 600; }
+.tl-item-info .tl-sub { color: #9a9ab8; font-size: 11px; }
+.tl-item-handle {
+  width: 12px; height: 12px;
+  background: #6b6b88;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: grab;
+}
+.tl-item-handle:hover { background: #9a9ab8; }
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .topbar-right .btn:not(.btn-primary) { display: none; }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>🎬 Dynamic Graphic Video Generator</h1>
+      <div class="topbar-right">
+        <button id="btn-add-shape" class="btn">+ Shape</button>
+        <button id="btn-add-text" class="btn">+ Text</button>
+        <button id="btn-add-icon" class="btn">+ Icon</button>
+        <button id="btn-add-line" class="btn">+ Line</button>
+        <button id="btn-export" class="btn btn-primary">▶ Export MP4</button>
+        <span class="fps" id="fps">FPS: 30</span>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="1200" height="700"></canvas>
+        <div id="canvas-overlay" class="canvas-overlay">
+          <div class="overlay-inner">
+            <h2>Drag elements to reorder</h2>
+            <p>Use the <kbd>Space</kbd> key to pause/resume preview.</p>
+            <p>Press <kbd>Esc</kbd> to exit preview.</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="panel">
+          <h3>Elements</h3>
+          <ul id="element-list" class="element-list"></ul>
+        </div>
+
+        <div class="panel">
+          <h3>Properties</h3>
+          <div id="prop-panel" class="prop-panel"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Timeline</h3>
+          <div id="timeline" class="timeline"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>/* =========================================================
+   Dynamic Graphic Video Generator
+   ========================================================= */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const fpsEl = document.getElementById('fps');
+let fps = 30;
+
+const state = {
+  elements: [],          // { id, type, props, animation, layer, order }
+  layers: [],            // { id, name }
+  previewing: false,
+  previewTimer: null,
+  lastTime: 0,
+  lastFrame: 0,
+  totalDuration: 0,
+  currentLayer: 0,
+  currentOrder: 0,
+  draggingElId: null,
+  draggingTimelineId: null,
+  dragOffset: { x: 0, y: 0 },
+  dragStartLayer: null,
+  dragStartOrder: null,
+  dragStartTimelineId: null,
+  dragStartLayerId: null,
+};
+
+// ---------- Icons ----------
+const ICONS = {
+  'circle': 'M 20 20 m -10 0 a 10 10 0 1 1 20 0 a 10 10 0 1 1 -20 0',
+  'square': 'M 20 20 L 20 20 L 20 20 L 20 20 Z',
+  'triangle': 'M 20 20 L 20 20 L 20 20 Z',
+  'star': 'M 20 20 L 20 20 L 20 20 Z',
+  'heart': 'M 20 20 L 20 20 L 20 20 Z',
+  'arrow': 'M 20 20 L 20 20 L 20 20 Z',
+  'wave': 'M 20 20 Q 20 20 20 20 T 20 20',
+};
+
+function svgToPathData(d) {
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', d);
+  return p;
+}
+
+// ---------- Utilities ----------
+function uid() { return 'e_' + Math.random().toString(36).slice(2, 10); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+function easeInCubic(t) { return t * t * t; }
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+function easeInQuad(t) { return t * t; }
+function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function ease(t, easeFn) { return easeFn(t); }
+
+function bezier(p0, p1, p2, p3, t) {
+  const u = 1 - t;
+  const tt = t * t;
+  const uu = u * u;
+  return {
+    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+  };
+}
+
+function circlePath(cx, cy, r) {
+  const pi2 = Math.PI * 2;
+  const points = [];
+  for (let i = 0; i <= 100; i++) {
+    const a = (i / 100) * pi2;
+    points.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+  }
+  return points;
+}
+
+function linePath(p0, p1) {
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+  const len = Math.hypot(dx, dy);
+  const points = [];
+  for (let i = 0; i <= 100; i++) {
+    points.push({
+      x: p0.x + dx * (i / 100),
+      y: p0.y + dy * (i / 100),
+    });
+  }
+  return points;
+}
+
+// ---------- Elements ----------
+function createShape(type, props = {}) {
+  const defaults = {
+    x: 400, y: 350,
+    w: 120, h: 120,
+    color: '#ff6b6b',
+    fill: '#ff6b6b',
+    stroke: '#ff9a9a',
+    strokeWidth: 2,
+    radius: 10,
+    rotation: 0,
+    scale: 1,
+    opacity: 1,
+    layer: 0,
+    order: 0,
+  };
+  const p = { ...defaults, ...props };
+  return {
+    id: uid(),
+    type,
+    props: p,
+    animation: {
+      path: 'circle', // circle | bezier | line | oscillate
+      pathParams: null,
+      easing: 'easeInOutCubic',
+      duration: 3000,
+      delay: 0,
+      startAt: 0,
+      endAt: 0,
+      effect: 'fade',
+      effectParams: { duration: 800, delay: 0 },
+    },
+    layer: p.layer,
+    order: p.order,
+  };
+}
+
+function createText(props = {}) {
+  const defaults = {
+    x: 400, y: 350,
+    text: 'Hello',
+    fontSize: 60,
+    color: '#ffffff',
+    textAlign: 'center',
+    layer: 0,
+    order: 0,
+  };
+  const p = { ...defaults, ...props };
+  return {
+    id: uid(),
+    type: 'text',
+    props: p,
+    animation: {
+      path: 'circle',
+      pathParams: null,
+      easing: 'easeInOutCubic',
+      duration: 3000,
+      delay: 0,
+      startAt: 0,
+      endAt: 0,
+      effect: 'fade',
+      effectParams: { duration: 800, delay: 0 },
+    },
+    layer: p.layer,
+    order: p.order,
+  };
+}
+
+function createIcon(props = {}) {
+  const defaults = {
+    x: 400, y: 350,
+    icon: 'circle',
+    size: 80,
+    color: '#ff6b6b',
+    rotation: 0,
+    scale: 1,
+    opacity: 1,
+    layer: 0,
+    order: 0,
+  };
+  const p = { ...defaults, ...props };
+  return {
+    id: uid(),
+    type: 'icon',
+    props: p,
+    animation: {
+      path: 'circle',
+      pathParams: null,
+      easing: 'easeInOutCubic',
+      duration: 3000,
+      delay: 0,
+      startAt: 0,
+      endAt: 0,
+      effect: 'fade',
+      effectParams: { duration: 800, delay: 0 },
+    },
+    layer: p.layer,
+    order: p.order,
+  };
+}
+
+function createLine(props = {}) {
+  const defaults = {
+    x0: 100, y0: 100,
+    x1: 500, y1: 500,
+    color: '#ffffff',
+    strokeWidth: 4,
+    layer: 0,
+    order: 0,
+  };
+  const p = { ...defaults, ...props };
+  return {
+    id: uid(),
+    type: 'line',
+    props: p,
+    animation: {
+      path: 'line',
+      pathParams: null,
+      easing: 'easeInOutCubic',
+      duration: 3000,
+      delay: 0,
+      startAt: 0,
+      endAt: 0,
+      effect: 'fade',
+      effectParams: { duration: 800, delay: 0 },
+    },
+    layer: p.layer,
+    order: p.order,
+  };
+}
+
+// ---------- Effects ----------
+function applyEffect(el, t, easeFn) {
+  const p = el.props;
+  const anim = el.animation;
+  const { effect, effectParams } = anim;
+
+  if (effect === 'fade') {
+    const effT = easeFn(t);
+    p.opacity = lerp(0, 1, effT);
+  } else if (effect === 'scale') {
+    const effT = easeFn(t);
+    p.scale = lerp(1, 1.25, effT);
+  } else if (effect === 'spin') {
+    const effT = easeFn(t);
+    p.rotation = lerp(0, 360, effT);
+  } else if (effect === 'bounce') {
+    const effT = easeFn(t);
+    const amp = 1 + Math.sin(effT * Math.PI * 2) * 0.25;
+    p.scale = lerp(1, amp, effT);
+  }
+}
+
+// ---------- Animation Path ----------
+function getPoints(el, t) {
+  const anim = el.animation;
+  const { path, pathParams, easing } = anim;
+  const p = el.props;
+  const easeFn = easing === 'easeInOutCubic' ? easeInOutCubic : easing === 'easeInCubic' ? easeInCubic : easing === 'easeOutCubic' ? easeOutCubic : easing === 'easeInQuad' ? easeInQuad : easing === 'easeOutQuad' ? easeOutQuad : easeInCubic;
+
+  if (path === 'circle') {
+    const cx = p.x + p.w / 2;
+    const cy = p.y + p.h / 2;
+    const r = Math.max(p.w, p.h) / 2;
+    const ang = easeFn(t) * Math.PI * 2;
+    return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r };
+  }
+  if (path === 'line') {
+    const p0 = { x: p.x, y: p.y };
+    const p1 = { x: p.x + p.w, y: p.y + p.h };
+    const pt = bezier(p0, p0, p1, p1, easeFn(t));
+    return pt;
+  }
+  if (path === 'bezier') {
+    if (!pathParams) return { x: p.x, y: p.y };
+    const [p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y] = pathParams;
+    const pt = bezier(
+      { x: p.x + p0x, y: p.y + p0y },
+      { x: p.x + p1x, y: p.y + p1y },
+      { x: p.x + p2x, y: p.y + p2y },
+      { x: p.x + p3x, y: p.y + p3y },
+      easeFn(t)
+    );
+    return pt;
+  }
+  if (path === 'oscillate') {
+    const freq = 2 + Math.random() * 3;
+    const amp = 40 + Math.random() * 60;
+    const phase = Math.random() * Math.PI * 2;
+    const x = p.x + Math.cos(t * freq + phase) * amp;
+    const y = p.y + Math.sin(t * freq + phase) * amp;
+    return { x, y };
+  }
+  return { x: p.x, y: p.y };
+}
+
+// ---------- Rendering ----------
+function drawShape(el, t) {
+  const p = el.props;
+  const anim = el.animation;
+  const { effect, effectParams } = anim;
+
+  if (effect === 'fade') {
+    const effT = easeInOutCubic(t);
+    ctx.globalAlpha = lerp(0, 1, effT);
+  } else if (effect === 'scale') {
+    const effT = easeInOutCubic(t);
+    const scale = lerp(1, 1.25, effT);
+    ctx.save();
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+    ctx.scale(scale, scale);
+    ctx.translate(-p.w / 2, -p.h / 2);
+  } else if (effect === 'spin') {
+    const effT = easeInOutCubic(t);
+    const rot = lerp(0, 360, effT);
+    ctx.save();
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+    ctx.rotate((rot * Math.PI) / 180);
+    ctx.translate(-p.w / 2, -p.h / 2);
+  } else if (effect === 'bounce') {
+    const effT = easeInOutCubic(t);
+    const amp = 1 + Math.sin(effT * Math.PI * 2) * 0.25;
+    ctx.save();
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+    ctx.scale(amp, amp);
+    ctx.translate(-p.w / 2, -p.h / 2);
+  }
+
+  ctx.beginPath();
+  ctx.fillStyle = p.fill;
+  ctx.strokeStyle = p.stroke;
+  ctx.lineWidth = p.strokeWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (p.type === 'rect') {
+    ctx.rect(p.x, p.y, p.w, p.h);
+  } else if (p.type === 'circle') {
+    ctx.arc(p.x + p.w / 2, p.y + p.h / 2, Math.max(p.w, p.h) / 2, 0, Math.PI * 2);
+  } else if (p.type === 'line') {
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x + p.w, p.y + p.h);
+  } else if (p.type === 'text') {
+    ctx.font = `${p.fontSize}px sans-serif`;
+    ctx.textAlign = p.textAlign;
+    ctx.fillText(p.text, p.x, p.y + p.fontSize * 0.5);
+  } else if (p.type === 'icon') {
+    const path = svgToPathData(ICONS[p.icon]);
+    const bbox = path.getBBox();
+    const size = p.size;
+    ctx.save();
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+    ctx.scale(size / bbox.width, size / bbox.height);
+    ctx.translate(-bbox.x, -bbox.y);
+    ctx.fillStyle = p.color;
+    ctx.fill(path);
+    ctx.restore();
+  }
+
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const now = performance.now();
+  const elapsed = now - state.lastFrame;
+
+  // Sort layers then order within layer
+  const sorted = state.elements
+    .filter(e => e.layer >= 0 && e.order >= 0)
+    .sort((a, b) => a.layer - b.layer || a.order - b.order);
+
+  for (const el of sorted) {
+    const anim = el.animation;
+    const startAt = anim.startAt || 0;
+    const endAt = anim.endAt || anim.duration;
+    const duration = endAt - startAt;
+    const t = Math.max(0, Math.min(1, (now - startAt) / duration));
+
+    if (t > 0) {
+      const p = el.props;
+      const pts = getPoints(el, t);
+      p.x = pts.x;
+      p.y = pts.y;
+
+      if (el.type === 'rect') {
+        const w = p.w * t;
+        const h = p.h * t;
+        ctx.beginPath();
+        ctx.fillStyle = p.fill;
+        ctx.strokeStyle = p.stroke;
+        ctx.lineWidth = p.strokeWidth;
+        ctx.rect(p.x, p.y, w, h);
+        ctx.fill();
+        ctx.stroke();
+      } else if (el.type === 'circle') {
+        const r = Math.max(p.w, p.h) / 2 * t;
+        ctx.beginPath();
+        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, r, 0, Math.PI * 2);
+        ctx.fillStyle = p.fill;
+        ctx.fill();
+        ctx.strokeStyle = p.stroke;
+        ctx.lineWidth = p.strokeWidth;
+        ctx.stroke();
+      } else if (el.type === 'line') {
+        const p0 = { x: p.x, y: p.y };
+        const p1 = { x: p.x + p.w, y: p.y + p.h };
+        const pt = bezier(p0, p0, p1, p1, t);
+        ctx.beginPath();
+        ctx.strokeStyle = p.stroke;
+        ctx.lineWidth = p.strokeWidth;
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(pt.x, pt.y);
+        ctx.stroke();
+      } else if (el.type === 'text') {
+        ctx.font = `${p.fontSize}px sans-serif`;
+        ctx.textAlign = p.textAlign;
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.text, p.x, p.y + p.fontSize * 0.5);
+      } else if (el.type === 'icon') {
+        const path = svgToPathData(ICONS[p.icon]);
+        const bbox = path.getBBox();
+        const size = p.size * t;
+        ctx.save();
+        ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+        ctx.scale(size / bbox.width, size / bbox.height);
+        ctx.translate(-bbox.x, -bbox.y);
+        ctx.fillStyle = p.color;
+        ctx.fill(path);
+        ctx.restore();
+      }
+    }
+  }
+
+  state.lastFrame = now;
+}
+
+// ---------- UI ----------
+function renderElementsList() {
+  const list = document.getElementById('element-list');
+  list.innerHTML = '';
+  state.elements.forEach(el => {
+    const li = document.createElement('li');
+    li.className = 'el-item';
+    li.dataset.id = el.id;
+    li.draggable = true;
+    li.innerHTML = `
+      <div class="el-handle"></div>
+      <div class="el-icon" style="background:${el.props.color};"></div>
+      <div class="el-label">${el.props.text || el.props.icon || el.props.type}</div>
+      <button class="el-delete" title="Delete" aria-label="Delete">×</button>
+    `;
+    li.addEventListener('dragstart', (e) => startDragEl(e, el.id));
+    li.addEventListener('dragend', () => endDragEl());
+    li.querySelector('.el-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteElement(el.id);
+    });
+    list.appendChild(li);
+  });
+}
+
+function renderPropPanel(el) {
+  const panel = document.getElementById('prop-panel');
+  panel.innerHTML = `
+    <div class="prop-row">
+      <label>Type</label>
+      <select id="prop-type">
+        <option value="rect" ${el.type === 'rect' ? 'selected' : ''}>Rectangle</option>
+        <option value="circle" ${el.type === 'circle' ? 'selected' : ''}>Circle</option>
+        <option value="text" ${el.type === 'text' ? 'selected' : ''}>Text</option>
+        <option value="icon" ${el.type === 'icon' ? 'selected' : ''}>Icon</option>
+        <option value="line" ${el.type === 'line' ? 'selected' : ''}>Line</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>X</label>
+      <input id="prop-x" type="number" value="${el.props.x}" />
+    </div>
+    <div class="prop-row">
+      <label>Y</label>
+      <input id="prop-y" type="number" value="${el.props.y}" />
+    </div>
+    <div class="prop-row">
+      <label>W</label>
+      <input id="prop-w" type="number" value="${el.props.w}" />
+    </div>
+    <div class="prop-row">
+      <label>H</label>
+      <input id="prop-h" type="number" value="${el.props.h}" />
+    </div>
+    <div class="prop-row">
+      <label>Color</label>
+      <input id="prop-color" type="color" value="${el.props.color}" />
+    </div>
+    <div class="prop-row">
+      <label>Fill</label>
+      <input id="prop-fill" type="color" value="${el.props.fill}" />
+    </div>
+    <div class="prop-row">
+      <label>Stroke</label>
+      <input id="prop-stroke" type="color" value="${el.props.stroke}" />
+    </div>
+    <div class="prop-row">
+      <label>Stroke Width</label>
+      <input id="prop-strokeW" type="number" value="${el.props.strokeWidth}" />
+    </div>
+    <div class="prop-row">
+      <label>Rotation</label>
+      <input id="prop-rot" type="number" value="${el.props.rotation}" />
+    </div>
+    <div class="prop-row">
+      <label>Scale</label>
+      <input id="prop-scale" type="number" value="${el.props.scale}" />
+    </div>
+    <div class="prop-row">
+      <label>Opacity</label>
+      <input id="prop-opacity" type="number" value="${el.props.opacity}" min="0" max="1" step="0.05" />
+    </div>
+    <div class="prop-row">
+      <label>Layer</label>
+      <select id="prop-layer">
+        ${state.layers.map(l => `<option value="${l.id}" ${l.id === el.layer ? 'selected' : ''}>${l.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>Order</label>
+      <input id="prop-order" type="number" value="${el.order}" />
+    </div>
+    <div class="prop-row">
+      <label>Path</label>
+      <select id="prop-path">
+        <option value="circle" ${el.animation.path === 'circle' ? 'selected' : ''}>Circle</option>
+        <option value="bezier" ${el.animation.path === 'bezier' ? 'selected' : ''}>Bezier</option>
+        <option value="line" ${el.animation.path === 'line' ? 'selected' : ''}>Line</option>
+        <option value="oscillate" ${el.animation.path === 'oscillate' ? 'selected' : ''}>Oscillate</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>Easing</label>
+      <select id="prop-easing">
+        <option value="easeInOutCubic" ${el.animation.easing === 'easeInOutCubic' ? 'selected' : ''}>easeInOutCubic</option>
+        <option value="easeInCubic" ${el.animation.easing === 'easeInCubic' ? 'selected' : ''}>easeInCubic</option>
+        <option value="easeOutCubic" ${el.animation.easing === 'easeOutCubic' ? 'selected' : ''}>easeOutCubic</option>
+        <option value="easeInQuad" ${el.animation.easing === 'easeInQuad' ? 'selected' : ''}>easeInQuad</option>
+        <option value="easeOutQuad" ${el.animation.easing === 'easeOutQuad' ? 'selected' : ''}>easeOutQuad</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>Duration (ms)</label>
+      <input id="prop-duration" type="number" value="${el.animation.duration}" />
+    </div>
+    <div class="prop-row">
+      <label>Delay (ms)</label>
+      <input id="prop-delay" type="number" value="${el.animation.delay}" />
+    </div>
+    <div class="prop-row">
+      <label>Start At (ms)</label>
+      <input id="prop-startAt" type="number" value="${el.animation.startAt}" />
+    </div>
+    <div class="prop-row">
+      <label>End At (ms)</label>
+      <input id="prop-endAt" type="number" value="${el.animation.endAt}" />
+    </div>
+    <div class="prop-row">
+      <label>Effect</label>
+      <select id="prop-effect">
+        <option value="fade" ${el.animation.effect === 'fade' ? 'selected' : ''}>Fade</option>
+        <option value="scale" ${el.animation.effect === 'scale' ? 'selected' : ''}>Scale</option>
+        <option value="spin" ${el.animation.effect === 'spin' ? 'selected' : ''}>Spin</option>
+        <option value="bounce" ${el.animation.effect === 'bounce' ? 'selected' : ''}>Bounce</option>
+      </select>
+    </div>
+  `;
+
+  document.getElementById('prop-type').addEventListener('change', (e) => {
+    el.type = e.target.value;
+    if (el.type === 'text') {
+      el.props.text = 'Hello';
+    } else if (el.type === 'icon') {
+      el.props.icon = 'circle';
+    } else if (el.type === 'line') {
+      el.props.x0 = el.props.x;
+      el.props.y0 = el.props.y;
+      el.props.x1 = el.props.x + el.props.w;
+      el.props.y1 = el.props.y + el.props.h;
+    }
+  });
+  document.getElementById('prop-x').addEventListener('change', (e) => { el.props.x = +e.target.value; });
+  document.getElementById('prop-y').addEventListener('change', (e) => { el.props.y = +e.target.value; });
+  document.getElementById('prop-w').addEventListener('change', (e) => { el.props.w = +e.target.value; });
+  document.getElementById('prop-h').addEventListener('change', (e) => { el.props.h = +e.target.value; });
+  document.getElementById('prop-color').addEventListener('change', (e) => { el.props.color = e.target.value; });
+  document.getElementById('prop-fill').addEventListener('change', (e) => { el.props.fill = e.target.value; });
+  document.getElementById('prop-stroke').addEventListener('change', (e) => { el.props.stroke = e.target.value; });
+  document.getElementById('prop-strokeW').addEventListener('change', (e) => { el.props.strokeWidth = +e.target.value; });
+  document.getElementById('prop-rot').addEventListener('change', (e) => { el.props.rotation = +e.target.value; });
+  document.getElementById('prop-scale').addEventListener('change', (e) => { el.props.scale = +e.target.value; });
+  document.getElementById('prop-opacity').addEventListener('change', (e) => { el.props.opacity = +e.target.value; });
+  document.getElementById('prop-layer').addEventListener('change', (e) => { el.layer = +e.target.value; });
+  document.getElementById('prop-order').addEventListener('change', (e) => { el.order = +e.target.value; });
+  document.getElementById('prop-path').addEventListener('change', (e) => {
+    el.animation.path = e.target.value;
+    if (el.animation.path === 'bezier') {
+      el.animation.pathParams = [0, 0, 0, 0, 0, 0, 0, 0];
+    } else if (el.animation.path === 'circle') {
+      el.animation.pathParams = null;
+    } else if (el.animation.path === 'line') {
+      el.animation.pathParams = null;
+    } else if (el.animation.path === 'oscillate') {
+      el.animation.pathParams = null;
+    }
+  });
+  document.getElementById('prop-easing').addEventListener('change', (e) => { el.animation.easing = e.target.value; });
+  document.getElementById('prop-duration').addEventListener('change', (e) => { el.animation.duration = +e.target.value; });
+  document.getElementById('prop-delay').addEventListener('change', (e) => { el.animation.delay = +e.target.value; });
+  document.getElementById('prop-startAt').addEventListener('change', (e) => { el.animation.startAt = +e.target.value; });
+  document.getElementById('prop-endAt').addEventListener('change', (e) => { el.animation.endAt = +e.target.value; });
+  document.getElementById('prop-effect').addEventListener('change', (e) => { el.animation.effect = e.target.value; });
+
+  // Bezier path params
+  const bezierRow = document.querySelector('#prop-path option[value="bezier"]');
+  if (bezierRow) {
+    const inputs = ['b0x', 'b0y', 'b1x', 'b1y', 'b2x', 'b2y', 'b3x', 'b3y'];
+    const els = ['prop-b0x', 'prop-b0y', 'prop-b1x', 'prop-b1y', 'prop-b2x', 'prop-b2y', 'prop-b3x', 'prop-b3y'];
+    for (let i = 0; i < 8; i++) {
+      const el = document.getElementById(els[i]);
+      if (el) {
+        el.value = el.id === 'prop-b0x' ? 0 : el.id === 'prop-b0y' ? 0 : el.id === 'prop-b1x' ? 0 : el.id === 'prop-b1y' ? 0 : el.id === 'prop-b2x' ? 0 : el.id === 'prop-b2y' ? 0 : el.id === 'prop-b3x' ? 0 : el.id === 'prop-b3y' ? 0 : 0;
+        el.addEventListener('change', (e) => {
+          el.animation.pathParams[i] = +e.target.value;
+        });
+      }
+    }
+  }
+}
+
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  container.innerHTML = '';
+  state.elements.forEach(el => {
+    const li = document.createElement('li');
+    li.className = 'timeline-item';
+    li.dataset.id = el.id;
+    li.draggable = true;
+    li.innerHTML = `
+      <div class="tl-handle"></div>
+      <div class="tl-item-info">
+        <div class="tl-label">${el.props.text || el.props.icon || el.props.type}</div>
+        <div class="tl-sub">${el.layer} · ${el.order}</div>
+      </div>
+      <div class="tl-item-handle"></div>
+    `;
+    li.addEventListener('dragstart', (e) => startDragTimeline(e, el.id));
+    li.addEventListener('dragend', () => endDragTimeline());
+    container.appendChild(li);
+  });
+}
+
+function renderLayers() {
+  const layers = document.getElementById('element-list');
+  layers.innerHTML = '';
+  state.layers.forEach(l => {
+    const li = document.createElement('li');
+    li.className = 'el-item';
+    li.innerHTML = `<div class="el-icon" style="background:#4a4a6a;"></div><div class="el-label">${l.name}</div>`;
+    li.addEventListener('click', () => {
+      state.currentLayer = l.id;
+      renderElementsList();
+      renderTimeline();
+    });
+    layers.appendChild(li);
+  });
+}
+
+function deleteElement(id) {
+  state.elements = state.elements.filter(e => e.id !== id);
+  renderElementsList();
+  renderTimeline();
+}
+
+// ---------- Drag & Drop ----------
+function startDragEl(e, id) {
+  state.draggingElId = id;
+  state.dragOffset = { x: e.clientX, y: e.clientY };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  state.draggingElId && state.draggingElId !== id && (state.draggingElId = id);
+}
+
+function startDragTimeline(e, id) {
+  state.draggingTimelineId = id;
+  state.dragOffset = { x: e.clientX, y: e.clientY };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+}
+
+function endDragEl() {
+  state.draggingElId = null;
+}
+
+function endDragTimeline() {
+  state.draggingTimelineId = null;
+}
+
+document.addEventListener('dragover', (e) => {
+  if (state.draggingTimelineId) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+});
+
+document.addEventListener('drop', (e) => {
+  if (state.draggingTimelineId) {
+    e.preventDefault();
+    const id = state.draggingTimelineId;
+    const el = state.elements.find(x => x.id === id);
+    if (el) {
+      const idx = state.elements.indexOf(el);
+      const targetIdx = state.elements.findIndex(x => x.id === e.dataTransfer.getData('text/plain'));
+      if (idx !== targetIdx) {
+        state.elements.splice(idx, 1);
+        state.elements.splice(targetIdx, 0, el);
+        renderElementsList();
+        renderTimeline();
+      }
+    }
+    state.draggingTimelineId = null;
+  }
+});
+
+document.addEventListener('dragover', (e) => {
+  if (state.draggingElId) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+});
+
+document.addEventListener('drop', (e) => {
+  if (state.draggingElId) {
+    e.preventDefault();
+    const id = state.draggingElId;
+    const el = state.elements.find(x => x.id === id);
+    if (el) {
+      const idx = state.elements.indexOf(el);
+      const targetIdx = state.elements.findIndex(x => x.id === e.dataTransfer.getData('text/plain'));
+      if (idx !== targetIdx) {
+        state.elements.splice(idx, 1);
+        state.elements.splice(targetIdx, 0, el);
+        renderElementsList();
+        renderTimeline();
+      }
+    }
+    state.draggingElId = null;
+  }
+});
+
+// ---------- Canvas Resize ----------
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ---------- Export ----------
+async function exportVideo() {
+  const overlay = document.getElementById('canvas-overlay');
+  const btn = document.getElementById('btn-export');
+  const original = btn.textContent;
+  btn.textContent = '▶ Exporting...';
+  btn.disabled = true;
+  overlay.classList.add('active');
+
+  const stream = canvas.captureStream(fps);
+  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+  const chunks = [];
+
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'animation.webm';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    btn.textContent = original;
+    btn.disabled = false;
+    overlay.classList.remove('active');
+  };
+
+  try {
+    await new Promise(r => setTimeout(r, 200));
+    recorder.start(1000 / fps);
+  } catch (err) {
+    console.error(err);
+    btn.textContent = original;
+    btn.disabled = false;
+    overlay.classList.remove('active');
+  }
+}
+
+// ---------- Main Loop ----------
+function loop(now) {
+  if (state.previewing) {
+    render();
+  }
+  state.lastTime = now;
+  requestAnimationFrame(loop);
+}
+
+// ---------- Events ----------
+document.getElementById('btn-add-shape').addEventListener('click', () => {
+  state.elements.push(createShape('rect', { color: '#ff6b6b', fill: '#ff6b6b' }));
+  renderElementsList();
+  renderTimeline();
+});
+
+document.getElementById('btn-add-text').addEventListener('click', () => {
+  state.elements.push(createText({ text: 'Hello', fontSize: 60, color: '#ffffff' }));
+  renderElementsList();
+  renderTimeline();
+});
+
+document.getElementById('btn-add-icon').addEventListener('click', () => {
+  state.elements.push(createIcon({ icon: 'circle', color: '#ff6b6b', size: 80 }));
+  renderElementsList();
+  renderTimeline();
+});
+
+document.getElementById('btn-add-line').addEventListener('click', () => {
+  state.elements.push(createLine({ color: '#ffffff', strokeWidth: 4 }));
+  renderElementsList();
+  renderTimeline();
+});
+
+document.getElementById('btn-export').addEventListener('click', exportVideo);
+
+canvas.addEventListener('click', (e) => {
+  if (state.previewing) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const w = 120;
+  const h = 120;
+  const el = createShape('rect', { x, y, w, h, color: '#ff6b6b', fill: '#ff6b6b' });
+  state.elements.push(el);
+  renderElementsList();
+  renderTimeline();
+});
+
+canvas.addEventListener('keydown', (e) => {
+  if (e.key === ' ') {
+    e.preventDefault();
+    state.previewing = !state.previewing;
+    if (state.previewing) {
+      state.lastFrame = performance.now();
+      state.totalDuration = state.elements.reduce((s, el) => {
+        const anim = el.animation;
+        const start = anim.startAt || 0;
+        const end = anim.endAt || anim.duration;
+        return Math.max(s, end);
+      }, 0);
+      render();
+      state.previewTimer = setInterval(() => {
+        const now = performance.now();
+        const elapsed = now - state.lastFrame;
+        if (elapsed >= state.totalDuration) {
+          clearInterval(state.previewTimer);
+          state.previewing = false;
+          state.lastFrame = performance.now();
+          render();
+        }
+      }, 1000 / fps);
+    }
+  } else if (e.key === 'Escape') {
+    state.previewing = false;
+    state.lastFrame = performance.now();
+    render();
+  }
+});
+
+// ---------- Init ----------
+function init() {
+  state.layers.push({ id: 0, name: 'Layer 1' });
+  state.layers.push({ id: 1, name: 'Layer 2' });
+  state.elements.push(createShape('rect', { color: '#ff6b6b', fill: '#ff6b6b', x: 200, y: 200, w: 120, h: 120 }));
+  state.elements.push(createShape('circle', { color: '#4ade80', fill: '#4ade80', x: 500, y: 300, w: 120, h: 120 }));
+  state.elements.push(createText({ text: 'Hello', fontSize: 60, color: '#ffffff', textAlign: 'center', x: 700, y: 250 }));
+  state.elements.push(createIcon({ icon: 'heart', color: '#fbbf24', size: 80, x: 900, y: 250 }));
+  state.elements.push(createLine({ x0: 100, y0: 100, x1: 500, y1: 500, color: '#ffffff', strokeWidth: 4 }));
+
+  renderElementsList();
+  renderPropPanel(state.elements[0]);
+  renderTimeline();
+  renderLayers();
+  resizeCanvas();
+  requestAnimationFrame(loop);
+}
+
+init();
+</script></script>
+</body>
+</html>

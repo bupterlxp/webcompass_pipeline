@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Shooter - Mock Frontend</title>
+    <style>
+        /* Basic reset and styling */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            overflow: hidden; /* Prevent scrolling */
+        }
+
+        /* Lobby UI */
+        #lobby {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #2c3e50, #000000);
+        }
+        .lobby-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .lobby-box h1 { margin-bottom: 20px; color: #e74c3c; }
+        .lobby-box input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            background: #333;
+            color: #fff;
+        }
+        .lobby-box button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .lobby-box button:hover { background: #c0392b; }
+
+        /* Game UI */
+        #game-container {
+            display: none; /* Hidden until joined */
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50; /* Map background */
+        }
+
+        /* Scoreboard */
+        #scoreboard {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 200px;
+            pointer-events: none;
+        }
+        #scoreboard h3 { margin-bottom: 10px; text-align: center; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .score-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
+
+        /* Chat Box */
+        #chat-box {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-messages {
+            height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .chat-msg { word-wrap: break-word; }
+        .chat-msg .sender { font-weight: bold; color: #3498db; }
+        #chat-input {
+            border: none;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            outline: none;
+        }
+
+        /* Weapon Selector */
+        #weapon-selector {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .weapon-slot {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #555;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .weapon-slot.active {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.3);
+        }
+
+        /* Room Info */
+        #room-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Lobby Screen -->
+    <div id="lobby">
+        <div class="lobby-box">
+            <h1>Arena Shooter</h1>
+            <input type="text" id="player-name" placeholder="Enter your name" value="Player1">
+            <input type="text" id="room-id" placeholder="Room ID (e.g., Room-123)" value="Room-123">
+            <button onclick="joinGame()">Join / Create Room</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-container">
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Room Info -->
+        <div id="room-info">
+            Room: <span id="ui-room-id">---</span><br>
+            Ping: <span id="ui-ping">24ms</span>
+        </div>
+
+        <!-- Scoreboard -->
+        <div id="scoreboard">
+            <h3>Scoreboard</h3>
+            <div id="score-list">
+                <!-- Scores will be injected here -->
+            </div>
+        </div>
+
+        <!-- Chat Box -->
+        <div id="chat-box">
+            <div id="chat-messages"></div>
+            <input type="text" id="chat-input" placeholder="Press Enter to chat...">
+        </div>
+
+        <!-- Weapon Selector -->
+        <div id="weapon-selector">
+            <div class="weapon-slot active" id="wpn-1" onclick="selectWeapon(1)">1. Pistol</div>
+            <div class="weapon-slot" id="wpn-2" onclick="selectWeapon(2)">2. Rifle</div>
+            <div class="weapon-slot" id="wpn-3" onclick="selectWeapon(3)">3. Shotgun</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Game State & Variables ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let isPlaying = false;
+        let myId = 'player_' + Math.floor(Math.random() * 1000);
+        let myName = '';
+        let roomId = '';
+
+        // Input tracking
+        const keys = { w: false, a: false, s: false, d: false };
+        const mouse = { x: 0, y: 0, isDown: false };
+
+        // Game Objects
+        let players = {}; // Stores all players including self
+        let bullets = []; // Stores all active bullets
+        
+        // Weapon configurations
+        const weapons = {
+            1: { name: 'Pistol', fireRate: 400, speed: 10, damage: 20, color: '#f1c40f', spread: 0.05 },
+            2: { name: 'Rifle', fireRate: 100, speed: 15, damage: 10, color: '#3498db', spread: 0.1 },
+            3: { name: 'Shotgun', fireRate: 800, speed: 12, damage: 15, color: '#e67e22', spread: 0.3, pellets: 5 }
+        };
+        let currentWeapon = 1;
+        let lastFired = 0;
+
+        // --- Initialization & Lobby ---
+        function joinGame() {
+            myName = document.getElementById('player-name').value || 'Unknown';
+            roomId = document.getElementById('room-id').value || 'Lobby';
+            
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('ui-room-id').innerText = roomId;
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Initialize local player
+            players[myId] = {
+                id: myId,
+                name: myName,
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                color: '#2ecc71', // Green for local player
+                health: 100,
+                kills: 0,
+                deaths: 0,
+                isLocal: true
+            };
+
+            // Initialize mock network (simulating other players)
+            initMockNetwork();
+
+            isPlaying = true;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // --- Input Handling ---
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement === document.getElementById('chat-input')) return;
+            if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
+            // Weapon switching via numbers
+            if (['1', '2', '3'].includes(e.key)) selectWeapon(parseInt(e.key));
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) mouse.isDown = true;
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) mouse.isDown = false;
+        });
+
+        // Chat input handling
+        document.getElementById('chat-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && this.value.trim() !== '') {
+                addChatMessage(myName, this.value.trim());
+                this.value = '';
+                this.blur(); // Remove focus to allow movement
+            }
+        });
+
+        function selectWeapon(id) {
+            currentWeapon = id;
+            document.querySelectorAll('.weapon-slot').forEach(el => el.classList.remove('active'));
+            document.getElementById('wpn-' + id).classList.add('active');
+        }
+
+        // --- Game Logic ---
+        function update() {
+            const me = players[myId];
+            if (!me || me.health <= 0) return; // Dead
+
+            // Movement
+            const speed = 5;
+            if (keys.w) me.y -= speed;
+            if (keys.s) me.y += speed;
+            if (keys.a) me.x -= speed;
+            if (keys.d) me.x += speed;
+
+            // Keep within bounds
+            me.x = Math.max(20, Math.min(canvas.width - 20, me.x));
+            me.y = Math.max(20, Math.min(canvas.height - 20, me.y));
+
+            // Shooting
+            if (mouse.isDown) {
+                const now = Date.now();
+                const weapon = weapons[currentWeapon];
+                if (now - lastFired > weapon.fireRate) {
+                    shoot(me, mouse.x, mouse.y, weapon);
+                    lastFired = now;
+                }
+            }
+
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+                b.life--;
+
+                // Collision detection with players
+                let hit = false;
+                for (let pid in players) {
+                    let p = players[pid];
+                    if (p.id !== b.ownerId && p.health > 0) {
+                        const dist = Math.hypot(p.x - b.x, p.y - b.y);
+                        if (dist < 20) { // Player radius is roughly 20
+                            hit = true;
+                            if (p.isLocal) {
+                                p.health -= b.damage;
+                                if (p.health <= 0) {
+                                    p.deaths++;
+                                    addChatMessage('System', `${p.name} was killed.`);
+                                    respawn(p);
+                                }
+                            } else {
+                                // Mock damage to others
+                                p.health -= b.damage;
+                                if (p.health <= 0) {
+                                    p.deaths++;
+                                    if (b.ownerId === myId) players[myId].kills++;
+                                    addChatMessage('System', `${p.name} was killed.`);
+                                    respawn(p);
+                                }
+                            }
+                            updateScoreboard();
+                            break;
+                        }
+                    }
+                }
+
+                if (hit || b.life <= 0 || b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
+        function shoot(player, targetX, targetY, weapon) {
+            const angle = Math.atan2(targetY - player.y, targetX - player.x);
+            const pellets = weapon.pellets || 1;
+
+            for (let i = 0; i < pellets; i++) {
+                // Add random spread
+                const spreadAngle = angle + (Math.random() - 0.5) * weapon.spread;
+                bullets.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: Math.cos(spreadAngle) * weapon.speed,
+                    vy: Math.sin(spreadAngle) * weapon.speed,
+                    ownerId: player.id,
+                    damage: weapon.damage,
+                    color: weapon.color,
+                    life: 100
+                });
+            }
+        }
+
+        function respawn(player) {
+            player.health = 100;
+            player.x = Math.random() * (canvas.width - 100) + 50;
+            player.y = Math.random() * (canvas.height - 100) + 50;
+        }
+
+        // --- Rendering ---
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid (background)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 50) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // Draw bullets
+            bullets.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw players
+            for (let pid in players) {
+                let p = players[pid];
+                if (p.health <= 0) continue;
+
+                // Draw body
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw aim direction (if local player)
+                if (p.isLocal) {
+                    const angle = Math.atan2(mouse.y - p.y, mouse.x - p.x);
+                    ctx.strokeStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x + Math.cos(angle) * 30, p.y + Math.sin(angle) * 30);
+                    ctx.stroke();
+                }
+
+                // Draw Name
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(p.name, p.x, p.y - 35);
+
+                // Draw Health Bar
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(p.x - 20, p.y - 28, 40, 5);
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(p.x - 20, p.y - 28, 40 * (p.health / 100), 5);
+            }
+        }
+
+        function gameLoop() {
+            if (isPlaying) {
+                update();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // --- UI Updates ---
+        function updateScoreboard() {
+            const list = document.getElementById('score-list');
+            list.innerHTML = '';
+            
+            // Sort players by kills
+            const sortedPlayers = Object.values(players).sort((a, b) => b.kills - a.kills);
+            
+            sortedPlayers.forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'score-row';
+                row.innerHTML = `<span>${p.name}</span> <span>${p.kills} K / ${p.deaths} D</span>`;
+                if (p.isLocal) row.style.color = '#2ecc71';
+                list.appendChild(row);
+            });
+        }
+
+        function addChatMessage(sender, msg) {
+            const chat = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'chat-msg';
+            div.innerHTML = `<span class="sender">${sender}:</span> ${msg}`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // --- Mock Network (Simulating Multiplayer) ---
+        function initMockNetwork() {
+            // Create fake players
+            const botNames = ['Alpha', 'Bravo', 'Charlie'];
+            botNames.forEach((name, index) => {
+                const id = 'bot_' + index;
+                players[id] = {
+                    id: id,
+                    name: name,
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    color: '#e74c3c', // Red for enemies
+                    health: 100,
+                    kills: 0,
+                    deaths: 0,
+                    isLocal: false,
+                    targetX: Math.random() * canvas.width,
+                    targetY: Math.random() * canvas.height
+                };
+            });
+
+            updateScoreboard();
+            addChatMessage('System', 'Connected to room ' + roomId);
+
+            // Simulate network updates
+            setInterval(() => {
+                for (let pid in players) {
+                    let p = players[pid];
+                    if (p.isLocal || p.health <= 0) continue;
+
+                    // Move bots randomly
+                    const dx = p.targetX - p.x;
+                    const dy = p.targetY - p.y;
+                    const dist = Math.hypot(dx, dy);
+                    
+                    if (dist < 10) {
+                        p.targetX = Math.random() * canvas.width;
+                        p.targetY = Math.random() * canvas.height;
+                    } else {
+                        p.x += (dx / dist) * 2;
+                        p.y += (dy / dist) * 2;
+                    }
+
+                    // Randomly shoot at local player
+                    if (Math.random() < 0.02) {
+                        const me = players[myId];
+                        if (me && me.health > 0) {
+                            shoot(p, me.x, me.y, weapons[1]); // Bots use pistol
+                        }
+                    }
+                }
+            }, 1000 / 60); // 60 tick rate
+
+            // Simulate incoming chat
+            setInterval(() => {
+                if (Math.random() < 0.3) {
+                    const randomBot = botNames[Math.floor(Math.random() * botNames.length)];
+                    const msgs = ["Watch out!", "Nice shot!", "Lag...", "Push mid!"];
+                    addChatMessage(randomBot, msgs[Math.floor(Math.random() * msgs.length)]);
+                }
+            }, 15000);
+        }
+    </script>
+</body>
+</html>

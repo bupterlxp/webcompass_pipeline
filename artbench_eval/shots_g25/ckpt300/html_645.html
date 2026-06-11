@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhythm Trainer</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #1a2332 0%, #0f172a 100%);
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+.top { text-align: center; margin-bottom: 24px; }
+.top h1 {
+  margin: 0 0 4px;
+  font-size: 2rem;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.tagline { margin: 0; color: #94a3b8; font-size: 1rem; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 32px;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+.control-group label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.control-group input[type="range"],
+.control-group select {
+  width: 100%;
+  padding: 8px 0;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.control-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px; height: 18px;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.control-group input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+#bpmVal { font-weight: 700; color: #f8fafc; }
+
+.btn-primary, .btn-ghost {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  color: #0b1220;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(96,165,250,0.35); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+  border-color: #334155;
+}
+.btn-ghost:hover { background: #1e293b; color: #f8fafc; }
+
+.playback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.metronome {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  min-height: 80px;
+}
+.dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #94a3b8;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.dot.active {
+  background: #22d3ee;
+  box-shadow: 0 0 12px rgba(34,211,238,0.7);
+  transform: scale(1.3);
+}
+.dot.hit {
+  background: #10b981;
+  box-shadow: 0 0 14px rgba(16,185,129,0.8);
+}
+.dot.miss {
+  background: #ef4444;
+  box-shadow: 0 0 14px rgba(239,68,68,0.8);
+}
+
+.status {
+  padding: 8px 16px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f8fafc;
+  transition: all 0.3s ease;
+}
+.status.playing { background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; }
+.status.ready { background: #1e293b; }
+.status.done { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 20px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 14px;
+}
+.stat { text-align: center; }
+.stat .label {
+  display: block;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.stat .value {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+}
+.stat.best .value { color: #10b981; }
+.stat.worst .value { color: #ef4444; }
+
+.foot {
+  text-align: center;
+  color: #64748b;
+  margin-top: 24px;
+}
+
+@media (max-width: 480px) {
+  .app { padding: 20px 16px 32px; }
+  .top h1 { font-size: 1.5rem; }
+  .controls { flex-direction: column; align-items: stretch; }
+  .control-group { min-width: 0; }
+  .scoreboard { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Rhythm Trainer</h1>
+    <p class="tagline">Tap in time with the beat</p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="bpm">BPM</label>
+      <input id="bpm" type="range" min="60" max="200" value="120" step="1">
+      <span id="bpmVal">120</span>
+    </div>
+    <div class="control-group">
+      <label for="pattern">Pattern</label>
+      <select id="pattern">
+        <option value="4">4/4</option>
+        <option value="3">3/4</option>
+        <option value="6">6/4</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="rounds">Rounds</label>
+      <input id="rounds" type="number" min="1" max="10" value="5" step="1">
+    </div>
+    <button id="startBtn" class="btn-primary">Start</button>
+    <button id="resetBtn" class="btn-ghost">Reset</button>
+  </div>
+
+  <section class="playback">
+    <div class="metronome" id="metronome" aria-label="Metronome dots"></div>
+    <div class="status" id="status">Ready</div>
+  </section>
+
+  <section class="scoreboard">
+    <div class="stat">
+      <span class="label">Accuracy</span>
+      <span class="value" id="accuracy">—</span>
+    </div>
+    <div class="stat">
+      <span class="label">Score</span>
+      <span class="value" id="score">0</span>
+    </div>
+    <div class="stat">
+      <span class="label">Taps</span>
+      <span class="value" id="taps">0</span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <small>Tip: click the beat button when you hear the tone</small>
+  </footer>
+</div>
+
+<script>// Rhythm Trainer — app.js
+(() => {
+  'use strict';
+
+  const state = {
+    bpm: 120,
+    pattern: 4,          // 4/4, 3/4, or 6/4
+    rounds: 5,
+    roundsLeft: 0,
+    taps: 0,
+    score: 0,
+    accuracy: 0,
+    targetTimes: [],     // ms from round start for each beat
+    roundStartTime: 0,
+    roundTaps: [],
+    isPlaying: false,
+    beatIndex: 0,
+    lastBeatTime: 0,
+    audioCtx: null,
+  };
+
+  const els = {
+    bpm: document.getElementById('bpm'),
+    bpmVal: document.getElementById('bpmVal'),
+    pattern: document.getElementById('pattern'),
+    rounds: document.getElementById('rounds'),
+    startBtn: document.getElementById('startBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    metronome: document.getElementById('metronome'),
+    status: document.getElementById('status'),
+    accuracy: document.getElementById('accuracy'),
+    score: document.getElementById('score'),
+    taps: document.getElementById('taps'),
+    statAccuracy: document.querySelector('.stat:nth-of-type(1)'),
+    statScore: document.querySelector('.stat:nth-of-type(2)'),
+    statTaps: document.querySelector('.stat:nth-of-type(3)'),
+  };
+
+  // Build metronome dots based on pattern
+  function buildMetronome() {
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((d, i) => {
+      d.remove();
+    });
+    const count = state.pattern === 6 ? 6 : state.pattern;
+    for (let i = 0; i < count; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot';
+      els.metronome.appendChild(d);
+    }
+  }
+
+  function setBpmDisplay() {
+    els.bpmVal.textContent = state.bpm;
+  }
+
+  function setPatternDisplay() {
+    els.pattern.value = state.pattern;
+  }
+
+  function setStatus(text, cls = '') {
+    els.status.textContent = text;
+    els.status.className = 'status ' + cls;
+  }
+
+  function updateStats() {
+    els.accuracy.textContent = state.accuracy.toFixed(1) + '%';
+    els.score.textContent = state.score;
+    els.taps.textContent = state.taps;
+    els.statAccuracy.classList.toggle('best', state.accuracy >= 95);
+    els.statAccuracy.classList.toggle('worst', state.accuracy <= 60);
+  }
+
+  function resetStats() {
+    state.taps = 0;
+    state.score = 0;
+    state.accuracy = 0;
+    state.roundTaps = [];
+    state.targetTimes = [];
+    updateStats();
+    setStatus('Ready', 'ready');
+  }
+
+  function roundStart() {
+    state.roundStartTime = performance.now();
+    state.beatIndex = 0;
+    state.lastBeatTime = state.roundStartTime;
+    state.targetTimes = generateTargetTimes();
+    state.roundTaps = [];
+    els.status.textContent = 'Round ' + (state.roundsLeft) + ' of ' + state.rounds;
+    setStatus('Round ' + (state.roundsLeft) + ' of ' + state.rounds, 'ready');
+    els.metronome.querySelectorAll('.dot').forEach(d => d.classList.remove('active', 'hit', 'miss'));
+  }
+
+  function generateTargetTimes() {
+    const beats = state.pattern === 6 ? 6 : state.pattern;
+    const beatInterval = 60000 / state.bpm / beats; // ms per beat
+    const times = [];
+    for (let i = 0; i < beats; i++) {
+      times.push(state.roundStartTime + i * beatInterval);
+    }
+    return times;
+  }
+
+  function playBeat() {
+    if (!state.audioCtx) initAudio();
+    const osc = state.audioCtx.createOscillator();
+    const gain = state.audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 440 + Math.sin(state.beatIndex * 0.3) * 80;
+    gain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, state.audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.25);
+    osc.connect(gain).connect(state.audioCtx.destination);
+    osc.start();
+    osc.stop(state.audioCtx.currentTime + 0.26);
+  }
+
+  function initAudio() {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Prevent iOS autoplay blocking
+    try { state.audioCtx.resume(); } catch (e) {}
+  }
+
+  function tapHandler(e) {
+    if (!state.isPlaying) return;
+    const now = performance.now();
+    const target = state.targetTimes[state.beatIndex];
+    const diff = now - target;
+    state.roundTaps.push({ time: now, diff });
+    state.taps++;
+
+    const dot = els.metronome.children[state.beatIndex];
+    dot.classList.add('hit');
+    setTimeout(() => dot.classList.remove('hit'), 200);
+
+    const absDiff = Math.abs(diff);
+    if (absDiff < 50) {
+      state.score += 10;
+    } else if (absDiff < 150) {
+      state.score += 5;
+    } else {
+      state.score -= 2;
+    }
+
+    state.accuracy = Math.round((state.score / (state.taps * 10)) * 100);
+
+    if (state.beatIndex < state.targetTimes.length - 1) {
+      state.beatIndex++;
+      state.lastBeatTime = target;
+    } else {
+      roundEnd();
+    }
+  }
+
+  function roundEnd() {
+    state.isPlaying = false;
+    state.roundsLeft--;
+    const total = state.roundTaps.length;
+    const misses = state.roundTaps.filter(t => Math.abs(t.diff) > 150).length;
+    const avg = total ? state.roundTaps.reduce((s, t) => s + Math.abs(t.diff), 0) / total : 0;
+
+    els.status.textContent = 'Round done — ' + total + ' taps';
+    setStatus('Round done — ' + total + ' taps', 'done');
+
+    // Final score bonus
+    if (misses === 0) state.score += 50;
+    if (avg < 20) state.score += 20;
+
+    updateStats();
+    if (state.roundsLeft > 0) {
+      setTimeout(() => roundStart(), 1200);
+    } else {
+      setTimeout(() => {
+        setStatus('Final score: ' + state.score, 'done');
+      }, 1200);
+    }
+  }
+
+  function startRoundLoop() {
+    state.isPlaying = true;
+    const beatInterval = 60000 / state.bpm / state.pattern;
+    const interval = beatInterval;
+    state.beatIndex = 0;
+    state.lastBeatTime = state.roundStartTime;
+
+    const tick = () => {
+      if (!state.isPlaying) return;
+      const now = performance.now();
+      const target = state.targetTimes[state.beatIndex];
+      const diff = now - target;
+      const dot = els.metronome.children[state.beatIndex];
+      dot.classList.add('active');
+      setTimeout(() => dot.classList.remove('active'), 100);
+
+      if (now >= target) {
+        playBeat();
+        state.beatIndex++;
+        state.lastBeatTime = target;
+      }
+      setTimeout(tick, interval);
+    };
+    tick();
+  }
+
+  function start() {
+    state.roundsLeft = state.rounds;
+    resetStats();
+    roundStart();
+    startRoundLoop();
+    setStatus('Playing', 'playing');
+  }
+
+  function reset() {
+    state.isPlaying = false;
+    state.roundsLeft = 0;
+    state.taps = 0;
+    state.score = 0;
+    state.accuracy = 0;
+    state.roundTaps = [];
+    state.targetTimes = [];
+    els.metronome.querySelectorAll('.dot').forEach(d => d.classList.remove('active', 'hit', 'miss'));
+    if (state.audioCtx) state.audioCtx.close();
+    state.audioCtx = null;
+    setStatus('Ready', 'ready');
+    updateStats();
+  }
+
+  // Event wiring
+  els.bpm.addEventListener('input', (e) => {
+    state.bpm = parseInt(e.target.value, 10);
+    setBpmDisplay();
+  });
+  els.pattern.addEventListener('change', (e) => {
+    state.pattern = parseInt(e.target.value, 10);
+    setPatternDisplay();
+    buildMetronome();
+  });
+  els.rounds.addEventListener('input', (e) => {
+    state.rounds = parseInt(e.target.value, 10);
+  });
+  els.startBtn.addEventListener('click', start);
+  els.resetBtn.addEventListener('click', reset);
+
+  // Prevent double-tap on mobile
+  let tapTimer = null;
+  document.addEventListener('click', (e) => {
+    if (tapTimer) return;
+    tapTimer = setTimeout(() => tapTimer = null, 200);
+    tapHandler(e);
+  });
+
+  // Init
+  setBpmDisplay();
+  setPatternDisplay();
+  buildMetronome();
+  updateStats();
+})();
+</script></script>
+</body>
+</html>

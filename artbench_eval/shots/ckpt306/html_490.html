@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎬 Dynamic Background Video Generator</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0b0d12;
+  color: #e8ecf4;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+  gap: 16px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* Top bar */
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: rgba(11, 13, 18, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #ff5e62, #ffaf7b, #ffec5c, #78e08f, #51cf66);
+  border-radius: 12px;
+  font-size: 22px;
+  box-shadow: 0 6px 20px rgba(255,180,100,0.4);
+}
+.brand h1 { font-size: 16px; letter-spacing: 0.5px; }
+
+.top-actions { display: flex; gap: 8px; }
+
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.btn-primary { background: #ff5e62; color: white; }
+.btn-primary:hover:not(:disabled) { background: #ff7a82; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary { background: #78e08f; color: #0b0d12; }
+.btn-secondary:hover:not(:disabled) { background: #6fe07a; }
+.btn-ghost { background: transparent; color: #e8ecf4; border-color: rgba(255,255,255,0.15); }
+.btn-ghost:hover { background: rgba(255,255,255,0.08); }
+.btn.full { width: 100%; }
+
+/* Workspace */
+.workspace {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel-right { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+
+.card {
+  background: rgba(11, 13, 18, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.card h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #8892a6;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card h2::before {
+  content: '';
+  width: 4px; height: 14px;
+  background: linear-gradient(180deg, #ff5e62, #ffaf7b);
+  border-radius: 2px;
+}
+
+/* Background grid */
+.bg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.bg-item {
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  background: #000;
+}
+.bg-item:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-2px); }
+.bg-item.active { border-color: #ff5e62; box-shadow: 0 0 0 2px rgba(255,94,98,0.25); }
+
+.bg-info {
+  font-size: 12px;
+  color: #8892a6;
+  min-height: 18px;
+}
+
+/* Elements list */
+.elements-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.el-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.el-item:hover { background: rgba(255,255,255,0.08); }
+.el-item.removing { opacity: 0; transform: translateX(20px); }
+.el-item .el-icon {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.el-item.text .el-icon { background: rgba(255,94,98,0.15); color: #ff5e62; }
+.el-item.image .el-icon { background: rgba(126,224,143,0.15); color: #78e08f; }
+.el-item.info {
+  flex: 1;
+  min-width: 0;
+}
+.el-item.info span { font-size: 12px; color: #c7d0dc; }
+.el-item.info strong { font-size: 13px; color: #e8ecf4; }
+.el-item .el-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s ease; }
+.el-item:hover .el-actions { opacity: 1; }
+.el-item .el-actions button {
+  width: 22px; height: 22px;
+  border: none; background: transparent; color: #8892a6;
+  border-radius: 4px; cursor: pointer;
+  display: grid; place-items: center;
+  font-size: 14px;
+}
+.el-item .el-actions button:hover { color: #ff5e62; }
+
+/* Settings */
+.setting { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.setting label { font-size: 12px; color: #8892a6; font-weight: 500; }
+.setting select, .setting input[type="text"], .setting input[type="number"], .setting input[type="range"] {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e8ecf4;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+.setting select:focus, .setting input:focus {
+  outline: none;
+  border-color: #ff5e62;
+  background: rgba(255,94,98,0.08);
+}
+
+/* Preview */
+.preview-card { display: flex; flex-direction: column; }
+.preview-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #8892a6; cursor: pointer; }
+.toggle input { accent-color: #ff5e62; }
+
+.preview-wrap {
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  aspect-ratio: 16 / 9;
+}
+#previewCanvas { display: block; width: 100%; height: 100%; }
+.preview-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #8892a6;
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.preview-overlay.show { opacity: 1; }
+.preview-overlay.playing { color: #78e08f; }
+
+.preview-meta {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.preview-meta div { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #8892a6; }
+.preview-meta strong { color: #e8ecf4; font-size: 13px; }
+
+/* Modal */
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  display: grid; place-items: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+.modal[hidden] { display: none; }
+.modal-card {
+  background: #0b0d12;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 24px;
+  width: min(520px, 92vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  animation: popIn 0.25s ease;
+}
+.modal-card h2 { font-size: 20px; margin-bottom: 16px; }
+.modal-card label { display: block; font-size: 12px; color: #8892a6; margin-top: 16px; font-weight: 500; }
+.modal-card input[type="text"], .modal-card select, .modal-card input[type="number"], .modal-card input[type="range"] {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e8ecf4;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.modal-card input[type="range"] { padding: 4px 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1a1d26;
+  border: 1px solid rgba(255,94,98,0.4);
+  color: #ff5e62;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .panel-right { grid-template-columns: 1fr; }
+  .topbar { flex-wrap: wrap; }
+  .top-actions { width: 100%; }
+  .top-actions .btn { flex: 1; }
+}
+@media (max-width: 520px) {
+  .app { padding: 10px; gap: 10px; }
+  .card { padding: 12px; }
+  .brand h1 { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🎬</div>
+      <h1>FrameFlow — Dynamic Background Video</h1>
+    </div>
+    <div class="top-actions">
+      <button id="playBtn" class="btn btn-primary" disabled>▶ Preview</button>
+      <button id="exportBtn" class="btn btn-secondary" disabled>⬇ Export WebM</button>
+      <button id="clearBtn" class="btn btn-ghost">🗑 Clear</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="panel panel-left">
+      <section class="card">
+        <h2>🎬 Background</h2>
+        <div class="bg-grid" id="bgGrid"></div>
+        <div class="bg-info" id="bgInfo"></div>
+      </section>
+
+      <section class="card">
+        <h2>🎨 Elements</h2>
+        <div class="elements-list" id="elementsList"></div>
+        <button class="btn btn-ghost full" id="addTextBtn">+ Add Text</button>
+        <button class="btn btn-ghost full" id="addImageBtn">+ Add Image</button>
+      </section>
+    </aside>
+
+    <main class="panel panel-right">
+      <section class="card preview-card">
+        <div class="preview-toolbar">
+          <label class="toggle">
+            <input type="checkbox" id="gridToggle" checked>
+            <span>Grid</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fpsToggle">
+            <span>60 FPS</span>
+          </label>
+          <span class="fps-label" id="fpsLabel">60 FPS</span>
+        </div>
+        <div class="preview-wrap">
+          <canvas id="previewCanvas"></canvas>
+          <div class="preview-overlay" id="previewOverlay"></div>
+        </div>
+        <div class="preview-meta">
+          <div><span>Resolution:</span> <strong id="metaRes">1280 × 720</strong></div>
+          <div><span>Duration:</span> <strong id="metaDur">10s</strong></div>
+          <div><span>Elements:</span> <strong id="metaCount">0</strong></div>
+        </div>
+      </section>
+
+      <section class="card settings-card">
+        <h2>⚙ Settings</h2>
+        <div class="setting">
+          <label>Resolution</label>
+          <select id="resolution">
+            <option value="1280">1280 × 720 (HD)</option>
+            <option value="1920">1920 × 1080 (FHD)</option>
+            <option value="2560">2560 × 1440 (2K)</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Duration (s)</label>
+          <input type="number" id="duration" min="2" max="60" value="10">
+        </div>
+        <div class="setting">
+          <label>Frame Rate</label>
+          <select id="fps">
+            <option value="24">24 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Export Format</label>
+          <select id="format">
+            <option value="webm">WebM (recommended)</option>
+            <option value="mp4">MP4</option>
+          </select>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card">
+      <h2 id="modalTitle">Add Text</h2>
+      <label>Text</label>
+      <input id="modalText" type="text" placeholder="Hello World">
+      <label>Font</label>
+      <select id="modalFont">
+        <option value="Arial">Arial</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Impact">Impact</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Comic Sans MS">Comic Sans MS</option>
+      </select>
+      <label>Size (px)</label>
+      <input id="modalSize" type="number" min="16" max="200" value="60">
+      <label>Color</label>
+      <input id="modalColor" type="color" value="#ffffff">
+      <label>Opacity</label>
+      <input id="modalOpacity" type="range" min="0" max="1" step="0.05" value="1">
+      <label>Rotation (deg)</label>
+      <input id="modalRotation" type="number" min="-180" max="180" value="0">
+      <label>Start (s)</label>
+      <input id="modalStart" type="number" min="0" step="0.1" value="0">
+      <label>Duration (s)</label>
+      <input id="modalDur" type="number" min="0.5" max="60" step="0.1" value="3">
+      <label>Delay (s)</label>
+      <input id="modalDelay" type="number" min="0" step="0.1" value="0">
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalConfirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>/* =========================================================
+   FrameFlow — Dynamic Background Video Generator
+   ========================================================= */
+
+const state = {
+  background: 'particles',
+  elements: [],
+  resolution: 1280,
+  duration: 10,
+  fps: 30,
+  format: 'webm',
+  previewRunning: false,
+  previewTime: 0,
+  lastFrame: 0,
+  canvas: null,
+  ctx: null,
+  previewCanvas: null,
+  previewCtx: null,
+  previewEl: null,
+  gridToggle: true,
+  fpsToggle: false,
+  audioCtx: null,
+  audioGain: null,
+  audioNode: null,
+};
+
+/* ---------- Background presets ---------- */
+const BACKGROUND_PRESETS = {
+  particles: { name: 'Particles', desc: 'Floating particles', color: '#ff5e62' },
+  smoke:    { name: 'Smoke',    desc: 'Soft drifting smoke', color: '#78e08f' },
+  stars:    { name: 'Stars',    desc: 'Twinkling stars',     color: '#ffec5c' },
+  fireflies:{ name: 'Fireflies',desc: 'Glowing fireflies',   color: '#ffaf7b' },
+  nebula:   { name: 'Nebula',   desc: 'Cosmic nebula',       color: '#51cf66' },
+  aurora:   { name: 'Aurora',   desc: 'Northern lights',     color: '#ff5e62' },
+};
+
+/* ---------- Elements ---------- */
+const ELEMENT_TYPES = { text: 'Text', image: 'Image' };
+
+/* ---------- DOM ---------- */
+const $ = (id) => document.getElementById(id);
+const bgGrid = $('bgGrid');
+const bgInfo = $('bgInfo');
+const elementsList = $('elementsList');
+const previewCanvas = $('previewCanvas');
+const previewCtx = previewCanvas.getContext('2d');
+const previewOverlay = $('previewOverlay');
+const fpsLabel = $('fpsLabel');
+const metaRes = $('metaRes');
+const metaDur = $('metaDur');
+const metaCount = $('metaCount');
+const playBtn = $('playBtn');
+const exportBtn = $('exportBtn');
+const clearBtn = $('clearBtn');
+const modal = $('modal');
+const modalTitle = $('modalTitle');
+const modalText = $('modalText');
+const modalFont = $('modalFont');
+const modalSize = $('modalSize');
+const modalColor = $('modalColor');
+const modalOpacity = $('modalOpacity');
+const modalRotation = $('modalRotation');
+const modalStart = $('modalStart');
+const modalDur = $('modalDur');
+const modalDelay = $('modalDelay');
+const modalCancel = $('modalCancel');
+const modalConfirm = $('modalConfirm');
+
+/* ---------- Background grid ---------- */
+function renderBgGrid() {
+  bgGrid.innerHTML = '';
+  Object.entries(BACKGROUND_PRESETS).forEach(([key, preset]) => {
+    const btn = document.createElement('button');
+    btn.className = 'bg-item' + (state.background === key ? ' active' : '');
+    btn.textContent = preset.name;
+    btn.style.background = `linear-gradient(135deg, ${preset.color}, ${shade(preset.color, -30)})`;
+    btn.setAttribute('aria-label', preset.name);
+    btn.addEventListener('click', () => {
+      state.background = key;
+      renderBgGrid();
+      updateBgInfo();
+    });
+    bgGrid.appendChild(btn);
+  });
+  updateBgInfo();
+}
+
+function shade(hex, percent) {
+  const num = parseInt(hex.replace('#',''), 16);
+  let r = (num >> 16) + percent;
+  let g = ((num >> 8) & 0xff) + percent;
+  let b = (num & 0xff) + percent;
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6,'0');
+}
+
+function updateBgInfo() {
+  const p = BACKGROUND_PRESETS[state.background];
+  bgInfo.innerHTML = `<span>${p.name}</span><span>${p.desc}</span>`;
+}
+
+/* ---------- Elements list ---------- */
+function renderElements() {
+  elementsList.innerHTML = '';
+  state.elements.forEach((el, idx) => {
+    const item = document.createElement('div');
+    item.className = `el-item ${el.type}`;
+    item.dataset.idx = idx;
+    item.innerHTML = `
+      <div class="el-icon">◉</div>
+      <div class="el-info">
+        <span>${el.type === 'text' ? 'Text' : 'Image'} · ${el.name}</span>
+        <strong>${formatTime(el.start)} · ${formatTime(el.duration)}s</strong>
+      </div>
+      <div class="el-actions">
+        <button title="Edit" data-act="edit">✎</button>
+        <button title="Remove" data-act="remove">✕</button>
+      </div>
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('[data-act]')) return;
+      openModal(el, idx);
+    });
+    item.querySelector('[data-act="edit"]').addEventListener('click', () => openModal(el, idx));
+    item.querySelector('[data-act="remove"]').addEventListener('click', () => removeElement(idx));
+    elementsList.appendChild(item);
+  });
+  metaCount.textContent = state.elements.length;
+}
+
+function formatTime(s) {
+  if (s < 1) return '0s';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+/* ---------- Modal ---------- */
+function openModal(el = null, idx = null) {
+  modalTitle.textContent = el ? (el.type === 'text' ? 'Edit Text' : 'Edit Image') : 'Add Text';
+  if (el) {
+    modalText.value = el.text || '';
+    modalFont.value = el.font || 'Arial';
+    modalSize.value = el.size || 60;
+    modalColor.value = el.color || '#ffffff';
+    modalOpacity.value = el.opacity || 1;
+    modalRotation.value = el.rotation || 0;
+    modalStart.value = el.start || 0;
+    modalDur.value = el.duration || 3;
+    modalDelay.value = el.delay || 0;
+  } else {
+    modalText.value = '';
+    modalFont.value = 'Arial';
+    modalSize.value = 60;
+    modalColor.value = '#ffffff';
+    modalOpacity.value = 1;
+    modalRotation.value = 0;
+    modalStart.value = 0;
+    modalDur.value = 3;
+    modalDelay.value = 0;
+  }
+  modal.hidden = false;
+  setTimeout(() => modalText.focus(), 50);
+}
+
+function closeModal() { modal.hidden = true; }
+
+function modalConfirmHandler() {
+  const type = modalTitle.textContent.includes('Image') ? 'image' : 'text';
+  const data = {
+    name: modalText.value.trim() || 'Untitled',
+    type,
+    text: type === 'text' ? modalText.value.trim() : null,
+    font: modalFont.value,
+    size: parseInt(modalSize.value, 10) || 60,
+    color: modalColor.value,
+    opacity: parseFloat(modalOpacity.value),
+    rotation: parseFloat(modalRotation.value),
+    start: parseFloat(modalStart.value),
+    duration: parseFloat(modalDur.value),
+    delay: parseFloat(modalDelay.value),
+  };
+  if (type === 'image') {
+    data.src = '';
+  }
+  if (state.elements.length === 0 || state.elements.length === idx) {
+    state.elements.push(data);
+  } else {
+    state.elements[idx] = data;
+  }
+  closeModal();
+  renderElements();
+  updateButtons();
+}
+
+modalCancel.addEventListener('click', closeModal);
+modalConfirm.addEventListener('click', modalConfirmHandler);
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !modal.hidden) closeModal();
+});
+
+/* ---------- Audio feedback ---------- */
+function initAudio() {
+  state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  state.audioGain = state.audioCtx.createGain();
+  state.audioGain.gain.value = 0;
+  state.audioGain.connect(state.audioCtx.destination);
+  state.audioNode = state.audioCtx.createOscillator();
+  state.audioNode.type = 'sine';
+  state.audioNode.frequency.setValueAtTime(600, state.audioCtx.currentTime);
+  state.audioNode.frequency.exponentialRampToValueAtTime(200, state.audioCtx.currentTime + 0.3);
+  state.audioNode.connect(state.audioGain);
+  state.audioNode.start();
+}
+
+function pulseAudio() {
+  if (!state.audioCtx) initAudio();
+  state.audioGain.gain.cancelScheduledValues(state.audioCtx.currentTime);
+  state.audioGain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+  state.audioGain.gain.linearRampToValueAtTime(0.15, state.audioCtx.currentTime + 0.05);
+  state.audioGain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.3);
+}
+
+/* ---------- Canvas sizing ---------- */
+function resizeCanvas() {
+  const w = state.resolution;
+  const h = Math.floor((9 / 16) * w);
+  if (state.canvas) state.canvas.width = w;
+  if (state.previewCanvas) {
+    state.previewCanvas.width = w;
+    state.previewCanvas.height = h;
+  }
+  state.ctx = state.canvas.getContext('2d');
+  state.previewCtx = previewCtx;
+  metaRes.textContent = `${w} × ${h}`;
+  fpsLabel.textContent = `${state.fps} FPS`;
+  renderElements();
+}
+
+/* ---------- Background simulation (Web Worker friendly) ---------- */
+function drawBackground(t) {
+  const w = state.canvas.width;
+  const h = state.canvas.height;
+  const p = BACKGROUND_PRESETS[state.background];
+
+  // Base gradient
+  const grad = state.ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w,h));
+  grad.addColorStop(0, p.color);
+  grad.addColorStop(1, 'rgba(0,0,0,0.75)');
+  state.ctx.fillStyle = grad;
+  state.ctx.fillRect(0, 0, w, h);
+
+  // Background glow
+  state.ctx.save();
+  state.ctx.globalCompositeOperation = 'lighter';
+  state.ctx.beginPath();
+  state.ctx.arc(w/2, h/2, Math.max(w,h)*0.45, 0, Math.PI*2);
+  state.ctx.fillStyle = `rgba(255, 255, 255, 0.05)`;
+  state.ctx.fill();
+  state.ctx.restore();
+
+  // Particles / smoke
+  const count = Math.floor(w * 0.004);
+  const particles = [];
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.5,
+      size: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.8 + 0.2,
+      hue: Math.random() < 0.3 ? p.color : '#ffffff',
+      type: Math.random() < 0.6 ? 'dot' : 'line',
+      life: Math.random(),
+    });
+  }
+
+  for (const pt of particles) {
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    if (pt.x < 0) pt.x = w;
+    if (pt.x > w) pt.x = 0;
+    if (pt.y < 0) pt.y = h;
+    if (pt.y > h) pt.y = 0;
+
+    const age = 1 - pt.life;
+    const alpha = pt.alpha * age;
+
+    state.ctx.save();
+    state.ctx.globalAlpha = alpha;
+    if (pt.type === 'line') {
+      state.ctx.strokeStyle = pt.hue;
+      state.ctx.lineWidth = 1;
+      state.ctx.beginPath();
+      state.ctx.moveTo(pt.x, pt.y);
+      state.ctx.lineTo(pt.x + Math.cos(t*0.3+pt.x)*3, pt.y + Math.sin(t*0.3+pt.y)*3);
+      state.ctx.stroke();
+    } else {
+      state.ctx.fillStyle = pt.hue;
+      state.ctx.beginPath();
+      state.ctx.arc(pt.x, pt.y, pt.size * age, 0, Math.PI*2);
+      state.ctx.fill();
+    }
+    state.ctx.restore();
+  }
+
+  // Stars
+  const starCount = Math.floor(w * 0.008);
+  for (let i = 0; i < starCount; i++) {
+    const s = state.ctx.createRadialGradient(
+      Math.random()*w, Math.random()*h, 0,
+      Math.random()*w, Math.random()*h, Math.random()*2
+    );
+    s.addColorStop(0, 'white');
+    s.addColorStop(1, 'rgba(255,255,255,0)');
+    state.ctx.fillStyle = s;
+    state.ctx.beginPath();
+    state.ctx.arc(Math.random()*w, Math.random()*h, Math.random()*2, 0, Math.PI*2);
+    state.ctx.fill();
+  }
+}
+
+/* ---------- Element rendering ---------- */
+function drawElement(el, t) {
+  const w = state.canvas.width;
+  const h = state.canvas.height;
+  const now = t / 1000; // seconds
+  const dur = el.duration;
+  const delay = el.delay;
+  const start = el.start;
+
+  // Fade in/out
+  const fadeStart = start + delay;
+  const fadeEnd = fadeStart + dur;
+  const relative = Math.max(0, Math.min(1, (now - fadeStart) / dur));
+  const alpha = el.opacity * Math.min(1, relative) * Math.max(0, 1 - (now - fadeEnd) / dur);
+
+  if (alpha <= 0) return;
+
+  state.ctx.save();
+  state.ctx.globalAlpha = alpha;
+
+  if (el.type === 'text') {
+    state.ctx.font = `${el.size}px ${el.font}`;
+    state.ctx.textAlign = 'center';
+    state.ctx.textBaseline = 'middle';
+    state.ctx.fillStyle = el.color;
+    state.ctx.translate(w/2, h/2);
+    state.ctx.rotate((el.rotation * Math.PI) / 180);
+    state.ctx.fillText(el.text, 0, 0);
+  } else {
+    // Image: use placeholder gradient
+    const grad = state.ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, '#78e08f');
+    grad.addColorStop(0.5, '#ffaf7b');
+    grad.addColorStop(1, '#ff5e62');
+    state.ctx.fillStyle = grad;
+    state.ctx.fillRect(0, 0, w, h);
+  }
+  state.ctx.restore();
+}
+
+/* ---------- Main render loop ---------- */
+function renderLoop(t) {
+  if (!state.ctx) return;
+  state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+  drawBackground(t);
+  state.elements.forEach(el => drawElement(el, t));
+  state.lastFrame = t;
+  requestAnimationFrame(renderLoop);
+}
+
+/* ---------- Preview ---------- */
+function startPreview() {
+  if (!state.canvas) return;
+  state.previewRunning = true;
+  playBtn.textContent = '❚❚ Pause';
+  playBtn.disabled = false;
+  state.previewTime = 0;
+  state.lastFrame = performance.now();
+  renderLoop(state.lastFrame);
+  pulseAudio();
+}
+
+function stopPreview() {
+  state.previewRunning = false;
+  playBtn.textContent = '▶ Preview';
+  state.previewTime = 0;
+}
+
+function updateButtons() {
+  const hasBg = state.background !== 'none';
+  const hasEl = state.elements.length > 0;
+  playBtn.disabled = !(hasBg && hasEl);
+  exportBtn.disabled = !(hasBg && hasEl);
+}
+
+/* ---------- Export ---------- */
+async function exportVideo() {
+  if (!state.previewCanvas) return;
+  pulseAudio();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: state.resolution }, height: { ideal: Math.floor(state.resolution * 9 / 16) } }, audio: false });
+    const recorder = new MediaRecorder(stream, {
+      mimeType: state.format === 'webm' ? 'video/webm;codecs=vp9,opus' : 'video/webm;codecs=vp8,opus',
+      videoBitsPerSecond: state.resolution * 1000,
+    });
+    const chunks = [];
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `frameflow-${Date.now()}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported! Click the link to download.');
+    };
+    recorder.start(1000 / state.fps);
+    await new Promise(r => setTimeout(r, 1000));
+    await recorder.stop();
+    stream.getTracks().forEach(t => t.stop());
+  } catch (err) {
+    console.error(err);
+    showToast('Export failed. Please allow camera access.');
+  }
+}
+
+/* ---------- Toast ---------- */
+let toastTimer = null;
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ---------- Element actions ---------- */
+function addText() {
+  state.elements.push({
+    type: 'text',
+    name: 'Untitled',
+    text: '',
+    font: 'Arial',
+    size: 60,
+    color: '#ffffff',
+    opacity: 1,
+    rotation: 0,
+    start: 0,
+    duration: 3,
+    delay: 0,
+  });
+  renderElements();
+  updateButtons();
+}
+
+function addImage() {
+  state.elements.push({
+    type: 'image',
+    name: 'Untitled Image',
+    text: '',
+    font: 'Arial',
+    size: 60,
+    color: '#ffffff',
+    opacity: 1,
+    rotation: 0,
+    start: 0,
+    duration: 3,
+    delay: 0,
+  });
+  renderElements();
+  updateButtons();
+}
+
+function removeElement(idx) {
+  state.elements.splice(idx, 1);
+  renderElements();
+  updateButtons();
+}
+
+/* ---------- Init ---------- */
+function init() {
+  resizeCanvas();
+  renderBgGrid();
+  renderElements();
+  updateButtons();
+  $('resolution').addEventListener('change', (e) => {
+    state.resolution = parseInt(e.target.value, 10);
+    resizeCanvas();
+  });
+  $('duration').addEventListener('input', (e) => {
+    state.duration = parseInt(e.target.value, 10);
+    metaDur.textContent = `${state.duration}s`;
+  });
+  $('fps').addEventListener('change', (e) => {
+    state.fps = parseInt(e.target.value, 10);
+    fpsLabel.textContent = `${state.fps} FPS`;
+  });
+  $('format').addEventListener('change', (e) => {
+    state.format = e.target.value;
+  });
+  $('gridToggle').addEventListener('change', (e) => { state.gridToggle = e.target.checked; });
+  $('fpsToggle').addEventListener('change', (e) => { state.fpsToggle = e.target.checked; });
+
+  playBtn.addEventListener('click', () => {
+    if (state.previewRunning) stopPreview();
+    else startPreview();
+  });
+  exportBtn.addEventListener('click', exportVideo);
+  clearBtn.addEventListener('click', () => {
+    if (state.elements.length === 0) return;
+    if (!confirm('Clear all elements?')) return;
+    state.elements = [];
+    renderElements();
+    updateButtons();
+  });
+
+  $('addTextBtn').addEventListener('click', addText);
+  $('addImageBtn').addEventListener('click', addImage);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      if (state.previewRunning) stopPreview();
+      else startPreview();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script></script>
+</body>
+</html>

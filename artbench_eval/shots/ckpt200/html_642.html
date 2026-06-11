@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karaoke Lyrics Sync Tool</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --accent: #4285f4;
+    --bg: #f7f9fc;
+    --surface: #ffffff;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --highlight: #1a73e8;
+    --highlight-bg: #e8f0fe;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .logo {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+  }
+
+  .logo i { font-size: 18px; margin-right: 6px; }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  .card h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafbfc;
+  }
+  .upload-area:hover,
+  .upload-area.drag {
+    border-color: var(--primary);
+    background: #f0f7ff;
+  }
+  .upload-area i { font-size: 28px; margin-bottom: 8px; }
+  .upload-area p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .slider {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .slider label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .slider input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+  }
+  .slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 3px solid var(--surface);
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.3);
+    transition: transform 0.15s;
+  }
+  .slider input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  .slider input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 3px solid var(--surface);
+  }
+
+  .slider .val {
+    min-width: 40px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+  }
+  .btn i { font-size: 14px; }
+
+  .audio-player {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .audio-controls .btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .audio-progress {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .audio-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 3px;
+    transition: width 0.1s linear;
+  }
+
+  .audio-time {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .audio-time .current { color: var(--text); font-weight: 600; }
+
+  .lyrics {
+    margin-top: 24px;
+    min-height: 200px;
+    font-size: 18px;
+    line-height: 1.8;
+    color: var(--text);
+    word-wrap: break-word;
+  }
+  .lyrics p {
+    margin: 0 0 12px;
+  }
+  .lyrics p:last-child { margin-bottom: 0; }
+
+  .lyric-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+  .lyric-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-right: 8px;
+  }
+  .lyric-word {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .lyric-word:hover { background: rgba(26, 115, 232, 0.12); }
+  .lyric-word.active {
+    background: var(--highlight-bg);
+    color: var(--primary);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(26, 115, 232, 0.2);
+  }
+
+  .footer {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 640px) {
+    .app { padding: 20px 16px; }
+    .logo { font-size: 22px; }
+    .card { padding: 18px; }
+    .controls { flex-wrap: wrap; }
+    .slider { width: 100%; }
+    .slider label { width: 100%; text-align: left; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="logo"><i class="fa-solid fa-microphone-lines"></i>Karaoke Sync</div>
+      <div class="subtitle">Upload audio and LRC lyrics to sync them perfectly</div>
+    </div>
+
+    <div class="card">
+      <h2><i class="fa-solid fa-file-audio"></i> Upload Audio</h2>
+      <div class="upload-area" id="audioDrop" tabindex="0">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <p>Drop your audio file here or click to browse</p>
+        <p class="hint">Supports MP3, WAV, OGG (preferably MP3)</p>
+      </div>
+      <input type="file" id="audioInput" accept="audio/*" hidden />
+    </div>
+
+    <div class="card">
+      <h2><i class="fa-solid fa-file-lines"></i> Upload LRC Lyrics</h2>
+      <div class="upload-area" id="lrcDrop" tabindex="0">
+        <i class="fa-solid fa-file-lines"></i>
+        <p>Drop your LRC file here or click to browse</p>
+        <p class="hint">LRC format: [mm:ss.xx] text</p>
+      </div>
+      <input type="file" id="lrcInput" accept=".lrc" hidden />
+    </div>
+
+    <div class="card" id="editorCard">
+      <h2><i class="fa-solid fa-sliders"></i> Synchronization Editor</h2>
+      <div class="controls">
+        <div class="slider">
+          <label for="offset">Offset (seconds)</label>
+          <input type="range" id="offset" min="-5" max="5" step="0.05" value="0" />
+          <span class="val" id="offsetVal">0.00</span>
+        </div>
+        <div class="slider">
+          <label for="speed">Speed</label>
+          <input type="range" id="speed" min="0.5" max="2" step="0.05" value="1" />
+          <span class="val" id="speedVal">1.00</span>
+        </div>
+        <div class="slider">
+          <label for="volume">Volume</label>
+          <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" />
+          <span class="val" id="volumeVal">80%</span>
+        </div>
+      </div>
+
+      <div class="audio-player">
+        <div class="audio-controls">
+          <button class="btn" id="playBtn" title="Play"><i class="fa-solid fa-play"></i> Play</button>
+          <button class="btn" id="pauseBtn" title="Pause"><i class="fa-solid fa-pause"></i> Pause</button>
+          <button class="btn" id="stopBtn" title="Stop"><i class="fa-solid fa-stop"></i> Stop</button>
+          <button class="btn" id="resetBtn" title="Reset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+          <button class="btn" id="exportBtn" title="Export"><i class="fa-solid fa-file-export"></i> Export</button>
+        </div>
+        <div class="audio-progress" id="progress">
+          <span id="progressFill"></span>
+        </div>
+        <div class="audio-time">
+          <span class="current" id="currentTime">0:00</span>
+          <span id="totalTime">0:00</span>
+        </div>
+      </div>
+
+      <div class="lyrics" id="lyricsContainer">
+        <p><i class="fa-solid fa-spinner fa-spin"></i> Loading lyrics...</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Built with HTML, CSS & JavaScript · Press <kbd>Space</kbd> to toggle play · <kbd>P</kbd> to pause</p>
+  </div>
+
+  <script>
+    // ---------- State ----------
+    const state = {
+      audioCtx: null,
+      audioBuffer: null,
+      audioSource: null,
+      audioBufferSource: null,
+      gainNode: null,
+      currentTime: 0,
+      duration: 0,
+      playing: false,
+      offset: 0,
+      speed: 1,
+      volume: 0.8,
+      lyrics: [],
+      parsedLyrics: [], // { time, text, words }
+      audioFile: null,
+      lrcFile: null,
+      wordIndex: -1,
+      highlightTimer: null,
+      lastPlayedWordIndex: -1,
+      lastPlayedTime: 0,
+    };
+
+    // ---------- DOM ----------
+    const $ = (id) => document.getElementById(id);
+    const audioDrop = $('audioDrop');
+    const audioInput = $('audioInput');
+    const lrcDrop = $('lrcDrop');
+    const lrcInput = $('lrcInput');
+    const offsetInput = $('offset');
+    const offsetVal = $('offsetVal');
+    const speedInput = $('speed');
+    const speedVal = $('speedVal');
+    const volumeInput = $('volume');
+    const volumeVal = $('volumeVal');
+    const playBtn = $('playBtn');
+    const pauseBtn = $('pauseBtn');
+    const stopBtn = $('stopBtn');
+    const resetBtn = $('resetBtn');
+    const exportBtn = $('exportBtn');
+    const progress = $('progress');
+    const progressFill = $('progressFill');
+    const currentTimeEl = $('currentTime');
+    const totalTimeEl = $('totalTime');
+    const lyricsContainer = $('lyricsContainer');
+
+    // ---------- File handling ----------
+    function handleAudioFile(file) {
+      if (!file) return;
+      state.audioFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arrayBuffer = e.target.result;
+        loadAudio(arrayBuffer);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function handleLrcFile(file) {
+      if (!file) return;
+      state.lrcFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        parseLrc(text);
+      };
+      reader.readAsText(file);
+    }
+
+    function bindDrop(area, input) {
+      area.addEventListener('click', () => input.click());
+      area.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+      });
+      ['dragenter', 'dragover'].forEach(ev => {
+        area.addEventListener(ev, (e) => {
+          e.preventDefault();
+          area.classList.add('drag');
+        });
+      });
+      ['dragleave', 'drop'].forEach(ev => {
+        area.addEventListener(ev, (e) => {
+          e.preventDefault();
+          area.classList.remove('drag');
+        });
+      });
+      area.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files[0];
+        if (file) handleAudioFile(file);
+      });
+      input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleAudioFile(file);
+        e.target.value = '';
+      });
+    }
+
+    bindDrop(audioDrop, audioInput);
+    bindDrop(lrcDrop, lrcInput);
+
+    // ---------- Audio loading ----------
+    async function loadAudio(arrayBuffer) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        state.audioCtx = ctx;
+        state.audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+        state.duration = state.audioBuffer.duration;
+        totalTimeEl.textContent = formatTime(state.duration);
+        state.gainNode = ctx.createGain();
+        state.gainNode.gain.value = state.volume;
+        state.audioSource = ctx.createBufferSource();
+        state.audioSource.buffer = state.audioBuffer;
+        state.audioSource.playbackRate.value = state.speed;
+        state.audioSource.connect(state.gainNode);
+        state.gainNode.connect(ctx.destination);
+
+        // Initial render
+        renderLyrics();
+        startLoop();
+      } catch (err) {
+        alert('Failed to decode audio: ' + err.message);
+      }
+    }
+
+    // ---------- LRC parsing ----------
+    function parseLrc(text) {
+      const lines = text.split('\n');
+      const parsed = [];
+      let currentLine = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          const key = trimmed.slice(1, -1);
+          if (key.startsWith('offset')) {
+            const match = key.match(/offset=([\d.]+)/);
+            if (match) state.offset = parseFloat(match[1]);
+            continue;
+          }
+          if (key.startsWith('offset:')) {
+            const match = key.match(/offset:([\d.]+)/);
+            if (match) state.offset = parseFloat(match[1]);
+            continue;
+          }
+        }
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          currentLine = trimmed;
+        } else {
+          if (currentLine) {
+            const parts = currentLine.split(':');
+            const minute = parseInt(parts[0], 10);
+            const second = parseInt(parts[1], 10);
+            const ms = parseInt(parts[2] || '0', 10);
+            const time = minute * 60 + second + ms / 1000;
+            parsed.push({ time, text: currentLine });
+            currentLine = '';
+          }
+        }
+      }
+      if (currentLine) {
+        const parts = currentLine.split(':');
+        const minute = parseInt(parts[0], 10);
+        const second = parseInt(parts[1], 10);
+        const ms = parseInt(parts[2] || '0', 10);
+        const time = minute * 60 + second + ms / 1000;
+        parsed.push({ time, text: currentLine });
+      }
+      state.parsedLyrics = parsed;
+      state.lyrics = parsed.map(p => p.text);
+      renderLyrics();
+    }
+
+    // ---------- Rendering ----------
+    function renderLyrics() {
+      if (!state.parsedLyrics.length) {
+        lyricsContainer.innerHTML = '<p><i class="fa-solid fa-info-circle"></i> No lyrics loaded. Upload an LRC file.</p>';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      state.parsedLyrics.forEach((item, idx) => {
+        const p = document.createElement('p');
+        const line = document.createElement('span');
+        line.className = 'lyric-line';
+        const timeEl = document.createElement('span');
+        timeEl.className = 'lyric-time';
+        timeEl.textContent = formatTime(item.time);
+        line.appendChild(timeEl);
+
+        const words = splitWords(item.text);
+        const wordFrag = document.createDocumentFragment();
+        words.forEach(w => {
+          const span = document.createElement('span');
+          span.className = 'lyric-word';
+          span.textContent = w;
+          span.dataset.index = idx;
+          span.dataset.wordIndex = words.indexOf(w);
+          span.addEventListener('click', () => {
+            if (state.audioSource) {
+              const t = item.time + state.offset;
+              state.audioSource.stop();
+              state.currentTime = t;
+              startLoop();
+            }
+          });
+          wordFrag.appendChild(span);
+        });
+        line.appendChild(wordFrag);
+        p.appendChild(line);
+        frag.appendChild(p);
+      });
+      lyricsContainer.innerHTML = '';
+      lyricsContainer.appendChild(frag);
+    }
+
+    function splitWords(text) {
+      // Split by spaces, keeping punctuation attached to last word
+      const words = text.split(/(\s+)/);
+      return words
+        .filter(w => w.trim() !== '') // remove empty splits
+        .map(w => w.trim())
+        .filter(w => w.length > 0);
+    }
+
+    // ---------- Formatting ----------
+    function formatTime(sec) {
+      if (!isFinite(sec)) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      const ms = Math.floor((sec - Math.floor(sec)) * 100);
+      return `${m}:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+    }
+
+    // ---------- Playback ----------
+    function startLoop() {
+      if (!state.audioSource) return;
+      if (state.playing) {
+        state.audioSource.start(0, state.currentTime);
+      } else {
+        state.audioSource.start(0);
+      }
+      state.audioSource.playbackRate.value = state.speed;
+      state.gainNode.gain.value = state.volume;
+
+      // Clear previous highlight
+      clearHighlights();
+
+      // Highlight words
+      const words = state.parsedLyrics.map(p => p.text).join(' ').split(' ');
+      state.wordIndex = -1;
+      const interval = 60 / state.speed; // ms between words
+      state.highlightTimer = setInterval(() => {
+        state.wordIndex++;
+        if (state.wordIndex >= words.length) {
+          clearInterval(state.highlightTimer);
+          state.highlightTimer = null;
+          return;
+        }
+        const word = words[state.wordIndex];
+        const lineIdx = Math.floor(state.wordIndex / 20);
+        const wordIdx = state.wordIndex % 20;
+        const line = lyricsContainer.children[lineIdx];
+        if (!line) return;
+        const wordEl = line.querySelector(`.lyric-word[data-index="${lineIdx}"][data-word-index="${wordIdx}"]`);
+        if (wordEl) {
+          wordEl.classList.add('active');
+          state.lastPlayedWordIndex = state.wordIndex;
+        }
+      }, interval);
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll('.lyric-word.active').forEach(el => el.classList.remove('active'));
+    }
+
+    function stopLoop() {
+      if (state.highlightTimer) {
+        clearInterval(state.highlightTimer);
+        state.highlightTimer = null;
+      }
+    }
+
+    function play() {
+      if (!state.audioSource) return;
+      state.playing = true;
+      state.audioSource.start(0, state.currentTime);
+      startLoop();
+      playBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+    }
+
+    function pause() {
+      if (!state.audioSource) return;
+      state.playing = false;
+      state.audioSource.stop();
+      stopLoop();
+      playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+    }
+
+    function stop() {
+      if (!state.audioSource) return;
+      state.playing = false;
+      state.audioSource.stop();
+      stopLoop();
+      state.currentTime = 0;
+      progressFill.style.width = '0%';
+      currentTimeEl.textContent = formatTime(0);
+      playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+    }
+
+    function reset() {
+      if (!state.audioSource) return;
+      state.currentTime = 0;
+      state.playing = false;
+      state.audioSource.stop();
+      stopLoop();
+      progressFill.style.width = '0%';
+      currentTimeEl.textContent = formatTime(0);
+      playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+    }
+
+    function seekFromEvent(e) {
+      const rect = progress.getBoundingClientRect();
+      const ratio = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, ratio / rect.width));
+      const t = state.duration * pct;
+      state.currentTime = t;
+      progressFill.style.width = (pct * 100) + '%';
+      currentTimeEl.textContent = formatTime(t);
+      if (state.audioSource) {
+        state.audioSource.stop();
+        state.audioSource.start(0, t);
+        startLoop();
+      }
+    }
+
+    // ---------- Export ----------
+    function exportLrc() {
+      if (!state.lrcFile) {
+        alert('No LRC file loaded.');
+        return;
+      }
+      const originalText = state.lrcFile.text;
+      const lines = originalText.split('\n');
+      const newLines = [];
+      lines.forEach(line => {
+        if (line.startsWith('[') && line.endsWith(']')) {
+          newLines.push(line);
+        } else {
+          const parts = line.split(':');
+          if (parts.length >= 2) {
+            const minute = parseInt(parts[0], 10);
+            const second = parseInt(parts[1], 10);
+            const ms = parseInt(parts[2] || '0', 10);
+            const time = minute * 60 + second + ms / 1000;
+            const adjusted = time + state.offset;
+            const mm = Math.floor(adjusted);
+            const ss = Math.floor(adjusted - mm);
+            const ms2 = Math.round((adjusted - mm - ss) * 100);
+            newLines.push(`${mm}:${String(ss).padStart(2, '0')}.${String(ms2).padStart(2, '0')}:${parts.slice(2).join(':')}`);
+          } else {
+            newLines.push(line);
+          }
+        }
+      });
+      const content = newLines.join('\n');
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = state.lrcFile.name.replace(/\.[^.]+$/, '') + '_synced.lrc';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      alert('LRC exported successfully!');
+    }
+
+    // ---------- Event bindings ----------
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', pause);
+    stopBtn.addEventListener('click', stop);
+    resetBtn.addEventListener('click', reset);
+    exportBtn.addEventListener('click', exportLrc);
+
+    progress.addEventListener('click', seekFromEvent);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (state.playing) pause(); else play();
+      } else if (e.key === 'p' || e.key === 'P') {
+        pause();
+      } else if (e.key === 'm' || e.key === 'M') {
+        if (state.audioSource) {
+          state.audioSource.stop();
+          state.playing = false;
+          stopLoop();
+          playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+        }
+      }
+    });
+
+    // ---------- Slider bindings ----------
+    offsetInput.addEventListener('input', () => {
+      state.offset = parseFloat(offsetInput.value);
+      offsetVal.textContent = state.offset.toFixed(2);
+      if (state.audioSource) {
+        state.audioSource.stop();
+        state.currentTime = state.offset;
+        startLoop();
+      }
+    });
+    speedInput.addEventListener('input', () => {
+      state.speed = parseFloat(speedInput.value);
+      speedVal.textContent = state.speed.toFixed(2);
+      if (state.audioSource) {
+        state.audioSource.playbackRate.value = state.speed;
+        state.currentTime = state.currentTime;
+        state.audioSource.stop();
+        startLoop();
+      }
+    });
+    volumeInput.addEventListener('input', () => {
+      state.volume = parseFloat(volumeInput.value);
+      volumeVal.textContent = Math.round(state.volume * 100) + '%';
+      if (state.audioSource) {
+        state.gainNode.gain.value = state.volume;
+      }
+    });
+
+    // ---------- Init ----------
+    renderLyrics();
+  </script>
+</body>
+</html>

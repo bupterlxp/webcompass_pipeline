@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Background Video Generator</title>
+<style>
+  :root {
+    --bg-0: #0a0a14;
+    --bg-1: #1a1a2e;
+    --bg-2: #2a2a46;
+    --accent: #ff6b6b;
+    --accent-2: #4ecdc4;
+    --text: #e8e8f0;
+    --muted: #9a9ab0;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-0);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+  }
+
+  /* ---------- Editor Panel ---------- */
+  .panel {
+    background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .panel h2 {
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .panel-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .panel-section label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .panel-section select,
+  .panel-section input[type="text"],
+  .panel-section input[type="number"],
+  .panel-section input[type="color"],
+  .panel-section button {
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+    width: 100%;
+  }
+
+  .panel-section select:focus,
+  .panel-section input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-1);
+  }
+
+  .panel-section button {
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .panel-section button:hover { background: #ff8585; }
+  .panel-section button:active { transform: scale(0.97); }
+
+  .layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .layer {
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .layer-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .layer-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .layer-actions button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .layer-actions button:hover { color: var(--accent); background: rgba(255,107,107,0.1); }
+
+  .layer-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .layer-row input[type="text"],
+  .layer-row input[type="number"],
+  .layer-row input[type="color"] {
+    flex: 1;
+  }
+
+  .layer-row button {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+  .layer-row button:hover { background: #ff8585; }
+
+  .layer-row .swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .layer-row .swatch:hover { transform: scale(1.1); }
+
+  .layer-row .swatch.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255,107,107,0.3);
+  }
+
+  .color-input {
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .color-input::-webkit-color-swatch-wrapper { padding: 0; }
+  .color-input::-webkit-color-swatch { border: 1px solid rgba(255,255,255,0.2); }
+
+  .timeline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .timeline::-webkit-scrollbar { height: 6px; }
+  .timeline::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+  .timeline-track {
+    flex: 1;
+    height: 24px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+  }
+  .timeline-track.active {
+    background: linear-gradient(90deg, rgba(255,107,107,0.3), rgba(255,107,107,0.1));
+  }
+  .timeline-marker {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    opacity: 0.8;
+    transition: transform 0.1s;
+  }
+  .timeline-marker:hover { transform: scale(1.3); }
+
+  .timeline-marker.active {
+    background: #fff;
+    box-shadow: 0 0 8px #fff;
+  }
+
+  .timeline-play {
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+  }
+  .timeline-play button {
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .timeline-play button:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .timeline-play button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .export-area {
+    padding: 16px;
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+  }
+
+  /* ---------- Preview Panel ---------- */
+  .preview {
+    background: var(--bg-0);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .preview-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .preview-controls {
+    display: flex;
+    gap: 8px;
+  }
+  .preview-controls button {
+    background: var(--bg-1);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .preview-controls button:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .preview-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .preview-canvas {
+    flex: 1;
+    background: #000;
+    position: relative;
+  }
+
+  .preview-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,10,20,0.6);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .preview-overlay.show { opacity: 1; }
+
+  .preview-overlay .hint {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .preview-overlay .hint span { color: var(--accent); }
+
+  .preview-footer {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .preview { order: 2; }
+  }
+
+  @media (max-width: 500px) {
+    .app { padding: 12px; }
+    .panel { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Editor Panel -->
+  <aside class="panel" id="editorPanel">
+    <h2>Background</h2>
+    <div class="panel-section">
+      <label for="bgSelect">Style</label>
+      <select id="bgSelect">
+        <option value="particles">Particles</option>
+        <option value="smoke">Smoke</option>
+        <option value="neon">Neon Grid</option>
+        <option value="rain">Rain</option>
+        <option value="stars">Stars</option>
+        <option value="confetti">Confetti</option>
+      </select>
+    </div>
+    <div class="panel-section">
+      <label for="bgColor">Background Color</label>
+      <input type="color" id="bgColor" value="#0a0a14">
+    </div>
+    <div class="panel-section">
+      <label for="bgSpeed">Speed</label>
+      <input type="range" id="bgSpeed" min="0.2" max="3" step="0.1" value="1">
+      <span id="bgSpeedVal">1.0</span>
+    </div>
+
+    <h2>Layers</h2>
+    <div class="panel-section">
+      <button id="addTextBtn" class="btn">+ Add Text</button>
+      <button id="addImageBtn" class="btn">+ Add Image</button>
+    </div>
+
+    <div class="layer-list" id="layerList">
+      <div class="layer" id="emptyLayer">
+        <div class="layer-head">
+          <span>No layers yet</span>
+          <button class="icon-btn" disabled title="Delete" style="opacity:0.4">−</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Timeline</h2>
+    <div class="panel-section">
+      <label for="startTime">Start Time (s)</label>
+      <input type="number" id="startTime" min="0" step="0.1" value="0">
+    </div>
+    <div class="panel-section">
+      <label for="endTime">End Time (s)</label>
+      <input type="number" id="endTime" min="0" step="0.1" value="5">
+    </div>
+    <div class="panel-section">
+      <label for="duration">Duration</label>
+      <span id="durationVal">5.0 s</span>
+    </div>
+
+    <div class="timeline" id="timeline">
+      <div class="timeline-track" id="timelineTrack"></div>
+      <div class="timeline-marker" id="timelineMarker"></div>
+    </div>
+
+    <div class="timeline-play">
+      <button id="playBtn" disabled>▶ Play</button>
+      <button id="pauseBtn" disabled>⏸ Pause</button>
+      <button id="stopBtn" disabled>■ Stop</button>
+      <button id="resetBtn" disabled>↺ Reset</button>
+    </div>
+
+    <h2>Export</h2>
+    <div class="panel-section">
+      <label for="exportName">File Name</label>
+      <input type="text" id="exportName" value="my_video">
+    </div>
+    <div class="export-area">
+      <button id="exportBtn" disabled>▶ Export MP4</button>
+      <button id="clearBtn" disabled>🗑 Clear</button>
+    </div>
+  </aside>
+
+  <!-- Preview Panel -->
+  <main class="panel preview" id="previewPanel">
+    <div class="preview-header">
+      <div>
+        <h2 class="preview-title" id="previewTitle">Preview</h2>
+        <p class="preview-sub" id="previewSub">0:00 / 0:00</p>
+      </div>
+      <div class="preview-controls">
+        <button id="zoomIn">+</button>
+        <button id="zoomOut">−</button>
+        <button id="fullscreen">⛶</button>
+      </div>
+    </div>
+    <div class="preview-canvas" id="previewCanvas">
+      <canvas id="preview" width="1200" height="720"></canvas>
+      <div class="preview-overlay" id="previewOverlay">
+        <div id="overlayText">Preview</div>
+        <div class="hint">
+          <span>Press <kbd>Space</kbd> to play</span>
+          <span>Press <kbd>Esc</kbd> to exit fullscreen</span>
+          <span>Use <kbd>←</kbd><kbd>→</kbd> to scrub</span>
+        </div>
+      </div>
+    </div>
+    <div class="preview-footer">
+      <span id="fpsLabel">FPS: 60</span>
+      <span id="progressLabel">0%</span>
+    </div>
+  </main>
+
+</div>
+
+<script>
+/* =========================================================
+   Dynamic Background Video Generator
+   ========================================================= */
+
+const canvas = document.getElementById('preview');
+const ctx = canvas.getContext('2d');
+const previewCanvas = document.getElementById('previewCanvas');
+const preview = document.getElementById('preview');
+const previewOverlay = document.getElementById('previewOverlay');
+const overlayText = document.getElementById('overlayText');
+
+const bgSelect = document.getElementById('bgSelect');
+const bgColor = document.getElementById('bgColor');
+const bgSpeed = document.getElementById('bgSpeed');
+const bgSpeedVal = document.getElementById('bgSpeedVal');
+
+const startTimeInput = document.getElementById('startTime');
+const endTimeInput = document.getElementById('endTime');
+const durationVal = document.getElementById('durationVal');
+
+const layerList = document.getElementById('layerList');
+const emptyLayer = document.getElementById('emptyLayer');
+const addTextBtn = document.getElementById('addTextBtn');
+const addImageBtn = document.getElementById('addImageBtn');
+
+const timelineTrack = document.getElementById('timelineTrack');
+const timelineMarker = document.getElementById('timelineMarker');
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const stopBtn = document.getElementById('stopBtn');
+const resetBtn = document.getElementById('resetBtn');
+const exportBtn = document.getElementById('exportBtn');
+const clearBtn = document.getElementById('clearBtn');
+
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+const fullscreenBtn = document.getElementById('fullscreen');
+
+const previewTitle = document.getElementById('previewTitle');
+const previewSub = document.getElementById('previewSub');
+const fpsLabel = document.getElementById('fpsLabel');
+const progressLabel = document.getElementById('progressLabel');
+
+/* ---------- State ---------- */
+const state = {
+  width: 1200,
+  height: 720,
+  bg: 'particles',
+  bgColor: '#0a0a14',
+  bgSpeed: 1,
+  startTime: 0,
+  endTime: 5,
+  duration: 5,
+  fps: 60,
+  layers: [],
+  playing: false,
+  paused: false,
+  currentTime: 0,
+  lastTime: 0,
+  rafId: null,
+  recorder: null,
+  stream: null,
+  recordedChunks: [],
+  exportName: 'my_video',
+  zoom: 1,
+  fullscreen: false,
+};
+
+/* ---------- Background ---------- */
+const backgrounds = {
+  particles: {
+    draw: (t, dt) => {
+      const c = state.bgColor;
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, state.width, state.height);
+      const sp = state.bgSpeed;
+      const w = state.width;
+      const h = state.height;
+      const count = 120;
+      const speed = sp * 2;
+      for (let i = 0; i < count; i++) {
+        const p = state.particles[i];
+        p.x += (Math.random() - 0.5) * speed * dt;
+        p.y += (Math.random() - 0.5) * speed * dt;
+        p.vx += (Math.random() - 0.5) * 0.1 * dt;
+        p.vy += (Math.random() - 0.5) * 0.1 * dt;
+        p.vx *= 0.92;
+        p.vy *= 0.92;
+        p.x = (p.x + w) % w;
+        p.y = (p.y + h) % h;
+        const a = 0.5 + Math.random() * 0.5;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 2, 2);
+      }
+    },
+    init: () => {
+      state.particles = [];
+      for (let i = 0; i < 120; i++) {
+        state.particles.push({
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+        });
+      }
+    },
+  },
+  smoke: {
+    draw: (t, dt) => {
+      const c = state.bgColor;
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, state.width, state.height);
+      const sp = state.bgSpeed;
+      const w = state.width;
+      const h = state.height;
+      const count = 180;
+      const speed = sp * 1.5;
+      for (let i = 0; i < count; i++) {
+        const p = state.smoke[i];
+        p.x += (Math.random() - 0.5) * speed * dt;
+        p.y += (Math.random() - 0.5) * speed * dt;
+        p.vx *= 0.88;
+        p.vy *= 0.88;
+        p.x = (p.x + w) % w;
+        p.y = (p.y + h) % h;
+        const a = 0.2 + Math.random() * 0.6;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 3, 3);
+      }
+    },
+    init: () => {
+      state.smoke = [];
+      for (let i = 0; i < 180; i++) {
+        state.smoke.push({
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+          vx: (Math.random() - 0.5) * 3,
+          vy: (Math.random() - 0.5) * 3,
+        });
+      }
+    },
+  },
+  neon: {
+    draw: (t, dt) => {
+      const c = state.bgColor;
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, state.width, state.height);
+      const sp = state.bgSpeed;
+      const w = state.width;
+      const h = state.height;
+      const grid = 40;
+      const step = Math.max(1, Math.min(w, h)) / grid;
+      ctx.strokeStyle = 'rgba(255, 107, 107, 0.15)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += step) {
+        for (let y = 0; y < h; y += step) {
+          const a = 0.05 + Math.sin(t * 0.005 + x * 0.3) * 0.05;
+          ctx.globalAlpha = a;
+          ctx.strokeRect(x, y, step, step);
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(255, 107, 107, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(w, h);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(w, 0);
+      ctx.lineTo(0, h);
+      ctx.stroke();
+    },
+    init: () => {},
+  },
+  rain: {
+    draw: (t, dt) => {
+      const c = state.bgColor;
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, state.width, state.height);
+      const sp = state.bgSpeed;
+      const w = state.width;
+      const h = state.height;
+      const count = 140;
+      const speed = sp * 2;
+      for (let i = 0; i < count; i++) {
+        const p = state.rain[i];
+        p.y += speed * dt;
+        p.x += (Math.random() - 0.5) * 0.2 * dt;
+        if (p.y > h) {
+          p.y = -2;
+          p.x = Math.random() * w;
+        }
+        const a = 0.6 + Math.random() * 0.4;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 6);
+      }
+    },
+    init: () => {
+      state.rain = [];
+      for (let i = 0; i < 140; i++) {
+        state.rain.push({
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+        });
+      }
+    },
+  },
+  stars: {
+    draw: (t, dt) => {
+      const c = state.bgColor;
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, state.width, state.height);
+      const sp = state.bgSpeed;
+      const w = state.width;
+      const h = state.height;
+      const count = 220;
+      const speed = sp * 1.2;
+      for (let i = 0; i < count; i++) {
+        const p = state.stars[i];
+        p.x += (Math.random() - 0.5) * speed * dt;
+        p.y += (Math.random() - 0.5) * speed * dt;
+        p.vx *= 0.9;
+        p.vy *= 0.9;
+        p.x = (p.x + w) % w;
+        p.y = (p.y + h) % h;
+        const size = 1 + Math.random() * 1.5;
+        const a = 0.2 + Math.random() * 0.6;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.beginPath();
+        ctx.arc(Math.floor(p.x), Math.floor(p.y), size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+    init: () => {
+      state.stars = [];
+      for (let i = 0; i < 220; i++) {
+        state.stars.push({
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+        });
+      }
+    },
+  },
+  confetti: {
+    draw: (t, dt) => {
+      const c = state.bgColor;
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, state.width, state.height);
+      const sp = state.bgSpeed;
+      const w = state.width;
+      const h = state.height;
+      const count = 160;
+      const speed = sp * 2.5;
+      for (let i = 0; i < count; i++) {
+        const p = state.confetti[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.94;
+        p.vy *= 0.94;
+        p.vx += (Math.random() - 0.5) * 0.1;
+        p.vy += (Math.random() - 0.5) * 0.1;
+        p.x = (p.x + w) % w;
+        p.y = (p.y + h) % h;
+        const a = 0.4 + Math.random() * 0.4;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 4, 4);
+      }
+    },
+    init: () => {
+      state.confetti = [];
+      for (let i = 0; i < 160; i++) {
+        state.confetti.push({
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+        });
+      }
+    },
+  },
+};
+
+/* ---------- Layers ---------- */
+const LAYER_TYPES = { text: 'text', image: 'image' };
+
+function createLayer(type, opts = {}) {
+  const id = 'layer_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const layer = {
+    id,
+    type,
+    ...opts,
+    createdAt: Date.now(),
+  };
+  state.layers.push(layer);
+  renderLayers();
+  return layer;
+}
+
+function deleteLayer(id) {
+  state.layers = state.layers.filter(l => l.id !== id);
+  renderLayers();
+}
+
+function renderLayers() {
+  layerList.innerHTML = '';
+  if (state.layers.length === 0) {
+    layerList.appendChild(emptyLayer);
+    return;
+  }
+  state.layers.forEach(layer => {
+    const el = document.createElement('div');
+    el.className = 'layer';
+    el.dataset.id = layer.id;
+    el.innerHTML = `
+      <div class="layer-head">
+        <span>${layer.type === 'text' ? 'Text' : 'Image'} · ${layer.id}</span>
+        <div class="layer-actions">
+          <button class="icon-btn" title="Delete" data-action="delete">−</button>
+        </div>
+      </div>
+      <div class="layer-row">
+        <input type="text" data-field="label" value="${escapeHtml(layer.label)}" placeholder="Label">
+        <span class="swatch" data-field="color" style="background:${layer.color}"></span>
+        <input type="color" data-field="color" value="${layer.color}" class="color-input">
+      </div>
+      <div class="layer-row">
+        <input type="number" data-field="x" value="${layer.x}" placeholder="X">
+        <input type="number" data-field="y" value="${layer.y}" placeholder="Y">
+        <input type="number" data-field="w" value="${layer.w}" placeholder="W">
+        <input type="number" data-field="h" value="${layer.h}" placeholder="H">
+        <input type="number" data-field="opacity" value="${layer.opacity}" placeholder="A">
+        <input type="number" data-field="rotation" value="${layer.rotation}" placeholder="R">
+        <button class="icon-btn" title="Edit" data-action="edit">✎</button>
+      </div>
+    `;
+    layerList.appendChild(el);
+
+    el.querySelectorAll('input, .swatch').forEach(el => {
+      el.addEventListener('input', (e) => {
+        const field = e.target.dataset.field;
+        if (field === 'color') {
+          const swatch = e.target.closest('.swatch');
+          if (swatch) {
+            swatch.classList.toggle('active', e.target.value !== '');
+            layer.color = e.target.value;
+          } else {
+            layer.color = e.target.value;
+          }
+        } else {
+          layer[field] = parseFloat(e.target.value);
+        }
+        updateLayerUI(layer);
+      });
+    });
+
+    el.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        if (action === 'delete') {
+          deleteLayer(layer.id);
+        } else if (action === 'edit') {
+          // open modal (simple inline edit)
+          const row = btn.closest('.layer-row');
+          const inputs = row.querySelectorAll('input');
+          inputs.forEach(i => i.disabled = true);
+          btn.textContent = '✓';
+          btn.dataset.action = 'save';
+          setTimeout(() => {
+            inputs.forEach(i => i.disabled = false);
+            btn.textContent = '✎';
+            btn.dataset.action = 'edit';
+          }, 2000);
+        }
+      });
+    });
+  });
+}
+
+function updateLayerUI(layer) {
+  const el = layerList.querySelector(`[data-id="${layer.id}"]`);
+  if (!el) return;
+  el.querySelector('[data-field="label"]').value = layer.label;
+  el.querySelector('[data-field="x"]').value = layer.x;
+  el.querySelector('[data-field="y"]').value = layer.y;
+  el.querySelector('[data-field="w"]').value = layer.w;
+  el.querySelector('[data-field="h"]').value = layer.h;
+  el.querySelector('[data-field="opacity"]').value = layer.opacity;
+  el.querySelector('[data-field="rotation"]').value = layer.rotation;
+  const swatch = el.querySelector('[data-field="color"]');
+  if (swatch) swatch.style.background = layer.color;
+}
+
+/* ---------- Timeline ---------- */
+function buildTimeline() {
+  timelineTrack.innerHTML = '';
+  const total = state.endTime - state.startTime;
+  const step = 0.5;
+  const steps = Math.max(1, Math.ceil(total / step));
+  for (let i = 0; i <= steps; i++) {
+    const pct = (i / steps) * 100;
+    const el = document.createElement('div');
+    el.className = 'timeline-marker' + (i === 0 ? ' active' : '');
+    el.style.left = pct + '%';
+    el.title = (state.startTime + i * step).toFixed(1) + 's';
+    timelineTrack.appendChild(el);
+  }
+  const active = document.querySelector('.timeline-marker.active');
+  if (active) active.style.left = (100 * (state.currentTime - state.startTime) / state.duration).toFixed(2) + '%';
+}
+
+function updateTimelineUI() {
+  startTimeInput.value = state.startTime;
+  endTimeInput.value = state.endTime;
+  durationVal.textContent = (state.endTime - state.startTime).toFixed(1) + ' s';
+}
+
+/* ---------- Rendering ---------- */
+let bgCanvas = null;
+function resizeBgCanvas() {
+  if (!bgCanvas) {
+    bgCanvas = document.createElement('canvas');
+    bgCanvas.width = state.width;
+    bgCanvas.height = state.height;
+    preview.appendChild(bgCanvas);
+  } else {
+    bgCanvas.width = state.width;
+    bgCanvas.height = state.height;
+  }
+  bgCanvas.style.display = 'none';
+}
+
+function drawFrame(t) {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - state.lastTime) / 1000 || 0);
+  state.lastTime = now;
+
+  // Background
+  const bg = backgrounds[state.bg];
+  if (bg && bg.init) bg.init();
+  bg.draw(t, dt);
+
+  // Layers
+  ctx.save();
+  ctx.globalAlpha = 1;
+
+  // Apply zoom
+  const z = state.zoom;
+  ctx.scale(z, z);
+  ctx.translate(-state.width / 2, -state.height / 2);
+
+  state.layers.forEach(layer => {
+    if (layer.type === 'text') {
+      ctx.fillStyle = layer.color;
+      ctx.font = `bold ${layer.w || 48}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(layer.label, layer.x, layer.y);
+    } else if (layer.type === 'image') {
+      const img = layer.img;
+      if (img && img.complete) {
+        ctx.globalAlpha = layer.opacity;
+        ctx.translate(layer.x, layer.y);
+        ctx.rotate(layer.rotation);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2, layer.w, layer.h);
+        ctx.rotate(-layer.rotation);
+        ctx.globalAlpha = 1;
+      }
+    }
+  });
+
+  ctx.restore();
+
+  // FPS overlay
+  fpsLabel.textContent = `FPS: ${Math.round(1 / dt)}`;
+  progressLabel.textContent = `${Math.round((state.currentTime / state.duration) * 100)}%`;
+  previewSub.textContent = formatTime(state.currentTime) + ' / ' + formatTime(state.duration);
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+/* ---------- Animation Loop ---------- */
+function loop(t) {
+  if (!state.paused && state.playing) {
+    state.currentTime = (t - state.startTime) / 1000;
+    if (state.currentTime >= state.endTime) {
+      state.currentTime = state.endTime;
+      state.playing = false;
+      state.paused = false;
+      stopBtn.disabled = false;
+      playBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resetBtn.disabled = false;
+    }
+  }
+  drawFrame(t);
+  state.rafId = requestAnimationFrame(loop);
+}
+
+/* ---------- Export ---------- */
+function startRecording() {
+  const w = state.width;
+  const h = state.height;
+  const stream = canvas.captureStream(state.fps);
+  const mime = 'video/webm;codecs=vp9,opus';
+  const recorder = new MediaRecorder(stream, { mimeType: mime });
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size) state.recordedChunks.push(e.data);
+  };
+  recorder.onstop = () => {
+    const blob = new Blob(state.recordedChunks, { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = state.exportName + '.webm';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  state.recorder = recorder;
+  state.recordedChunks = [];
+  state.recorder.start();
+  state.recorder.stream = stream;
+}
+
+function stopRecording() {
+  if (state.recorder) {
+    state.recorder.stop();
+    state.recorder = null;
+    state.stream = null;
+    state.recordedChunks = [];
+  }
+}
+
+/* ---------- Events ---------- */
+bgSelect.addEventListener('change', (e) => {
+  state.bg = e.target.value;
+  if (state.bg === 'particles' || state.bg === 'smoke' || state.bg === 'rain' || state.bg === 'stars' || state.bg === 'confetti') {
+    if (backgrounds[state.bg].init) backgrounds[state.bg].init();
+  }
+});
+
+bgColor.addEventListener('input', (e) => {
+  state.bgColor = e.target.value;
+  if (bgCanvas) {
+    const c = bgCanvas.getContext('2d');
+    c.fillStyle = state.bgColor;
+    c.fillRect(0, 0, state.width, state.height);
+  }
+});
+
+bgSpeed.addEventListener('input', (e) => {
+  state.bgSpeed = parseFloat(e.target.value);
+  bgSpeedVal.textContent = e.target.value;
+});
+
+startTimeInput.addEventListener('change', (e) => {
+  state.startTime = parseFloat(e.target.value);
+  state.currentTime = state.startTime;
+  updateTimelineUI();
+  buildTimeline();
+  if (state.recorder) {
+    state.recorder.stop();
+    startRecording();
+  }
+});
+
+endTimeInput.addEventListener('change', (e) => {
+  state.endTime = parseFloat(e.target.value);
+  state.duration = state.endTime - state.startTime;
+  updateTimelineUI();
+  buildTimeline();
+});
+
+addTextBtn.addEventListener('click', () => {
+  createLayer('text', {
+    label: 'Hello World',
+    color: '#ffffff',
+    x: state.width / 2,
+    y: state.height / 2,
+    w: 300,
+    h: 100,
+    opacity: 1,
+    rotation: 0,
+  });
+});
+
+addImageBtn.addEventListener('click', () => {
+  createLayer('image', {
+    label: 'Image',
+    color: '#ffffff',
+    x: state.width / 2,
+    y: state.height / 2,
+    w: 200,
+    h: 150,
+    opacity: 1,
+    rotation: 0,
+  });
+});
+
+exportBtn.addEventListener('click', () => {
+  if (state.layers.length === 0) {
+    alert('Add at least one layer first.');
+    return;
+  }
+  if (state.startTime >= state.endTime) {
+    alert('End time must be greater than start time.');
+    return;
+  }
+  if (state.startTime < 0) {
+    alert('Start time must be non-negative.');
+    return;
+  }
+  state.exportName = (document.getElementById('exportName') || {}).value || 'my_video';
+  if (state.recorder) {
+    state.recorder.stop();
+  }
+  startRecording();
+  state.playing = true;
+  state.paused = false;
+  playBtn.disabled = true;
+  pauseBtn.disabled = false;
+  stopBtn.disabled = false;
+  resetBtn.disabled = false;
+  previewOverlay.classList.add('show');
+  overlayText.textContent = 'Recording...';
+});
+
+clearBtn.addEventListener('click', () => {
+  if (state.recorder) {
+    state.recorder.stop();
+    state.recorder = null;
+  }
+  state.layers = [];
+  state.currentTime = 0;
+  state.playing = false;
+  state.paused = false;
+  renderLayers();
+  buildTimeline();
+  updateTimelineUI();
+  previewOverlay.classList.remove('show');
+  overlayText.textContent = 'Preview';
+  playBtn.disabled = true;
+  pauseBtn.disabled = true;
+  stopBtn.disabled = true;
+  resetBtn.disabled = true;
+  fpsLabel.textContent = 'FPS: 60';
+  progressLabel.textContent = '0%';
+  previewSub.textContent = '0:00 / 0:00';
+});
+
+playBtn.addEventListener('click', () => {
+  if (!state.recorder) {
+    alert('Start recording first.');
+    return;
+  }
+  state.playing = true;
+  state.paused = false;
+  playBtn.disabled = true;
+  pauseBtn.disabled = false;
+  stopBtn.disabled = false;
+  resetBtn.disabled = false;
+});
+
+pauseBtn.addEventListener('click', () => {
+  state.paused = true;
+  state.playing = false;
+  playBtn.disabled = false;
+  pauseBtn.disabled = true;
+  stopBtn.disabled = false;
+  resetBtn.disabled = false;
+});
+
+stopBtn.addEventListener('click', () => {
+  if (state.recorder) {
+    state.recorder.stop();
+  }
+  state.recorder = null;
+  state.stream = null;
+  state.recordedChunks = [];
+  state.playing = false;
+  state.paused = false;
+  previewOverlay.classList.remove('show');
+  overlayText.textContent = 'Preview';
+  playBtn.disabled = true;
+  pauseBtn.disabled = true;
+  stopBtn.disabled = true;
+  resetBtn.disabled = true;
+  fpsLabel.textContent = 'FPS: 60';
+  progressLabel.textContent = '0%';
+  previewSub.textContent = '0:00 / 0:00';
+});
+
+resetBtn.addEventListener('click', () => {
+  if (state.recorder) {
+    state.recorder.stop();
+  }
+  state.recorder = null;
+  state.stream = null;
+  state.recordedChunks = [];
+  state.currentTime = state.startTime;
+  state.playing = false;
+  state.paused = false;
+  previewOverlay.classList.remove('show');
+  overlayText.textContent = 'Preview';
+  playBtn.disabled = true;
+  pauseBtn.disabled = true;
+  stopBtn.disabled = true;
+  resetBtn.disabled = true;
+  fpsLabel.textContent = 'FPS: 60';
+  progressLabel.textContent = '0%';
+  previewSub.textContent = '0:00 / 0:00';
+});
+
+zoomInBtn.addEventListener('click', () => {
+  state.zoom = Math.min(3, state.zoom + 0.25);
+  canvas.style.transform = `scale(${state.zoom})`;
+  canvas.style.transformOrigin = '0 0';
+});
+zoomOutBtn.addEventListener('click', () => {
+  state.zoom = Math.max(0.5, state.zoom - 0.25);
+  canvas.style.transform = `scale(${state.zoom})`;
+  canvas.style.transformOrigin = '0 0';
+});
+fullscreenBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    previewCanvas.requestFullscreen?.();
+  } else {
+    document.exitFullscreen?.();
+  }
+});
+
+/* Keyboard */
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (state.paused) pauseBtn.click();
+    else playBtn.click();
+  } else if (e.key === 'ArrowLeft') {
+    state.currentTime = Math.max(0, state.currentTime - 0.5);
+  } else if (e.key === 'ArrowRight') {
+    state.currentTime = Math.min(state.duration, state.currentTime + 0.5);
+  } else if (e.key === 'Escape') {
+    document.exitFullscreen?.();
+  }
+});
+
+/* ---------- Helpers ---------- */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+/* ---------- Init ---------- */
+function init() {
+  resizeBgCanvas();
+  buildTimeline();
+  updateTimelineUI();
+  renderLayers();
+  state.lastTime = performance.now();
+  state.rafId = requestAnimationFrame(loop);
+}
+
+init();
+</script>
+</body>
+</html>

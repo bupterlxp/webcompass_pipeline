@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Recorder & Editor</title>
+  <style>* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #1a237e 0%, #24165e 100%);
+  color: #fff;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.app-header h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #fff, #c9a2ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.app-header p {
+  margin: 0;
+  color: rgba(255,255,255,0.75);
+  font-size: 16px;
+}
+
+.panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 24px;
+  backdrop-filter: blur(8px);
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  color: #fff;
+}
+
+.recorder {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s, opacity 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b, #c0392b);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) { transform: translateY(-1px); }
+
+.btn-success {
+  background: linear-gradient(135deg, #28c840, #108a38);
+  color: #fff;
+}
+
+.btn-success:hover:not(:disabled) { transform: translateY(-1px); }
+
+.btn-ghost {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.35);
+}
+
+.progress {
+  margin-top: 16px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.progress-bar::after {
+  content: '';
+  display: block;
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  transition: width 0.1s linear;
+}
+
+.progress-time {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  margin-top: 4px;
+}
+
+.trim-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.trim-controls label {
+  display: block;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 4px;
+}
+
+.trim-controls input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 14px;
+}
+
+.trim-controls input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255,255,255,0.15);
+}
+
+.effects {
+  display: grid;
+  gap: 10px;
+}
+
+.effect-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.effect-toggle input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px;
+  height: 20px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.effect-toggle input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.effect-toggle input:checked {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.effect-toggle input:checked::after {
+  transform: translateX(16px);
+}
+
+.effect-toggle span {
+  font-size: 14px;
+  color: rgba(255,255,255,0.85);
+}
+
+.effect-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.effect-slider span {
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+}
+
+.effect-slider input[type="range"] {
+  width: 100%;
+  accent-color: #667eea;
+}
+
+.waveform {
+  height: 80px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 16px;
+  position: relative;
+}
+
+.waveform canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.export {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+#previewAudio {
+  width: 100%;
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .panel {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>🎧 Audio Recorder & Editor</h1>
+      <p>Record, trim, and add sound effects — all in your browser.</p>
+    </header>
+
+    <div class="panel">
+      <div class="card">
+        <h2>🎤 Record</h2>
+        <div class="recorder">
+          <button id="startBtn" class="btn btn-primary" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+            Start Recording
+          </button>
+          <button id="stopBtn" class="btn btn-danger" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            Stop
+          </button>
+          <button id="clearBtn" class="btn btn-ghost" disabled>Clear</button>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" id="progressBar"></div>
+          <div class="progress-time" id="progressTime">0.0s</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>✂️ Trim</h2>
+        <div class="trim-controls">
+          <label for="startTime">Start (s)</label>
+          <input type="number" id="startTime" step="0.01" min="0" value="0" />
+          <label for="endTime">End (s)</label>
+          <input type="number" id="endTime" step="0.01" min="0" max="0" value="0" />
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🔊 Effects</h2>
+        <div class="effects">
+          <label class="effect-toggle">
+            <input type="checkbox" id="reverseToggle" />
+            <span>Reverse</span>
+          </label>
+          <label class="effect-toggle">
+            <input type="checkbox" id="echoToggle" />
+            <span>Echo</span>
+          </label>
+          <label class="effect-toggle">
+            <input type="checkbox" id="distortionToggle" />
+            <span>Distortion</span>
+          </label>
+          <label class="effect-slider">
+            <span>Distortion Level</span>
+            <input type="range" id="distortionLevel" min="0" max="100" value="30" />
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>▶️ Preview</h2>
+        <div class="waveform" id="waveform"></div>
+        <audio id="previewAudio" controls></audio>
+      </div>
+
+      <div class="card">
+        <h2>💾 Export</h2>
+        <div class="export">
+          <button id="downloadBtn" class="btn btn-success" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download WAV
+          </button>
+          <button id="resetBtn" class="btn btn-ghost" disabled>Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>(() => {
+  'use strict';
+
+  const SAMPLE_RATE = 44100;
+  const CHANNELS = 1;
+  const BITS_PER_SAMPLE = 16;
+  const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
+  const BLOCK_SIZE = 2048;
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const progressBar = document.getElementById('progressBar');
+  const progressTime = document.getElementById('progressTime');
+  const startTimeInput = document.getElementById('startTime');
+  const endTimeInput = document.getElementById('endTime');
+  const reverseToggle = document.getElementById('reverseToggle');
+  const echoToggle = document.getElementById('echoToggle');
+  const distortionToggle = document.getElementById('distortionToggle');
+  const distortionLevel = document.getElementById('distortionLevel');
+  const waveform = document.getElementById('waveform');
+  const previewAudio = document.getElementById('previewAudio');
+
+  let audioCtx = null;
+  let stream = null;
+  let recorder = null;
+  let audioBuffer = null;
+  let recording = false;
+  let startTime = 0;
+  let currentDuration = 0;
+  let elapsed = 0;
+  let previewBuffer = null;
+  let previewSource = null;
+  let previewGain = null;
+  let previewNode = null;
+
+  const canvas = waveform.querySelector('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // --- Effects ---
+  const effects = {
+    reverse: false,
+    echo: false,
+    distortion: false,
+    distortionLevel: 30,
+  };
+
+  // --- Audio Context helpers ---
+  function ensureAudioCtx() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        alert('Audio context unavailable. Please check browser permissions.');
+        return false;
+      }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return !!audioCtx;
+  }
+
+  // --- Start recording ---
+  async function startRecording() {
+    if (recording) return;
+    if (!ensureAudioCtx()) return;
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false },
+      });
+      const source = audioCtx.createMediaStreamSource(stream);
+      const rec = audioCtx.createMediaRecorder(source, {
+        mimeType: 'audio/webm;codecs=opus',
+        channelCount: CHANNELS,
+        sampleRate: SAMPLE_RATE,
+      });
+
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          const array = new Uint8Array(e.data.size);
+          const reader = new FileReader();
+          reader.onload = () => {
+            const view = new DataView(reader.result);
+            const buffer = audioCtx.createBuffer(
+              1,
+              SAMPLE_RATE * (e.data.size / BYTES_PER_SAMPLE),
+              SAMPLE_RATE
+            );
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) {
+              data[i] = view.getFloat32(i * BYTES_PER_SAMPLE / 4, true);
+            }
+            if (audioBuffer) audioBuffer = audioBuffer.concat(buffer);
+            else audioBuffer = buffer;
+            currentDuration = audioBuffer.duration;
+            updateProgress();
+          };
+          reader.readAsArrayBuffer(e.data);
+        }
+      };
+
+      rec.start();
+      recorder = rec;
+      recording = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      clearBtn.disabled = false;
+      downloadBtn.disabled = true;
+      resetBtn.disabled = true;
+      startTime = performance.now();
+      elapsed = 0;
+      updateProgress();
+    } catch (err) {
+      console.error(err);
+      alert('Unable to start recording: ' + err.message);
+    }
+  }
+
+  // --- Stop recording ---
+  async function stopRecording() {
+    if (!recording) return;
+    if (recorder) {
+      try {
+        recorder.stop();
+      } catch (e) { /* ignore */ }
+      recorder = null;
+    }
+    if (stream) {
+      try {
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (e) { /* ignore */ }
+      stream = null;
+    }
+    recording = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    clearBtn.disabled = false;
+    downloadBtn.disabled = false;
+    resetBtn.disabled = false;
+    updateProgress();
+  }
+
+  // --- Clear ---
+  function clearAll() {
+    audioBuffer = null;
+    previewBuffer = null;
+    previewSource = null;
+    previewGain = null;
+    previewNode = null;
+    currentDuration = 0;
+    elapsed = 0;
+    startTime = 0;
+    effects.reverse = false;
+    effects.echo = false;
+    effects.distortion = false;
+    effects.distortionLevel = 30;
+    reverseToggle.checked = false;
+    echoToggle.checked = false;
+    distortionToggle.checked = false;
+    distortionLevel.value = 30;
+    startTimeInput.value = 0;
+    endTimeInput.value = 0;
+    updateProgress();
+    previewAudio.src = '';
+    previewAudio.load();
+    downloadBtn.disabled = true;
+    resetBtn.disabled = true;
+  }
+
+  // --- Trim ---
+  function trim() {
+    if (!audioBuffer) return;
+    const start = parseFloat(startTimeInput.value) || 0;
+    const end = parseFloat(endTimeInput.value) || 0;
+    if (end <= start) {
+      alert('End time must be greater than start time.');
+      return;
+    }
+    if (end > audioBuffer.duration) {
+      alert('End time exceeds recording length.');
+      return;
+    }
+    const left = audioBuffer.getChannelData(0).slice(0, Math.floor(start * SAMPLE_RATE));
+    const right = audioBuffer.getChannelData(0).slice(Math.floor(start * SAMPLE_RATE), Math.floor(end * SAMPLE_RATE));
+    const trimmed = audioCtx.createBuffer(1, left.length + right.length, SAMPLE_RATE);
+    trimmed.copyToChannel(left, 0);
+    trimmed.copyToChannel(right, 0);
+    audioBuffer = trimmed;
+    currentDuration = audioBuffer.duration;
+    updateProgress();
+  }
+
+  // --- Effects ---
+  function applyEffects(buffer) {
+    const data = buffer.getChannelData(0);
+    const len = data.length;
+    const out = new Float32Array(len);
+    const rate = 44100;
+
+    for (let i = 0; i < len; i++) out[i] = data[i];
+
+    if (effects.reverse) {
+      for (let i = 0; i < len / 2; i++) {
+        const j = len - 1 - i;
+        const t = out[i];
+        out[i] = out[j];
+        out[j] = t;
+      }
+    }
+
+    if (effects.echo) {
+      const delay = 0.12; // seconds
+      const delaySamples = Math.floor(delay * rate);
+      const feedback = 0.35;
+      for (let i = 0; i < len; i++) {
+        out[i] += out[Math.max(0, i - delaySamples)];
+        out[i] *= (1 - feedback);
+      }
+    }
+
+    if (effects.distortion) {
+      const level = effects.distortionLevel / 100;
+      const offset = 0.25;
+      const saturation = 1 + level;
+      for (let i = 0; i < len; i++) {
+        let v = out[i];
+        v = v > offset ? v / saturation : v;
+        v = v < -offset ? v / saturation : v;
+        out[i] = v;
+      }
+    }
+
+    buffer.copyToChannel(out, 0);
+    return buffer;
+  }
+
+  // --- Render waveform ---
+  function renderWaveform() {
+    if (!audioBuffer) return;
+    const data = audioBuffer.getChannelData(0);
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const samples = data.length;
+    const step = Math.max(1, Math.floor(samples / width));
+
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const mid = height / 2;
+    const amp = mid / 2;
+
+    for (let i = 0; i < width; i++) {
+      const s = i * step;
+      const v = Math.max(-1, Math.min(1, data[s]));
+      const y = mid - v * amp;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(i, y, 1, height - y * 2);
+    }
+  }
+
+  // --- Preview ---
+  function playPreview() {
+    if (!audioBuffer) return;
+    stopPreview();
+    previewBuffer = audioCtx.createBuffer(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+    previewBuffer.copyToChannel(audioBuffer.getChannelData(0), 0);
+    previewBuffer = applyEffects(previewBuffer);
+
+    previewSource = audioCtx.createBufferSource();
+    previewSource.buffer = previewBuffer;
+
+    previewGain = audioCtx.createGain();
+    previewGain.gain.value = 0.5;
+
+    previewNode = audioCtx.createMediaElementSource(previewAudio);
+    previewNode.buffer = previewBuffer;
+
+    previewSource.connect(previewGain).connect(audioCtx.destination);
+    previewNode.connect(previewGain).connect(audioCtx.destination);
+
+    previewSource.start();
+    previewAudio.src = URL.createObjectURL(previewBuffer);
+    previewAudio.play().catch(() => {});
+  }
+
+  function stopPreview() {
+    if (previewSource) {
+      try { previewSource.stop(); } catch (e) {}
+      previewSource = null;
+    }
+    if (previewNode) {
+      try { previewNode.stop(); } catch (e) {}
+      previewNode = null;
+    }
+    if (previewGain) {
+      try { previewGain.disconnect(); } catch (e) {}
+      previewGain = null;
+    }
+    previewAudio.src = '';
+    previewAudio.load();
+  }
+
+  // --- Download WAV ---
+  function downloadWAV() {
+    if (!audioBuffer) return;
+    const data = applyEffects(audioBuffer);
+    const wav = encodeWAV(data);
+    const blob = new Blob([wav], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'recording.wav';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function encodeWAV(buffer) {
+    const numCh = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const bytesPerSample = BYTES_PER_SAMPLE;
+    const blockAlign = numCh * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = buffer.length * blockAlign;
+    const bufferLength = 44 + dataSize;
+
+    const view = new DataView(new ArrayBuffer(bufferLength));
+    let offset = 0;
+
+    writeString(view, offset, 'RIFF');
+    view.setUint32(offset + 4, 36 + dataSize, true);
+    writeString(view, offset + 8, 'WAVE');
+    writeString(view, offset + 12, 'fmt ');
+    view.setUint32(offset + 16, 16, true);
+    view.setUint16(offset + 20, 1, true);
+    view.setUint16(offset + 22, numCh, true);
+    view.setUint32(offset + 24, sampleRate, true);
+    view.setUint32(offset + 28, byteRate, true);
+    view.setUint16(offset + 32, blockAlign, true);
+    view.setUint16(offset + 34, bitsPerSample, true);
+    offset += 36;
+    writeString(view, offset, 'data');
+    view.setUint32(offset + 4, dataSize, true);
+    offset += 8;
+    const channels = buffer.getChannelData(0);
+    for (let i = 0; i < buffer.length; i++) {
+      let s = Math.max(-1, Math.min(1, channels[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+      offset += 2;
+    }
+    return view.buffer;
+  }
+
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  // --- Progress ---
+  function updateProgress() {
+    if (!audioBuffer) {
+      progressBar.style.width = '0%';
+      progressTime.textContent = '0.0s';
+      return;
+    }
+    const pct = (elapsed / audioBuffer.duration) * 100;
+    progressBar.style.width = pct + '%';
+    progressTime.textContent = elapsed.toFixed(1) + 's';
+  }
+
+  // --- Event wiring ---
+  startBtn.addEventListener('click', startRecording);
+  stopBtn.addEventListener('click', stopRecording);
+  clearBtn.addEventListener('click', clearAll);
+  downloadBtn.addEventListener('click', downloadWAV);
+  resetBtn.addEventListener('click', clearAll);
+
+  startTimeInput.addEventListener('change', trim);
+  endTimeInput.addEventListener('change', trim);
+
+  reverseToggle.addEventListener('change', () => {
+    effects.reverse = reverseToggle.checked;
+    if (previewBuffer) {
+      previewBuffer = applyEffects(previewBuffer);
+      renderWaveform();
+    }
+  });
+
+  echoToggle.addEventListener('change', () => {
+    effects.echo = echoToggle.checked;
+    if (previewBuffer) {
+      previewBuffer = applyEffects(previewBuffer);
+      renderWaveform();
+    }
+  });
+
+  distortionToggle.addEventListener('change', () => {
+    effects.distortion = distortionToggle.checked;
+    if (previewBuffer) {
+      previewBuffer = applyEffects(previewBuffer);
+      renderWaveform();
+    }
+  });
+
+  distortionLevel.addEventListener('input', () => {
+    effects.distortionLevel = parseInt(distortionLevel.value, 10);
+    if (previewBuffer) {
+      previewBuffer = applyEffects(previewBuffer);
+      renderWaveform();
+    }
+  });
+
+  previewAudio.addEventListener('play', () => {
+    stopPreview();
+    playPreview();
+  });
+
+  previewAudio.addEventListener('pause', stopPreview);
+  previewAudio.addEventListener('ended', stopPreview);
+
+  // --- Resize waveform ---
+  window.addEventListener('resize', renderWaveform);
+
+  // --- Keyboard shortcuts ---
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') {
+      if (!recording) startRecording();
+      else stopRecording();
+    } else if (e.key === 'r' || e.key === 'R') {
+      clearAll();
+    } else if (e.key === 't' || e.key === 'T') {
+      trim();
+    } else if (e.key === 'e' || e.key === 'E') {
+      playPreview();
+    }
+  });
+
+  // --- Init ---
+  renderWaveform();
+})();
+</script></script>
+</body>
+</html>

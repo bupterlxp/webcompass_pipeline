@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Watermark Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .upload-section {
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="file"], input[type="text"], select, input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .watermark-options {
+            margin-bottom: 20px;
+        }
+        .watermark-preview {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .audio-player {
+            margin-top: 20px;
+        }
+        .audio-player audio {
+            width: 100%;
+        }
+        .result-section {
+            margin-top: 20px;
+        }
+        .download-btn {
+            background-color: #28a745;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .error {
+            color: red;
+            font-size: 14px;
+        }
+        .success {
+            color: green;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Watermark Creator</h1>
+        
+        <div class="upload-section">
+            <div class="form-group">
+                <label for="audioFile">Upload Audio File</label>
+                <input type="file" id="audioFile" accept="audio/*" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="watermarkText">Watermark Text</label>
+                <input type="text" id="watermarkText" placeholder="Enter watermark text (e.g., 'Sample Watermark')" value="Sample Watermark">
+            </div>
+        </div>
+        
+        <div class="watermark-options">
+            <div class="form-group">
+                <label for="watermarkPosition">Watermark Position</label>
+                <select id="watermarkPosition">
+                    <option value="beginning">Beginning</option>
+                    <option value="middle">Middle</option>
+                    <option value="end">End</option>
+                    <option value="custom">Custom Position (seconds)</option>
+                </select>
+            </div>
+            
+            <div id="customPosition" style="display: none;">
+                <div class="form-group">
+                    <label for="customPositionTime">Custom Position (seconds)</label>
+                    <input type="number" id="customPositionTime" min="0" step="0.1" value="10">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="watermarkVolume">Watermark Volume (0-100%)</label>
+                <input type="range" id="watermarkVolume" min="0" max="100" value="30">
+                <span id="volumeValue">30%</span>
+            </div>
+        </div>
+        
+        <div class="watermark-preview">
+            <h3>Watermark Preview</h3>
+            <p id="watermarkPreviewText">Watermark: <span id="previewText">Sample Watermark</span></p>
+            <p>Position: <span id="previewPosition">Beginning</span></p>
+            <p>Volume: <span id="previewVolume">30%</span></p>
+        </div>
+        
+        <div class="audio-player">
+            <h3>Preview Audio</h3>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+        
+        <div class="result-section">
+            <button id="processButton" onclick="processAudio()">Process Watermark</button>
+            <button id="downloadButton" class="download-btn" disabled onclick="downloadWatermarkedAudio()" style="margin-top: 10px;">Download Watermarked Audio</button>
+            <div id="statusMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const audioFileInput = document.getElementById('audioFile');
+        const watermarkTextInput = document.getElementById('watermarkText');
+        const watermarkPositionSelect = document.getElementById('watermarkPosition');
+        const customPositionDiv = document.getElementById('customPosition');
+        const customPositionTimeInput = document.getElementById('customPositionTime');
+        const watermarkVolumeInput = document.getElementById('watermarkVolume');
+        const volumeValueSpan = document.getElementById('volumeValue');
+        const previewTextSpan = document.getElementById('previewText');
+        const previewPositionSpan = document.getElementById('previewPosition');
+        const previewVolumeSpan = document.getElementById('previewVolume');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const processButton = document.getElementById('processButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        // Update preview based on user input
+        function updatePreview() {
+            const watermarkText = watermarkTextInput.value.trim();
+            const position = watermarkPositionSelect.value;
+            const volume = watermarkVolumeInput.value;
+            
+            previewTextSpan.textContent = watermarkText || 'Sample Watermark';
+            previewPositionSpan.textContent = position === 'custom' ? 'Custom: ' + customPositionTimeInput.value + ' seconds' : position;
+            previewVolumeSpan.textContent = volume + '%';
+            
+            // Show/hide custom position input
+            if (position === 'custom') {
+                customPositionDiv.style.display = 'block';
+            } else {
+                customPositionDiv.style.display = 'none';
+            }
+            
+            // Update volume display
+            volumeValueSpan.textContent = volume + '%';
+        }
+        
+        // Handle file upload
+        audioFileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const audioUrl = URL.createObjectURL(file);
+                audioPlayer.src = audioUrl;
+                
+                // Update preview
+                updatePreview();
+            }
+        });
+        
+        // Handle watermark text change
+        watermarkTextInput.addEventListener('input', updatePreview);
+        
+        // Handle watermark position change
+        watermarkPositionSelect.addEventListener('change', updatePreview);
+        
+        // Handle custom position time change
+        customPositionTimeInput.addEventListener('input', updatePreview);
+        
+        // Handle watermark volume change
+        watermarkVolumeInput.addEventListener('input', function() {
+            volumeValueSpan.textContent = this.value + '%';
+            updatePreview();
+        });
+        
+        // Process audio with watermark
+        async function processAudio() {
+            try {
+                statusMessage.textContent = 'Processing audio...';
+                statusMessage.className = 'success';
+                
+                // Get file and watermark parameters
+                const file = audioFileInput.files[0];
+                const watermarkText = watermarkTextInput.value.trim();
+                const position = watermarkPositionSelect.value;
+                const volume = watermarkVolumeInput.value / 100; // Convert to decimal
+                const customTime = position === 'custom' ? parseFloat(customPositionTimeInput.value) : null;
+                
+                if (!file) {
+                    throw new Error('No audio file selected');
+                }
+                
+                if (!watermarkText) {
+                    throw new Error('Watermark text is required');
+                }
+                
+                // Create audio context
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Load audio file
+                const audioBuffer = await loadAudioBuffer(file, audioContext);
+                
+                // Create watermark audio
+                const watermarkBuffer = createWatermarkAudio(watermarkText, audioContext, volume);
+                
+                // Apply watermark
+                const watermarkedBuffer = applyWatermark(audioBuffer, watermarkBuffer, position, customTime);
+                
+                // Generate blob and URL
+                const watermarkedAudioBlob = await audioContext.decodeAudioData(watermarkedBuffer);
+                const audioData = await audioContext.decodeAudioData(watermarkedBuffer);
+                
+                // Create audio blob
+                const audioBlob = new Blob([audioData], { type: 'audio/wav' });
+                
+                // Update download button
+                downloadButton.disabled = false;
+                statusMessage.textContent = 'Watermark applied successfully!';
+                statusMessage.className = 'success';
+                
+            } catch (error) {
+                statusMessage.textContent = 'Error: ' + error.message;
+                statusMessage.className = 'error';
+                console.error('Error processing audio:', error);
+            }
+        }
+        
+        // Load audio file into audio context
+        async function loadAudioBuffer(file, audioContext) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    audioContext.decodeAudioData(arrayBuffer)
+                        .then(buffer => resolve(buffer))
+                        .catch(error => reject(error));
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // Create watermark audio
+        function createWatermarkAudio(text, audioContext, volume) {
+            // Create oscillator for watermark
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Set oscillator parameters
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 440; // A4 note
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Set gain
+            gainNode.gain.value = volume;
+            
+            // Create buffer for watermark
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.5; // 0.5 seconds
+            const numSamples = Math.floor(sampleRate * duration);
+            const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+            const output = buffer.getChannelData(0);
+            
+            // Generate sine wave with text
+            for (let i = 0; i < numSamples; i++) {
+                const t = i / sampleRate;
+                output[i] = Math.sin(2 * Math.PI * 440 * t) * volume;
+            }
+            
+            // Create audio buffer source
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            
+            // Start oscillator
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + duration);
+            
+            // Return buffer
+            return buffer;
+        }
+        
+        // Apply watermark to audio
+        function applyWatermark(audioBuffer, watermarkBuffer, position, customTime) {
+            const sampleRate = audioBuffer.sampleRate;
+            const duration = audioBuffer.duration;
+            const numChannels = audioBuffer.numberOfChannels;
+            
+            // Create new buffer for watermarked audio
+            const watermarkedBuffer = audioBuffer.copy();
+            const watermarkedData = watermarkedBuffer.getChannelData(0);
+            
+            // Apply watermark based on position
+            if (position === 'beginning') {
+                // Apply watermark at beginning
+                const watermarkData = watermarkBuffer.getChannelData(0);
+                const watermarkLength = watermarkData.length;
+                
+                for (let i = 0; i < watermarkLength; i++) {
+                    watermarkedData[i] += watermarkData[i];
+                }
+            } else if (position === 'middle') {
+                // Apply watermark at middle
+                const middlePoint = Math.floor(audioBuffer.length / 2);
+                const watermarkData = watermarkBuffer.getChannelData(0);
+                const watermarkLength = watermarkData.length;
+                
+                for (let i = 0; i < watermarkLength; i++) {
+                    watermarkedData[middlePoint + i] += watermarkData[i];
+                }
+            } else if (position === 'end') {
+                // Apply watermark at end
+                const watermarkData = watermarkBuffer.getChannelData(0);
+                const watermarkLength = watermarkData.length;
+                
+                for (let i = 0; i < watermarkLength; i++) {
+                    watermarkedData[watermarkedData.length - watermarkLength + i] += watermarkData[i];
+                }
+            } else if (position === 'custom') {
+                // Apply watermark at custom position
+                const customPosition = customTime || 10;
+                const watermarkData = watermarkBuffer.getChannelData(0);
+                const watermarkLength = watermarkData.length;
+                
+                const startSample = Math.floor(customPosition * sampleRate);
+                const endSample = startSample + watermarkLength;
+                
+                for (let i = 0; i < watermarkLength; i++) {
+                    watermarkedData[startSample + i] += watermarkData[i];
+                }
+            }
+            
+            return watermarkedBuffer;
+        }
+        
+        // Download watermarked audio
+        function downloadWatermarkedAudio() {
+            // Create a download link
+            const link = document.createElement('a');
+            link.href = '#';
+            link.download = 'watermarked_audio.wav';
+            
+            // Trigger download
+            link.click();
+        }
+    </script>
+</body>
+</html>

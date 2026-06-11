@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Geometry Calculator</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        h1 {
+            grid-column: 1 / -1;
+            margin-top: 0;
+            text-align: center;
+            color: var(--primary);
+        }
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .input-group {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .results {
+            background: #eff6ff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+        }
+        .results p {
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+        .preview-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        svg {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+        }
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #1d4ed8;
+        }
+        .formulas {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .formulas.active {
+            display: block;
+        }
+        @media (max-width: 600px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Geometry Calculator</h1>
+    
+    <div class="control-panel">
+        <div>
+            <label for="shape-select">Select Shape:</label>
+            <select id="shape-select">
+                <optgroup label="2D Shapes">
+                    <option value="circle">Circle</option>
+                    <option value="rectangle">Rectangle</option>
+                    <option value="triangle">Equilateral Triangle</option>
+                </optgroup>
+                <optgroup label="3D Shapes">
+                    <option value="sphere">Sphere</option>
+                    <option value="cylinder">Cylinder</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <div id="dynamic-inputs" class="input-group">
+            <!-- Inputs injected via JS -->
+        </div>
+
+        <div class="results" id="results-panel">
+            <!-- Results injected via JS -->
+        </div>
+
+        <button class="btn" id="toggle-formulas">Show Formulas</button>
+        <div class="formulas" id="formulas-panel"></div>
+    </div>
+
+    <div class="preview-panel">
+        <label>Live Preview</label>
+        <svg id="preview-svg" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+</div>
+
+<script>
+    const shapes = {
+        circle: {
+            type: '2d',
+            params: [{ id: 'r', label: 'Radius (r)', default: 50 }],
+            calc: (p) => ({
+                Area: (Math.PI * p.r ** 2).toFixed(2),
+                Perimeter: (2 * Math.PI * p.r).toFixed(2)
+            }),
+            formulas: "Area = π × r²\nPerimeter = 2 × π × r",
+            draw: (svg, p) => {
+                const cx = 150, cy = 150;
+                const scale = Math.min(120 / p.r, 1); // Scale to fit
+                const r = p.r * scale;
+                svg.innerHTML = `
+                    <circle cx="${cx}" cy="${cy}" r="${r}" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+                    <line x1="${cx}" y1="${cy}" x2="${cx + r}" y2="${cy}" stroke="#1e293b" stroke-width="2" stroke-dasharray="4"/>
+                    <text x="${cx + r/2}" y="${cy - 5}" font-size="14" text-anchor="middle">r=${p.r}</text>
+                    <circle cx="${cx}" cy="${cy}" r="3" fill="#1e293b"/>
+                `;
+            }
+        },
+        rectangle: {
+            type: '2d',
+            params: [
+                { id: 'w', label: 'Width (w)', default: 100 },
+                { id: 'h', label: 'Height (h)', default: 60 }
+            ],
+            calc: (p) => ({
+                Area: (p.w * p.h).toFixed(2),
+                Perimeter: (2 * (p.w + p.h)).toFixed(2)
+            }),
+            formulas: "Area = w × h\nPerimeter = 2 × (w + h)",
+            draw: (svg, p) => {
+                const maxDim = Math.max(p.w, p.h);
+                const scale = Math.min(240 / maxDim, 1);
+                const w = p.w * scale;
+                const h = p.h * scale;
+                const x = 150 - w/2;
+                const y = 150 - h/2;
+                svg.innerHTML = `
+                    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+                    <text x="${150}" y="${y - 10}" font-size="14" text-anchor="middle">w=${p.w}</text>
+                    <text x="${x - 10}" y="${150}" font-size="14" text-anchor="end" dominant-baseline="middle">h=${p.h}</text>
+                `;
+            }
+        },
+        triangle: {
+            type: '2d',
+            params: [{ id: 'a', label: 'Side Length (a)', default: 100 }],
+            calc: (p) => ({
+                Area: ((Math.sqrt(3) / 4) * p.a ** 2).toFixed(2),
+                Perimeter: (3 * p.a).toFixed(2)
+            }),
+            formulas: "Area = (√3 / 4) × a²\nPerimeter = 3 × a",
+            draw: (svg, p) => {
+                const scale = Math.min(200 / p.a, 1);
+                const a = p.a * scale;
+                const h = (Math.sqrt(3) / 2) * a;
+                const cx = 150, cy = 150 + h/3;
+                svg.innerHTML = `
+                    <polygon points="${cx},${cy - h} ${cx - a/2},${cy} ${cx + a/2},${cy}" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+                    <text x="${cx}" y="${cy + 20}" font-size="14" text-anchor="middle">a=${p.a}</text>
+                `;
+            }
+        },
+        sphere: {
+            type: '3d',
+            params: [{ id: 'r', label: 'Radius (r)', default: 50 }],
+            calc: (p) => ({
+                Volume: ((4/3) * Math.PI * p.r ** 3).toFixed(2),
+                'Surface Area': (4 * Math.PI * p.r ** 2).toFixed(2)
+            }),
+            formulas: "Volume = (4/3) × π × r³\nSurface Area = 4 × π × r²",
+            draw: (svg, p) => {
+                const cx = 150, cy = 150;
+                const scale = Math.min(120 / p.r, 1);
+                const r = p.r * scale;
+                svg.innerHTML = `
+                    <defs>
+                        <radialGradient id="sphereGrad" cx="30%" cy="30%" r="70%">
+                            <stop offset="0%" stop-color="#ffffff" />
+                            <stop offset="100%" stop-color="#3b82f6" />
+                        </radialGradient>
+                    </defs>
+                    <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#sphereGrad)" stroke="#1d4ed8" stroke-width="1"/>
+                    <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r/3}" fill="none" stroke="#1e293b" stroke-width="1" stroke-dasharray="4"/>
+                    <line x1="${cx}" y1="${cy}" x2="${cx + r}" y2="${cy}" stroke="#1e293b" stroke-width="2"/>
+                    <text x="${cx + r/2}" y="${cy - 5}" font-size="14" text-anchor="middle">r=${p.r}</text>
+                    <circle cx="${cx}" cy="${cy}" r="3" fill="#1e293b"/>
+                `;
+            }
+        },
+        cylinder: {
+            type: '3d',
+            params: [
+                { id: 'r', label: 'Radius (r)', default: 40 },
+                { id: 'h', label: 'Height (h)', default: 100 }
+            ],
+            calc: (p) => ({
+                Volume: (Math.PI * p.r ** 2 * p.h).toFixed(2),
+                'Surface Area': (2 * Math.PI * p.r * p.h + 2 * Math.PI * p.r ** 2).toFixed(2)
+            }),
+            formulas: "Volume = π × r² × h\nSurface Area = 2πrh + 2πr²",
+            draw: (svg, p) => {
+                const maxDim = Math.max(p.r * 2, p.h);
+                const scale = Math.min(200 / maxDim, 1);
+                const r = p.r * scale;
+                const h = p.h * scale;
+                const cx = 150;
+                const topY = 150 - h/2;
+                const botY = 150 + h/2;
+                const ry = r * 0.3; // Perspective ratio
+                
+                svg.innerHTML = `
+                    <!-- Body -->
+                    <path d="M ${cx-r} ${topY} L ${cx-r} ${botY} A ${r} ${ry} 0 0 0 ${cx+r} ${botY} L ${cx+r} ${topY} Z" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+                    <!-- Bottom hidden edge -->
+                    <path d="M ${cx-r} ${botY} A ${r} ${ry} 0 0 1 ${cx+r} ${botY}" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="4"/>
+                    <!-- Top face -->
+                    <ellipse cx="${cx}" cy="${topY}" rx="${r}" ry="${ry}" fill="#93c5fd" stroke="#2563eb" stroke-width="2"/>
+                    
+                    <!-- Labels -->
+                    <line x1="${cx}" y1="${topY}" x2="${cx+r}" y2="${topY}" stroke="#1e293b" stroke-width="2"/>
+                    <text x="${cx + r/2}" y="${topY - 5}" font-size="14" text-anchor="middle">r=${p.r}</text>
+                    
+                    <line x1="${cx+r+10}" y1="${topY}" x2="${cx+r+10}" y2="${botY}" stroke="#1e293b" stroke-width="1"/>
+                    <text x="${cx+r+15}" y="${150}" font-size="14" dominant-baseline="middle">h=${p.h}</text>
+                `;
+            }
+        }
+    };
+
+    const shapeSelect = document.getElementById('shape-select');
+    const dynamicInputs = document.getElementById('dynamic-inputs');
+    const resultsPanel = document.getElementById('results-panel');
+    const formulasPanel = document.getElementById('formulas-panel');
+    const previewSvg = document.getElementById('preview-svg');
+    const toggleFormulasBtn = document.getElementById('toggle-formulas');
+
+    let currentParams = {};
+
+    function initShape() {
+        const shapeKey = shapeSelect.value;
+        const shape = shapes[shapeKey];
+        
+        // Generate Inputs
+        dynamicInputs.innerHTML = '';
+        currentParams = {};
+        shape.params.forEach(param => {
+            currentParams[param.id] = param.default;
+            
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '10px';
+            
+            const label = document.createElement('label');
+            label.innerText = param.label;
+            
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '1';
+            input.value = param.default;
+            input.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                currentParams[param.id] = isNaN(val) || val <= 0 ? 1 : val;
+                updateView();
+            });
+            
+            wrapper.appendChild(label);
+            wrapper.appendChild(input);
+            dynamicInputs.appendChild(wrapper);
+        });
+
+        // Set Formulas
+        formulasPanel.innerText = shape.formulas;
+        
+        updateView();
+    }
+
+    function updateView() {
+        const shapeKey = shapeSelect.value;
+        const shape = shapes[shapeKey];
+        
+        // Calculate Results
+        const results = shape.calc(currentParams);
+        resultsPanel.innerHTML = '';
+        for (const [key, value] of Object.entries(results)) {
+            resultsPanel.innerHTML += `<p><strong>${key}:</strong> ${value}</p>`;
+        }
+
+        // Draw SVG
+        shape.draw(previewSvg, currentParams);
+    }
+
+    // Event Listeners
+    shapeSelect.addEventListener('change', initShape);
+    
+    toggleFormulasBtn.addEventListener('click', () => {
+        formulasPanel.classList.toggle('active');
+        if (formulasPanel.classList.contains('active')) {
+            toggleFormulasBtn.innerText = 'Hide Formulas';
+        } else {
+            toggleFormulasBtn.innerText = 'Show Formulas';
+        }
+    });
+
+    // Initialize on load
+    initShape();
+</script>
+
+</body>
+</html>

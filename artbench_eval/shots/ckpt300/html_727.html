@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chunked File Upload</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    .upload-area {
+      border: 2px dashed #ccc;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    input[type="file"] { margin-bottom: 10px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    .progress { height: 20px; background: #eee; margin: 10px 0; }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #007bff;
+      transition: width 0.3s;
+    }
+    .status { color: #333; margin-top: 10px; }
+    .success { color: #28a745; }
+    .error { color: #dc3545; }
+    .file-list { margin-top: 20px; }
+    .file-item {
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ddd;
+      margin-bottom: 5px;
+    }
+    .file-item .name { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Chunked File Upload</h1>
+  <div class="upload-area">
+    <input type="file" id="fileInput" />
+    <label for="chunkSize">Chunk size (bytes):</label>
+    <input type="number" id="chunkSize" value="2000000" min="1024" />
+    <label for="totalChunks">Total chunks:</label>
+    <input type="number" id="totalChunks" value="5" min="1" />
+    <button id="uploadBtn">Upload File</button>
+  </div>
+  <div class="progress" id="progressBar"><div class="progress-bar" id="progressBarFill"></div></div>
+  <div class="status" id="status"></div>
+  <div class="file-list" id="fileList">
+    <h3>Uploaded Files</h3>
+    <div id="filesContainer"></div>
+  </div>
+
+  <script>
+    (async () => {
+      const fileInput = document.getElementById('fileInput');
+      const chunkSizeInput = document.getElementById('chunkSize');
+      const totalChunksInput = document.getElementById('totalChunks');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const progressBarFill = document.getElementById('progressBarFill');
+      const progressBar = document.getElementById('progressBar');
+      const statusEl = document.getElementById('status');
+      const filesContainer = document.getElementById('filesContainer');
+
+      let currentChunkId = 0;
+      let isUploading = false;
+
+      function setStatus(text, type = '') {
+        statusEl.textContent = text;
+        statusEl.className = 'status ' + type;
+      }
+
+      async function uploadFile(file) {
+        const chunkSize = parseInt(chunkSizeInput.value, 10);
+        const totalChunks = parseInt(totalChunksInput.value, 10);
+        const filename = file.name;
+
+        if (file.size % chunkSize !== 0) {
+          setStatus('Warning: file size is not a multiple of chunk size.', 'error');
+          return;
+        }
+
+        setStatus(`Splitting ${filename} (${file.size} bytes) into ${totalChunks} chunks of ${chunkSize} bytes...`, '');
+
+        // Simulate splitting into chunks
+        const chunks = [];
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * chunkSize;
+          const end = Math.min((i + 1) * chunkSize, file.size);
+          chunks.push({
+            chunkId: i,
+            totalChunks,
+            filename,
+            file: file.slice(start, end),
+          });
+        }
+
+        isUploading = true;
+        currentChunkId = 0;
+
+        for (const chunk of chunks) {
+          const formData = new FormData();
+          formData.append('file', chunk.file);
+          formData.append('filename', chunk.filename);
+          formData.append('chunkId', chunk.chunkId);
+          formData.append('totalChunks', chunk.totalChunks);
+
+          const response = await fetch('/api/chunk', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const result = await response.json();
+          if (!result.success) {
+            setStatus(`Error uploading chunk ${chunk.chunkId}: ${result.message}`, 'error');
+            return;
+          }
+
+          currentChunkId = chunk.chunkId;
+          const pct = ((chunk.chunkId + 1) / totalChunks) * 100;
+          progressBarFill.style.width = pct + '%';
+          setStatus(`Uploaded ${chunk.chunkId + 1}/${totalChunks} chunks (${Math.round(pct)}%)`, '');
+
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        isUploading = false;
+        progressBarFill.style.width = '100%';
+        setStatus('Upload complete!', 'success');
+
+        renderFiles();
+      }
+
+      function renderFiles() {
+        filesContainer.innerHTML = '';
+        fetch('/api/files')
+          .then((r) => r.json())
+          .then((files) => {
+            if (files.length === 0) {
+              filesContainer.innerHTML = '<p style="color:gray;">No files yet.</p>';
+              return;
+            }
+            files.forEach((f) => {
+              const div = document.createElement('div');
+              div.className = 'file-item';
+              div.innerHTML = `
+                <div class="name">${escapeHtml(f)}</div>
+                <button onclick="downloadFile('${f}')">Download</button>
+              `;
+              filesContainer.appendChild(div);
+            });
+          });
+      }
+
+      function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+      }
+
+      function downloadFile(filename) {
+        fetch(`/api/files/${filename}`)
+          .then((r) => r.blob())
+          .then((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          });
+      }
+
+      uploadBtn.addEventListener('click', () => {
+        const file = fileInput.files[0];
+        if (!file) {
+          setStatus('Please select a file first.', 'error');
+          return;
+        }
+        uploadFile(file);
+      });
+
+      renderFiles();
+    })();
+  </script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bubble Shooter</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #1a1a2e; color: #fff; font-family: sans-serif; }
+  canvas { display: block; }
+  #hud { position: absolute; top: 10px; left: 10px; color: #fff; font-size: 16px; pointer-events: none; }
+  #hud .score { font-size: 24px; font-weight: bold; margin-right: 20px; }
+  #hud .color { font-size: 18px; }
+  #hud .color span { display: inline-block; width: 22px; height: 22px; border-radius: 50%; margin-right: 6px; }
+  #hud .color span.red { background: #ff4d4d; }
+  #hud .color span.blue { background: #4d7dff; }
+  #hud .color span.green { background: #4dff4d; }
+  #hud .color span.yellow { background: #ffde00; }
+  #hud .color span.purple { background: #b14dff; }
+  #hud .color span.orange { background: #ff9500; }
+</style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+<div id="hud">
+  <div class="score">Score: <span id="score">0</span></div>
+  <div class="color">
+    <span class="red"></span>Red
+    <span class="blue"></span>Blue
+    <span class="green"></span>Green
+    <span class="yellow"></span>Yellow
+    <span class="purple"></span>Purple
+    <span class="orange"></span>Orange
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+// Constants
+const GRAVITY = 0.35;
+const BOUNCE = 0.75;
+const FRICTION = 0.99;
+const ADHESION = 0.05;
+const ROWS = 10;
+const COLS = 10;
+const HEX_SIZE = 42; // distance between centers of adjacent hexes
+const HEX_OFFSET = HEX_SIZE * Math.sqrt(3) / 2; // horizontal offset between rows
+const HEX_H = HEX_SIZE * 1.5; // height of hex
+const HEX_W = HEX_SIZE; // width of hex
+const CANON_W = 60;
+const CANON_H = 18;
+const CANON_X = W / 2 - CANON_W / 2;
+const CANON_Y = H - 100;
+const CANON_BASE_Y = H - 60;
+
+// Colors
+const COLORS = {
+  red: '#ff4d4d', blue: '#4d7dff', green: '#4dff4d', yellow: '#ffde00',
+  purple: '#b14dff', orange: '#ff9500'
+};
+const COLOR_NAMES = ['red','blue','green','yellow','purple','orange'];
+
+// State
+let mouse = { x: W/2, y: CANON_Y, down: false, angle: 0 };
+let cannonAngle = 0;
+let cannonPower = 0;
+let cannonPowerMax = 40;
+let cannonPowerRate = 0.12;
+let cannonCooldown = 0;
+let score = 0;
+let bubbles = [];
+let shotBubble = null;
+let trajectory = null;
+let chainTimer = 0;
+let chainDelay = 0.05;
+
+// Matrix: [row][col] -> bubble index, -1 if empty
+let matrix = [];
+for (let r = 0; r < ROWS; r++) {
+  matrix[r] = [];
+  for (let c = 0; c < COLS; c++) {
+    matrix[r][c] = -1;
+  }
+}
+
+// Helpers
+function hexCenter(r, c) {
+  const x = CANON_X + c * HEX_OFFSET + (r % 2 ? HEX_OFFSET / 2 : 0);
+  const y = CANON_Y + r * HEX_H + 10;
+  return { x, y };
+}
+
+function hexBounds(r, c) {
+  const cx = hexCenter(r, c).x;
+  const cy = hexCenter(r, c).y;
+  return {
+    x: cx - HEX_W / 2, y: cy - HEX_H / 2,
+    w: HEX_W, h: HEX_H
+  };
+}
+
+function getBubbleAt(r, c) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+  const idx = matrix[r][c];
+  return idx >= 0 ? bubbles[idx] : null;
+}
+
+function placeBubble(r, c, color) {
+  if (matrix[r][c] >= 0) return false;
+  const b = new Bubble(color, hexCenter(r, c));
+  bubbles.push(b);
+  matrix[r][c] = bubbles.length - 1;
+  return true;
+}
+
+function removeBubble(idx) {
+  const b = bubbles[idx];
+  if (!b) return;
+  b.dead = true;
+  matrix[b.r][b.c] = -1;
+}
+
+function findConnected(idx) {
+  const color = bubbles[idx].color;
+  const visited = new Set();
+  const group = [];
+  const stack = [idx];
+  visited.add(idx);
+
+  while (stack.length) {
+    const cur = stack.pop();
+    group.push(cur);
+    const b = bubbles[cur];
+    for (const [dr, dc] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[-1,-1]]) {
+      const nr = b.r + dr, nc = b.c + dc;
+      const nb = getBubbleAt(nr, nc);
+      if (nb && nb.color === color && !visited.has(nb.idx)) {
+        visited.add(nb.idx);
+        stack.push(nb.idx);
+      }
+    }
+  }
+  return group;
+}
+
+function clearChain() {
+  chainTimer = 0;
+  const groups = [];
+  for (let i = 0; i < bubbles.length; i++) {
+    if (!bubbles[i].dead && !groups.some(g => g.includes(i))) {
+      const g = findConnected(i);
+      if (g.length >= 3) groups.push(g);
+    }
+  }
+  for (const g of groups) {
+    for (const idx of g) removeBubble(idx);
+  }
+  score += groups.length * 100;
+  document.getElementById('score').textContent = score;
+}
+
+function spawnInitialMatrix() {
+  const colors = ['red','blue','green','yellow','purple','orange'];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      placeBubble(r, c, color);
+    }
+  }
+}
+
+function shootBubble() {
+  if (cannonCooldown > 0 || !shotBubble) return;
+  const power = Math.min(cannonPower, 40);
+  const vx = Math.cos(cannonAngle) * power;
+  const vy = -Math.sin(cannonAngle) * power - 5;
+  shotBubble.vx = vx;
+  shotBubble.vy = vy;
+  shotBubble.dead = false;
+  shotBubble.t = 0;
+  shotBubble.r = 0;
+  shotBubble.c = 0;
+  shotBubble.falling = true;
+  shotBubble.adhered = false;
+  cannonCooldown = 1.2;
+  cannonPower = 0;
+}
+
+function updateCannonPower() {
+  if (cannonCooldown > 0) {
+    cannonCooldown -= 1 / 60;
+    return;
+  }
+  if (mouse.down) {
+    cannonPower = Math.min(cannonPower + cannonPowerRate, cannonPowerMax);
+  } else {
+    cannonPower = Math.max(cannonPower - cannonPowerRate * 2, 0);
+  }
+}
+
+function updateShotBubble(dt) {
+  if (!shotBubble || shotBubble.dead) return;
+  const b = shotBubble;
+  const dx = b.vx * dt;
+  const dy = b.vy * dt + 0.5 * GRAVITY * dt * dt;
+  b.vx *= FRICTION;
+  b.vy += GRAVITY * dt;
+
+  // Check collisions with matrix
+  let hit = false;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const nb = getBubbleAt(r, c);
+      if (!nb) continue;
+      const bx = b.x + dx, by = b.y + dy;
+      if (bx >= nb.x && bx <= nb.x + nb.w &&
+          by >= nb.y && by <= nb.y + nb.h) {
+        // Collision: bounce
+        const nx = nb.x + nb.w / 2 - b.x;
+        const ny = nb.y + nb.h / 2 - b.y;
+        const len = Math.sqrt(nx*nx + ny*ny);
+        if (len === 0) continue;
+        const nxn = nx / len, nyn = ny / len;
+        const dot = b.vx * nxn + b.vy * nyn;
+        b.vx -= 2 * dot * nxn;
+        b.vy -= 2 * dot * nyn;
+        b.vx *= BOUNCE;
+        b.vy *= BOUNCE;
+        b.x = nb.x + nb.w / 2 - b.vx * dt;
+        b.y = nb.y + nb.h / 2 - b.vy * dt;
+        hit = true;
+      }
+    }
+  }
+
+  // Check wall collisions
+  if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * BOUNCE; }
+  if (b.x + b.w > W) { b.x = W - b.w; b.vx = -Math.abs(b.vx) * BOUNCE; }
+  if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy) * BOUNCE; }
+  if (b.y + b.h > H) { b.y = H - b.h; b.vy = -Math.abs(b.vy) * BOUNCE; }
+
+  // Adhesion
+  if (b.falling && !hit) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const nb = getBubbleAt(r, c);
+        if (!nb) continue;
+        const dx = nb.x + nb.w / 2 - b.x;
+        const dy = nb.y + nb.h / 2 - b.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 22) {
+          b.adhered = true;
+          b.vx = 0; b.vy = 0;
+          b.x = nb.x + nb.w / 2;
+          b.y = nb.y + nb.h / 2;
+          return;
+        }
+      }
+    }
+  }
+
+  // Gravity pull toward matrix
+  if (b.falling && !b.adhered) {
+    let closest = null, closestDist = 9999;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const nb = getBubbleAt(r, c);
+        if (!nb) continue;
+        const dx = nb.x + nb.w / 2 - b.x;
+        const dy = nb.y + nb.h / 2 - b.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < closestDist) {
+          closestDist = d;
+          closest = nb;
+        }
+      }
+    }
+    if (closest && closestDist < 40) {
+      const nx = closest.x + closest.w / 2 - b.x;
+      const ny = closest.y + closest.h / 2 - b.y;
+      const len = Math.sqrt(nx*nx + ny*ny);
+      if (len > 0) {
+        b.vx -= nx / len * ADHESION;
+        b.vy -= ny / len * ADHESION;
+      }
+    }
+  }
+
+  b.x += dx;
+  b.y += dy;
+  b.t += dt;
+}
+
+function updateBubbles(dt) {
+  for (let i = 0; i < bubbles.length; i++) {
+    const b = bubbles[i];
+    if (!b.dead) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.vx *= FRICTION;
+      b.vy += GRAVITY * dt;
+      // Gravity toward matrix
+      if (b.falling) {
+        let closest = null, closestDist = 9999;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const nb = getBubbleAt(r, c);
+            if (!nb) continue;
+            const dx = nb.x + nb.w / 2 - b.x;
+            const dy = nb.y + nb.h / 2 - b.y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < closestDist) {
+              closestDist = d;
+              closest = nb;
+            }
+          }
+        }
+        if (closest && closestDist < 40) {
+          const nx = closest.x + closest.w / 2 - b.x;
+          const ny = closest.y + closest.h / 2 - b.y;
+          const len = Math.sqrt(nx*nx + ny*ny);
+          if (len > 0) {
+            b.vx -= nx / len * ADHESION;
+            b.vy -= ny / len * ADHESION;
+          }
+        }
+      }
+      // Wall collisions
+      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * BOUNCE; }
+      if (b.x + b.w > W) { b.x = W - b.w; b.vx = -Math.abs(b.vx) * BOUNCE; }
+      if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy) * BOUNCE; }
+      if (b.y + b.h > H) { b.y = H - b.h; b.vy = -Math.abs(b.vy) * BOUNCE; }
+      // Adhesion
+      if (b.falling && !b.adhered) {
+        let closest = null, closestDist = 9999;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const nb = getBubbleAt(r, c);
+            if (!nb) continue;
+            const dx = nb.x + nb.w / 2 - b.x;
+            const dy = nb.y + nb.h / 2 - b.y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < closestDist) {
+              closestDist = d;
+              closest = nb;
+            }
+          }
+        }
+        if (closest && closestDist < 22) {
+          b.adhered = true;
+          b.vx = 0; b.vy = 0;
+          b.x = closest.x + closest.w / 2;
+          b.y = closest.y + closest.h / 2;
+        }
+      }
+    }
+  }
+}
+
+function updateMatrix(dt) {
+  // Drop bubbles down
+  for (let c = 0; c < COLS; c++) {
+    for (let r = ROWS - 1; r >= 0; r--) {
+      const b = getBubbleAt(r, c);
+      if (!b) continue;
+      if (b.falling) {
+        let newR = r;
+        while (newR < ROWS - 1 && !getBubbleAt(newR + 1, c)) newR++;
+        if (newR !== r) {
+          b.r = newR;
+          b.y = hexCenter(newR, c).y - HEX_H / 2;
+        }
+      }
+    }
+  }
+}
+
+function updateChain(dt) {
+  chainTimer += dt;
+  if (chainTimer >= chainDelay) {
+    // Animate removal: fade out
+    for (let i = 0; i < bubbles.length; i++) {
+      const b = bubbles[i];
+      if (b.dead && b.t < 1) {
+        b.t += dt;
+        b.alpha = 1 - b.t;
+      }
+    }
+    chainTimer = 0;
+  }
+}
+
+function drawHexagon(x, y, w, h, color, alpha = 1) {
+  const cx = x + w / 2, cy = y + h / 2;
+  const points = [
+    cx - w / 2, cy - h / 2,
+    cx + w / 2, cy - h / 2,
+    cx + w / 2, cy + h / 2,
+    cx - w / 2, cy + h / 2,
+    cx - w / 2, cy - h / 2
+  ];
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(points[0], points[1]);
+  for (let i = 2; i < points.length; i += 2) {
+    ctx.lineTo(points[i], points[i+1]);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawMatrix() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const b = getBubbleAt(r, c);
+      if (!b) continue;
+      drawHexagon(b.x, b.y, HEX_W, HEX_H, COLORS[b.color], b.alpha);
+    }
+  }
+}
+
+function drawCannon() {
+  const cx = CANON_X + CANON_W / 2;
+  const cy = CANON_Y + CANON_H / 2;
+  // Base
+  ctx.fillStyle = '#3a3a55';
+  ctx.fillRect(CANON_X, CANON_BASE_Y, CANON_W, 8);
+  // Barrel
+  ctx.fillStyle = '#2a2a45';
+  ctx.fillRect(CANON_X, CANON_Y, CANON_W, CANON_H);
+  // Barrel tip
+  ctx.fillStyle = '#1a1a35';
+  ctx.fillRect(CANON_X + CANON_W / 2 - 4, CANON_Y + CANON_H / 2 - 4, 8, 8);
+  // Barrel angle
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(cannonAngle) * 40, cy + Math.sin(cannonAngle) * 40);
+  ctx.stroke();
+}
+
+function drawTrajectory() {
+  if (!shotBubble) return;
+  const b = shotBubble;
+  if (b.dead || !b.falling) return;
+  ctx.strokeStyle = '#ff8a8a';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.moveTo(b.x, b.y);
+  const dx = b.vx * 0.5, dy = b.vy * 0.5;
+  ctx.lineTo(b.x + dx, b.y + dy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawShotBubble() {
+  if (!shotBubble || shotBubble.dead) return;
+  const b = shotBubble;
+  const cx = b.x + HEX_W / 2, cy = b.y + HEX_H / 2;
+  ctx.save();
+  ctx.globalAlpha = b.alpha;
+  ctx.fillStyle = COLORS[b.color];
+  ctx.beginPath();
+  ctx.moveTo(cx - HEX_W / 2, cy - HEX_H / 2);
+  ctx.lineTo(cx + HEX_W / 2, cy - HEX_H / 2);
+  ctx.lineTo(cx + HEX_W / 2, cy + HEX_H / 2);
+  ctx.lineTo(cx - HEX_W / 2, cy + HEX_H / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  drawMatrix();
+  drawCannon();
+  drawShotBubble();
+  drawTrajectory();
+}
+
+function loop(dt) {
+  updateCannonPower();
+  updateShotBubble(dt);
+  updateBubbles(dt);
+  updateMatrix(dt);
+  updateChain(dt);
+  render();
+  if (cannonCooldown <= 0 && mouse.down) {
+    shootBubble();
+  }
+  requestAnimationFrame(loop);
+}
+
+// Mouse
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left;
+  mouse.y = e.clientY - rect.top;
+  mouse.angle = Math.atan2(mouse.y - CANON_Y, mouse.x - CANON_X);
+});
+canvas.addEventListener('mousedown', (e) => {
+  mouse.down = true;
+});
+canvas.addEventListener('mouseup', (e) => {
+  mouse.down = false;
+});
+
+// Keyboard: space to shoot
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && cannonCooldown <= 0) {
+    shootBubble();
+  }
+});
+
+// Init
+spawnInitialMatrix();
+shotBubble = new Bubble('red', { x: CANON_X + CANON_W / 2, y: CANON_Y + CANON_H / 2 });
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

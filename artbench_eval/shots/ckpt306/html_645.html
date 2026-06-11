@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhythm Trainer</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    background: linear-gradient(135deg, #1a2332 0%, #0f1419 100%);
+    color: #e8f0ff;
+    line-height: 1.6;
+  }
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 8px;
+    background: linear-gradient(90deg, #4ade80, #f59e0b, #f97316);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 40px rgba(74, 222, 128, 0.15);
+  }
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 24px;
+    backdrop-filter: blur(10px);
+  }
+  .card h2 { margin: 0 0 16px; color: #93c5fd; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 24px; }
+  label { color: #cbd5e1; font-weight: 500; }
+  input[type="range"], select { color: #4ade80; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(135deg, #4ade80, #f59e0b);
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(74,222,128,0.6);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(135deg, #4ade80, #f59e0b);
+    cursor: pointer; border: none;
+  }
+  .metronome {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 24px;
+  }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #64748b;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+  .dot.active { background: #4ade80; box-shadow: 0 0 0 6px rgba(74,222,128,0.25); }
+  .dot.hit { background: #4ade80; box-shadow: 0 0 0 6px rgba(74,222,128,0.25); animation: pulse 0.4s ease; }
+  .dot.miss { background: #ef4444; box-shadow: 0 0 0 6px rgba(239,68,68,0.25); animation: pulse 0.4s ease; }
+  .dot.yellow { background: #f59e0b; box-shadow: 0 0 0 6px rgba(245,158,11,0.25); }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+  .tap-area {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+  .tap-btn {
+    flex: 1;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    color: #042f22;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .tap-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(74,222,128,0.35); }
+  .tap-btn:active { transform: translateY(0); }
+  .tap-btn:focus-visible { outline: 3px solid #86efac; outline-offset: 3px; }
+  .score {
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 16px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(74,222,128,0.15), rgba(245,158,11,0.1));
+    border: 1px solid rgba(74,222,128,0.3);
+    margin-bottom: 16px;
+  }
+  .score .label { color: #cbd5e1; font-weight: 500; font-size: 0.85rem; }
+  .final-score {
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(239,68,68,0.15));
+    border: 1px solid rgba(245,158,11,0.3);
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+    animation: fadeIn 0.5s ease;
+  }
+  .final-score h3 { margin: 0 0 8px; color: #fbbf24; }
+  .final-score .value { font-size: 2.5rem; font-weight: 800; color: #f59e0b; letter-spacing: -1px; }
+  .final-score .meta { color: #cbd5e1; font-size: 0.9rem; margin-top: 8px; }
+  .reset-btn {
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #e8f0ff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .reset-btn:hover { background: rgba(255,255,255,0.15); }
+  .stats {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 10px 16px;
+    border-radius: 8px;
+  }
+  .stat .k { color: #cbd5e1; font-size: 0.8rem; }
+  .stat .v { font-weight: 600; color: #e8f0ff; }
+  .hidden { display: none !important; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Rhythm Trainer</h1>
+  <p class="subtitle">Listen to the beat and tap the button in time. Your accuracy is scored by how close you are to the target.</p>
+
+  <div class="controls">
+    <label for="bpm">BPM: <strong id="bpmVal">120</strong></label>
+    <input type="range" id="bpm" min="60" max="200" value="120" step="1">
+  </div>
+
+  <div class="controls">
+    <label for="pattern">Pattern:</label>
+    <select id="pattern">
+      <option value="4">4/4</option>
+      <option value="3">3/4</option>
+      <option value="6">6/4</option>
+    </select>
+  </div>
+
+  <div class="controls">
+    <label for="bars">Bars:</label>
+    <select id="bars">
+      <option value="1">1 bar</option>
+      <option value="2">2 bars</option>
+      <option value="4" selected>4 bars</option>
+      <option value="8">8 bars</option>
+    </select>
+  </div>
+
+  <div class="metronome">
+    <span class="label">Metronome</span>
+    <div id="dots" class="dots"></div>
+  </div>
+
+  <div class="tap-area">
+    <button id="startBtn" class="tap-btn">Start / Stop</button>
+    <button id="resetBtn" class="reset-btn">Reset Round</button>
+  </div>
+
+  <div class="score">
+    <span class="label">Current Score</span>
+    <span id="scoreVal">0.00</span>
+  </div>
+
+  <div id="finalScore" class="final-score hidden">
+    <h3>Round Complete</h3>
+    <div class="value" id="finalScoreVal">0.00</div>
+    <div class="meta" id="finalMeta">Beats: 0 | Accuracy: 0%</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="k">Beats</span><span class="v" id="statBeats">0</span></div>
+    <div class="stat"><span class="k">Hits</span><span class="v" id="statHits">0</span></div>
+    <div class="stat"><span class="k">Accuracy</span><span class="v" id="statAcc">0%</span></div>
+    <div class="stat"><span class="k">Avg. Offset</span><span class="v" id="statOffset">0ms</span></div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+
+    const bpmEl = document.getElementById('bpm');
+    const bpmVal = document.getElementById('bpmVal');
+    const patternEl = document.getElementById('pattern');
+    const barsEl = document.getElementById('bars');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const scoreVal = document.getElementById('scoreVal');
+    const finalScore = document.getElementById('finalScore');
+    const finalScoreVal = document.getElementById('finalScoreVal');
+    const finalMeta = document.getElementById('finalMeta');
+    const statBeats = document.getElementById('statBeats');
+    const statHits = document.getElementById('statHits');
+    const statAcc = document.getElementById('statAcc');
+    const statOffset = document.getElementById('statOffset');
+    const dotsContainer = document.getElementById('dots');
+
+    const state = {
+      bpm: 120,
+      pattern: 4,
+      bars: 4,
+      totalBeats: 0,
+      beatIndex: 0,
+      nextBeatTime: 0,
+      startTime: 0,
+      playing: false,
+      audioCtx: null,
+      oscillators: [],
+      hits: [],
+      misses: [],
+      yellow: [],
+      elapsed: 0,
+      score: 0,
+      taps: 0,
+      lastBeatMs: 0,
+    };
+
+    // Build dots row
+    function buildDots() {
+      dotsContainer.innerHTML = '';
+      const total = state.bars * state.pattern;
+      for (let i = 0; i < total; i++) {
+        const d = document.createElement('span');
+        d.className = 'dot';
+        dotsContainer.appendChild(d);
+      }
+    }
+
+    function setBpm(v) {
+      state.bpm = Math.max(60, Math.min(200, parseInt(v, 10) || 120));
+      bpmVal.textContent = state.bpm;
+      // Recompute total beats
+      state.totalBeats = state.bars * state.pattern;
+      state.beatIndex = 0;
+      state.nextBeatTime = 0;
+      state.lastBeatMs = 0;
+    }
+
+    function scheduleBeats() {
+      const barBeats = state.pattern;
+      const beatsPerBar = barBeats;
+      const beatsPerMinute = state.bpm;
+      const beatDurationMs = (60 * 1000) / beatsPerMinute;
+      const barDurationMs = beatDurationMs * beatsPerBar;
+
+      state.totalBeats = state.bars * beatsPerBar;
+      state.beatIndex = 0;
+      state.nextBeatTime = performance.now() + 500; // offset start
+      state.lastBeatMs = 0;
+
+      // Reset feedback
+      dotsContainer.querySelectorAll('.dot').forEach((d, i) => {
+        d.classList.remove('active', 'hit', 'miss', 'yellow');
+      });
+    }
+
+    function playBeat() {
+      const ctx = state.audioCtx;
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220 + Math.random() * 100, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.15, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+
+      state.oscillators.push(osc);
+      state.lastBeatMs = performance.now();
+    }
+
+    function tick() {
+      if (!state.playing || state.beatIndex >= state.totalBeats) return;
+      const d = state.nextBeatTime - performance.now();
+      if (d <= 0) {
+        playBeat();
+        const dot = dotsContainer.children[state.beatIndex];
+        if (dot) dot.classList.add('active');
+        state.beatIndex++;
+        state.nextBeatTime = performance.now() + (60 * 1000) / state.bpm;
+        requestAnimationFrame(tick);
+      } else {
+        requestAnimationFrame(tick);
+      }
+    }
+
+    function startLoop() {
+      if (!state.audioCtx) {
+        try {
+          state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+          alert('Audio not supported in this browser.');
+          return;
+        }
+      }
+      state.audioCtx.resume();
+      scheduleBeats();
+      state.playing = true;
+      state.startTime = performance.now();
+      state.hits = [];
+      state.misses = [];
+      state.yellow = [];
+      state.taps = 0;
+      state.score = 0;
+      state.elapsed = 0;
+      state.lastBeatMs = 0;
+      scoreVal.textContent = '0.00';
+      finalScore.classList.add('hidden');
+      startBtn.textContent = 'Stop';
+      tick();
+    }
+
+    function stopLoop() {
+      state.playing = false;
+      state.oscillators.forEach(o => {
+        try { o.stop(); } catch (e) {}
+      });
+      state.oscillators = [];
+      startBtn.textContent = 'Start';
+    }
+
+    function resetRound() {
+      stopLoop();
+      state.beatIndex = 0;
+      state.nextBeatTime = 0;
+      state.taps = 0;
+      state.hits = [];
+      state.misses = [];
+      state.yellow = [];
+      state.score = 0;
+      state.elapsed = 0;
+      scoreVal.textContent = '0.00';
+      statBeats.textContent = '0';
+      statHits.textContent = '0';
+      statAcc.textContent = '0%';
+      statOffset.textContent = '0ms';
+      finalScore.classList.add('hidden');
+      startBtn.textContent = 'Start';
+    }
+
+    function tolerance() {
+      return 1200 / state.bpm; // tighter at higher BPM
+    }
+
+    function evaluateTap(ts) {
+      if (!state.playing || state.beatIndex >= state.totalBeats) return;
+      const target = state.nextBeatTime;
+      const diff = Math.abs(ts - target);
+      const tol = tolerance();
+      const factor = Math.max(0, 1 - diff / tol);
+      state.score += factor;
+      state.taps++;
+
+      const dot = dotsContainer.children[state.beatIndex];
+      if (dot) {
+        dot.classList.remove('active', 'hit', 'miss', 'yellow');
+        if (factor >= 0.95) dot.classList.add('hit');
+        else if (factor >= 0.5) dot.classList.add('yellow');
+        else dot.classList.add('miss');
+      }
+
+      state.hits.push(factor >= 0.95 ? 1 : 0);
+      state.misses.push(factor < 0.5 ? 1 : 0);
+      state.yellow.push(factor >= 0.5 && factor < 0.95 ? 1 : 0);
+
+      // Update stats
+      statBeats.textContent = state.beatIndex;
+      statHits.textContent = state.hits.length;
+      statAcc.textContent = Math.round(state.score / Math.max(1, state.taps) * 100) + '%';
+      statOffset.textContent = Math.round(diff) + 'ms';
+
+      // Final score card
+      if (state.beatIndex >= state.totalBeats) {
+        const avg = state.taps > 0 ? state.score / state.taps : 0;
+        const hitsPct = state.hits.length > 0 ? (state.hits.reduce((a, b) => a + b, 0) / state.hits.length) * 100 : 0;
+        finalScoreVal.textContent = avg.toFixed(2);
+        finalMeta.textContent = `Beats: ${state.totalBeats} | Accuracy: ${hitsPct.toFixed(1)}%`;
+        finalScore.classList.remove('hidden');
+      }
+
+      // Schedule next
+      state.nextBeatTime = performance.now() + (60 * 1000) / state.bpm;
+      requestAnimationFrame(tick);
+    }
+
+    // Events
+    bpmEl.addEventListener('input', e => setBpm(e.target.value));
+    patternEl.addEventListener('change', () => {
+      state.pattern = parseInt(patternEl.value, 10);
+      state.totalBeats = state.bars * state.pattern;
+      state.beatIndex = 0;
+      state.nextBeatTime = 0;
+      buildDots();
+    });
+    barsEl.addEventListener('change', () => {
+      state.bars = parseInt(barsEl.value, 10);
+      state.totalBeats = state.bars * state.pattern;
+      state.beatIndex = 0;
+      state.nextBeatTime = 0;
+      buildDots();
+    });
+    startBtn.addEventListener('click', () => {
+      if (state.playing) stopLoop();
+      else startLoop();
+    });
+    resetBtn.addEventListener('click', resetRound);
+
+    // Tap button
+    const tapBtn = document.getElementById('startBtn');
+    tapBtn.addEventListener('click', () => {
+      if (state.playing) {
+        const now = performance.now();
+        evaluateTap(now);
+      }
+    });
+
+    // Prevent double-fire on double-click
+    let lastTap = 0;
+    tapBtn.addEventListener('mousedown', (e) => {
+      if (performance.now() - lastTap < 150) return;
+      lastTap = performance.now();
+      if (state.playing) {
+        const now = performance.now();
+        evaluateTap(now);
+      }
+    });
+
+    // Keyboard tap (space)
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && document.activeElement !== tapBtn) {
+        e.preventDefault();
+        if (state.playing) {
+          const now = performance.now();
+          evaluateTap(now);
+        }
+      }
+    });
+
+    // Init
+    buildDots();
+    setBpm(bpmEl.value);
+    scoreVal.textContent = '0.00';
+    statAcc.textContent = '0%';
+  })();
+</script>
+
+</body>
+</html>

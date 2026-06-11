@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Background Video Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #1e1e1e;
+            color: #fff;
+        }
+        .sidebar {
+            width: 350px;
+            background-color: #2d2d2d;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 1px solid #444;
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        canvas {
+            background-color: #000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 100%;
+            border: 1px solid #444;
+        }
+        h2, h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .control-group {
+            margin-bottom: 15px;
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            background: #555;
+            border: 1px solid #666;
+            color: white;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.danger {
+            background-color: #f44336;
+        }
+        button.danger:hover {
+            background-color: #da190b;
+        }
+        .element-list {
+            list-style: none;
+            padding: 0;
+        }
+        .element-item {
+            background: #444;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        .element-item button {
+            width: auto;
+            margin: 0;
+            padding: 2px 5px;
+            background: #f44336;
+        }
+        #timeDisplay {
+            margin-top: 10px;
+            font-size: 18px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Video Generator</h2>
+        
+        <div class="control-group">
+            <h3>Background</h3>
+            <label>Select Effect:</label>
+            <select id="bgSelect">
+                <option value="particles">Dynamic Particles</option>
+                <option value="smoke">Animated Smoke</option>
+                <option value="none">Solid Black</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <h3>Add Text Element</h3>
+            <label>Text Content:</label>
+            <input type="text" id="textInput" placeholder="Enter text here...">
+            
+            <label>Start Time (s):</label>
+            <input type="number" id="startTime" value="0" min="0" step="0.5">
+            
+            <label>End Time (s):</label>
+            <input type="number" id="endTime" value="5" min="0.5" step="0.5">
+            
+            <label>Animation:</label>
+            <select id="animSelect">
+                <option value="fade">Fade In/Out</option>
+                <option value="slide">Slide Up</option>
+                <option value="none">None</option>
+            </select>
+            
+            <button id="addTextBtn">Add Text</button>
+        </div>
+
+        <div class="control-group">
+            <h3>Elements</h3>
+            <ul class="element-list" id="elementList">
+                <!-- Elements will be listed here -->
+            </ul>
+        </div>
+
+        <div class="control-group">
+            <h3>Export</h3>
+            <label>Duration to Record (s):</label>
+            <input type="number" id="recordDuration" value="5" min="1" max="60">
+            <button id="exportBtn">Start Recording & Export</button>
+            <div id="exportStatus" style="color: #ffeb3b; font-size: 12px; margin-top: 5px;"></div>
+        </div>
+    </div>
+
+    <div class="main">
+        <canvas id="previewCanvas" width="800" height="450"></canvas>
+        <div id="timeDisplay">Time: 0.0s</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('previewCanvas');
+        const ctx = canvas.getContext('2d');
+        const timeDisplay = document.getElementById('timeDisplay');
+        
+        // State
+        let elements = [];
+        let currentBg = 'particles';
+        let globalTime = 0;
+        let lastFrameTime = performance.now();
+        let isRecording = false;
+        let mediaRecorder;
+        let recordedChunks = [];
+        
+        // Background Systems
+        const particles = [];
+        for(let i=0; i<100; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                size: Math.random() * 3 + 1,
+                color: `hsl(${Math.random() * 360}, 70%, 60%)`
+            });
+        }
+
+        const smokeParticles = [];
+        for(let i=0; i<50; i++) {
+            smokeParticles.push({
+                x: Math.random() * canvas.width,
+                y: canvas.height + Math.random() * 200,
+                vx: (Math.random() - 0.5),
+                vy: -Math.random() * 2 - 1,
+                size: Math.random() * 40 + 20,
+                life: Math.random() * 100
+            });
+        }
+
+        // UI Event Listeners
+        document.getElementById('bgSelect').addEventListener('change', (e) => {
+            currentBg = e.target.value;
+        });
+
+        document.getElementById('addTextBtn').addEventListener('click', () => {
+            const text = document.getElementById('textInput').value;
+            if (!text) return;
+            
+            const el = {
+                id: Date.now(),
+                type: 'text',
+                content: text,
+                start: parseFloat(document.getElementById('startTime').value),
+                end: parseFloat(document.getElementById('endTime').value),
+                anim: document.getElementById('animSelect').value,
+                x: canvas.width / 2,
+                y: canvas.height / 2
+            };
+            
+            elements.push(el);
+            updateElementList();
+            document.getElementById('textInput').value = '';
+        });
+
+        function updateElementList() {
+            const list = document.getElementById('elementList');
+            list.innerHTML = '';
+            elements.forEach(el => {
+                const li = document.createElement('li');
+                li.className = 'element-item';
+                li.innerHTML = `
+                    <span>"${el.content}" (${el.start}s - ${el.end}s)</span>
+                    <button onclick="removeElement(${el.id})">X</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        window.removeElement = function(id) {
+            elements = elements.filter(el => el.id !== id);
+            updateElementList();
+        }
+
+        // Export Logic
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (isRecording) return;
+            
+            const duration = parseFloat(document.getElementById('recordDuration').value);
+            const stream = canvas.captureStream(30); // 30 FPS
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'dynamic_background.webm';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                isRecording = false;
+                document.getElementById('exportStatus').innerText = 'Export complete!';
+                document.getElementById('exportBtn').innerText = 'Start Recording & Export';
+                document.getElementById('exportBtn').classList.remove('danger');
+            };
+            
+            // Reset time for recording
+            globalTime = 0;
+            isRecording = true;
+            mediaRecorder.start();
+            
+            document.getElementById('exportStatus').innerText = `Recording for ${duration} seconds...`;
+            document.getElementById('exportBtn').innerText = 'Recording...';
+            document.getElementById('exportBtn').classList.add('danger');
+            
+            setTimeout(() => {
+                if (mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }, duration * 1000);
+        });
+
+        // Render Loop
+        function render(timestamp) {
+            const dt = (timestamp - lastFrameTime) / 1000;
+            lastFrameTime = timestamp;
+            
+            // Update global time
+            globalTime += dt;
+            timeDisplay.innerText = `Time: ${globalTime.toFixed(1)}s`;
+
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background
+            if (currentBg === 'particles') {
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+                });
+            } else if (currentBg === 'smoke') {
+                smokeParticles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.size += 0.2;
+                    p.life -= 0.5;
+                    
+                    if (p.life <= 0 || p.y < -50) {
+                        p.y = canvas.height + 50;
+                        p.x = Math.random() * canvas.width;
+                        p.size = Math.random() * 40 + 20;
+                        p.life = 100;
+                    }
+                    
+                    const alpha = Math.max(0, p.life / 100) * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(150, 150, 150, ${alpha})`;
+                    ctx.fill();
+                });
+            }
+
+            // Draw Elements
+            elements.forEach(el => {
+                if (globalTime >= el.start && globalTime <= el.end) {
+                    ctx.save();
+                    
+                    let alpha = 1;
+                    let yOffset = 0;
+                    
+                    // Animation logic
+                    const lifeTime = globalTime - el.start;
+                    const duration = el.end - el.start;
+                    
+                    if (el.anim === 'fade') {
+                        if (lifeTime < 0.5) alpha = lifeTime / 0.5;
+                        else if (globalTime > el.end - 0.5) alpha = (el.end - globalTime) / 0.5;
+                    } else if (el.anim === 'slide') {
+                        if (lifeTime < 0.5) {
+                            alpha = lifeTime / 0.5;
+                            yOffset = 50 * (1 - (lifeTime / 0.5));
+                        } else if (globalTime > el.end - 0.5) {
+                            alpha = (el.end - globalTime) / 0.5;
+                            yOffset = -50 * (1 - ((el.end - globalTime) / 0.5));
+                        }
+                    }
+                    
+                    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+                    
+                    if (el.type === 'text') {
+                        ctx.font = 'bold 48px Arial';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                        ctx.shadowBlur = 10;
+                        ctx.fillText(el.content, el.x, el.y + yOffset);
+                    }
+                    
+                    ctx.restore();
+                }
+            });
+
+            requestAnimationFrame(render);
+        }
+
+        // Start loop
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>

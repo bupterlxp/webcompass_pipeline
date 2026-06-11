@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Audio Recorder & Editor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        button.danger { background-color: #dc3545; }
+        button.success { background-color: #28a745; }
+        .controls { margin-top: 15px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        audio { width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>🎙️ Audio Recorder & Editor</h2>
+
+    <!-- Recording Section -->
+    <div class="card">
+        <h3>1. Record Audio</h3>
+        <button id="btnRecord">Start Recording</button>
+        <button id="btnStop" class="danger" disabled>Stop Recording</button>
+        <p id="status">Status: Ready</p>
+        <audio id="originalAudio" controls></audio>
+    </div>
+
+    <!-- Editing Section -->
+    <div class="card" id="editSection" style="display: none;">
+        <h3>2. Edit Audio</h3>
+        
+        <label for="trimStart">Trim Start (seconds):</label>
+        <input type="number" id="trimStart" value="0" min="0" step="0.1">
+        
+        <label for="trimEnd">Trim End (seconds):</label>
+        <input type="number" id="trimEnd" value="0" min="0" step="0.1">
+        
+        <label for="effectSelect">Sound Effect:</label>
+        <select id="effectSelect">
+            <option value="none">None</option>
+            <option value="muffled">Muffled (Lowpass Filter)</option>
+            <option value="telephone">Telephone (Bandpass Filter)</option>
+            <option value="fast">Chipmunk (Fast Speed)</option>
+        </select>
+
+        <div class="controls">
+            <button id="btnApply" class="success">Apply Edits & Render</button>
+        </div>
+    </div>
+
+    <!-- Output Section -->
+    <div class="card" id="outputSection" style="display: none;">
+        <h3>3. Result</h3>
+        <audio id="editedAudio" controls></audio>
+        <br>
+        <a id="downloadLink" style="display: none; text-decoration: none;">
+            <button class="success" style="width: 100%; margin-left: 0;">Download Edited Audio (WAV)</button>
+        </a>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let originalAudioBuffer = null;
+
+        // DOM Elements
+        const btnRecord = document.getElementById('btnRecord');
+        const btnStop = document.getElementById('btnStop');
+        const statusText = document.getElementById('status');
+        const originalAudioEl = document.getElementById('originalAudio');
+        const editSection = document.getElementById('editSection');
+        const trimStart = document.getElementById('trimStart');
+        const trimEnd = document.getElementById('trimEnd');
+        const effectSelect = document.getElementById('effectSelect');
+        const btnApply = document.getElementById('btnApply');
+        const outputSection = document.getElementById('outputSection');
+        const editedAudioEl = document.getElementById('editedAudio');
+        const downloadLink = document.getElementById('downloadLink');
+
+        // 1. Recording Logic
+        btnRecord.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    originalAudioEl.src = audioUrl;
+                    
+                    // Decode audio for editing
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    originalAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    // Setup UI
+                    trimEnd.value = originalAudioBuffer.duration.toFixed(2);
+                    trimEnd.max = originalAudioBuffer.duration.toFixed(2);
+                    editSection.style.display = 'block';
+                };
+
+                mediaRecorder.start();
+                btnRecord.disabled = true;
+                btnStop.disabled = false;
+                statusText.innerText = "Status: Recording...";
+            } catch (err) {
+                alert("Microphone access denied or not available.");
+                console.error(err);
+            }
+        });
+
+        btnStop.addEventListener('click', () => {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            btnRecord.disabled = false;
+            btnStop.disabled = true;
+            statusText.innerText = "Status: Recording finished.";
+        });
+
+        // 2. Editing Logic (Web Audio API)
+        btnApply.addEventListener('click', async () => {
+            if (!originalAudioBuffer) return;
+
+            const start = parseFloat(trimStart.value);
+            const end = parseFloat(trimEnd.value);
+            const effect = effectSelect.value;
+
+            if (start >= end || start < 0 || end > originalAudioBuffer.duration) {
+                alert("Invalid trim times.");
+                return;
+            }
+
+            const duration = end - start;
+            const sampleRate = originalAudioBuffer.sampleRate;
+            
+            // Create OfflineAudioContext to render the edited audio
+            const offlineCtx = new OfflineAudioContext(
+                originalAudioBuffer.numberOfChannels,
+                sampleRate * duration,
+                sampleRate
+            );
+
+            const source = offlineCtx.createBufferSource();
+            source.buffer = originalAudioBuffer;
+
+            let lastNode = source;
+
+            // Apply Effects
+            if (effect === 'muffled') {
+                const filter = offlineCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1000;
+                lastNode.connect(filter);
+                lastNode = filter;
+            } else if (effect === 'telephone') {
+                const filter = offlineCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1500;
+                filter.Q.value = 2.0;
+                lastNode.connect(filter);
+                lastNode = filter;
+            } else if (effect === 'fast') {
+                source.playbackRate.value = 1.5;
+            }
+
+            lastNode.connect(offlineCtx.destination);
+            
+            // Start playback at the trimmed start time
+            source.start(0, start, duration);
+
+            // Render audio
+            btnApply.innerText = "Rendering...";
+            btnApply.disabled = true;
+            
+            const renderedBuffer = await offlineCtx.startRendering();
+            
+            // Convert to WAV and display
+            const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+            const wavUrl = URL.createObjectURL(wavBlob);
+            
+            editedAudioEl.src = wavUrl;
+            downloadLink.href = wavUrl;
+            downloadLink.download = 'edited_audio.wav';
+            downloadLink.style.display = 'block';
+            outputSection.style.display = 'block';
+            
+            btnApply.innerText = "Apply Edits & Render";
+            btnApply.disabled = false;
+        });
+
+        // 3. Utility: Convert AudioBuffer to WAV Blob
+        function bufferToWave(abuffer, len) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+
+            // write WAVE header
+            setUint32(0x46464952);                         // "RIFF"
+            setUint32(length - 8);                         // file length - 8
+            setUint32(0x45564157);                         // "WAVE"
+            setUint32(0x20746d66);                         // "fmt " chunk
+            setUint32(16);                                 // length = 16
+            setUint16(1);                                  // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2);                      // block-align
+            setUint16(16);                                 // 16-bit (hardcoded in this demo)
+            setUint32(0x61746164);                         // "data" - chunk
+            setUint32(length - pos - 4);                   // chunk length
+
+            // write interleaved data
+            for(i = 0; i < abuffer.numberOfChannels; i++)
+                channels.push(abuffer.getChannelData(i));
+
+            while(pos < length) {
+                for(i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+                    view.setInt16(pos, sample, true);          // write 16-bit sample
+                    pos += 2;
+                }
+                offset++                                     // next source sample
+            }
+
+            return new Blob([buffer], {type: "audio/wav"});
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StickerLab — Dynamic Sticker Editor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>:root {
+  --bg: #0f172a;
+  --bg-2: #1e293b;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --accent: #6366f1;
+  --accent-2: #818cf8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #1e293b 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, #1e293b 0%, transparent 55%),
+    var(--bg);
+  overflow: hidden;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand i { color: var(--accent); font-size: 22px; }
+.brand h1 { margin: 0; font-size: 18px; letter-spacing: 0.5px; }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn:hover { background: #475569; border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-ghost { background: transparent; }
+.btn-ghost:hover { background: var(--surface-2); }
+
+.workspace {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-wrap {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #0b1220;
+  aspect-ratio: 16 / 10;
+  min-height: 200px;
+}
+.preview-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 14px;
+  background: linear-gradient(180deg, rgba(15,23,42,0.8), rgba(15,23,42,0.2));
+  transition: opacity 0.3s ease;
+}
+.empty-state.hidden { opacity: 0; pointer-events: none; }
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sticker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  color: var(--text);
+}
+.sticker-item:hover { background: #475569; border-color: var(--accent); }
+.sticker-item i { color: var(--accent); }
+.sticker-item .count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: #0b1220;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.panel select, .panel input[type="range"] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+.panel select { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2394a3b8' d='M6 8L0 0h12z'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.panel input[type="range"] { accent-color: var(--accent); }
+.panel span:last-child { font-size: 12px; color: var(--text-dim); }
+
+.canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.canvas-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #0b1220;
+  overflow: hidden;
+}
+#mainCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+#mainCanvas:active { cursor: grabbing; }
+
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(11, 18, 32, 0.6);
+  color: var(--text);
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.canvas-overlay.active { opacity: 1; }
+.canvas-overlay i { font-size: 24px; }
+
+.canvas-meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar { order: 2; }
+  .canvas-wrap { order: 1; }
+  .brand h1 { font-size: 16px; }
+}
+@media (max-width: 500px) {
+  .actions .btn span { display: none; }
+  .actions .btn { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <i class="fa-solid fa-face-smile"></i>
+      <h1>StickerLab</h1>
+    </div>
+    <div class="actions">
+      <button id="addBtn" class="btn" title="Add sticker">
+        <i class="fa-solid fa-plus"></i> Add Sticker
+      </button>
+      <button id="exportGifBtn" class="btn btn-ghost" title="Export GIF">
+        <i class="fa-solid fa-file-export"></i> Export GIF
+      </button>
+      <button id="exportVideoBtn" class="btn btn-ghost" title="Export Video">
+        <i class="fa-solid fa-video"></i> Export Video
+      </button>
+      <button id="resetBtn" class="btn btn-ghost" title="Reset">
+        <i class="fa-solid fa-rotate-left"></i> Reset
+      </button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar">
+      <section class="panel">
+        <h3><i class="fa-solid fa-image"></i> Image</h3>
+        <div id="imagePreview" class="preview-wrap">
+          <img id="uploadedImg" alt="Uploaded image" />
+          <div class="empty-state" id="emptyState">
+            <i class="fa-regular fa-image"></i>
+            <p>Upload an image to begin</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3><i class="fa-solid fa-palette"></i> Stickers</h3>
+        <div id="stickerPalette" class="palette"></div>
+      </section>
+
+      <section class="panel">
+        <h3><i class="fa-solid fa-sliders"></i> Settings</h3>
+        <label>
+          <span>Animation:</span>
+          <select id="animSelect">
+            <option value="none">— None —</option>
+            <option value="bounce">Bounce</option>
+            <option value="pulse">Pulse</option>
+            <option value="spin">Spin</option>
+            <option value="wiggle">Wiggle</option>
+          </select>
+        </label>
+        <label>
+          <span>Speed:</span>
+          <input type="range" id="speedRange" min="0.5" max="3" step="0.1" value="1" />
+          <span id="speedVal">1.0</span>
+        </label>
+      </section>
+    </aside>
+
+    <main class="canvas-wrap">
+      <div class="canvas-frame">
+        <canvas id="mainCanvas" width="1200" height="800"></canvas>
+        <div id="canvasOverlay" class="canvas-overlay">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span id="overlayText">Generating…</span>
+        </div>
+      </div>
+      <div class="canvas-meta">
+        <span id="metaSize">0 × 0 px</span>
+        <span id="metaLayers">0 stickers</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/build/gif.js"></script>
+<script>/* =========================================================
+   StickerLab — Dynamic Sticker Editor
+   ========================================================= */
+
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const uploadedImg = document.getElementById('uploadedImg');
+const emptyState = document.getElementById('emptyState');
+const palette = document.getElementById('stickerPalette');
+const animSelect = document.getElementById('animSelect');
+const speedRange = document.getElementById('speedRange');
+const speedVal = document.getElementById('speedVal');
+const canvasFrame = document.querySelector('.canvas-frame');
+const canvasOverlay = document.getElementById('canvasOverlay');
+const overlayText = document.getElementById('overlayText');
+const metaSize = document.getElementById('metaSize');
+const metaLayers = document.getElementById('metaLayers');
+
+// State
+const state = {
+  image: null,
+  stickers: [], // { id, type, text, x, y, w, h, rot, anim, animPhase, color }
+  anim: 'none',
+  speed: 1,
+  animating: false,
+  gifFrames: [],
+  gifFrameIndex: 0,
+  gifTimer: null,
+  videoRecorder: null,
+  videoChunks: [],
+  videoBlob: null,
+};
+
+const STICKER_TYPES = [
+  { id: 'emoji1', type: 'emoji', text: '😀', color: '#fbbf24' },
+  { id: 'emoji2', type: 'emoji', text: '😎', color: '#f97316' },
+  { id: 'emoji3', type: 'emoji', text: '✨', color: '#60a5fa' },
+  { id: 'emoji4', type: 'emoji', text: '❤️', color: '#ec4899' },
+  { id: 'emoji5', type: 'emoji', text: '🔥', color: '#f92672' },
+  { id: 'emoji6', type: 'emoji', text: '🚀', color: '#f472b6' },
+  { id: 'text1', type: 'text', text: 'Hello', color: '#60a5fa' },
+  { id: 'text2', type: 'text', text: 'World', color: '#818cf8' },
+  { id: 'text3', type: 'text', text: 'StickerLab', color: '#a78bfa' },
+  { id: 'text4', type: 'text', text: '✨', color: '#fbbf24' },
+  { id: 'text5', type: 'text', text: 'WOW', color: '#f92672' },
+  { id: 'shape1', type: 'shape', text: '★', color: '#f472b6' },
+  { id: 'shape2', type: 'shape', text: '★', color: '#a78bfa' },
+  { id: 'shape3', type: 'shape', text: '★', color: '#fbbf24' },
+];
+
+// ---------- Utilities ----------
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+function getStickerCount(type) {
+  return state.stickers.filter(s => s.type === type).length;
+}
+
+function addSticker(type) {
+  const sticker = STICKER_TYPES.find(t => t.id === type);
+  if (!sticker) return;
+  const rect = canvas.getBoundingClientRect();
+  const imgW = uploadedImg ? uploadedImg.naturalWidth : 1200;
+  const imgH = uploadedImg ? uploadedImg.naturalHeight : 800;
+  const scale = Math.min(rect.width / imgW, rect.height / imgH);
+  const w = (sticker.type === 'text' ? 160 : 80) * scale;
+  const h = (sticker.type === 'text' ? 40 : 48) * scale;
+  const x = rand(20, rect.width - w - 20);
+  const y = rand(20, rect.height - h - 20);
+  state.stickers.push({
+    id: 's' + Date.now() + Math.random().toString(36).slice(2, 6),
+    type: sticker.type,
+    text: sticker.text,
+    color: sticker.color,
+    x, y, w, h,
+    rot: 0,
+    anim: animSelect.value,
+    animPhase: Math.random() * Math.PI * 2,
+    scale: 1,
+  });
+  render();
+  updatePaletteCounts();
+}
+
+function updatePaletteCounts() {
+  STICKER_TYPES.forEach(t => {
+    const el = document.getElementById('sticker-' + t.id);
+    if (el) el.querySelector('.count').textContent = getStickerCount(t.id);
+  });
+}
+
+function removeSticker(id) {
+  state.stickers = state.stickers.filter(s => s.id !== id);
+  render();
+  updatePaletteCounts();
+}
+
+function reset() {
+  state.stickers = [];
+  state.anim = 'none';
+  animSelect.value = 'none';
+  state.speed = 1;
+  speedRange.value = 1;
+  speedVal.textContent = '1.0';
+  render();
+  updatePaletteCounts();
+}
+
+function updateImage() {
+  const rect = canvas.getBoundingClientRect();
+  const imgW = uploadedImg ? uploadedImg.naturalWidth : 1200;
+  const imgH = uploadedImg ? uploadedImg.naturalHeight : 800;
+  const scale = Math.min(rect.width / imgW, rect.height / imgH);
+  canvas.width = imgW * scale;
+  canvas.height = imgH * scale;
+  metaSize.textContent = `${imgW} × ${imgH} px`;
+  metaLayers.textContent = `${state.stickers.length} sticker${state.stickers.length === 1 ? '' : 's'}`;
+  render();
+}
+
+// ---------- Rendering ----------
+function render() {
+  const rect = canvas.getBoundingClientRect();
+  const imgW = uploadedImg ? uploadedImg.naturalWidth : 1200;
+  const imgH = uploadedImg ? uploadedImg.naturalHeight : 800;
+  const scale = Math.min(rect.width / imgW, rect.height / imgH);
+  canvas.width = imgW * scale;
+  canvas.height = imgH * scale;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (uploadedImg) {
+    ctx.drawImage(uploadedImg, 0, 0, canvas.width, canvas.height);
+  }
+
+  state.stickers.forEach(s => {
+    const x = s.x;
+    const y = s.y;
+    const w = s.w;
+    const h = s.h;
+    const rot = s.rot;
+
+    if (s.type === 'text') {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(rot);
+      ctx.fillStyle = s.color;
+      ctx.font = `bold ${Math.max(14, Math.round(h * 0.5)) * 0.8}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.text, 0, 0);
+      ctx.restore();
+    } else {
+      // Emoji / shape: draw with color
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(rot);
+      ctx.fillStyle = s.color;
+      ctx.font = 'bold 24px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.text, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+// ---------- Animation loop ----------
+function animate() {
+  if (!state.image) return;
+  const rect = canvas.getBoundingClientRect();
+  const imgW = uploadedImg ? uploadedImg.naturalWidth : 1200;
+  const imgH = uploadedImg ? uploadedImg.naturalHeight : 800;
+  const scale = Math.min(rect.width / imgW, rect.height / imgH);
+  canvas.width = imgW * scale;
+  canvas.height = imgH * scale;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (uploadedImg) {
+    ctx.drawImage(uploadedImg, 0, 0, canvas.width, canvas.height);
+  }
+
+  const speed = state.speed;
+  state.stickers.forEach(s => {
+    const x = s.x;
+    const y = s.y;
+    const w = s.w;
+    const h = s.h;
+    s.rot += 0.05 * speed;
+
+    if (s.anim === 'bounce') {
+      s.animPhase += 0.15 * speed;
+      const t = s.animPhase % Math.PI * 2;
+      const dist = Math.abs(Math.sin(t) * 10);
+      s.x += Math.sin(t) * 1.5;
+      s.y += Math.cos(t) * 1.5;
+    } else if (s.anim === 'pulse') {
+      s.animPhase += 0.2 * speed;
+      const t = s.animPhase % Math.PI * 2;
+      const pulse = 1 + Math.sin(t) * 0.15;
+      s.scale = 1 + Math.sin(t) * 0.2;
+      s.w *= pulse;
+      s.h *= pulse;
+    } else if (s.anim === 'spin') {
+      s.animPhase += 0.1 * speed;
+    } else if (s.anim === 'wiggle') {
+      s.animPhase += 0.15 * speed;
+      const t = s.animPhase % Math.PI * 2;
+      const wiggle = Math.sin(t) * 2;
+      s.x += wiggle * 0.5;
+      s.y += Math.cos(t) * 0.5;
+    }
+
+    if (s.type === 'text') {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(s.rot);
+      ctx.fillStyle = s.color;
+      ctx.font = `bold ${Math.max(14, Math.round(h * 0.5)) * 0.8}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.text, 0, 0);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(s.rot);
+      ctx.scale(s.scale, s.scale);
+      ctx.fillStyle = s.color;
+      ctx.font = 'bold 24px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.text, 0, 0);
+      ctx.restore();
+    }
+  });
+
+  if (state.animating) {
+    state.gifFrames.push(canvas.toDataURL('image/png'));
+    if (state.gifFrames.length >= 150) {
+      state.animating = false;
+      canvasOverlay.classList.remove('active');
+      overlayText.textContent = 'Animation complete';
+      setTimeout(() => { overlayText.textContent = 'Generating…'; }, 500);
+    }
+  }
+}
+
+// ---------- GIF export ----------
+function exportGif() {
+  if (!state.image) return;
+  if (state.gifFrames.length < 2) {
+    alert('Render animation first (press play or wait for auto-play).');
+    return;
+  }
+  canvasOverlay.classList.add('active');
+  overlayText.textContent = 'Exporting GIF…';
+
+  const gif = new GIF({
+    workers: 2,
+    quality: 9,
+    width: canvas.width,
+    height: canvas.height,
+  });
+  state.gifFrames.forEach((frame, i) => {
+    const img = new Image();
+    img.onload = () => gif.addFrame(img, { delay: 60, copy: true });
+    img.src = frame;
+  });
+  gif.on('finished', function (blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stickerlab.gif';
+    a.click();
+    URL.revokeObjectURL(url);
+    canvasOverlay.classList.remove('active');
+    overlayText.textContent = 'GIF exported!';
+    setTimeout(() => { overlayText.textContent = 'Export GIF'; }, 1500);
+  });
+  gif.on('error', function (err) {
+    console.error(err);
+    canvasOverlay.classList.remove('active');
+    overlayText.textContent = 'Export failed';
+  });
+  gif.on('progress', function (p) {
+    overlayText.textContent = `Exporting… ${Math.round(p * 100)}%`;
+  });
+  gif.render();
+}
+
+// ---------- Video export ----------
+async function exportVideo() {
+  if (!state.image) return;
+  if (state.stickers.length === 0) {
+    alert('Add at least one sticker to export a video.');
+    return;
+  }
+  canvasOverlay.classList.add('active');
+  overlayText.textContent = 'Recording video…';
+
+  // Create a small offscreen canvas for recording
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = canvas.width;
+  offCanvas.height = canvas.height;
+  const offCtx = offCanvas.getContext('2d');
+
+  // Capture source image
+  offCtx.drawImage(canvas, 0, 0);
+
+  // MediaRecorder
+  const stream = canvas.captureStream(30);
+  const videoTrack = stream.getVideoTracks()[0];
+  const enc = videoTrack.getSettings().codec || 'vp9';
+  const mime = `video/webm;codecs=${enc},opus`;
+
+  const options = { mimeType: mime };
+  const recorder = new MediaRecorder(stream, options);
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) state.videoChunks.push(e.data);
+  };
+  recorder.onstop = () => {
+    state.videoBlob = new Blob(state.videoChunks, { type: mime });
+    const url = URL.createObjectURL(state.videoBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stickerlab.webm';
+    a.click();
+    URL.revokeObjectURL(url);
+    canvasOverlay.classList.remove('active');
+    overlayText.textContent = 'Video exported!';
+    setTimeout(() => { overlayText.textContent = 'Export Video'; }, 1500);
+  };
+  recorder.onerror = (e) => {
+    console.error(e);
+    canvasOverlay.classList.remove('active');
+    overlayText.textContent = 'Export failed';
+  };
+
+  state.videoChunks = [];
+  recorder.start();
+  await new Promise(r => setTimeout(r, 1500));
+  recorder.stop();
+}
+
+// ---------- Event wiring ----------
+document.getElementById('addBtn').addEventListener('click', () => {
+  if (!state.image) {
+    alert('Upload an image first.');
+    return;
+  }
+  addSticker(STICKER_TYPES[0].id);
+});
+
+palette.addEventListener('click', (e) => {
+  const btn = e.target.closest('.sticker-item');
+  if (!btn) return;
+  addSticker(btn.dataset.id);
+});
+
+animSelect.addEventListener('change', (e) => {
+  state.anim = e.target.value;
+  state.stickers.forEach(s => s.anim = e.target.value);
+  render();
+});
+
+speedRange.addEventListener('input', (e) => {
+  state.speed = parseFloat(e.target.value);
+  speedVal.textContent = state.speed.toFixed(1);
+});
+
+document.getElementById('exportGifBtn').addEventListener('click', exportGif);
+document.getElementById('exportVideoBtn').addEventListener('click', exportVideo);
+document.getElementById('resetBtn').addEventListener('click', reset);
+
+// File upload
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/*';
+fileInput.style.display = 'none';
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.add-sticker')) {
+    e.stopPropagation();
+    fileInput.click();
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target === fileInput && fileInput.files[0]) {
+    loadImage(fileInput.files[0]).then(dataUrl => {
+      uploadedImg.src = dataUrl;
+      emptyState.classList.add('hidden');
+      state.image = dataUrl;
+      updateImage();
+      // Auto-add a sticker
+      setTimeout(() => addSticker(STICKER_TYPES[0].id), 200);
+    }).catch(err => {
+      alert('Failed to load image: ' + err.message);
+    });
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'g' || e.key === 'G') exportGif();
+  if (e.key === 'v' || e.key === 'V') exportVideo();
+  if (e.key === 'r' || e.key === 'R') reset();
+});
+
+// ---------- Init ----------
+updatePaletteCounts();
+</script></script>
+</body>
+</html>

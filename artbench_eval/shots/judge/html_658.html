@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webpage Screenshot Tool</title>
+    <style>
+        :root {
+            --primary-color: #4F46E5;
+            --hover-color: #4338CA;
+            --bg-color: #F3F4F6;
+            --card-bg: #FFFFFF;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #111827;
+            margin-bottom: 1.5rem;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+        input[type="url"] {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+        input[type="url"]:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: var(--hover-color);
+        }
+        button:disabled {
+            background-color: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .result-area {
+            margin-top: 1.5rem;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .screenshot-img {
+            max-width: 100%;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .loader {
+            display: none;
+            border: 4px solid #F3F3F3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-msg {
+            color: #DC2626;
+            font-size: 0.9rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Webpage Screenshot Tool</h1>
+    <div class="input-group">
+        <input type="url" id="urlInput" placeholder="https://www.example.com" required>
+        <button id="generateBtn">Generate</button>
+    </div>
+    <div class="error-msg" id="errorMsg">Please enter a valid URL starting with http:// or https://</div>
+    
+    <div class="loader" id="loader"></div>
+
+    <div class="result-area" id="resultArea">
+        <img id="screenshotImg" class="screenshot-img" alt="Webpage Screenshot" crossorigin="anonymous">
+        <button id="downloadBtn">Download Screenshot</button>
+    </div>
+</div>
+
+<script>
+    const urlInput = document.getElementById('urlInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const loader = document.getElementById('loader');
+    const resultArea = document.getElementById('resultArea');
+    const screenshotImg = document.getElementById('screenshotImg');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const errorMsg = document.getElementById('errorMsg');
+
+    // Function to validate URL
+    function isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;  
+        }
+    }
+
+    generateBtn.addEventListener('click', () => {
+        let url = urlInput.value.trim();
+        
+        // Auto-prepend https:// if missing
+        if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+            urlInput.value = url;
+        }
+
+        if (!isValidUrl(url)) {
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        errorMsg.style.display = 'none';
+        resultArea.style.display = 'none';
+        loader.style.display = 'block';
+        generateBtn.disabled = true;
+
+        // Using thum.io free API for generating screenshots
+        // width/800 sets the viewport width, crop/800 crops the height
+        const apiUrl = `https://image.thum.io/get/width/800/crop/800/${url}`;
+
+        // Set image source
+        screenshotImg.src = apiUrl;
+
+        // Handle image load
+        screenshotImg.onload = () => {
+            loader.style.display = 'none';
+            resultArea.style.display = 'flex';
+            generateBtn.disabled = false;
+        };
+
+        // Handle image error
+        screenshotImg.onerror = () => {
+            loader.style.display = 'none';
+            errorMsg.textContent = "Failed to generate screenshot. The website might be blocking access.";
+            errorMsg.style.display = 'block';
+            generateBtn.disabled = false;
+        };
+    });
+
+    // Handle Download
+    downloadBtn.addEventListener('click', async () => {
+        try {
+            // Fetch the image as a blob to force download instead of opening in a new tab
+            const response = await fetch(screenshotImg.src);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            // Extract domain name for the filename
+            const domain = new URL(urlInput.value).hostname;
+            a.download = `screenshot-${domain}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+            // Fallback if CORS blocks the fetch request
+            window.open(screenshotImg.src, '_blank');
+        }
+    });
+
+    // Allow pressing "Enter" to trigger generation
+    urlInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            generateBtn.click();
+        }
+    });
+</script>
+
+</body>
+</html>

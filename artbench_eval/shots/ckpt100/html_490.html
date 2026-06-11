@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Background Video Generator</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0b0d12;
+  color: #e8eaf0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #111418;
+  border-bottom: 1px solid #222;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.3px;
+}
+.logo { font-size: 22px; }
+
+.top-actions { display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #1f2328;
+  color: #cfd8e6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover { background: #2a2f36; border-color: #444; }
+.icon-btn:active { transform: scale(0.95); }
+.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.fps {
+  margin-left: 12px;
+  font-size: 12px;
+  color: #6b7280;
+  padding: 4px 10px;
+  background: #1f2328;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  padding: 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #111418;
+  border: 1px solid #222;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.panel {
+  background: #111418;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.panel h2 {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8a93a6;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #cfd8e6;
+}
+.toggle input {
+  accent-color: #7c5cff;
+  width: 18px; height: 18px;
+  cursor: pointer;
+}
+
+.ghost-btn {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #333;
+  background: #1f2328;
+  color: #cfd8e6;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ghost-btn:hover { background: #2a2f36; border-color: #444; }
+
+.layer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.layer-item:hover { background: #222; }
+.layer-item .remove {
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: #333;
+  color: #cfd8e6;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.layer-item .remove:hover { background: #444; color: #fff; }
+
+.layer-item .name { flex: 1; }
+
+.timeline {
+  height: 120px;
+  background: #111418;
+  border: 1px solid #222;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 1px;
+  background: #2a2f36;
+  transform: translateY(-50%);
+}
+
+.timeline .track {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.timeline .track .tick {
+  width: 1px;
+  height: 20px;
+  background: #2a2f36;
+  opacity: 0.5;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.timeline .track .tick.active { background: #7c5cff; }
+
+.timeline .track .label {
+  position: absolute;
+  bottom: 0;
+  font-size: 11px;
+  color: #6b7280;
+  pointer-events: none;
+  transform: translateY(100%);
+  transition: transform 0.2s ease;
+}
+.timeline .track .label.active { transform: translateY(0); color: #fff; }
+
+.timeline .markers {
+  position: absolute;
+  left: 0; right: 0;
+  top: 0;
+  height: 2px;
+  background: #7c5cff;
+  opacity: 0.3;
+  pointer-events: none;
+}
+.timeline .markers .marker {
+  position: absolute;
+  top: 0;
+  height: 2px;
+  width: 10px;
+  background: #7c5cff;
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(124, 92, 255, 0.8);
+}
+
+.preview-wrap {
+  position: relative;
+  background: #000;
+  border: 1px solid #222;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+#preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 720px;
+  image-rendering: pixelated;
+}
+
+.preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 20, 24, 0.7);
+  backdrop-filter: blur(6px);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.preview-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.overlay-card {
+  background: #1f2328;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.overlay-card h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+}
+.overlay-card p {
+  margin: 0 0 20px 0;
+  color: #8a93a6;
+  font-size: 14px;
+}
+.overlay-controls { display: flex; gap: 8px; justify-content: center; }
+.btn {
+  padding: 8px 16px;
+  border: 1px solid #333;
+  background: #1f2328;
+  color: #cfd8e6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn:hover { background: #2a2f36; border-color: #444; }
+.btn-primary {
+  background: #7c5cff;
+  border-color: #7c5cff;
+  color: #fff;
+}
+.btn-primary:hover { background: #9370db; border-color: #9370db; }
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar { order: 2; }
+  .preview-wrap { order: 1; }
+  .topbar { padding: 10px 14px; }
+  .brand h1 { font-size: 15px; }
+  .logo { font-size: 18px; }
+  .icon-btn { width: 32px; height: 32px; }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🎬</span>
+        <h1>FrameFlow</h1>
+      </div>
+      <div class="top-actions">
+        <button id="playBtn" class="icon-btn" title="Play/Pause" aria-label="Play">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button id="recordBtn" class="icon-btn" title="Record" aria-label="Record">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 3v10.55A11.95 11.95 0 0 0 12 15c-6.63 0-12-5.37-12-12h1.92c0 5.89 4.39 10.78 10.09 11.91l.07.06A12 12 0 1 0 12 3zm6.5 10.5h-13l6.76 5.92 6.74-5.92z"/></svg>
+        </button>
+        <button id="exportBtn" class="icon-btn" title="Export" aria-label="Export">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 3l10 11v6h-2v-6H12v6h-2v-6L2 12v-3h2z"/></svg>
+        </button>
+        <span class="fps" id="fps">60fps</span>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar" id="sidebar">
+        <section class="panel">
+          <h2>Background</h2>
+          <label class="toggle">
+            <input type="checkbox" id="bgParticles" checked>
+            <span>Particles</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="bgSmoke" checked>
+            <span>Smoke</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="bgWaves" checked>
+            <span>Waves</span>
+          </label>
+        </section>
+
+        <section class="panel">
+          <h2>Text</h2>
+          <button id="addTextBtn" class="ghost-btn">+ Add Text</button>
+          <ul id="textList" class="layer-list"></ul>
+        </section>
+
+        <section class="panel">
+          <h2>Image</h2>
+          <button id="addImageBtn" class="ghost-btn">+ Add Image</button>
+          <ul id="imageList" class="layer-list"></ul>
+        </section>
+
+        <section class="panel">
+          <h2>Timeline</h2>
+          <div id="timeline" class="timeline"></div>
+        </section>
+      </aside>
+
+      <main class="preview-wrap">
+        <canvas id="preview" width="1280" height="720"></canvas>
+        <div id="previewOverlay" class="preview-overlay">
+          <div class="overlay-card">
+            <h2>Preview</h2>
+            <p id="previewStatus">Ready to record</p>
+            <div class="overlay-controls">
+              <button id="resetBtn" class="btn">Reset</button>
+              <button id="saveBtn" class="btn btn-primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>/* =========================================================
+   FrameFlow — Dynamic Background Video Generator
+   ========================================================= */
+
+(() => {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    width: 1280,
+    height: 720,
+    fps: 60,
+    duration: 10, // seconds
+    currentTime: 0,
+    playing: false,
+    recording: false,
+    frames: [],
+    layers: {
+      text: [],
+      image: []
+    },
+    bg: {
+      particles: true,
+      smoke: true,
+      waves: true
+    },
+    canvas: null,
+    ctx: null,
+    animationId: null,
+    lastTime: 0,
+    rafId: null,
+    mediaRecorder: null,
+    recordedChunks: [],
+    videoBlob: null,
+    videoUrl: null,
+    pendingExport: null
+  };
+
+  // ---------- Utilities ----------
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  const easing = {
+    easeInOutQuad(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; },
+    easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); },
+    easeOutQuad(t) { return 1 - Math.pow(1 - t, 2); }
+  };
+
+  // ---------- Layer factories ----------
+  function createTextLayer(id, opts = {}) {
+    const layer = {
+      id,
+      type: 'text',
+      text: 'FrameFlow',
+      size: 80,
+      color: '#ffffff',
+      x: 0.5,
+      y: 0.5,
+      rotate: 0,
+      opacity: 1,
+      duration: 10,
+      easing: 'easeInOutQuad',
+      delay: 0,
+      keyframes: [
+        { t: 0, x: 0.5, y: 0.5, size: 80, opacity: 0, rotate: 0 },
+        { t: 1, x: 0.5, y: 0.5, size: 80, opacity: 1, rotate: 0 },
+        { t: 10, x: 0.5, y: 0.5, size: 80, opacity: 0, rotate: 0 }
+      ],
+      active: true
+    };
+    Object.assign(layer, opts);
+    layer.keyframes[0].t = 0;
+    layer.keyframes[1].t = layer.duration;
+    return layer;
+  }
+
+  function createImageLayer(id, opts = {}) {
+    const layer = {
+      id,
+      type: 'image',
+      src: '',
+      x: 0.5,
+      y: 0.5,
+      scale: 1,
+      rotate: 0,
+      opacity: 1,
+      duration: 10,
+      easing: 'easeInOutQuad',
+      delay: 0,
+      keyframes: [
+        { t: 0, x: 0.5, y: 0.5, scale: 1, opacity: 0, rotate: 0 },
+        { t: 1, x: 0.5, y: 0.5, scale: 1, opacity: 1, rotate: 0 },
+        { t: 10, x: 0.5, y: 0.5, scale: 1, opacity: 0, rotate: 0 }
+      ],
+      active: true
+    };
+    Object.assign(layer, opts);
+    layer.keyframes[0].t = 0;
+    layer.keyframes[1].t = layer.duration;
+    return layer;
+  }
+
+  // ---------- Background generators ----------
+  function drawParticles(ctx, w, h, opts = {}) {
+    const { count = 120, speed = 0.5, size = 2, color = '#ffffff', alpha = 0.8 } = opts;
+    ctx.fillStyle = color;
+    for (let i = 0; i < count; i++) {
+      const x = rand(0, w);
+      const y = rand(0, h);
+      ctx.globalAlpha = alpha * (0.5 + Math.sin(Date.now() * 0.001 + i * 0.3) * 0.5);
+      ctx.fillRect(x, y, size, size);
+    }
+  }
+
+  function drawSmoke(ctx, w, h, opts = {}) {
+    const { density = 120, color = '#ffffff', alpha = 0.5 } = opts;
+    const gradient = ctx.createLinearGradient(0, 0, 0, h);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.globalAlpha = alpha;
+    for (let i = 0; i < density; i++) {
+      const x = rand(0, w);
+      const y = rand(0, h * 0.6);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+
+  function drawWaves(ctx, w, h, opts = {}) {
+    const { amplitude = 40, frequency = 0.004, speed = 0.5, color = '#ffffff', alpha = 0.4 } = opts;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    for (let x = 0; x < w; x += 1) {
+      const y = Math.sin(x * frequency + Date.now() * 0.001 * speed) * amplitude;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+
+  // ---------- Rendering ----------
+  function render() {
+    const { ctx, width, height } = state;
+    ctx.clearRect(0, 0, width, height);
+
+    // Background
+    if (state.bg.particles) drawParticles(ctx, width, height, { count: 120, speed: 0.5, size: 2, color: '#ffffff', alpha: 0.8 });
+    if (state.bg.smoke) drawSmoke(ctx, width, height, { density: 120, color: '#ffffff', alpha: 0.5 });
+    if (state.bg.waves) drawWaves(ctx, width, height, { amplitude: 40, frequency: 0.004, speed: 0.5, color: '#ffffff', alpha: 0.4 });
+
+    // Layers
+    state.layers.text.forEach(l => renderLayer(ctx, l));
+    state.layers.image.forEach(l => renderLayer(ctx, l));
+  }
+
+  function renderLayer(ctx, layer) {
+    if (!layer.active) return;
+    const t = state.currentTime;
+    const kf = layer.keyframes.find(k => k.t <= t);
+    if (!kf) return;
+
+    const { x, y, scale, rotate, opacity } = kf;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.translate(width * x, height * y);
+    ctx.scale(scale, scale);
+    ctx.rotate(rotate * Math.PI / 180);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${scale * 80}px Inter, sans-serif`;
+    ctx.fillStyle = layer.color;
+    ctx.fillText(layer.text, 0, 0);
+    ctx.restore();
+  }
+
+  // ---------- Timeline ----------
+  function buildTimeline() {
+    const { duration, fps } = state;
+    const totalFrames = Math.round(duration * fps);
+    const ticks = [];
+    for (let i = 0; i <= totalFrames; i++) {
+      ticks.push(i / fps);
+    }
+    return ticks;
+  }
+
+  function updateTimeline() {
+    const track = $('#timeline .track');
+    const ticks = buildTimeline();
+    track.innerHTML = '';
+    ticks.forEach((t, i) => {
+      const tick = document.createElement('div');
+      tick.className = 'tick';
+      tick.style.left = `${(i / ticks.length) * 100}%`;
+      tick.style.width = `${100 / ticks.length}%`;
+      tick.dataset.frame = i;
+      tick.addEventListener('click', () => {
+        state.currentTime = t;
+        updateTimelineMarkers();
+      });
+      track.appendChild(tick);
+    });
+
+    // Labels
+    const labels = $('#timeline .track .label');
+    labels.forEach((lbl, i) => {
+      lbl.style.left = `${(i / ticks.length) * 100}%`;
+      lbl.textContent = Math.round(ticks[i]);
+    });
+
+    // Markers
+    const markers = $('#timeline .markers');
+    markers.innerHTML = '';
+    const kfFrames = new Set();
+    state.layers.text.forEach(l => kfFrames.add(l.keyframes[0].t));
+    state.layers.image.forEach(l => kfFrames.add(l.keyframes[0].t));
+    kfFrames.forEach(tf => markers.appendChild(createMarker(tf)));
+  }
+
+  function createMarker(t) {
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    marker.style.left = `${(t / state.duration) * 100}%`;
+    return marker;
+  }
+
+  function updateTimelineMarkers() {
+    const markers = $('#timeline .markers .marker');
+    markers.forEach(m => {
+      m.style.left = `${(state.currentTime / state.duration) * 100}%`;
+    });
+  }
+
+  // ---------- Playback ----------
+  function tick() {
+    state.currentTime += 1 / state.fps;
+    if (state.currentTime >= state.duration) state.currentTime = 0;
+    render();
+    if (state.playing) {
+      state.animationId = requestAnimationFrame(tick);
+    }
+  }
+
+  function start() {
+    if (state.playing) return;
+    state.currentTime = 0;
+    state.playing = true;
+    state.animationId = requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    state.playing = false;
+    if (state.animationId) cancelAnimationFrame(state.animationId);
+    state.animationId = null;
+  }
+
+  // ---------- Recording ----------
+  function startRecording() {
+    if (state.recording) return;
+    state.recording = true;
+    state.recordedChunks = [];
+    state.videoBlob = null;
+    state.videoUrl = null;
+
+    // Force canvas to video frame size
+    const canvas = $('#preview');
+    canvas.width = state.width;
+    canvas.height = state.height;
+
+    const stream = canvas.captureStream(state.fps);
+    const mime = 'video/webm;codecs=vp9,opus';
+    state.mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+    state.mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
+    };
+    state.mediaRecorder.onstop = () => {
+      if (state.recordedChunks.length > 0) {
+        state.videoBlob = new Blob(state.recordedChunks, { type: mime });
+        state.videoUrl = URL.createObjectURL(state.videoBlob);
+        $('#previewStatus').textContent = 'Recorded ✓';
+        $('#recordBtn').disabled = true;
+      }
+    };
+    state.mediaRecorder.start(1000 / state.fps);
+  }
+
+  function stopRecording() {
+    if (!state.mediaRecorder) return;
+    state.mediaRecorder.stop();
+    state.mediaRecorder = null;
+    state.recordedChunks = [];
+    state.videoBlob = null;
+    state.videoUrl = null;
+    $('#previewStatus').textContent = 'Ready to record';
+    $('#recordBtn').disabled = false;
+  }
+
+  // ---------- Export ----------
+  async function exportVideo() {
+    if (!state.videoBlob) {
+      alert('Record first!');
+      return;
+    }
+    const url = URL.createObjectURL(state.videoBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `frameflow-${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- Keyframe editing ----------
+  function addKeyframe(layer, t, values) {
+    const kf = { t, ...values };
+    const idx = layer.keyframes.findIndex(k => k.t === t);
+    if (idx >= 0) {
+      layer.keyframes[idx] = kf;
+    } else {
+      layer.keyframes.push(kf);
+      layer.keyframes.sort((a, b) => a.t - b.t);
+    }
+    if (kf.t <= state.currentTime) render();
+  }
+
+  function removeKeyframe(layer, idx) {
+    layer.keyframes.splice(idx, 1);
+    if (layer.keyframes.length === 0) {
+      layer.keyframes.push({ t: 0, x: 0.5, y: 0.5, scale: 1, opacity: 0, rotate: 0 });
+      layer.keyframes.push({ t: layer.duration, x: 0.5, y: 0.5, scale: 1, opacity: 0, rotate: 0 });
+    } else {
+      layer.keyframes.sort((a, b) => a.t - b.t);
+    }
+    render();
+  }
+
+  function updateKeyframe(layer, idx, values) {
+    layer.keyframes[idx] = { ...layer.keyframes[idx], ...values };
+    render();
+  }
+
+  // ---------- UI wiring ----------
+  function wireUI() {
+    $('#playBtn').addEventListener('click', () => state.playing ? stop() : start());
+    $('#recordBtn').addEventListener('click', () => {
+      if (state.recording) stopRecording(); else startRecording();
+    });
+    $('#exportBtn').addEventListener('click', exportVideo);
+    $('#resetBtn').addEventListener('click', () => {
+      state.currentTime = 0;
+      state.playing = false;
+      if (state.animationId) cancelAnimationFrame(state.animationId);
+      state.animationId = null;
+      stopRecording();
+      state.layers.text = [createTextLayer('t1', { text: 'FrameFlow', size: 80, color: '#ffffff', duration: 10 })];
+      state.layers.image = [createImageLayer('i1', { src: '', duration: 10 })];
+      state.bg = { particles: true, smoke: true, waves: true };
+      render();
+    });
+    $('#saveBtn').addEventListener('click', () => {
+      try {
+        localStorage.setItem('frameflow-state', JSON.stringify({
+          layers: state.layers,
+          bg: state.bg,
+          width: state.width,
+          height: state.height,
+          fps: state.fps,
+          duration: state.duration
+        }));
+        alert('Saved to localStorage');
+      } catch (e) { alert('Save failed'); }
+    });
+
+    // Background toggles
+    $('#bgParticles').addEventListener('change', e => { state.bg.particles = e.target.checked; });
+    $('#bgSmoke').addEventListener('change', e => { state.bg.smoke = e.target.checked; });
+    $('#bgWaves').addEventListener('change', e => { state.bg.waves = e.target.checked; });
+
+    // Add text
+    $('#addTextBtn').addEventListener('click', () => {
+      const id = 't' + Date.now();
+      state.layers.text.push(createTextLayer(id, { text: 'New Text', size: 60, color: '#ffffff' }));
+      render();
+    });
+
+    // Add image
+    $('#addImageBtn').addEventListener('click', () => {
+      const id = 'i' + Date.now();
+      state.layers.image.push(createImageLayer(id, { src: '', duration: 10 }));
+      render();
+    });
+
+    // Text list
+    const textList = $('#textList');
+    state.layers.text.forEach((l, i) => {
+      const li = document.createElement('li');
+      li.className = 'layer-item';
+      li.dataset.id = l.id;
+      li.innerHTML = `
+        <span class="name">${l.text}</span>
+        <button class="remove" title="Remove" aria-label="Remove">✕</button>
+      `;
+      li.querySelector('.remove').addEventListener('click', () => {
+        state.layers.text.splice(i, 1);
+        render();
+      });
+      textList.appendChild(li);
+    });
+    textList.addEventListener('click', e => {
+      const btn = e.target.closest('.remove');
+      if (btn) {
+        const id = btn.closest('.layer-item').dataset.id;
+        state.layers.text = state.layers.text.filter(l => l.id !== id);
+        render();
+      }
+    });
+
+    // Image list
+    const imageList = $('#imageList');
+    state.layers.image.forEach((l, i) => {
+      const li = document.createElement('li');
+      li.className = 'layer-item';
+      li.dataset.id = l.id;
+      li.innerHTML = `
+        <span class="name">${l.src ? 'Image' : 'Image (empty)'} — ${l.text}</span>
+        <button class="remove" title="Remove" aria-label="Remove">✕</button>
+      `;
+      li.querySelector('.remove').addEventListener('click', () => {
+        state.layers.image.splice(i, 1);
+        render();
+      });
+      imageList.appendChild(li);
+    });
+    imageList.addEventListener('click', e => {
+      const btn = e.target.closest('.remove');
+      if (btn) {
+        const id = btn.closest('.layer-item').dataset.id;
+        state.layers.image = state.layers.image.filter(l => l.id !== id);
+        render();
+      }
+    });
+
+    // Layer editing via timeline clicks (simple)
+    $('#timeline').addEventListener('click', e => {
+      const tick = e.target.closest('.tick');
+      if (tick) {
+        const frameIdx = parseInt(tick.dataset.frame, 10);
+        const t = frameIdx / state.fps;
+        state.currentTime = t;
+        updateTimelineMarkers();
+        render();
+      }
+    });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space') { e.preventDefault(); state.playing ? stop() : start(); }
+      if (e.key === 'r' || e.key === 'R') { if (state.recording) stopRecording(); else startRecording(); }
+      if (e.key === 'e' || e.key === 'E') exportVideo();
+      if (e.key === 's' || e.key === 'S') {
+        try {
+          localStorage.setItem('frameflow-state', JSON.stringify({
+            layers: state.layers,
+            bg: state.bg,
+            width: state.width,
+            height: state.height,
+            fps: state.fps,
+            duration: state.duration
+          }));
+          alert('Saved to localStorage');
+        } catch (err) { alert('Save failed'); }
+      }
+    });
+
+    // Restore from localStorage
+    try {
+      const saved = localStorage.getItem('frameflow-state');
+      if (saved) {
+        const s = JSON.parse(saved);
+        state.layers.text = s.layers.text || [createTextLayer('t1', { text: 'FrameFlow', size: 80, color: '#ffffff', duration: 10 })];
+        state.layers.image = s.layers.image || [createImageLayer('i1', { src: '', duration: 10 })];
+        state.bg = s.bg || { particles: true, smoke: true, waves: true };
+        state.width = s.width || 1280;
+        state.height = s.height || 720;
+        state.fps = s.fps || 60;
+        state.duration = s.duration || 10;
+      }
+    } catch (e) { /* ignore */ }
+
+    render();
+    updateTimeline();
+  }
+
+  // ---------- Init ----------
+  function init() {
+    state.canvas = $('#preview');
+    state.ctx = state.canvas.getContext('2d');
+    wireUI();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script></script>
+</body>
+</html>

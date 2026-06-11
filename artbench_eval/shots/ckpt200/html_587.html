@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Subtitle Tool</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: #f4f6fb;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid #e0e4ec;
+  margin-bottom: 24px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 28px; }
+.brand h1 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
+
+.nav { display: flex; gap: 8px; }
+.nav a {
+  padding: 8px 14px;
+  border-radius: 6px;
+  color: #6b7280;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.nav a:hover { background: #e5e7eb; color: #111827; }
+
+.panel {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dropzone:hover, .dropzone.drag {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.dz-icon { font-size: 40px; margin-bottom: 8px; }
+
+.hidden { display: none !important; }
+
+.hint { color: #6b7280; font-size: 13px; margin: 12px 0 0; }
+
+#uploadResult { margin-top: 16px; padding: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #166534; border-radius: 8px; }
+
+.result strong { display: block; margin-bottom: 4px; }
+.result .url { color: #0070f3; word-break: break-all; }
+
+.subtitle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.subtitle-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  animation: slideIn 0.3s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.subtitle-text {
+  flex: 1;
+  font-family: inherit;
+  font-size: 14px;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subtitle-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #6b7280;
+  flex-wrap: wrap;
+}
+.subtitle-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.subtitle-meta .del { color: #dc2626; cursor: pointer; font-size: 16px; }
+
+.subtitle-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.subtitle-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+.subtitle-form input[type="text"],
+.subtitle-form textarea,
+.subtitle-form input[type="number"],
+.subtitle-form select {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+.subtitle-form input:focus,
+.subtitle-form textarea:focus,
+.subtitle-form select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+.subtitle-form textarea { resize: vertical; min-height: 60px; }
+
+.form-row { display: flex; flex-direction: column; gap: 6px; }
+
+.form-row input[type="range"] {
+  accent-color: #3b82f6;
+  width: 100%;
+}
+#opacityVal { font-size: 13px; color: #6b7280; margin-left: 8px; }
+
+.preview-wrap {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 16 / 9;
+}
+#previewVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.canvas-overlay canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.foot { text-align: center; color: #6b7280; margin-top: 24px; }
+
+button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+button:hover { background: #0070f3; transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+button.danger { background: #dc2626; }
+
+@media (max-width: 640px) {
+  .app { padding: 16px; }
+  .panel { padding: 16px; }
+  .nav { display: none; }
+  .subtitle-form { gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🎬</span>
+      <h1>Subtitle Tool</h1>
+    </div>
+    <nav class="nav">
+      <a href="#upload">Upload</a>
+      <a href="#editor">Editor</a>
+      <a href="#preview">Preview</a>
+      <a href="#export">Export</a>
+    </nav>
+  </header>
+
+  <section id="upload" class="panel">
+    <h2>1. Upload Video</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+      <label class="dropzone" for="videoInput">
+        <div class="dz-icon">⬆️</div>
+        <div>Drag & drop your video here, or</div>
+        <button type="button" id="browseBtn">Browse Files</button>
+        <input type="file" id="videoInput" name="video" accept="video/*" hidden />
+      </label>
+      <p class="hint">Supported: MP4, WebM, MOV, MKV</p>
+    </form>
+    <div id="uploadResult" class="result hidden"></div>
+  </section>
+
+  <section id="editor" class="panel">
+    <h2>2. Add Subtitles</h2>
+    <div id="subtitleList" class="subtitle-list"></div>
+    <div id="subtitleForm" class="subtitle-form">
+      <label>Text:</label>
+      <textarea id="subtitleText" rows="2" placeholder="Enter your subtitle text..."></textarea>
+      <div class="form-row">
+        <label>Start (seconds):</label>
+        <input type="number" id="subtitleStart" step="0.1" min="0" value="0" />
+      </div>
+      <div class="form-row">
+        <label>End (seconds):</label>
+        <input type="number" id="subtitleEnd" step="0.1" min="0" value="3" />
+      </div>
+      <div class="form-row">
+        <label>Font:</label>
+        <select id="subtitleFont">
+          <option value="Arial">Arial</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Impact">Impact</option>
+          <option value="Courier New">Courier New</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Color:</label>
+        <input type="color" id="subtitleColor" value="#ffffff" />
+      </div>
+      <div class="form-row">
+        <label>Background:</label>
+        <input type="color" id="subtitleBg" value="#000000" />
+      </div>
+      <div class="form-row">
+        <label>Opacity:</label>
+        <input type="range" id="subtitleOpacity" min="0" max="100" value="80" />
+        <span id="opacityVal">80%</span>
+      </div>
+      <div class="form-row">
+        <label>Position:</label>
+        <select id="subtitlePos">
+          <option value="top-left">Top Left</option>
+          <option value="top-center">Top Center</option>
+          <option value="top-right">Top Right</option>
+          <option value="center">Center</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="bottom-center">Bottom Center</option>
+          <option value="bottom-right">Bottom Right</option>
+        </select>
+      </div>
+      <button type="button" id="addBtn">Add Subtitle</button>
+      <button type="button" id="clearBtn">Clear All</button>
+    </div>
+  </section>
+
+  <section id="preview" class="panel">
+    <h2>3. Preview</h2>
+    <div class="preview-wrap">
+      <video id="previewVideo" controls preload="metadata"></video>
+      <div id="previewCanvas" class="canvas-overlay hidden"></div>
+    </div>
+  </section>
+
+  <section id="export" class="panel">
+    <h2>4. Export</h2>
+    <div id="exportForm">
+      <label>Output Name:</label>
+      <input type="text" id="exportName" value="output" />
+      <button type="button" id="exportBtn">Export Video</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <small>Built with HTML, CSS, JS, Node.js & FFmpeg</small>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const uploadForm = $('uploadForm');
+  const videoInput = $('videoInput');
+  const browseBtn = $('browseBtn');
+  const uploadResult = $('uploadResult');
+  const subtitleList = $('subtitleList');
+  const subtitleText = $('subtitleText');
+  const subtitleStart = $('subtitleStart');
+  const subtitleEnd = $('subtitleEnd');
+  const subtitleFont = $('subtitleFont');
+  const subtitleColor = $('subtitleColor');
+  const subtitleBg = $('subtitleBg');
+  const subtitleOpacity = $('subtitleOpacity');
+  const opacityVal = $('opacityVal');
+  const subtitlePos = $('subtitlePos');
+  const addBtn = $('addBtn');
+  const clearBtn = $('clearBtn');
+  const previewVideo = $('previewVideo');
+  const previewCanvas = $('previewCanvas');
+  const exportForm = $('exportForm');
+  const exportName = $('exportName');
+  const exportBtn = $('exportBtn');
+
+  const state = {
+    videoUrl: null,
+    subtitles: [],
+    previewCtx: null
+  };
+
+  // ---------- Upload ----------
+  browseBtn.addEventListener('click', () => videoInput.click());
+  uploadForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const file = videoInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = URL.createObjectURL(file);
+      state.videoUrl = url;
+      uploadResult.innerHTML = `
+        <strong>Video uploaded successfully!</strong>
+        <div class="url">${url}</div>
+        <button type="button" onclick="window.location.reload()">Upload another</button>
+      `;
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  // ---------- Subtitles ----------
+  addBtn.addEventListener('click', () => {
+    const text = subtitleText.value.trim();
+    const start = parseFloat(subtitleStart.value);
+    const end = parseFloat(subtitleEnd.value);
+    const font = subtitleFont.value;
+    const color = subtitleColor.value;
+    const bg = subtitleBg.value;
+    const opacity = parseInt(subtitleOpacity.value, 10) / 100;
+    const pos = subtitlePos.value;
+
+    if (!text || isNaN(start) || isNaN(end) || start >= end) return;
+
+    state.subtitles.push({
+      id: Date.now() + Math.random(),
+      text,
+      start,
+      end,
+      font,
+      color,
+      bg,
+      opacity,
+      pos
+    });
+
+    renderSubtitleList();
+    subtitleText.value = '';
+    subtitleStart.value = 0;
+    subtitleEnd.value = 3;
+  });
+
+  clearBtn.addEventListener('click', () => {
+    state.subtitles = [];
+    renderSubtitleList();
+  });
+
+  function renderSubtitleList() {
+    subtitleList.innerHTML = '';
+    state.subtitles.forEach((s) => {
+      const item = document.createElement('div');
+      item.className = 'subtitle-item';
+      item.innerHTML = `
+        <div class="subtitle-text">${escapeHtml(s.text)}</div>
+        <div class="subtitle-meta">
+          <span>⏱ ${formatTime(s.start)} → ${formatTime(s.end)}</span>
+          <span>🎨 ${s.font}</span>
+          <span>📍 ${s.pos}</span>
+          <span class="del" title="Delete" data-id="${s.id}">×</span>
+        </div>
+      `;
+      item.querySelector('.del').addEventListener('click', () => {
+        state.subtitles = state.subtitles.filter((x) => x.id !== s.id);
+        renderSubtitleList();
+      });
+      subtitleList.appendChild(item);
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function formatTime(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    const ms = Math.floor((sec - Math.floor(sec)) * 100);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+  }
+
+  subtitleOpacity.addEventListener('input', () => {
+    opacityVal.textContent = `${subtitleOpacity.value}%`;
+  });
+
+  // ---------- Preview ----------
+  function setupPreview() {
+    if (!state.videoUrl) return;
+    previewVideo.src = state.videoUrl;
+    previewVideo.load();
+    previewVideo.addEventListener('timeupdate', drawCanvas);
+    previewVideo.addEventListener('seeked', drawCanvas);
+    previewVideo.addEventListener('loadedmetadata', () => {
+      previewCanvas.classList.remove('hidden');
+      drawCanvas();
+    });
+    previewVideo.addEventListener('error', () => {
+      previewCanvas.classList.add('hidden');
+    });
+  }
+
+  function drawCanvas() {
+    if (!state.previewCtx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = previewCanvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    state.previewCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    state.previewCtx.clearRect(0, 0, w, h);
+
+    const time = previewVideo.currentTime || 0;
+    const subs = state.subtitles.filter((s) => s.start <= time && time <= s.end);
+
+    subs.forEach((s) => {
+      const rect = computeRect(s, w, h);
+      if (!rect) return;
+      const bgAlpha = s.opacity * 0.6;
+      state.previewCtx.fillStyle = `rgba(0,0,0,${bgAlpha})`;
+      state.previewCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+      state.previewCtx.fillStyle = s.color;
+      state.previewCtx.font = `bold ${s.font}`;
+      state.previewCtx.textBaseline = 'top';
+      state.previewCtx.textAlign = 'left';
+      state.previewCtx.fillText(s.text, rect.x, rect.y);
+    });
+  }
+
+  function computeRect(s, w, h) {
+    const pos = s.pos;
+    const pad = 10;
+    let x, y, w2, h2;
+
+    if (pos === 'top-left') { x = pad; y = pad; w2 = w - pad; h2 = h * 0.08; }
+    else if (pos === 'top-center') { x = w / 2 - w2 / 2; y = pad; w2 = w - pad; h2 = h * 0.08; }
+    else if (pos === 'top-right') { x = w - pad - w2; y = pad; w2 = w - pad; h2 = h * 0.08; }
+    else if (pos === 'center') { x = w / 2 - w2 / 2; y = h / 2 - h2 / 2; w2 = w - pad; h2 = h * 0.08; }
+    else if (pos === 'bottom-left') { x = pad; y = h - pad - h2; w2 = w - pad; h2 = h * 0.08; }
+    else if (pos === 'bottom-center') { x = w / 2 - w2 / 2; y = h - pad - h2; w2 = w - pad; h2 = h * 0.08; }
+    else if (pos === 'bottom-right') { x = w - pad - w2; y = h - pad - h2; w2 = w - pad; h2 = h * 0.08; }
+
+    return { x, y, w: w2, h: h2 };
+  }
+
+  previewCanvas.addEventListener('click', (e) => {
+    if (!state.videoUrl) return;
+    const rect = previewCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const time = previewVideo.currentTime || 0;
+    const subs = state.subtitles.filter((s) => s.start <= time && time <= s.end);
+    subs.forEach((s) => {
+      const r = computeRect(s, rect.width, rect.height);
+      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+        alert(`Subtitle: "${s.text}"\nStart: ${formatTime(s.start)}\nEnd: ${formatTime(s.end)}`);
+      }
+    });
+  });
+
+  // ---------- Export ----------
+  exportBtn.addEventListener('click', () => {
+    if (!state.videoUrl || !state.subtitles.length) {
+      alert('Upload a video and add subtitles first.');
+      return;
+    }
+    const name = exportName.value.trim() || 'output';
+    const url = state.videoUrl;
+    const subs = state.subtitles;
+
+    const data = {
+      videoUrl: url,
+      subtitles: subs,
+      outputName: name
+    };
+
+    // Simulate async call to backend
+    fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    .then((r) => r.json())
+    .then((res) => {
+      if (res.success) {
+        alert(`Exported: ${res.url}`);
+        window.open(res.url, '_blank');
+      } else {
+        alert('Export failed: ' + res.error);
+      }
+    })
+    .catch((err) => {
+      alert('Export failed: ' + err.message);
+    });
+  });
+
+  // ---------- Resize ----------
+  window.addEventListener('resize', () => {
+    if (state.previewCtx) drawCanvas();
+  });
+
+  // ---------- Init ----------
+  previewCanvas.addEventListener('click', (e) => {
+    if (!state.videoUrl) return;
+    const rect = previewCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const time = previewVideo.currentTime || 0;
+    const subs = state.subtitles.filter((s) => s.start <= time && time <= s.end);
+    subs.forEach((s) => {
+      const r = computeRect(s, rect.width, rect.height);
+      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+        alert(`Subtitle: "${s.text}"\nStart: ${formatTime(s.start)}\nEnd: ${formatTime(s.end)}`);
+      }
+    });
+  });
+
+  // Render canvas on load
+  window.addEventListener('load', () => {
+    if (state.videoUrl) setupPreview();
+  });
+})();
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

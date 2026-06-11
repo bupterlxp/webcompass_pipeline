@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Timeline Marking Tool</title>
+<style>/* ---------- Design Tokens ---------- */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e5e9f0;
+  --border-strong: #d4dae0;
+  --text: #1a1f2e;
+  --text-muted: #6b7280;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-soft: #dbeafe;
+  --danger: #ef4444;
+  --danger-soft: #fee2e2;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.06);
+  --shadow-md: 0 4px 12px rgba(16,24,40,.08);
+  --shadow-lg: 0 12px 32px rgba(16,24,40,.12);
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --transition: .2s ease;
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea { font: inherit; color: inherit; }
+ul { list-style: none; margin: 0; padding: 0; }
+img { display: block; max-width: 100%; }
+
+/* ---------- App Layout ---------- */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app-header {
+  padding: 24px 32px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+}
+.player-wrap {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  aspect-ratio: 16 / 9;
+}
+.player-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.playhead {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 40px;
+  background: var(--primary);
+  border-radius: 2px;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 4px rgba(59,130,246,.15);
+  z-index: 5;
+  cursor: ew-resize;
+}
+.progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  background: rgba(255,255,255,.12);
+  cursor: pointer;
+  z-index: 4;
+  transition: width .05s linear;
+}
+.progress:hover { background: rgba(255,255,255,.2); }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.section h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  cursor: grab;
+  transition: background var(--transition);
+}
+.bookmark-item:hover { background: var(--surface-2); }
+.bookmark-item:active { cursor: grabbing; }
+.bookmark-item.dragging { opacity: .4; }
+
+.bookmark-drag-handle {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  transition: color var(--transition);
+}
+.bookmark-drag-handle:hover { color: var(--text); }
+
+.bookmark-info {
+  flex: 1;
+  min-width: 0;
+}
+.bookmark-time {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.bookmark-note {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bookmark-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.bookmark-actions {
+  display: flex;
+  gap: 2px;
+}
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: background var(--transition), color var(--transition);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 14px;
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+  border: 1px solid transparent;
+}
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn-secondary:hover { background: var(--surface-2); }
+
+/* ---------- Empty state ---------- */
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.empty-state p { margin: 0; }
+.empty-state strong { color: var(--text); }
+
+/* ---------- File input ---------- */
+.file-input-wrap { margin-top: 8px; }
+.file-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.file-input:hover { border-color: var(--primary); background: var(--primary-soft); }
+.file-input input { display: none; }
+
+/* ---------- Modal ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal[hidden] { display: none; }
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,12,20,.55);
+  backdrop-filter: blur(4px);
+  animation: fadeIn .2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-content {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  animation: popIn .25s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { margin: 0; font-size: 16px; }
+.modal-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field span { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  min-height: 60px;
+  transition: border-color var(--transition);
+}
+textarea:focus { outline: none; border-color: var(--primary); }
+.thumb-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #e5e9f0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.thumb-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .3s ease;
+}
+.thumb-preview img:hover { transform: scale(1.04); }
+.remove-thumb { position: absolute; top: 4px; right: 4px; z-index: 2; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .container { grid-template-columns: 1fr; }
+  .app-header { padding: 16px; }
+  .app-header h1 { font-size: 20px; }
+  .player-wrap { aspect-ratio: auto; height: 420px; }
+}
+@media (max-width: 480px) {
+  .container { padding: 16px; gap: 16px; }
+  .app-header { padding: 14px; }
+  .section { padding: 12px; }
+  .btn { padding: 8px 10px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1>🎬 Video Timeline Marking Tool</h1>
+    <p class="subtitle">Add bookmarks, notes & thumbnails to your video</p>
+  </header>
+
+  <div class="container">
+    <div class="player-wrap">
+      <video id="video" preload="metadata" controls></video>
+      <div class="playhead" id="playhead" aria-hidden="true"></div>
+      <div class="progress" id="progress" role="slider" aria-label="Seek" tabindex="0"></div>
+    </div>
+
+    <aside class="sidebar">
+      <section class="section">
+        <h2>Bookmarks</h2>
+        <ul id="bookmark-list" class="bookmark-list"></ul>
+        <div id="empty-state" class="empty-state">
+          <p>No bookmarks yet. Click the <strong>+ Add Bookmark</strong> button to get started.</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Controls</h2>
+        <button id="add-bookmark" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Add Bookmark
+        </button>
+        <button id="export-btn" class="btn btn-secondary">Export Project</button>
+        <button id="import-btn" class="btn btn-secondary">Import Project</button>
+        <div class="file-input-wrap">
+          <label for="thumb-upload" class="file-input">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            Upload Thumbnail
+            <input type="file" id="thumb-upload" accept="image/*" hidden />
+          </label>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-content">
+    <header class="modal-header">
+      <h2 id="modal-title">Bookmark Details</h2>
+      <button class="icon-btn" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </header>
+    <div class="modal-body">
+      <label class="field">
+        <span>Text Note</span>
+        <textarea id="note-input" rows="3" placeholder="Add a note about this bookmark..."></textarea>
+      </label>
+      <label class="field">
+        <span>Thumbnail</span>
+        <div class="thumb-preview" id="thumb-preview">
+          <img id="thumb-img" alt="Thumbnail preview" />
+        </div>
+        <button id="remove-thumb" class="icon-btn" aria-label="Remove thumbnail"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </label>
+    </div>
+    <footer class="modal-footer">
+      <button class="btn btn-secondary" data-close>Cancel</button>
+      <button id="save-bookmark" class="btn btn-primary">Save</button>
+    </footer>
+  </div>
+</div>
+
+<script>/* =========================================================
+   Video Timeline Marking Tool
+   ========================================================= */
+
+const STORAGE_KEY = 'video-marking-tool-v1';
+const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
+const state = {
+  bookmarks: [],
+  currentBookmarkId: null,
+  nextId: 1,
+  videoId: null,
+  videoDuration: 0,
+  videoLoaded: false,
+};
+
+/* ---------- DOM ---------- */
+const $ = (sel) => document.querySelector(sel);
+const video = $('#video');
+const playhead = $('#playhead');
+const progress = $('#progress');
+const bookmarkList = $('#bookmark-list');
+const emptyState = $('#empty-state');
+const addBookmarkBtn = $('#add-bookmark');
+const exportBtn = $('#export-btn');
+const importBtn = $('#import-btn');
+const modal = $('#modal');
+const modalTitle = $('#modal-title');
+const noteInput = $('#note-input');
+const thumbInput = $('#thumb-upload');
+const thumbPreview = $('#thumb-preview');
+const thumbImg = $('#thumb-img');
+const removeThumbBtn = $('#remove-thumb');
+const saveBookmarkBtn = $('#save-bookmark');
+const fileInput = $('#thumb-upload');
+
+/* ---------- Utilities ---------- */
+function uid() { return 'b' + (state.nextId++); }
+function pad(n) { return String(n).padStart(2, '0'); }
+function formatTime(sec) {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.floor((sec - Math.floor(sec)) * 100);
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}.${ms}`;
+  return `${m}:${pad(s)}.${ms}`;
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+/* ---------- Storage ---------- */
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        state.bookmarks = parsed;
+        state.nextId = Math.max(1, ...parsed.map(b => parseInt(b.id, 10) || 0)) + 1;
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.bookmarks)); } catch (e) { /* ignore */ }
+}
+
+/* ---------- Video ---------- */
+function setupVideo() {
+  video.addEventListener('loadedmetadata', () => {
+    state.videoDuration = video.duration;
+    state.videoLoaded = true;
+    renderProgress();
+  });
+  video.addEventListener('timeupdate', renderProgress);
+  video.addEventListener('ended', () => {
+    if (state.bookmarks.length) {
+      const next = state.bookmarks.find(b => b.time >= video.currentTime);
+      if (next) video.currentTime = next.time;
+    }
+  });
+  video.addEventListener('progress', () => {
+    if (video.buffered.length && video.buffered.end(video.buffered.length - 1) >= video.currentTime) {
+      renderProgress();
+    }
+  });
+}
+
+function renderProgress() {
+  const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
+  progress.style.width = pct + '%';
+  playhead.style.left = pct + '%';
+}
+
+/* ---------- Bookmarks ---------- */
+function findBookmark(id) {
+  return state.bookmarks.find(b => b.id === id);
+}
+function getCurrentBookmark() {
+  return state.bookmarks.find(b => b.time >= video.currentTime);
+}
+
+function createBookmarkItem(bookmark) {
+  const li = document.createElement('li');
+  li.className = 'bookmark-item';
+  li.dataset.id = bookmark.id;
+  li.setAttribute('draggable', 'true');
+  li.tabIndex = 0;
+  li.setAttribute('role', 'button');
+  li.setAttribute('aria-label', `Bookmark at ${formatTime(bookmark.time)}: ${escapeHtml(bookmark.note || 'Untitled')}`);
+
+  const dragHandle = document.createElement('span');
+  dragHandle.className = 'bookmark-drag-handle';
+  dragHandle.setAttribute('aria-hidden', 'true');
+  dragHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+
+  const info = document.createElement('div');
+  info.className = 'bookmark-info';
+  info.innerHTML = `
+    <span class="bookmark-time">${formatTime(bookmark.time)}</span>
+    <span class="bookmark-note">${escapeHtml(bookmark.note || 'Untitled')}</span>
+  `;
+
+  const thumb = document.createElement('img');
+  thumb.className = 'bookmark-thumb';
+  thumb.src = bookmark.thumb || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#e5e9f0"/><circle cx="16" cy="16" r="8" fill="#cbd5e1"/><text x="16" y="22" text-anchor="middle" font-size="10" fill="#64748b">No Thumb</text></svg>';
+  thumb.alt = 'Thumbnail';
+
+  const actions = document.createElement('div');
+  actions.className = 'bookmark-actions';
+  actions.innerHTML = `
+    <button class="icon-btn" aria-label="Edit" title="Edit">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+    </button>
+    <button class="icon-btn danger" aria-label="Delete" title="Delete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>
+    </button>
+  `;
+
+  dragHandle.addEventListener('click', (e) => e.stopPropagation());
+  info.addEventListener('click', () => openBookmarkModal(bookmark.id));
+  actions.querySelector('.icon-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (confirm('Delete this bookmark?')) removeBookmark(bookmark.id);
+  });
+  thumb.addEventListener('click', () => openBookmarkModal(bookmark.id));
+
+  li.appendChild(dragHandle);
+  li.appendChild(info);
+  li.appendChild(thumb);
+  li.appendChild(actions);
+
+  return li;
+}
+
+function renderBookmarks() {
+  bookmarkList.innerHTML = '';
+  if (!state.bookmarks.length) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+  state.bookmarks.forEach(b => bookmarkList.appendChild(createBookmarkItem(b)));
+  attachDragHandlers();
+}
+
+function attachDragHandlers() {
+  bookmarkList.querySelectorAll('.bookmark-item').forEach(item => {
+    item.addEventListener('dragstart', (e) => {
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.id);
+    });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+  });
+  bookmarkList.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  });
+  bookmarkList.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    const targetId = e.target.closest('.bookmark-item')?.dataset.id;
+    if (!id || !targetId) return;
+    const ids = [...bookmarkList.querySelectorAll('.bookmark-item')].map(el => el.dataset.id);
+    const idx = ids.indexOf(targetId);
+    const b = state.bookmarks.find(x => x.id === id);
+    if (b && idx >= 0) {
+      state.bookmarks.splice(state.bookmarks.indexOf(b), 1);
+      state.bookmarks.splice(idx, 0, b);
+      renderBookmarks();
+    }
+  });
+}
+
+/* ---------- Modal ---------- */
+function openBookmarkModal(id) {
+  const b = findBookmark(id);
+  if (!b) return;
+  state.currentBookmarkId = id;
+  modalTitle.textContent = b.note || 'Bookmark Details';
+  noteInput.value = b.note || '';
+  thumbImg.src = b.thumb || '';
+  thumbImg.alt = 'Thumbnail';
+  thumbPreview.hidden = false;
+  removeThumbBtn.hidden = false;
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  noteInput.focus();
+}
+function closeBookmarkModal() {
+  modal.hidden = true;
+  document.body.style.overflow = '';
+  state.currentBookmarkId = null;
+}
+function saveBookmark() {
+  const id = state.currentBookmarkId;
+  const b = findBookmark(id);
+  if (!b) return;
+  b.note = noteInput.value.trim() || 'Untitled';
+  if (thumbImg.src) b.thumb = thumbImg.src;
+  renderBookmarks();
+  closeBookmarkModal();
+  saveToStorage();
+}
+function removeThumbnail() {
+  thumbImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#e5e9f0"/><circle cx="16" cy="16" r="8" fill="#cbd5e1"/><text x="16" y="22" text-anchor="middle" font-size="10" fill="#64748b">No Thumb</text></svg>';
+  thumbImg.alt = 'No thumbnail';
+  thumbPreview.hidden = true;
+  removeThumbBtn.hidden = true;
+}
+
+/* ---------- Add / Remove ---------- */
+function addBookmark() {
+  const time = video.currentTime;
+  const b = { id: uid(), time, note: '', thumb: '' };
+  state.bookmarks.push(b);
+  renderBookmarks();
+  if (state.bookmarks.length === 1) {
+    state.currentBookmarkId = b.id;
+    openBookmarkModal(b.id);
+  } else if (state.currentBookmarkId) {
+    const current = findBookmark(state.currentBookmarkId);
+    if (current && current.time < time) {
+      state.currentBookmarkId = b.id;
+      openBookmarkModal(b.id);
+    }
+  }
+  saveToStorage();
+}
+function removeBookmark(id) {
+  state.bookmarks = state.bookmarks.filter(b => b.id !== id);
+  if (state.currentBookmarkId === id) state.currentBookmarkId = null;
+  renderBookmarks();
+  saveToStorage();
+}
+
+/* ---------- Export / Import ---------- */
+function exportProject() {
+  const data = {
+    version: 1,
+    bookmarks: state.bookmarks.map(b => ({
+      id: b.id,
+      time: b.time,
+      note: b.note,
+      thumb: b.thumb
+    })),
+    videoId: state.videoId
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `video-marking-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importProject(raw) {
+  try {
+    const data = JSON.parse(raw);
+    if (data.version !== 1) {
+      alert('Unsupported project format. Please export from the latest version.');
+      return;
+    }
+    state.bookmarks = data.bookmarks.map(b => ({
+      id: uid(),
+      time: b.time,
+      note: b.note || '',
+      thumb: b.thumb || ''
+    }));
+    renderBookmarks();
+    saveToStorage();
+  } catch (e) {
+    alert('Failed to parse import file. Please ensure it is a valid JSON.');
+  }
+}
+
+/* ---------- Events ---------- */
+addBookmarkBtn.addEventListener('click', addBookmark);
+exportBtn.addEventListener('click', exportProject);
+importBtn.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.hidden = true;
+  document.body.appendChild(input);
+  input.click();
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) importProject(file);
+    document.body.removeChild(input);
+  });
+});
+
+thumbInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      thumbImg.src = ev.target.result;
+      thumbImg.alt = 'Uploaded thumbnail';
+      thumbPreview.hidden = false;
+      removeThumbBtn.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+thumbInput.addEventListener('dragover', (e) => { e.preventDefault(); });
+thumbInput.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      thumbImg.src = ev.target.result;
+      thumbImg.alt = 'Uploaded thumbnail';
+      thumbPreview.hidden = false;
+      removeThumbBtn.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+removeThumbBtn.addEventListener('click', removeThumbnail);
+
+modal.addEventListener('click', (e) => {
+  if (e.target.hasAttribute('data-close')) closeBookmarkModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !modal.hidden) closeBookmarkModal();
+});
+
+/* ---------- Keyboard shortcuts ---------- */
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'Enter' && !modal.hidden) {
+    e.preventDefault();
+    saveBookmark();
+  }
+  if (e.key === 'Delete' && state.currentBookmarkId) {
+    if (confirm('Delete this bookmark?')) removeBookmark(state.currentBookmarkId);
+  }
+});
+
+/* ---------- Init ---------- */
+function init() {
+  loadFromStorage();
+  if (state.bookmarks.length === 0) {
+    const b = { id: uid(), time: 0, note: 'Start', thumb: '' };
+    state.bookmarks.push(b);
+  }
+  renderBookmarks();
+  setupVideo();
+  if (video.src === '') video.src = DEFAULT_VIDEO;
+  if (video.readyState > 0) {
+    video.play().catch(() => { /* autoplay blocked */ });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script></script>
+</body>
+</html>

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sun Celestial Movement Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        .simulator-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .sky {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB, #1E90FF, #00008B);
+            z-index: 1;
+        }
+        
+        .sun {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #FFD700, #FFA500);
+            box-shadow: 0 0 30px #FFD700, 0 0 60px #FFA500;
+            z-index: 2;
+            transition: all 0.1s ease;
+        }
+        
+        .horizon {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(to top, #8B4513, #A0522D, #CD853F);
+            z-index: 3;
+        }
+        
+        .time-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 4;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 4;
+        }
+        
+        .control-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        
+        .control-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .sun-path {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .path-line {
+            position: absolute;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            z-index: 0;
+        }
+        
+        .sun-trail {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,215,0,0.3), rgba(255,165,0,0.1));
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .sun-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            z-index: 4;
+        }
+        
+        .sun-info h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        
+        .sun-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .sun-info .time {
+            font-weight: bold;
+            color: #FFD700;
+        }
+        
+        .sun-info .altitude {
+            color: #FFA500;
+        }
+        
+        .sun-info .azimuth {
+            color: #FF8C00;
+        }
+        
+        .sun-info .phase {
+            color: #FFD700;
+        }
+    </style>
+</head>
+<body>
+    <div class="simulator-container">
+        <div class="sky"></div>
+        <div class="horizon"></div>
+        <div class="sun-trail"></div>
+        <div class="sun-path"></div>
+        <div class="time-display">06:00</div>
+        <div class="controls">
+            <button class="control-btn" id="startBtn">Start</button>
+            <button class="control-btn" id="pauseBtn">Pause</button>
+            <button class="control-btn" id="resetBtn">Reset</button>
+        </div>
+        <div class="sun-info">
+            <h3>Sun Information</h3>
+            <p><span class="time">Time:</span> <span id="current-time">06:00</span></p>
+            <p><span class="altitude">Altitude:</span> <span id="altitude">0°</span></p>
+            <p><span class="azimuth">Azimuth:</span> <span id="azimuth">0°</span></p>
+            <p><span class="phase">Phase:</span> <span id="phase">Rising</span></p>
+        </div>
+        <div class="info">
+            <p>Drag the sun to change its position or use controls to simulate day/night cycle</p>
+        </div>
+    </div>
+
+    <script>
+        class SunSimulator {
+            constructor() {
+                this.sun = document.querySelector('.sun');
+                this.sunTrail = document.querySelector('.sun-trail');
+                this.timeDisplay = document.querySelector('.time-display');
+                this.currentTimeElement = document.querySelector('#current-time');
+                this.altitudeElement = document.querySelector('#altitude');
+                this.azimuthElement = document.querySelector('#azimuth');
+                this.phaseElement = document.querySelector('#phase');
+                
+                this.simulationSpeed = 1; // Speed multiplier
+                this.isRunning = false;
+                this.simulationTime = 0;
+                this.simulationDuration = 24 * 60; // 24 hours in minutes
+                this.currentHour = 6; // Start at 6 AM
+                this.currentMinute = 0;
+                this.currentSecond = 0;
+                
+                this.sunPosition = { x: 0, y: 0 };
+                this.sunTrailPoints = [];
+                this.pathLines = [];
+                
+                this.init();
+                this.bindEvents();
+            }
+            
+            init() {
+                // Set initial sun position (sunrise)
+                this.updateSunPosition();
+                this.updateSunTrail();
+                
+                // Create path lines
+                this.createPathLines();
+            }
+            
+            bindEvents() {
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.startSimulation();
+                });
+                
+                document.getElementById('pauseBtn').addEventListener('click', () => {
+                    this.pauseSimulation();
+                });
+                
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.resetSimulation();
+                });
+                
+                // Allow dragging the sun
+                this.sun.addEventListener('mousedown', (e) => {
+                    this.dragStart(e);
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (this.dragging) {
+                        this.dragMove(e);
+                    }
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    if (this.dragging) {
+                        this.dragEnd();
+                    }
+                });
+            }
+            
+            dragStart(e) {
+                this.dragging = true;
+                this.dragStartX = e.clientX;
+                this.dragStartY = e.clientY;
+                this.dragStartXPos = this.sunPosition.x;
+                this.dragStartYPos = this.sunPosition.y;
+            }
+            
+            dragMove(e) {
+                const dx = e.clientX - this.dragStartX;
+                const dy = e.clientY - this.dragStartY;
+                
+                // Calculate new position based on drag
+                const newX = this.dragStartXPos + dx * 0.5;
+                const newY = this.dragStartYPos + dy * 0.5;
+                
+                // Clamp position to screen bounds
+                this.sunPosition.x = Math.max(0, Math.min(100, newX));
+                this.sunPosition.y = Math.max(0, Math.min(100, newY));
+                
+                // Update sun position
+                this.updateSunPosition();
+                this.updateSunTrail();
+            }
+            
+            dragEnd() {
+                this.dragging = false;
+            }
+            
+            updateSunPosition() {
+                // Calculate sun's position based on time
+                if (this.isRunning) {
+                    this.updateTime();
+                }
+                
+                // Calculate altitude and azimuth based on position
+                const altitude = this.calculateAltitude();
+                const azimuth = this.calculateAzimuth();
+                
+                // Update UI
+                this.updateUI(altitude, azimuth);
+                
+                // Update sun position
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                
+                // Convert to screen coordinates
+                const sunX = centerX + (this.sunPosition.x - 50) * 2;
+                const sunY = centerY - (this.sunPosition.y - 50) * 2;
+                
+                this.sun.style.left = `${sunX}px`;
+                this.sun.style.top = `${sunY}px`;
+                
+                // Update trail
+                this.updateSunTrail();
+            }
+            
+            updateTime() {
+                this.simulationTime += this.simulationSpeed;
+                const hours = Math.floor(this.simulationTime / 60);
+                const minutes = this.simulationTime % 60;
+                
+                this.currentHour = hours % 24;
+                this.currentMinute = minutes;
+                
+                // Update time display
+                const timeString = this.formatTime(this.currentHour, this.currentMinute);
+                this.currentTimeElement.textContent = timeString;
+                this.timeDisplay.textContent = timeString;
+                
+                // Calculate sun position based on time
+                this.calculateSunPositionByTime();
+                
+                // Update simulation speed based on time of day
+                this.updateSimulationSpeed();
+                
+                // Update sun trail
+                this.updateSunTrail();
+            }
+            
+            calculateSunPositionByTime() {
+                // Calculate sun position based on time of day
+                const hourAngle = (this.currentHour + this.currentMinute / 60) * 15; // 15 degrees per hour
+                const declination = this.calculateDeclination(this.currentHour);
+                
+                // Calculate altitude and azimuth
+                const altitude = this.calculateAltitude();
+                const azimuth = this.calculateAzimuth();
+                
+                // Update sun position
+                this.sunPosition.x = 50 + (Math.cos(altitude) * Math.cos(azimuth) * 50);
+                this.sunPosition.y = 50 + (Math.sin(altitude) * 50);
+                
+                // Clamp position to screen bounds
+                this.sunPosition.x = Math.max(0, Math.min(100, this.sunPosition.x));
+                this.sunPosition.y = Math.max(0, Math.min(100, this.sunPosition.y));
+            }
+            
+            calculateDeclination(hour) {
+                // Simplified declination calculation
+                const declination = Math.sin((hour - 12) * Math.PI / 12) * 23.5;
+                return declination;
+            }
+            
+            calculateAltitude() {
+                // Calculate altitude based on time of day
+                const hour = this.currentHour;
+                const declination = this.calculateDeclination(hour);
+                
+                // Calculate altitude using simplified formula
+                const hourAngle = (hour - 12) * 15;
+                const altitude = Math.max(0, Math.min(90, Math.asin(Math.sin(Math.PI/2) * Math.sin(declination) + Math.cos(Math.PI/2) * Math.cos(declination) * Math.cos(hourAngle * Math.PI / 12))));
+                
+                return altitude * (180 / Math.PI);
+            }
+            
+            calculateAzimuth() {
+                // Calculate azimuth based on time of day
+                const hour = this.currentHour;
+                const declination = this.calculateDeclination(hour);
+                
+                // Calculate azimuth using simplified formula
+                const hourAngle = (hour - 12) * 15;
+                const azimuth = Math.atan2(Math.sin(hourAngle * Math.PI / 12) * Math.cos(declination), Math.cos(hourAngle * Math.PI / 12));
+                
+                return azimuth * (180 / Math.PI);
+            }
+            
+            updateUI(altitude, azimuth) {
+                // Update UI elements
+                this.altitudeElement.textContent = `${altitude.toFixed(1)}°`;
+                this.azimuthElement.textContent = `${azimuth.toFixed(1)}°`;
+                
+                // Determine phase
+                if (altitude < 0) {
+                    this.phaseElement.textContent = "Night";
+                } else if (altitude > 90) {
+                    this.phaseElement.textContent = "Midday";
+                } else if (hour >= 6 && hour < 18) {
+                    this.phaseElement.textContent = "Day";
+                } else {
+                    this.phaseElement.textContent = "Night";
+                }
+            }
+            
+            updateSimulationSpeed() {
+                // Adjust simulation speed based on time of day
+                const hour = this.currentHour;
+                const speed = 1;
+                
+                this.simulationSpeed = speed;
+            }
+            
+            startSimulation() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.simulationInterval = setInterval(() => {
+                        this.updateTime();
+                    }, 1000 / 60); // 60 FPS
+                }
+            }
+            
+            pauseSimulation() {
+                if (this.isRunning) {
+                    this.isRunning = false;
+                    clearInterval(this.simulationInterval);
+                }
+            }
+            
+            resetSimulation() {
+                this.pauseSimulation();
+                this.simulationTime = 0;
+                this.currentHour = 6;
+                this.currentMinute = 0;
+                this.currentSecond = 0;
+                this.updateTime();
+                this.updateSunPosition();
+            }
+            
+            createPathLines() {
+                // Create path lines for sun's movement
+                const path = document.querySelector('.sun-path');
+                for (let i = 0; i < 24; i++) {
+                    const line = document.createElement('div');
+                    line.className = 'path-line';
+                    line.style.left = `${i * 10}%`;
+                    line.style.top = `${0}%`;
+                    line.style.width = '1px';
+                    line.style.height = '100%';
+                    path.appendChild(line);
+                }
+            }
+            
+            updateSunTrail() {
+                // Update sun trail
+                const trail = document.querySelector('.sun-trail');
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                
+                // Calculate trail position
+                const trailX = centerX + (this.sunPosition.x - 50) * 2;
+                const trailY = centerY - (this.sunPosition.y - 50) * 2;
+                
+                // Update trail position
+                trail.style.left = `${trailX}px`;
+                trail.style.top = `${trailY}px`;
+                
+                // Add trail point
+                this.sunTrailPoints.push({
+                    x: trailX,
+                    y: trailY,
+                    time: this.simulationTime
+                });
+                
+                // Keep only the last 100 points for performance
+                if (this.sunTrailPoints.length > 100) {
+                    this.sunTrailPoints.shift();
+                }
+                
+                // Draw trail
+                this.drawTrail();
+            }
+            
+            drawTrail() {
+                const trail = document.querySelector('.sun-trail');
+                trail.style.width = '100px';
+                trail.style.height = '100px';
+                trail.style.left = `${this.sunPosition.x * 2 - 50}px`;
+                trail.style.top = `${this.sunPosition.y * 2 - 50}px`;
+            }
+            
+            formatTime(hour, minute) {
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const formattedHour = hour % 12 || 12;
+                const formattedMinute = minute < 10 ? `0${minute}` : minute;
+                return `${formattedHour}:${formattedMinute} ${ampm}`;
+            }
+        }
+        
+        // Initialize the simulator
+        window.addEventListener('load', () => {
+            new SunSimulator();
+        });
+    </script>
+</body>
+</html>

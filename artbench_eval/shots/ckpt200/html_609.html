@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Watermark Creator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a237e 0%, #24165e 100%);
+    color: #fff;
+    line-height: 1.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 640px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+  .card h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .card p { margin: 0 0 24px; color: #cbd5e1; }
+  .section { margin-bottom: 28px; }
+  .section h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+  }
+  .form-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 16px; }
+  .form-row > div { flex: 1; min-width: 140px; }
+  label { display: block; margin-bottom: 6px; font-size: 13px; color: #e2e8f0; }
+  input[type="text"], input[type="range"] {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  input[type="text"]:hover, input[type="range"]:hover { border-color: rgba(255,255,255,0.35); }
+  input[type="text"]:focus, input[type="range"]:focus {
+    outline: none;
+    border-color: #60a5fa;
+    background: rgba(255,255,255,0.12);
+  }
+  input[type="range"] { -webkit-appearance: none; appearance: none; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #60a5fa; cursor: pointer;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #60a5fa; cursor: pointer;
+    border: 3px solid #fff;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px;
+    background: linear-gradient(135deg, #60a5fa, #2563eb);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 18px rgba(37,99,235,0.35);
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(37,99,235,0.5); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn i { font-size: 16px; }
+  .progress {
+    height: 6px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #60a5fa, #2563eb);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .status {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #cbd5e1;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .status.success { background: rgba(44,130,201,0.15); color: #60a5fa; }
+  .status.error { background: rgba(165,42,42,0.15); color: #ea580c; }
+  .status i { font-size: 14px; }
+  .audio-preview {
+    margin-top: 20px;
+    padding: 14px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+    border: 1px dashed rgba(255,255,255,0.2);
+    text-align: center;
+  }
+  .audio-preview h3 { margin: 0 0 6px; font-size: 14px; color: #94a3b8; }
+  .audio-preview .audio-info { font-size: 13px; color: #cbd5e1; }
+  .audio-preview audio { width: 100%; margin-top: 10px; }
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15,23,42,0.95);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: linear-gradient(135deg, #10b981, #059669); }
+  .toast.error { background: linear-gradient(135deg, #f87171, #dc2626); }
+  .toast i { margin-right: 8px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-head">
+    <div class="logo"><i class="fa-solid fa-waveform-lines"></i></div>
+    <div>
+      <h1>Audio Watermark Creator</h1>
+      <p>Upload an audio file and add a watermark — text or embedded audio — then save it locally.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Upload Audio</h2>
+    <div class="form-row">
+      <label for="audioFile">Audio File</label>
+      <input type="file" id="audioFile" accept="audio/*" />
+    </div>
+    <div class="audio-preview" id="audioPreview">
+      <h3>Preview</h3>
+      <div class="audio-info" id="audioInfo">No file selected</div>
+      <audio id="audioPlayer" preload="metadata"></audio>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Watermark Options</h2>
+    <div class="form-row">
+      <label for="watermarkType">Type</label>
+      <select id="watermarkType">
+        <option value="text">Text</option>
+        <option value="audio">Embedded Audio</option>
+      </select>
+    </div>
+    <div class="form-row" id="textFields">
+      <label for="watermarkText">Text</label>
+      <input type="text" id="watermarkText" placeholder="e.g. © Your Brand 2025" value="© Watermark 2025" />
+    </div>
+    <div class="form-row" id="audioFields">
+      <label for="watermarkAudio">Embedded Audio File</label>
+      <input type="file" id="watermarkAudio" accept="audio/*" />
+    </div>
+    <div class="form-row">
+      <label for="watermarkPlacement">Placement</label>
+      <select id="watermarkPlacement">
+        <option value="beginning">Beginning</option>
+        <option value="middle">Middle (1/3 duration)</option>
+        <option value="end">End</option>
+        <option value="custom">Custom Position (seconds)</option>
+      </select>
+    </div>
+    <div class="form-row" id="customFields">
+      <label for="customTime">Custom Time (seconds)</label>
+      <input type="range" id="customTime" min="0" max="60" value="10" />
+      <span id="customTimeVal" class="custom-time-val">10.0s</span>
+    </div>
+    <div class="form-row">
+      <label for="volume">Volume (0–100%)</label>
+      <input type="range" id="volume" min="0" max="100" value="30" />
+      <span id="volumeVal" class="custom-time-val">30%</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Processing</h2>
+    <div class="progress">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="status" id="status">
+      <i class="fa-solid fa-spinner fa-spin"></i>
+      <span id="statusText">Ready</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Actions</h2>
+    <div class="form-row">
+      <button class="btn" id="startBtn" disabled>
+        <i class="fa-solid fa-play"></i> Process Watermark
+      </button>
+      <button class="btn" id="resetBtn">
+        <i class="fa-solid fa-rotate-left"></i> Reset
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <i class="fa-solid fa-circle-check"></i>
+  <span id="toastMsg">Ready</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.1/dist/ffmpeg-core.js"></script>
+<script>
+  const FFMPEG = FFmpeg();
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  const status = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const progressBar = document.getElementById('progressBar');
+
+  let audioCtx = null;
+  let currentAudio = null;
+  let currentBlob = null;
+  let currentFileName = '';
+
+  // Initialize FFmpeg
+  async function initFFmpeg() {
+    try {
+      await FFMPEG.load();
+      await FFMPEG.run('-version');
+      console.log('FFmpeg initialized');
+    } catch (e) {
+      showToast('error', 'FFmpeg failed to load', e.message);
+    }
+  }
+
+  // Toast
+  function showToast(type, msg, detail = '') {
+    toastMsg.textContent = msg;
+    toast.className = 'toast show ' + type;
+    const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+    toast.querySelector('i').className = 'fa-solid ' + icon;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => {
+      toast.className = 'toast ' + type;
+    }, 3000);
+  }
+
+  // Audio preview
+  function updatePreview() {
+    const info = document.getElementById('audioInfo');
+    const player = document.getElementById('audioPlayer');
+    if (!currentAudio) {
+      info.textContent = 'No file selected';
+      player.src = '';
+      return;
+    }
+    const name = currentFileName || 'audio.mp3';
+    info.textContent = `File: ${name} · Duration: ${currentAudio.duration.toFixed(2)}s`;
+    player.src = URL.createObjectURL(currentAudio);
+  }
+
+  // File handling
+  async function handleAudioFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      showToast('error', 'Invalid file type', 'Please select an audio file.');
+      return;
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    const audio = new Audio();
+    audio.src = URL.createObjectURL(new Blob([arrayBuffer], { type: file.type }));
+    currentAudio = audio;
+    currentFileName = file.name;
+    currentBlob = new Blob([arrayBuffer], { type: file.type });
+    updatePreview();
+    showToast('success', 'File loaded', file.name);
+  }
+
+  document.getElementById('audioFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleAudioFile(file);
+  });
+
+  // Watermark options
+  const typeSelect = document.getElementById('watermarkType');
+  const textFields = document.getElementById('textFields');
+  const audioFields = document.getElementById('audioFields');
+  const customFields = document.getElementById('customFields');
+
+  typeSelect.addEventListener('change', () => {
+    if (typeSelect.value === 'text') {
+      textFields.style.display = '';
+      audioFields.style.display = 'none';
+      customFields.style.display = '';
+    } else {
+      textFields.style.display = 'none';
+      audioFields.style.display = '';
+      customFields.style.display = '';
+    }
+  });
+
+  document.getElementById('customTime').addEventListener('input', () => {
+    const val = document.getElementById('customTime').value;
+    document.getElementById('customTimeVal').textContent = val + '.0s';
+  });
+
+  document.getElementById('volume').addEventListener('input', () => {
+    const val = document.getElementById('volume').value;
+    document.getElementById('volumeVal').textContent = val + '%';
+  });
+
+  // Start processing
+  async function startProcessing() {
+    const file = document.getElementById('audioFile').files[0];
+    if (!file) {
+      showToast('error', 'No audio file', 'Please upload an audio file first.');
+      return;
+    }
+    if (!currentAudio) {
+      showToast('error', 'Audio not ready', 'Please wait for the audio to load.');
+      return;
+    }
+    if (typeSelect.value === 'text' && !document.getElementById('watermarkText').value.trim()) {
+      showToast('error', 'No watermark text', 'Enter a watermark text.');
+      return;
+    }
+    if (typeSelect.value === 'audio') {
+      const wf = document.getElementById('watermarkAudio').files[0];
+      if (!wf) {
+        showToast('error', 'No watermark audio', 'Select an embedded audio file.');
+        return;
+      }
+    }
+
+    status.className = 'status';
+    statusText.textContent = 'Processing...';
+    progressBar.style.width = '0%';
+
+    // Generate watermark audio (text to audio)
+    let watermarkAudioBlob = null;
+    if (typeSelect.value === 'text') {
+      watermarkAudioBlob = await generateTextWatermark();
+    } else {
+      watermarkAudioBlob = await handleWatermarkAudio();
+    }
+
+    // Merge audio
+    const mergedBlob = await mergeAudio(currentBlob, watermarkAudioBlob);
+
+    // Save
+    const saveBlob = await createSaveBlob(mergedBlob);
+    await saveFile(saveBlob);
+
+    // Reset progress
+    progressBar.style.width = '0%';
+    statusText.textContent = 'Done';
+    showToast('success', 'Watermark applied', 'File saved to your device.');
+  }
+
+  function generateTextWatermark() {
+    return new Promise((resolve) => {
+      const text = document.getElementById('watermarkText').value.trim();
+      const volume = parseFloat(document.getElementById('volume').value) / 100;
+      const placement = document.getElementById('watermarkPlacement').value;
+      const customTime = parseFloat(document.getElementById('customTime').value);
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const bufferSize = ctx.sampleRate * 3;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      const now = ctx.currentTime;
+
+      const speak = new SpeechSynthesisUtterance(text);
+      speak.rate = 0.6;
+      speak.pitch = 1;
+      speak.volume = volume;
+
+      let startTime = 0;
+      if (placement === 'custom') startTime = customTime;
+      else if (placement === 'middle') startTime = currentAudio.duration / 3;
+      else if (placement === 'end') startTime = currentAudio.duration;
+
+      speak.startTime = startTime;
+
+      speak.onend = () => {
+        resolve(speak.audioData);
+      };
+      speak.onerror = () => {
+        showToast('error', 'Speech synthesis failed', 'Try a different browser or text.');
+        resolve(null);
+      };
+    });
+  }
+
+  function handleWatermarkAudio() {
+    return new Promise((resolve) => {
+      const file = document.getElementById('watermarkAudio').files[0];
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const audio = new Audio();
+        audio.src = reader.result;
+        audio.addEventListener('loadedmetadata', () => {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const source = ctx.createBufferSource();
+          source.buffer = audio.buffer;
+          const gain = ctx.createGain();
+          gain.gain.value = parseFloat(document.getElementById('volume').value) / 100;
+          source.connect(gain).connect(ctx.destination);
+          source.start();
+          audio.addEventListener('ended', () => resolve(audio.buffer));
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function mergeAudio(mainBlob, watermarkBlob) {
+    return new Promise((resolve) => {
+      if (!mainBlob || !watermarkBlob) return resolve(mainBlob);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const mainBuffer = ctx.createBuffer(reader.result);
+        const mainDuration = mainBuffer.duration;
+
+        const waterBuffer = ctx.createBuffer(watermarkBlob);
+        const waterDuration = waterBuffer.duration;
+
+        const totalDuration = mainDuration + waterDuration;
+        const mergedBuffer = ctx.createBuffer(mainBuffer.numberOfChannels, Math.ceil(totalDuration * ctx.sampleRate), mainBuffer.sampleRate);
+
+        const mainData = mainBuffer.getChannelData(0);
+        const waterData = waterBuffer.getChannelData(0);
+
+        const placement = document.getElementById('watermarkPlacement').value;
+        let startOffset = 0;
+        if (placement === 'middle') startOffset = mainDuration / 3;
+        else if (placement === 'end') startOffset = mainDuration;
+
+        const waterStart = startOffset;
+        const waterEnd = waterStart + waterDuration;
+
+        const writeMain = (t) => {
+          const i = Math.floor(t * ctx.sampleRate);
+          if (i < mainData.length) mergedBuffer.getChannelData(0)[i] = mainData[i];
+        };
+        const writeWater = (t) => {
+          const i = Math.floor((t - waterStart) * ctx.sampleRate);
+          if (i < waterData.length) mergedBuffer.getChannelData(0)[i] = waterData[i];
+        };
+
+        const now = ctx.currentTime;
+        const end = now + totalDuration;
+
+        const mainSource = ctx.createBufferSource();
+        mainSource.buffer = mergedBuffer;
+        mainSource.start(now);
+        mainSource.stop(now + totalDuration);
+
+        const gain = ctx.createGain();
+        gain.gain.value = 1;
+        mainSource.connect(gain).connect(ctx.destination);
+
+        resolve(mergedBuffer);
+      };
+      reader.readAsArrayBuffer(mainBlob);
+    });
+  }
+
+  async function createSaveBlob(mergedBuffer) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioData = ctx.createBuffer(mergedBuffer);
+    const arrayBuffer = await audioData.arrayBuffer();
+    return new Blob([arrayBuffer], { type: 'audio/mpeg' });
+  }
+
+  async function saveFile(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentFileName.replace(/\.[^.]+$/, '') + '_watermarked.mp3';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // UI wiring
+  document.getElementById('startBtn').addEventListener('click', startProcessing);
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('audioFile').value = '';
+    document.getElementById('watermarkText').value = '© Watermark 2025';
+    document.getElementById('watermarkAudio').value = '';
+    currentAudio = null;
+    currentBlob = null;
+    currentFileName = '';
+    updatePreview();
+    showToast('info', 'Reset', 'All fields cleared.');
+  });
+
+  // Init
+  initFFmpeg();
+  updatePreview();
+</script>
+</body>
+</html>

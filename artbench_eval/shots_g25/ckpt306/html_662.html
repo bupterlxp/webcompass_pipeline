@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Timeline Marking Tool</title>
+<style>/* ---------- Design tokens ---------- */
+:root {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-soft: #eef2ff;
+  --danger: #ef4444;
+  --danger-soft: #fee2e2;
+  --success: #10b981;
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+  --shadow-md: 0 4px 12px rgba(15,23,42,.08);
+  --shadow-lg: 0 12px 32px rgba(15,23,42,.12);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --transition: 200ms cubic-bezier(.4,0,.2,1);
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+input, textarea { font: inherit; color: inherit; }
+ul { list-style: none; margin: 0; padding: 0; }
+h1, h2, h3 { margin: 0; }
+
+/* ---------- Header ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: saturate(180%) blur(8px);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
+  color: white;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.brand h1 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+.top-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface-2); border-color: #cbd5e1; }
+.btn-danger { color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover:not(:disabled) { background: var(--danger-soft); }
+
+/* ---------- Main layout ---------- */
+.app-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.video-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-panel video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.video-overlay { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity var(--transition); pointer-events: none; }
+.video-panel:hover .video-overlay { opacity: 1; }
+.play-btn {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.7);
+  color: white;
+  display: grid; place-items: center;
+  backdrop-filter: blur(8px);
+  transition: transform var(--transition), background var(--transition);
+}
+.play-btn:hover { background: rgba(0,0,0,.9); transform: scale(1.08); }
+.play-btn svg { transition: transform var(--transition); }
+.video-panel.playing .play-btn svg { transform: rotate(180deg); }
+
+.sidebar { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.panel-header h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); }
+.badge {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.hint { font-size: 12px; color: var(--text-muted); }
+
+/* ---------- Bookmark list ---------- */
+.bookmark-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+.bookmark-list::-webkit-scrollbar { width: 8px; }
+.bookmark-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+.bookmark-item {
+  display: grid;
+  grid-template-columns: 40px 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+  border: 1px solid transparent;
+}
+.bookmark-item:hover { background: var(--surface-2); }
+.bookmark-item.active { background: var(--primary-soft); border-color: #c7d2fe; }
+.bookmark-item.dragging { opacity: .4; }
+
+.bookmark-item .num {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.bookmark-item .thumb {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  display: grid; place-items: center;
+  color: var(--text-muted);
+  overflow: hidden;
+}
+.bookmark-item .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bookmark-item .thumb svg { width: 20px; height: 20px; }
+.bookmark-item .info { min-width: 0; }
+.bookmark-item .title {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bookmark-item .note {
+  font-size: 12px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 220px;
+}
+.bookmark-item .time {
+  font-size: 12px; color: var(--text-muted);
+  white-space: nowrap;
+}
+.bookmark-item .remove {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--transition);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+.bookmark-item:hover .remove { opacity: 1; }
+.bookmark-item .remove:hover { color: var(--danger); background: var(--danger-soft); }
+
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.empty-state svg { color: var(--text-muted); margin-bottom: 8px; }
+.empty-state p { margin: 0; font-size: 14px; }
+
+/* ---------- Editor ---------- */
+.editor { display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field span { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.field input, .field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  min-height: 40px;
+}
+.field input:focus, .field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.field textarea { resize: vertical; min-height: 60px; }
+
+.thumb-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.thumb-drop:hover, .thumb-drop.drag {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.thumb-drop svg { color: var(--text-muted); }
+.thumb-drop span { font-size: 13px; color: var(--text-muted); }
+.thumb-drop .thumb-preview {
+  width: 96px; height: 72px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  display: grid; place-items: center;
+  color: var(--text-muted);
+}
+.thumb-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.editor-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ---------- Footer ---------- */
+.app-footer {
+  padding: 16px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+kbd {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .app-main { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+  .video-panel { aspect-ratio: auto; height: 420px; }
+  .top-nav .btn span:not(.btn-primary span) { display: none; }
+  .top-nav .btn { padding: 8px 10px; }
+}
+@media (max-width: 520px) {
+  .brand h1 { font-size: 16px; }
+  .brand-logo { width: 36px; height: 36px; }
+  .app-header { padding: 12px 16px; }
+  .app-main { padding: 12px; }
+}
+</style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h2l2-7 4 14 3-10 2 6h6"/>
+        </svg>
+      </div>
+      <h1>FrameMarker</h1>
+    </div>
+    <nav class="top-nav">
+      <button id="addBookmarkBtn" class="btn btn-primary" title="Add bookmark (Ctrl+K)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add Bookmark
+      </button>
+      <button id="exportBtn" class="btn btn-ghost" title="Export project">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export
+      </button>
+      <button id="importBtn" class="btn btn-ghost" title="Import project">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+        Import
+      </button>
+      <button id="clearBtn" class="btn btn-ghost" title="Clear all bookmarks">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Clear
+      </button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <section class="video-panel" aria-label="Video player">
+      <video id="video" controls crossorigin playsinline>
+        <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div class="video-overlay" id="videoOverlay">
+        <button id="playBtn" class="play-btn" aria-label="Play/Pause">
+          <svg id="playIcon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel bookmarks-panel" aria-label="Bookmarks">
+        <div class="panel-header">
+          <h2>Bookmarks</h2>
+          <span class="badge" id="bookmarkCount">0</span>
+        </div>
+        <ul id="bookmarkList" class="bookmark-list"></ul>
+        <div id="emptyState" class="empty-state">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 12h2l2-7 4 14 3-10 2 6h6"/>
+          </svg>
+          <p>No bookmarks yet. Click the <strong>Add Bookmark</strong> button to get started.</p>
+        </div>
+      </section>
+
+      <section class="panel editor-panel" aria-label="Bookmark editor">
+        <div class="panel-header">
+          <h2>Editor</h2>
+          <span class="hint">Click a bookmark to edit</span>
+        </div>
+        <div id="editor" class="editor">
+          <label class="field">
+            <span>Timestamp</span>
+            <input type="number" id="editorTimestamp" step="0.1" min="0" max="9999" placeholder="0.0" disabled>
+          </label>
+          <label class="field">
+            <span>Note</span>
+            <textarea id="editorNote" rows="2" placeholder="Add a note..."></textarea>
+          </label>
+          <label class="field">
+            <span>Thumbnail</span>
+            <div class="thumb-drop" id="thumbDrop">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+              <input type="file" id="thumbInput" accept="image/*" hidden>
+              <span>Drop image or click to upload</span>
+            </div>
+          </label>
+          <div class="editor-actions">
+            <button id="saveBookmarkBtn" class="btn btn-primary" disabled>Save</button>
+            <button id="deleteBookmarkBtn" class="btn btn-danger" disabled>Delete</button>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="app-footer">
+    <span>Tip: Use <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd> to add a bookmark at current time.</span>
+  </footer>
+
+  <script>/* =========================================================
+   Video Timeline Bookmarking Tool
+   ========================================================= */
+(() => {
+  'use strict';
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const video = $('video');
+  const bookmarkList = $('bookmarkList');
+  const emptyState = $('emptyState');
+  const bookmarkCount = $('bookmarkCount');
+  const editor = $('editor');
+  const editorTimestamp = $('editorTimestamp');
+  const editorNote = $('editorNote');
+  const thumbDrop = $('thumbDrop');
+  const thumbInput = $('thumbInput');
+  const saveBtn = $('saveBookmarkBtn');
+  const deleteBtn = $('deleteBookmarkBtn');
+  const addBtn = $('addBookmarkBtn');
+  const exportBtn = $('exportBtn');
+  const importBtn = $('importBtn');
+  const clearBtn = $('clearBtn');
+  const videoOverlay = $('videoOverlay');
+  const playBtn = $('playBtn');
+  const playIcon = $('playIcon');
+
+  // ---------- State ----------
+  const STORAGE_KEY = 'framemarker.bookmarks.v1';
+  const state = {
+    bookmarks: [],
+    currentId: null,
+    nextId: 1,
+    editing: false,
+  };
+
+  // ---------- Persistence ----------
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) state.bookmarks = parsed;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.bookmarks));
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- Bookmark model ----------
+  function createBookmark() {
+    const ts = video.currentTime || 0;
+    return {
+      id: state.nextId++,
+      timestamp: Math.max(0, Math.round(ts * 1000)) / 1000,
+      note: '',
+      thumbnail: null,
+    };
+  }
+
+  // ---------- Rendering ----------
+  function renderBookmarks() {
+    bookmarkList.innerHTML = '';
+    if (state.bookmarks.length === 0) {
+      emptyState.style.display = '';
+      bookmarkCount.textContent = '0';
+      return;
+    }
+    emptyState.style.display = 'none';
+    bookmarkCount.textContent = state.bookmarks.length;
+
+    state.bookmarks.forEach((b, idx) => {
+      const li = document.createElement('li');
+      li.className = 'bookmark-item';
+      li.dataset.id = b.id;
+      li.setAttribute('role', 'button');
+      li.setAttribute('tabindex', '0');
+      li.innerHTML = `
+        <div class="num">${String(idx + 1).padStart(2, '0')}</div>
+        <div class="thumb">
+          ${b.thumbnail ? `<img src="${b.thumbnail}" alt="">` : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>'}
+        </div>
+        <div class="info">
+          <div class="title"></div>
+          <div class="note"></div>
+        </div>
+        <button class="remove" title="Delete" aria-label="Delete bookmark">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      `;
+      li.querySelector('.title').textContent = formatTime(b.timestamp);
+      li.querySelector('.note').textContent = b.note || 'No note';
+
+      // Active highlight
+      if (state.currentId === b.id) {
+        li.classList.add('active');
+      }
+
+      // Events
+      li.addEventListener('click', () => selectBookmark(b.id));
+      li.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBookmark(b.id); }
+      });
+      li.querySelector('.remove').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteBookmark(b.id);
+      });
+
+      bookmarkList.appendChild(li);
+    });
+  }
+
+  function formatTime(ts) {
+    const h = Math.floor(ts / 3600);
+    const m = Math.floor((ts % 3600) / 60);
+    const s = Math.floor(ts % 60);
+    const ms = Math.floor((ts - Math.floor(ts)) * 100);
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ms}`;
+    return `${m}:${String(s).padStart(2,'0')}.${ms}`;
+  }
+
+  function selectBookmark(id) {
+    state.currentId = id;
+    const b = state.bookmarks.find(x => x.id === id);
+    if (!b) return;
+    editorTimestamp.value = b.timestamp;
+    editorNote.value = b.note;
+    thumbDrop.querySelector('.thumb-preview').innerHTML = b.thumbnail
+      ? `<img src="${b.thumbnail}" alt="">`
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>';
+    editorTimestamp.disabled = false;
+    editorNote.disabled = false;
+    saveBtn.disabled = false;
+    deleteBtn.disabled = false;
+    renderBookmarks();
+    // Scroll to selected
+    const item = bookmarkList.querySelector(`[data-id="${id}"]`);
+    if (item) item.scrollIntoView({ block: 'nearest' });
+    video.currentTime = b.timestamp;
+    video.play().catch(() => {});
+  }
+
+  function clearSelection() {
+    state.currentId = null;
+    editorTimestamp.value = '';
+    editorNote.value = '';
+    thumbDrop.querySelector('.thumb-preview').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>';
+    editorTimestamp.disabled = true;
+    editorNote.disabled = true;
+    saveBtn.disabled = true;
+    deleteBtn.disabled = true;
+    renderBookmarks();
+  }
+
+  // ---------- Actions ----------
+  function addBookmark() {
+    const b = createBookmark();
+    state.bookmarks.push(b);
+    state.currentId = b.id;
+    renderBookmarks();
+    video.currentTime = b.timestamp;
+    video.play().catch(() => {});
+    save();
+  }
+
+  function deleteBookmark(id) {
+    state.bookmarks = state.bookmarks.filter(b => b.id !== id);
+    if (state.currentId === id) clearSelection();
+    renderBookmarks();
+    save();
+  }
+
+  function saveBookmark() {
+    const b = state.bookmarks.find(x => x.id === state.currentId);
+    if (!b) return;
+    b.timestamp = parseFloat(editorTimestamp.value) || 0;
+    b.note = editorNote.value.trim();
+    save();
+    renderBookmarks();
+  }
+
+  function updateThumbnail(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const b = state.bookmarks.find(x => x.id === state.currentId);
+      if (!b) return;
+      b.thumbnail = e.target.result;
+      thumbDrop.querySelector('.thumb-preview').innerHTML = `<img src="${b.thumbnail}" alt="">`;
+      save();
+      renderBookmarks();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- Export / Import ----------
+  function exportProject() {
+    const data = {
+      version: 1,
+      bookmarks: state.bookmarks.map(b => ({
+        id: b.id,
+        timestamp: b.timestamp,
+        note: b.note,
+        thumbnail: b.thumbnail,
+      })),
+      createdAt: Date.now(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `framemarker-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importProject(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.version !== 1) {
+          alert('Unsupported project version.');
+          return;
+        }
+        state.bookmarks = data.bookmarks.map(b => ({
+          id: b.id,
+          timestamp: b.timestamp,
+          note: b.note || '',
+          thumbnail: b.thumbnail,
+        }));
+        state.nextId = Math.max(0, ...state.bookmarks.map(b => b.id)) + 1;
+        renderBookmarks();
+        save();
+      } catch (err) {
+        alert('Invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Keyboard shortcuts ----------
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      addBookmark();
+    }
+    if (e.key === 'Escape') {
+      clearSelection();
+    }
+  });
+
+  // ---------- Video events ----------
+  video.addEventListener('timeupdate', () => {
+    // Auto-save current time if editing
+    if (state.editing && state.currentId) {
+      const b = state.bookmarks.find(x => x.id === state.currentId);
+      if (b) b.timestamp = video.currentTime;
+    }
+  });
+  video.addEventListener('play', () => video.classList.add('playing'));
+  video.addEventListener('pause', () => video.classList.remove('playing'));
+  video.addEventListener('ended', () => video.currentTime = 0);
+
+  // ---------- UI wiring ----------
+  addBtn.addEventListener('click', addBookmark);
+  saveBtn.addEventListener('click', saveBookmark);
+  deleteBtn.addEventListener('click', () => deleteBookmark(state.currentId));
+  clearBtn.addEventListener('click', () => {
+    if (state.bookmarks.length === 0) return;
+    if (confirm('Clear all bookmarks?')) {
+      state.bookmarks = [];
+      state.currentId = null;
+      renderBookmarks();
+      save();
+    }
+  });
+  exportBtn.addEventListener('click', exportProject);
+  importBtn.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      if (e.target.files && e.target.files[0]) importProject(e.target.files[0]);
+    };
+    input.click();
+  });
+
+  thumbDrop.addEventListener('click', (e) => {
+    if (e.target.closest('svg') || e.target.closest('span')) {
+      thumbInput.click();
+    }
+  });
+  thumbInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) updateThumbnail(e.target.files[0]);
+    thumbInput.value = '';
+  });
+  thumbDrop.addEventListener('dragover', (e) => { e.preventDefault(); thumbDrop.classList.add('drag'); });
+  thumbDrop.addEventListener('dragleave', () => thumbDrop.classList.remove('drag'));
+  thumbDrop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    thumbDrop.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) updateThumbnail(e.dataTransfer.files[0]);
+  });
+
+  // Live clear editor when switching bookmarks
+  bookmarkList.addEventListener('click', (e) => {
+    if (e.target.closest('.remove')) return;
+    const item = e.target.closest('.bookmark-item');
+    if (item) selectBookmark(parseInt(item.dataset.id, 10));
+  });
+
+  // Drag to reorder
+  bookmarkList.addEventListener('dragstart', (e) => {
+    const item = e.target.closest('.bookmark-item');
+    if (!item) return;
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item.dataset.id);
+  });
+  bookmarkList.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
+
+  // ---------- Init ----------
+  load();
+  renderBookmarks();
+})();
+</script></script>
+</body>
+</html>

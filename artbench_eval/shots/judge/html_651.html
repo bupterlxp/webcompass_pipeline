@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Space Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #0f0;
+            font-size: 24px;
+            pointer-events: none;
+            text-shadow: 0 0 5px #0f0;
+        }
+        #shieldBarContainer {
+            width: 200px;
+            height: 20px;
+            border: 2px solid #0f0;
+            margin-top: 10px;
+        }
+        #shieldBar {
+            width: 100%;
+            height: 100%;
+            background-color: #0f0;
+            transition: width 0.2s, background-color 0.2s;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f00;
+            font-size: 48px;
+            text-align: center;
+            display: none;
+            text-shadow: 0 0 10px #f00;
+        }
+        #restartBtn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 24px;
+            background: #000;
+            color: #f00;
+            border: 2px solid #f00;
+            cursor: pointer;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        #restartBtn:hover {
+            background: #f00;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>SCORE: <span id="score">0</span></div>
+        <div id="shieldBarContainer"><div id="shieldBar"></div></div>
+    </div>
+    <div id="gameOver">
+        <div>GAME OVER</div>
+        <button id="restartBtn" onclick="location.reload()">RESTART</button>
+    </div>
+
+    <!-- Include Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- Game State ---
+        let score = 0;
+        let shield = 100;
+        let isGameOver = false;
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
+
+        // Dynamic explosion light
+        const explosionLight = new THREE.PointLight(0xffaa00, 0, 50);
+        scene.add(explosionLight);
+
+        // --- Player (Spaceship) ---
+        const playerGroup = new THREE.Group();
+        
+        // Ship body
+        const bodyGeo = new THREE.ConeGeometry(1, 3, 8);
+        bodyGeo.rotateX(Math.PI / 2);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: 0x00aaff, flatShading: true });
+        const shipBody = new THREE.Mesh(bodyGeo, bodyMat);
+        playerGroup.add(shipBody);
+
+        // Ship wings
+        const wingGeo = new THREE.BoxGeometry(4, 0.5, 1);
+        const wingMat = new THREE.MeshPhongMaterial({ color: 0x0055aa, flatShading: true });
+        const wings = new THREE.Mesh(wingGeo, wingMat);
+        wings.position.z = 0.5;
+        playerGroup.add(wings);
+
+        // Shield effect
+        const shieldGeo = new THREE.SphereGeometry(3, 16, 16);
+        const shieldMat = new THREE.MeshPhongMaterial({ 
+            color: 0x00ffff, 
+            transparent: true, 
+            opacity: 0.0,
+            blending: THREE.AdditiveBlending
+        });
+        const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+        playerGroup.add(shieldMesh);
+
+        scene.add(playerGroup);
+
+        // --- Stars Background ---
+        const starsGeo = new THREE.BufferGeometry();
+        const starsCount = 1000;
+        const posArray = new Float32Array(starsCount * 3);
+        for(let i = 0; i < starsCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 200;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starsMat = new THREE.PointsMaterial({ size: 0.5, color: 0xffffff });
+        const starsMesh = new THREE.Points(starsGeo, starsMat);
+        starsMesh.position.y = -10;
+        scene.add(starsMesh);
+
+        // --- Input Handling ---
+        const keys = { w: false, a: false, s: false, d: false };
+        const mouse = new THREE.Vector2();
+        const raycaster = new THREE.Raycaster();
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Y=0 plane for mouse intersection
+
+        window.addEventListener('keydown', (e) => {
+            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
+        });
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+        window.addEventListener('mousedown', (e) => {
+            if(e.button === 0 && !isGameOver) shoot();
+        });
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Game Entities ---
+        const bullets = [];
+        const asteroids = [];
+        const particles = [];
+
+        function shoot() {
+            const bulletGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            
+            bullet.position.copy(playerGroup.position);
+            
+            // Calculate direction based on ship rotation
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(playerGroup.quaternion);
+            
+            scene.add(bullet);
+            bullets.push({ mesh: bullet, velocity: direction.multiplyScalar(1.5), life: 100 });
+        }
+
+        function spawnAsteroid() {
+            const size = Math.random() * 2 + 1;
+            const astGeo = new THREE.DodecahedronGeometry(size);
+            const astMat = new THREE.MeshPhongMaterial({ color: 0x888888, flatShading: true });
+            const asteroid = new THREE.Mesh(astGeo, astMat);
+
+            // Spawn in a circle around the center
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 60;
+            asteroid.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+
+            // Move towards a random point near the player
+            const target = new THREE.Vector3(
+                playerGroup.position.x + (Math.random() - 0.5) * 20,
+                0,
+                playerGroup.position.z + (Math.random() - 0.5) * 20
+            );
+            
+            const velocity = new THREE.Vector3().subVectors(target, asteroid.position).normalize().multiplyScalar(Math.random() * 0.2 + 0.1);
+            const rotationSpeed = new THREE.Vector3(Math.random() * 0.05, Math.random() * 0.05, Math.random() * 0.05);
+
+            scene.add(asteroid);
+            asteroids.push({ mesh: asteroid, velocity, rotationSpeed, size });
+        }
+
+        function createExplosion(position, color) {
+            const particleCount = 15;
+            const pGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const pMat = new THREE.MeshPhongMaterial({ color: color, flatShading: true });
+
+            for(let i = 0; i < particleCount; i++) {
+                const particle = new THREE.Mesh(pGeo, pMat);
+                particle.position.copy(position);
+                
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 1,
+                    (Math.random() - 0.5) * 1,
+                    (Math.random() - 0.5) * 1
+                );
+                
+                scene.add(particle);
+                particles.push({ mesh: particle, velocity, life: 30 });
+            }
+
+            // Dynamic light flash
+            explosionLight.position.copy(position);
+            explosionLight.intensity = 2;
+            explosionLight.color.setHex(color);
+        }
+
+        // --- Main Game Loop ---
+        const clock = new THREE.Clock();
+        let spawnTimer = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isGameOver) return;
+
+            const delta = clock.getDelta();
+
+            // Player Movement
+            const speed = 0.5;
+            if (keys.w) playerGroup.position.z -= speed;
+            if (keys.s) playerGroup.position.z += speed;
+            if (keys.a) playerGroup.position.x -= speed;
+            if (keys.d) playerGroup.position.x += speed;
+
+            // Keep player in bounds
+            playerGroup.position.x = Math.max(-40, Math.min(40, playerGroup.position.x));
+            playerGroup.position.z = Math.max(-30, Math.min(30, playerGroup.position.z));
+
+            // Player Rotation (Aim at mouse)
+            raycaster.setFromCamera(mouse, camera);
+            const intersect = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, intersect);
+            if (intersect) {
+                playerGroup.lookAt(intersect.x, 0, intersect.z);
+            }
+
+            // Camera Follow
+            camera.position.x += (playerGroup.position.x - camera.position.x) * 0.1;
+            camera.position.z += (playerGroup.position.z + 30 - camera.position.z) * 0.1;
+            camera.position.y = 40;
+            camera.lookAt(camera.position.x, 0, camera.position.z - 20);
+
+            // Shield Effect Fade
+            if (shieldMesh.material.opacity > 0) {
+                shieldMesh.material.opacity -= 0.02;
+            }
+
+            // Explosion Light Fade
+            if (explosionLight.intensity > 0) {
+                explosionLight.intensity -= 0.1;
+            }
+
+            // Update Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.mesh.position.add(b.velocity);
+                b.life--;
+                if (b.life <= 0) {
+                    scene.remove(b.mesh);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Spawn Asteroids
+            spawnTimer += delta;
+            if (spawnTimer > 1.0) {
+                spawnAsteroid();
+                spawnTimer = 0;
+            }
+
+            // Update Asteroids & Collisions
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                const a = asteroids[i];
+                a.mesh.position.add(a.velocity);
+                a.mesh.rotation.x += a.rotationSpeed.x;
+                a.mesh.rotation.y += a.rotationSpeed.y;
+                a.mesh.rotation.z += a.rotationSpeed.z;
+
+                // Out of bounds
+                if (a.mesh.position.length() > 100) {
+                    scene.remove(a.mesh);
+                    asteroids.splice(i, 1);
+                    continue;
+                }
+
+                // Collision with Player
+                if (a.mesh.position.distanceTo(playerGroup.position) < a.size + 2) {
+                    shield -= 20;
+                    shieldMesh.material.opacity = 0.8; // Shield impact effect
+                    document.getElementById('shieldBar').style.width = Math.max(0, shield) + '%';
+                    
+                    if (shield <= 20) document.getElementById('shieldBar').style.backgroundColor = '#f00';
+
+                    createExplosion(a.mesh.position, 0x00ffff);
+                    scene.remove(a.mesh);
+                    asteroids.splice(i, 1);
+
+                    if (shield <= 0) {
+                        isGameOver = true;
+                        document.getElementById('gameOver').style.display = 'block';
+                        createExplosion(playerGroup.position, 0xff0000);
+                        scene.remove(playerGroup);
+                    }
+                    continue;
+                }
+
+                // Collision with Bullets
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    const b = bullets[j];
+                    if (a.mesh.position.distanceTo(b.mesh.position) < a.size + 0.5) {
+                        // Destroy Asteroid
+                        createExplosion(a.mesh.position, 0xffaa00);
+                        scene.remove(a.mesh);
+                        asteroids.splice(i, 1);
+                        
+                        // Destroy Bullet
+                        scene.remove(b.mesh);
+                        bullets.splice(j, 1);
+
+                        // Update Score
+                        score += Math.floor(10 * a.size);
+                        document.getElementById('score').innerText = score;
+                        break;
+                    }
+                }
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.add(p.velocity);
+                p.mesh.scale.multiplyScalar(0.9);
+                p.life--;
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Start Game
+        animate();
+    </script>
+</body>
+</html>

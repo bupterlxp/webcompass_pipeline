@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Timeline Bookmark Tool</title>
+<style>
+  :root{
+    --primary:#3b82f6;
+    --primary-dark:#2563eb;
+    --primary-light:#dbeafe;
+    --bg:#f1f5f9;
+    --surface:#ffffff;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:#e2e8f0;
+    --danger:#ef4444;
+    --success:#10b981;
+    --radius:12px;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.06);
+    --shadow-md:0 4px 12px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:15px;
+    color:var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #e0e7ff 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #dbeafe 0%, transparent 55%),
+      var(--bg);
+    line-height:1.6;
+  }
+  .app{
+    max-width:1280px;
+    margin:0 auto;
+    padding:24px;
+    display:grid;
+    grid-template-columns:1fr 360px;
+    gap:24px;
+    min-height:100vh;
+  }
+  .video-wrap{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-md);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .video-header{
+    padding:16px 20px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#fff,#f8fafc);
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .video-header h1{
+    margin:0;
+    font-size:18px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .video-header .video-info{
+    font-size:13px;
+    color:var(--muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .video-player{
+    position:relative;
+    aspect-ratio:16/9;
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .video-player video{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+  }
+  .timeline{
+    position:relative;
+    height:140px;
+    background:linear-gradient(180deg,#fafbfc,#f1f5f9);
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+    user-select:none;
+  }
+  .timeline-inner{
+    position:absolute;
+    inset:0;
+    cursor:grab;
+  }
+  .timeline-inner:active{cursor:grabbing}
+  .timeline-buffer{
+    position:absolute;
+    top:0;bottom:0;
+    left:0;
+    background:rgba(15,23,42,.04);
+  }
+  .timeline-buffer.end{left:auto;right:0}
+  .timeline-progress{
+    position:absolute;
+    top:0;bottom:0;
+    left:0;
+    background:linear-gradient(90deg,var(--primary),var(--primary-dark));
+    width:0%;
+    transition:width .2s linear;
+  }
+  .timeline-playhead{
+    position:absolute;
+    top:0;
+    bottom:0;
+    width:3px;
+    background:var(--primary);
+    box-shadow:0 0 0 3px rgba(59,130,246,.25);
+    pointer-events:none;
+  }
+  .timeline-markers{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  .marker{
+    position:absolute;
+    top:4px;
+    bottom:4px;
+    width:10px;
+    background:rgba(255,255,255,.9);
+    border:2px solid var(--primary);
+    border-radius:50%;
+    box-shadow:0 0 0 2px rgba(59,130,246,.35);
+    pointer-events:auto;
+    cursor:pointer;
+    transition:transform .15s ease;
+  }
+  .marker:hover{transform:scale(1.25)}
+  .marker.dragging{cursor:grabbing;transform:scale(1.3)}
+  .marker .m-text{
+    position:absolute;
+    left:50%;
+    transform:translate(-50%,-100%);
+    font-size:11px;
+    font-weight:600;
+    color:var(--primary-dark);
+    white-space:nowrap;
+    pointer-events:none;
+    text-shadow:0 1px 2px rgba(0,0,0,.2);
+  }
+  .marker .m-thumb{
+    position:absolute;
+    left:50%;
+    transform:translate(-50%,-140%);
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    background:#fff;
+    border:2px solid var(--primary);
+    overflow:hidden;
+    box-shadow:var(--shadow-sm);
+    pointer-events:none;
+    transition:transform .2s ease;
+  }
+  .marker:hover .m-thumb{transform:translate(-50%,-150%) scale(1.1)}
+  .marker .m-note{
+    position:absolute;
+    left:50%;
+    transform:translate(-50%,-180%);
+    font-size:11px;
+    color:var(--muted);
+    white-space:nowrap;
+    pointer-events:none;
+    max-width:140px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .marker .m-delete{
+    position:absolute;
+    top:-6px;
+    right:-6px;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--danger);
+    color:#fff;
+    border:0;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:var(--shadow-sm);
+    transition:background .15s ease;
+  }
+  .marker .m-delete:hover{background:#dc2626}
+  .marker .m-delete svg{width:12px;height:12px}
+
+  .controls{
+    padding:12px 20px;
+    border-top:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .btn:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .btn:active{transform:translateY(1px)}
+  .btn.danger{border-color:var(--danger);color:var(--danger)}
+  .btn.danger:hover{background:rgba(239,68,68,.08)}
+  .btn svg{width:14px;height:14px}
+
+  .sidebar{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-md);
+    overflow:hidden;
+  }
+  .sidebar-header{
+    padding:16px 20px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#fff,#f8fafc);
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .sidebar-header h2{
+    margin:0;
+    font-size:16px;
+    font-weight:600;
+  }
+  .search{
+    flex:1;
+    padding:8px 12px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--bg);
+    font-size:14px;
+    color:var(--text);
+    transition:all .15s ease;
+  }
+  .search:focus{
+    outline:none;
+    border-color:var(--primary);
+    background:#fff;
+    box-shadow:0 0 0 3px var(--primary-light);
+  }
+  .bookmarks-list{
+    max-height:520px;
+    overflow-y:auto;
+    padding:8px;
+  }
+  .bookmark{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:#fff;
+    margin-bottom:6px;
+    transition:all .15s ease;
+    cursor:pointer;
+  }
+  .bookmark:hover{
+    border-color:var(--primary);
+    background:var(--primary-light);
+    transform:translateX(2px);
+  }
+  .bookmark.active{
+    border-color:var(--primary);
+    background:var(--primary-light);
+    box-shadow:0 0 0 3px rgba(59,130,246,.15);
+  }
+  .b-thumb{
+    width:40px;height:40px;
+    border-radius:8px;
+    background:#f1f5f9;
+    border:1px solid var(--border);
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .b-thumb img{width:100%;height:100%;object-fit:cover}
+  .b-info{flex:1;min-width:0}
+  .b-title{
+    font-size:14px;
+    font-weight:600;
+    color:var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .b-note{
+    font-size:12px;
+    color:var(--muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .b-time{
+    font-size:12px;
+    color:var(--muted);
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+  }
+  .b-actions{
+    display:flex;
+    gap:4px;
+    opacity:0;
+    transition:opacity .15s ease;
+  }
+  .bookmark:hover .b-actions{opacity:1}
+  .b-actions .icon-btn{
+    width:28px;height:28px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:#fff;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--muted);
+    transition:all .15s ease;
+  }
+  .b-actions .icon-btn:hover{
+    border-color:var(--primary);
+    color:var(--primary-dark);
+    background:var(--primary-light);
+  }
+  .b-actions .icon-btn.danger:hover{
+    border-color:var(--danger);
+    color:var(--danger);
+    background:rgba(239,68,68,.08);
+  }
+  .b-actions .icon-btn svg{width:14px;height:14px}
+
+  .empty{
+    padding:24px;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+  }
+
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--text);
+    color:#fff;
+    padding:12px 20px;
+    border-radius:8px;
+    font-size:14px;
+    box-shadow:var(--shadow-md);
+    opacity:0;
+    pointer-events:none;
+    transition:all .25s ease;
+    z-index:1000;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.success{background:var(--success)}
+  .toast.error{background:var(--danger)}
+
+  .modal{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.5);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:2000;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .modal.show{opacity:1;pointer-events:auto}
+  .modal-backdrop{
+    background:var(--surface);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-md);
+    width:90%;
+    max-width:520px;
+    padding:24px;
+    position:relative;
+    transform:translateY(20px) scale(.98);
+    transition:transform .25s ease;
+  }
+  .modal.show .modal-backdrop{transform:translateY(0) scale(1)}
+  .modal-backdrop .modal-close{
+    position:absolute;
+    top:12px;right:12px;
+    width:32px;height:32px;
+    border-radius:8px;
+    background:var(--bg);
+    border:0;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--muted);
+    transition:all .15s ease;
+  }
+  .modal-backdrop .modal-close:hover{background:var(--border);color:var(--text)}
+  .modal-backdrop h3{
+    margin:0 0 12px;
+    font-size:18px;
+    font-weight:600;
+  }
+  .modal-backdrop .modal-body{
+    margin-bottom:16px;
+  }
+  .modal-backdrop textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-family:inherit;
+    font-size:14px;
+    resize:vertical;
+    min-height:80px;
+    line-height:1.5;
+  }
+  .modal-backdrop input[type=file]{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-family:inherit;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .modal-backdrop .modal-actions{
+    display:flex;
+    gap:8px;
+    justify-content:flex-end;
+  }
+  .modal-backdrop .modal-actions .btn{flex:1}
+
+  .dropzone{
+    border:2px dashed var(--border);
+    border-radius:12px;
+    padding:24px;
+    text-align:center;
+    color:var(--muted);
+    transition:all .15s ease;
+    cursor:pointer;
+  }
+  .dropzone:hover,.dropzone.drag{
+    border-color:var(--primary);
+    background:var(--primary-light);
+    color:var(--primary-dark);
+  }
+  .dropzone svg{width:28px;height:28px;margin-bottom:6px}
+
+  @media (max-width: 900px){
+    .app{grid-template-columns:1fr;max-width:640px}
+    .video-player{aspect-ratio:16/9}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="video-wrap">
+    <div class="video-header">
+      <h1 id="videoTitle">Video Title</h1>
+      <span class="video-info" id="videoInfo">0:00 / 0:00 · 0%</span>
+    </div>
+    <div class="video-player">
+      <video id="video" preload="metadata" controls crossorigin></video>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="timeline-inner" id="timelineInner"></div>
+      <div class="timeline-buffer"></div>
+      <div class="timeline-buffer end"></div>
+      <div class="timeline-progress" id="timelineProgress"></div>
+      <div class="timeline-playhead" id="timelinePlayhead"></div>
+      <div class="timeline-markers" id="timelineMarkers"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="btnAdd" title="Add bookmark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Add Bookmark
+      </button>
+      <button class="btn" id="btnPlay" title="Play">
+        <svg id="iconPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Play
+      </button>
+      <button class="btn" id="btnExport" title="Export project">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="btn" id="btnImport" title="Import project">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import
+      </button>
+      <input type="file" id="fileImport" accept="application/json" hidden>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Bookmarks</h2>
+      <button class="btn" id="btnClear" title="Clear all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Clear
+      </button>
+    </div>
+    <input type="search" id="search" class="search" placeholder="Search bookmarks..." aria-label="Search bookmarks">
+    <div class="bookmarks-list" id="bookmarksList"></div>
+    <div class="empty" id="emptyState">No bookmarks yet. Click the video timeline to add one.</div>
+  </aside>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-backdrop">
+    <button class="modal-close" id="modalClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 id="modalTitle">Add Bookmark</h3>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn" id="modalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  const STORAGE_KEY = 'videoBookmarkTool_v1';
+  const state = {
+    bookmarks: [],
+    activeId: null,
+    editingId: null,
+    editingNote: '',
+    editingThumb: null,
+    editingTitle: '',
+    editingTime: 0,
+    search: '',
+    draggingId: null,
+    dragOffset: 0,
+    dragStartX: 0,
+    dragStartPct: 0,
+    dragStartMarkerX: 0,
+  };
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  const video = $('#video');
+  const timeline = $('#timeline');
+  const timelineInner = $('#timelineInner');
+  const timelineProgress = $('#timelineProgress');
+  const timelinePlayhead = $('#timelinePlayhead');
+  const timelineMarkers = $('#timelineMarkers');
+  const bookmarksList = $('#bookmarksList');
+  const emptyState = $('#emptyState');
+  const videoTitle = $('#videoTitle');
+  const videoInfo = $('#videoInfo');
+  const btnAdd = $('#btnAdd');
+  const btnPlay = $('#btnPlay');
+  const btnExport = $('#btnExport');
+  const btnImport = $('#btnImport');
+  const fileImport = $('#fileImport');
+  const btnClear = $('#btnClear');
+  const search = $('#search');
+  const modal = $('#modal');
+  const modalTitle = $('#modalTitle');
+  const modalBody = $('#modalBody');
+  const modalClose = $('#modalClose');
+  const modalCancel = $('#modalCancel');
+  const modalSave = $('#modalSave');
+  const toast = $('#toast');
+
+  // ---------- Icons ----------
+  const iconPlus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+  const iconTrash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+  const iconEdit = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+  const iconPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const iconPause = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+  const iconUpload = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+  const iconSearch = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+  const iconCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+  // ---------- Init ----------
+  function init(){
+    loadVideo();
+    loadState();
+    bindEvents();
+    render();
+  }
+
+  function loadVideo(){
+    const src = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+    video.src = src;
+    videoTitle.textContent = 'Big Buck Bunny · Sample Video';
+    video.addEventListener('loadedmetadata', () => {
+      updateVideoInfo();
+      updateProgress();
+    });
+    video.addEventListener('timeupdate', updateVideoInfo);
+    video.addEventListener('progress', updateProgress);
+    video.addEventListener('seeked', updateProgress);
+    video.addEventListener('seeking', updateProgress);
+    video.addEventListener('play', () => btnPlay.querySelector('svg').outerHTML = iconPause);
+    video.addEventListener('pause', () => btnPlay.querySelector('svg').outerHTML = iconPlay);
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        state.bookmarks = JSON.parse(raw);
+        state.activeId = null;
+        state.editingId = null;
+      }
+    }catch(e){}
+  }
+
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.bookmarks));
+    }catch(e){}
+  }
+
+  // ---------- Events ----------
+  function bindEvents(){
+    // Timeline click to add bookmark
+    timeline.addEventListener('click', (e) => {
+      if(e.target.closest('.marker') || e.target.closest('.timeline-buffer') || e.target.closest('.timeline-playhead')) return;
+      const rect = timeline.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, x / rect.width));
+      addBookmark(pct * video.duration);
+    });
+
+    // Drag markers
+    timeline.addEventListener('mousedown', (e) => {
+      const m = e.target.closest('.marker');
+      if(!m) return;
+      state.draggingId = m.dataset.id;
+      state.dragOffset = e.clientX - parseFloat(m.style.left);
+      state.dragStartX = e.clientX;
+      state.dragStartPct = parseFloat(m.style.left) / timeline.clientWidth;
+      state.dragStartMarkerX = m.getBoundingClientRect().left;
+      m.classList.add('dragging');
+      document.addEventListener('mousemove', onDragMove);
+      document.addEventListener('mouseup', onDragEnd);
+    });
+
+    // Drag progress bar
+    timelineInner.addEventListener('mousedown', (e) => {
+      if(e.target.closest('.marker') || e.target.closest('.timeline-buffer') || e.target.closest('.timeline-playhead')) return;
+      const rect = timeline.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, x / rect.width));
+      video.currentTime = pct * video.duration;
+      updateProgress();
+    });
+
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+      if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if(e.key === 'Enter' && state.editingId){
+        e.preventDefault();
+        saveBookmark();
+      }else if(e.key === 'Escape'){
+        if(state.editingId){
+          cancelEdit();
+        }else if(modal.classList.contains('show')){
+          modal.classList.remove('show');
+        }
+      }else if(e.key === 'Delete' || e.key === 'Backspace'){
+        if(state.activeId){
+          deleteBookmark(state.activeId);
+        }
+      }
+    });
+
+    // Buttons
+    btnAdd.addEventListener('click', openAddModal);
+    btnPlay.addEventListener('click', () => video.paused ? video.play() : video.pause());
+    btnExport.addEventListener('click', exportProject);
+    btnImport.addEventListener('click', () => fileImport.click());
+    fileImport.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if(f){
+        importProject(f);
+      }
+    });
+    btnClear.addEventListener('click', () => {
+      if(state.bookmarks.length === 0) return;
+      if(confirm('Clear all bookmarks?')){
+        state.bookmarks = [];
+        saveState();
+        render();
+        showToast('All bookmarks cleared', 'success');
+      }
+    });
+    search.addEventListener('input', (e) => {
+      state.search = e.target.value.toLowerCase();
+      render();
+    });
+
+    modalClose.addEventListener('click', () => modal.classList.remove('show'));
+    modalCancel.addEventListener('click', () => modal.classList.remove('show'));
+    modalSave.addEventListener('click', saveBookmark);
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal) modal.classList.remove('show');
+    });
+  }
+
+  function onDragMove(e){
+    if(!state.draggingId) return;
+    const rect = timeline.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const m = document.querySelector(`.marker[data-id="${state.draggingId}"]`);
+    if(m){
+      m.style.left = (pct * 100) + '%';
+      const idx = state.bookmarks.findIndex(b => b.id === state.draggingId);
+      if(idx >= 0){
+        state.bookmarks[idx].time = pct * video.duration;
+        renderMarkers();
+      }
+    }
+  }
+
+  function onDragEnd(){
+    if(state.draggingId){
+      state.draggingId = null;
+      $$('.marker').forEach(m => m.classList.remove('dragging'));
+      document.removeEventListener('mousemove', onDragMove);
+      document.removeEventListener('mouseup', onDragEnd);
+    }
+  }
+
+  // ---------- Bookmarks ----------
+  function addBookmark(time){
+    const id = 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    state.bookmarks.push({
+      id,
+      title: 'Bookmark',
+      note: '',
+      thumb: null,
+      time,
+    });
+    state.activeId = id;
+    saveState();
+    render();
+    showToast('Bookmark added at ' + formatTime(time), 'success');
+  }
+
+  function deleteBookmark(id){
+    if(!confirm('Delete this bookmark?')){
+      return;
+    }
+    state.bookmarks = state.bookmarks.filter(b => b.id !== id);
+    if(state.activeId === id) state.activeId = null;
+    if(state.editingId === id) state.editingId = null;
+    saveState();
+    render();
+    showToast('Bookmark deleted', 'success');
+  }
+
+  function editBookmark(id){
+    const b = state.bookmarks.find(x => x.id === id);
+    if(!b) return;
+    state.editingId = id;
+    state.editingTitle = b.title;
+    state.editingNote = b.note;
+    state.editingThumb = b.thumb;
+    state.editingTime = b.time;
+    openAddModal();
+  }
+
+  function saveBookmark(){
+    if(!state.editingId) return;
+    const b = state.bookmarks.find(x => x.id === state.editingId);
+    if(b){
+      b.title = state.editingTitle.trim() || 'Bookmark';
+      b.note = state.editingNote.trim();
+      b.thumb = state.editingThumb;
+      b.time = state.editingTime;
+    }
+    state.editingId = null;
+    modal.classList.remove('show');
+    render();
+    showToast('Bookmark saved', 'success');
+  }
+
+  function cancelEdit(){
+    state.editingId = null;
+    modal.classList.remove('show');
+  }
+
+  function openAddModal(){
+    modalTitle.textContent = state.editingId ? 'Edit Bookmark' : 'Add Bookmark';
+    modalBody.innerHTML = `
+      <div class="dropzone" id="thumbDrop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconUpload}</svg>
+        <span>Click or drop an image to upload a thumbnail</span>
+      </div>
+      <label class="form-label">Title <input type="text" id="fTitle" value="${state.editingId ? state.editingTitle : ''}" placeholder="e.g. Scene 1" /></label>
+      <label class="form-label">Note <textarea id="fNote" placeholder="Optional note...">${state.editingId ? state.editingNote : ''}</textarea></label>
+    `;
+    const drop = $('#thumbDrop');
+    drop.addEventListener('click', () => document.getElementById('fThumb').click());
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.classList.remove('drag');
+      const file = e.dataTransfer.files[0];
+      if(file && file.type.startsWith('image/')){
+        state.editingThumb = file;
+        showToast('Thumbnail selected', 'success');
+      }
+    });
+    $('#fThumb').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if(f && f.type.startsWith('image/')){
+        state.editingThumb = f;
+        showToast('Thumbnail selected', 'success');
+      }
+    });
+    $('#fTitle').addEventListener('input', (e) => state.editingTitle = e.target.value);
+    $('#fNote').addEventListener('input', (e) => state.editingNote = e.target.value);
+    modal.classList.add('show');
+  }
+
+  function jumpTo(id){
+    const b = state.bookmarks.find(x => x.id === id);
+    if(b) video.currentTime = b.time;
+    state.activeId = id;
+    render();
+  }
+
+  // ---------- Rendering ----------
+  function render(){
+    renderMarkers();
+    renderList();
+    updateActiveMarker();
+  }
+
+  function renderMarkers(){
+    timelineMarkers.innerHTML = '';
+    state.bookmarks.forEach(b => {
+      const m = document.createElement('div');
+      m.className = 'marker';
+      m.dataset.id = b.id;
+      m.style.left = ((b.time / video.duration) * 100) + '%';
+      m.innerHTML = `
+        <div class="m-text">${escapeHtml(b.title)}</div>
+        <div class="m-thumb" style="background:#e2e8f0">
+          ${b.thumb ? `<img src="${URL.createObjectURL(b.thumb)}" alt="" />` : ''}
+        </div>
+        <div class="m-note">${escapeHtml(b.note)}</div>
+        <button class="m-delete" title="Delete" aria-label="Delete">
+          ${iconTrash}
+        </button>
+      `;
+      m.addEventListener('click', (e) => {
+        if(e.target.closest('.m-delete')) return;
+        jumpTo(b.id);
+      });
+      m.querySelector('.m-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteBookmark(b.id);
+      });
+      timelineMarkers.appendChild(m);
+    });
+  }
+
+  function renderList(){
+    const filtered = state.bookmarks.filter(b =>
+      !state.search || b.title.toLowerCase().includes(state.search) || b.note.toLowerCase().includes(state.search)
+    );
+    bookmarksList.innerHTML = '';
+    if(filtered.length === 0){
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+    filtered.forEach(b => {
+      const li = document.createElement('div');
+      li.className = 'bookmark' + (b.id === state.activeId ? ' active' : '');
+      li.innerHTML = `
+        <div class="b-thumb">
+          ${b.thumb ? `<img src="${URL.createObjectURL(b.thumb)}" alt="" />` : ''}
+        </div>
+        <div class="b-info">
+          <div class="b-title">${escapeHtml(b.title)}</div>
+          <div class="b-note">${escapeHtml(b.note)}</div>
+        </div>
+        <div class="b-time">${formatTime(b.time)}</div>
+        <div class="b-actions">
+          <button class="icon-btn" title="Edit" aria-label="Edit">${iconEdit}</button>
+          <button class="icon-btn danger" title="Delete" aria-label="Delete">${iconTrash}</button>
+        </div>
+      `;
+      li.addEventListener('click', (e) => {
+        if(e.target.closest('.icon-btn')) return;
+        jumpTo(b.id);
+      });
+      li.querySelector('.icon-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        editBookmark(b.id);
+      });
+      li.querySelector('.icon-btn.danger').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteBookmark(b.id);
+      });
+      bookmarksList.appendChild(li);
+    });
+  }
+
+  function updateActiveMarker(){
+    const active = state.activeId ? state.bookmarks.find(b => b.id === state.activeId) : null;
+    $$('.bookmark').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === state.activeId);
+    });
+    if(active){
+      timelineMarkers.querySelector(`.marker[data-id="${active.id}"]`)?.scrollIntoView({block:'center'});
+    }
+  }
+
+  function updateVideoInfo(){
+    const dur = video.duration || 0;
+    const pct = dur ? (video.currentTime / dur) * 100 : 0;
+    timelineProgress.style.width = pct + '%';
+    timelinePlayhead.style.left = (pct) + '%';
+    videoInfo.textContent = formatTime(video.currentTime) + ' / ' + formatTime(dur) + ' · ' + Math.round(pct) + '%';
+  }
+
+  function updateProgress(){
+    if(!video.duration) return;
+    const dur = video.duration;
+    const pct = (video.currentTime / dur) * 100;
+    timelineProgress.style.width = pct + '%';
+    timelinePlayhead.style.left = pct + '%';
+    // Move markers to match current time
+    state.bookmarks.forEach(b => {
+      const m = document.querySelector(`.marker[data-id="${b.id}"]`);
+      if(m) m.style.left = ((b.time / dur) * 100) + '%';
+    });
+  }
+
+  function formatTime(sec){
+    if(!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // ---------- Export / Import ----------
+  function exportProject(){
+    const data = {
+      version: 1,
+      title: videoTitle.textContent,
+      url: video.src,
+      bookmarks: state.bookmarks.map(b => ({
+        id: b.id,
+        title: b.title,
+        note: b.note,
+        thumb: b.thumb ? b.thumb.name : null,
+        time: b.time,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'video-bookmarks-' + Date.now() + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Project exported', 'success');
+  }
+
+  function importProject(file){
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try{
+        const data = JSON.parse(e.target.result);
+        if(data.version !== 1){
+          showToast('Unsupported file version', 'error');
+          return;
+        }
+        state.bookmarks = data.bookmarks.map(b => ({
+          id: 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          title: b.title,
+          note: b.note,
+          thumb: b.thumb ? {name:b.thumb, type:'image/png'} : null,
+          time: b.time,
+        }));
+        saveState();
+        render();
+        showToast('Project imported', 'success');
+      }catch(err){
+        showToast('Failed to import: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function showToast(msg, type='info'){
+    toast.textContent = msg;
+    toast.className = 'toast show ' + (type || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  // ---------- Boot ----------
+  init();
+})();
+</script>
+</body>
+</html>

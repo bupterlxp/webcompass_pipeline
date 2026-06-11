@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --danger: #dc2626;
+            --danger-light: #fef2f2;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --success: #16a34a;
+            --success-light: #f0fdf4;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: var(--danger-light);
+            border: 1px solid #fecaca;
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .alert-banner.show {
+            display: block;
+        }
+
+        .alert-banner h3 {
+            color: var(--danger);
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-banner ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .alert-banner li {
+            color: var(--gray-700);
+            font-size: 0.875rem;
+            padding: 0.25rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .alert-banner li::before {
+            content: "⚠️";
+            position: absolute;
+            left: 0;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            background: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-secondary {
+            background: var(--gray-100);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-300);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-200);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        /* Table */
+        .table-container {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: var(--gray-50);
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        th {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gray-500);
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        th:hover {
+            color: var(--primary);
+        }
+
+        th.sorted {
+            color: var(--primary);
+        }
+
+        td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 0.9rem;
+        }
+
+        tr:hover {
+            background: var(--gray-50);
+        }
+
+        tr.low-stock {
+            background: var(--warning-light);
+        }
+
+        tr.low-stock:hover {
+            background: #fef3c7;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .product-sku {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 0.15rem;
+        }
+
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .stock-ok {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .stock-low {
+            background: var(--warning-light);
+            color: #b45309;
+        }
+
+        .stock-critical {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .stock-out {
+            background: var(--gray-100);
+            color: var(--gray-500);
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.375rem;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .action-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .action-btn.delete:hover {
+            border-color: var(--danger);
+            background: var(--danger);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 550px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: scaleIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            padding: 1.5rem 1.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: var(--gray-100);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--gray-200);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-group .hint {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 0.3rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .modal-footer {
+            padding: 0 1.5rem 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            color: var(--gray-500);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box {
+                max-width: none;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 700px;
+            }
+        }
+
+        /* Category tag */
+        .category-tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: var(--gray-100);
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--gray-700);
+            font-weight: 500;
+        }
+
+        /* Price styling */
+        .price {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        /* Threshold input in table */
+        .threshold-input {
+            width: 60px;
+            padding: 0.3rem 0.5rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .threshold-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Confirm dialog */
+        .confirm-dialog {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .confirm-dialog .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .confirm-dialog h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .confirm-dialog p {
+            color: var(--gray-500);
+            margin-bottom: 1.5rem;
+        }
+
+        .confirm-dialog .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>📦 Inventory Management System</h1>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalProducts">0</div>
+                    <div class="stat-label">Total Products</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalValue">$0</div>
+                    <div class="stat-label">Total Value</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="lowStockCount">0</div>
+                    <div class="stat-label">Low Stock Alerts</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Low Stock Alert Banner -->
+        <div class="alert-banner" id="alertBanner">
+            <h3>⚠️ Low Inventory Alerts</h3>
+            <ul id="alertList"></ul>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search products by name, SKU, or category...">
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="low">Low Stock</button>
+                <button class="filter-btn" data-filter="out">Out of Stock</button>
+                <button class="filter-btn" data-filter="ok">In Stock</button>
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">
+                ➕ Add Product
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table id="productTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('name')">Product Name ↕</th>
+                        <th onclick="sortTable('category')">Category ↕</th>
+                        <th onclick="sortTable('price')">Price ↕</th>
+                        <th onclick="sortTable('quantity')">Stock ↕</th>
+                        <th>Threshold</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="productTableBody">
+                </tbody>
+            </table>
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <div class="icon">📋</div>
+                <h3>No products found</h3>
+                <p>Start by adding your first product to the inventory.</p>
+                <button class="btn btn-primary" onclick="openAddModal()">➕ Add Your First Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Product Modal -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Product</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm" onsubmit="saveProduct(event)">
+                    <input type="hidden" id="productId">
+                    <div class="form-group">
+                        <label for="productName">Product Name *</label>
+                        <input type="text" id="productName" required placeholder="Enter product name">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productSKU">SKU</label>
+                            <input type="text" id="productSKU" placeholder="e.g., PRD-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="productCategory">Category</label>
+                            <select id="productCategory">
+                                <option value="General">General</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Clothing">Clothing</option>
+                                <option value="Food & Beverage">Food & Beverage</option>
+                                <option value="Home & Garden">Home & Garden</option>
+                                <option value="Sports">Sports</option>
+                                <option value="Books">Books</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productPrice">Price ($) *</label>
+                            <input type="number" id="productPrice" required min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="productQuantity">Quantity *</label>
+                            <input type="number" id="productQuantity" required min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="productThreshold">Low Stock Alert Threshold</label>
+                        <input type="number" id="productThreshold" min="0" step="1" value="10" placeholder="10">
+                        <div class="hint">You'll be alerted when stock falls below this number.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="productDescription">Description</label>
+                        <textarea id="productDescription" rows="3" placeholder="Optional product description..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="document.getElementById('productForm').requestSubmit()">
+                    💾 Save Product
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="confirm-dialog">
+                <div class="icon">🗑️</div>
+                <h3>Delete Product</h3>
+                <p>Are you sure you want to delete "<span id="deleteProductName"></span>"? This action cannot be undone.</p>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                    <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Data Layer ====================
+        class InventoryStore {
+            constructor() {
+                this.storageKey = 'inventory_management_data';
+                this.products = this.load();
+            }
+
+            load() {
+                try {
+                    const data = localStorage.getItem(this.storageKey);
+                    return data ? JSON.parse(data) : this.getSampleData();
+                } catch (e) {
+                    return this.getSampleData();
+                }
+            }
+
+            save() {
+                localStorage.setItem(this.storageKey, JSON.stringify(this.products));
+            }
+
+            getSampleData() {
+                return [
+                    { id: 1, name: 'Wireless Bluetooth Headphones', sku: 'ELEC-001', category: 'Electronics', price: 79.99, quantity: 45, threshold: 10, description: 'High-quality wireless headphones with noise cancellation' },
+                    { id: 2, name: 'Organic Green Tea (100 bags)', sku: 'FOOD-012', category: 'Food & Beverage', price: 12.50, quantity: 8, threshold: 15, description: 'Premium organic green tea' },
+                    { id: 3, name: 'Running Shoes - Size 10', sku: 'SPRT-045', category: 'Sports', price: 129.99, quantity: 3, threshold: 5, description: 'Lightweight running shoes' },
+                    { id: 4, name: 'Cotton T-Shirt (Medium)', sku: 'CLTH-089', category: 'Clothing', price: 24.99, quantity: 120, threshold: 20, description: '100% cotton crew neck t-shirt' },
+                    { id: 5, name: 'LED Desk Lamp', sku: 'HOME-023', category: 'Home & Garden', price: 45.00, quantity: 0, threshold: 8, description: 'Adjustable LED desk lamp with USB charging' },
+                    { id: 6, name: 'JavaScript: The Good Parts', sku: 'BOOK-007', category: 'Books', price: 29.99, quantity: 35, threshold: 10, description: 'Classic programming book by Douglas Crockford' },
+                    { id: 7, name: 'USB-C Charging Cable (2m)', sku: 'ELEC-034', category: 'Electronics', price: 9.99, quantity: 200, threshold: 50, description: 'Durable braided USB-C cable' },
+                    { id: 8, name: 'Stainless Steel Water Bottle', sku: 'SPRT-012', category: 'Sports', price: 19.99, quantity: 5, threshold: 10, description: 'Insulated 750ml water bottle' },
+                ];
+            }
+
+            getAll() {
+                return [...this.products];
+            }
+
+            getById(id) {
+                return this.products.find(p => p.id === id);
+            }
+
+            add(product) {
+                const newId = this.products.length > 0 ? Math.max(...this.products.map(p => p.id)) + 1 : 1;
+                const newProduct = { ...product, id: newId };
+                this.products.push(newProduct);
+                this.save();
+                return newProduct;
+            }
+
+            update(id, updates) {
+                const index = this.products.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    this.products[index] = { ...this.products[index], ...updates };
+                    this.save();
+                    return this.products[index];
+                }
+                return null;
+            }
+
+            delete(id) {
+                this.products = this.products.filter(p => p.id !== id);
+                this.save();
+            }
+
+            getLowStockProducts() {
+                return this.products.filter(p => p.quantity <= p.threshold && p.quantity > 0);
+            }
+
+            getOutOfStockProducts() {
+                return this.products.filter(p => p.quantity === 0);
+            }
+
+            getTotalValue() {
+                return this.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+            }
+        }
+
+        // ==================== App Controller ====================
+        const store = new InventoryStore();
+        let currentFilter = 'all';
+        let currentSort = { field: 'name', direction: 'asc' };
+        let searchQuery = '';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTable();
+            updateStats();
+            updateAlerts();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Search
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                renderTable();
+            });
+
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    renderTable();
+                });
+            });
+
+            // Close modal on overlay click
+            document.getElementById('productModal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeModal();
+            });
+
+            document.getElementById('deleteModal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeDeleteModal();
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                    closeDeleteModal();
+                }
+            });
+        }
+
+        // ==================== Rendering ====================
+        function renderTable() {
+            let products = store.getAll();
+
+            // Apply search filter
+            if (searchQuery) {
+                products = products.filter(p =>
+                    p.name.toLowerCase().includes(searchQuery) ||
+                    p.sku.toLowerCase().includes(searchQuery) ||
+                    p.category.toLowerCase().includes(searchQuery)
+                );
+            }
+
+            // Apply status filter
+            switch (currentFilter) {
+                case 'low':
+                    products = products.filter(p => p.quantity > 0 && p.quantity <= p.threshold);
+                    break;
+                case 'out':
+                    products = products.filter(p => p.quantity === 0);
+                    break;
+                case 'ok':
+                    products = products.filter(p => p.quantity > p.threshold);
+                    break;
+            }
+
+            // Apply sorting
+            products.sort((a, b) => {
+                let valA = a[currentSort.field];
+                let valB = b[currentSort.field];
+
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (currentSort.direction === 'asc') {
+                    return valA > valB ? 1 : valA < valB ? -1 : 0;
+                } else {
+                    return valA < valB ? 1 : valA > valB ? -1 : 0;
+                }
+            });
+
+            const tbody = document.getElementById('productTableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            if (products.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                document.getElementById('productTable').querySelector('thead').style.display = 'none';
+            } else {
+                emptyState.style.display = 'none';
+                document.getElementById('productTable').querySelector('thead').style.display = '';
+                tbody.innerHTML = products.map(product => renderRow(product)).join('');
+            }
+        }
+
+        function renderRow(product) {
+            const status = getStockStatus(product);
+            const rowClass = product.quantity <= product.threshold && product.quantity > 0 ? 'low-stock' : (product.quantity === 0 ? 'low-stock' : '');
+
+            return `
+                <tr class="${rowClass}">
+                    <td>
+                        <div class="product-name">${escapeHtml(product.name)}</div>
+                        <div class="product-sku">${escapeHtml(product.sku || 'No SKU')}</div>
+                    </td>
+                    <td><span class="category-tag">${escapeHtml(product.category)}</span></td>
+                    <td><span class="price">$${product.price.toFixed(2)}</span></td>
+                    <td><strong>${product.quantity}</strong></td>
+                    <td>
+                        <input type="number" class="threshold-input" value="${product.threshold}" min="0"
+                            onchange="updateThreshold(${product.id}, this.value)"
+                            title="Low stock threshold">
+                    </td>
+                    <td><span class="stock-badge ${status.class}">${status.icon} ${status.label}</span></td>
+                    <td>
+                        <div class="actions">
+                            <button class="action-btn" onclick="openEditModal(${product.id})" title="Edit">✏️</button>
+                            <button class="action-btn delete" onclick="confirmDelete(${product.id})" title="Delete">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function getStockStatus(product) {
+            if (product.quantity === 0) {
+                return { class: 'stock-out', icon: '🚫', label: 'Out of Stock' };
+            } else if (product.quantity <= Math.ceil(product.threshold * 0.5)) {
+                return { class: 'stock-critical', icon: '🔴', label: 'Critical' };
+            } else if (product.quantity <= product.threshold) {
+                return { class: 'stock-low', icon: '🟡', label: 'Low Stock' };
+            } else {
+                return { class: 'stock-ok', icon: '🟢', label: 'In Stock' };
+            }
+        }
+
+        function updateStats() {
+            const products = store.getAll();
+            document.getElementById('totalProducts').textContent = products.length;
+            document.getElementById('totalValue').textContent = '$' + store.getTotalValue().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const alertCount = store.getLowStockProducts().length + store.getOutOfStockProducts().length;
+            document.getElementById('lowStockCount').textContent = alertCount;
+        }
+
+        function updateAlerts() {
+            const lowStock = store.getLowStockProducts();
+            const outOfStock = store.getOutOfStockProducts();
+            const allAlerts = [...outOfStock, ...lowStock];
+
+            const banner = document.getElementById('alertBanner');
+            const list = document.getElementById('alertList');
+
+            if (allAlerts.length > 0) {
+                banner.classList.add('show');
+                list.innerHTML = allAlerts.map(p => {
+                    if (p.quantity === 0) {
+                        return `<li><strong>${escapeHtml(p.name)}</strong> is OUT OF STOCK!</li>`;
+                    }
+                    return `<li><strong>${escapeHtml(p.name)}</strong> — Only ${p.quantity} left (threshold: ${p.threshold})</li>`;
+                }).join('');
+            } else {
+                banner.classList.remove('show');
+            }
+        }
+
+        // ==================== CRUD Operations ====================
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Add New Product';
+            document.getElementById('productForm').reset();
+            document.getElementById('productId').value = '';
+            document.getElementById('productThreshold').value = '10';
+            document.getElementById('productModal').classList.add('show');
+            document.getElementById('productName').focus();
+        }
+
+        function openEditModal(id) {
+            const product = store.getById(id);
+            if (!product) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit Product';
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productSKU').value = product.sku || '';
+            document.getElementById('productCategory').value = product.category;
+            document.getElementById('productPrice').value = product.price;
+            document.getElementById('productQuantity').value = product.quantity;
+            document.getElementById('productThreshold').value = product.threshold;
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('productModal').classList.remove('show');
+        }
+
+        function saveProduct(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('productId').value;
+            const productData = {
+                name: document.getElementById('productName').value.trim(),
+                sku: document.getElementById('productSKU').value.trim(),
+                category: document.getElementById('productCategory').value,
+                price: parseFloat(document.getElementById('productPrice').value),
+                quantity: parseInt(document.getElementById('productQuantity').value),
+                threshold: parseInt(document.getElementById('productThreshold').value) || 10,
+                description: document.getElementById('productDescription').value.trim()
+            };
+
+            if (id) {
+                // Update existing
+                store.update(parseInt(id), productData);
+                showToast(`"${productData.name}" has been updated successfully.`, 'success');
+            } else {
+                // Add new
+                store.add(productData);
+                showToast(`"${productData.name}" has been added to inventory.`, 'success');
+            }
+
+            closeModal();
+            renderTable();
+            updateStats();
+            updateAlerts();
+        }
+
+        function confirmDelete(id) {
+            const product = store.getById(id);
+            if (!product) return;
+
+            document.getElementById('deleteProductName').textContent = product.name;
+            document.getElementById('deleteModal').classList.add('show');
+
+            document.getElementById('confirmDeleteBtn').onclick = () => {
+                store.delete(id);
+                closeDeleteModal();
+                renderTable();
+                updateStats();
+                updateAlerts();
+                showToast(`"${product.name}" has been deleted.`, 'error');
+            };
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+        }
+
+        function updateThreshold(id, value) {
+            const threshold = parseInt(value) || 0;
+            store.update(id, { threshold });
+            renderTable();
+            updateAlerts();
+            showToast('Threshold updated.', 'success');
+        }
+
+        // ==================== Sorting ====================
+        function sortTable(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'asc';
+            }
+            renderTable();
+        }
+
+        // ==================== Utilities ====================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = { success: '✅', error: '❌', warning: '⚠️' };
+            toast.innerHTML = `<span>${icons[type] || '✅'}</span><span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

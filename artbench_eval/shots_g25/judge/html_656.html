@@ -1,0 +1,65 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Meeting Rooms</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        th { background: #eee; }
+        button { background: #ff4d4d; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+        button:hover { background: #cc0000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Admin Panel - All Reservations</h2>
+        <a href="/">Back to User View</a>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Room</th>
+                    <th>Date</th>
+                    <th>Time Slot</th>
+                    <th>User Name</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="bookings-table"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadBookings() {
+            const res = await fetch('/api/bookings/all');
+            const bookings = await res.json();
+            const tbody = document.getElementById('bookings-table');
+            tbody.innerHTML = '';
+            
+            bookings.forEach(b => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${b.id}</td>
+                        <td>${b.room_name}</td>
+                        <td>${b.date}</td>
+                        <td>${b.time_slot}</td>
+                        <td>${b.user_name}</td>
+                        <td><button onclick="cancelBooking(${b.id})">Cancel</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function cancelBooking(id) {
+            if (!confirm("Are you sure you want to cancel this reservation?")) return;
+            
+            await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+            loadBookings();
+        }
+
+        window.onload = loadBookings;
+    </script>
+</body>
+</html>

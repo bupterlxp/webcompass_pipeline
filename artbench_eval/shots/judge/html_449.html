@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Personal Blog & Social Hub</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; padding: 0; }
+
+        /* Header & Navigation */
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .logo { font-size: 24px; font-weight: bold; }
+        nav ul { display: flex; gap: 20px; margin: 0; }
+        nav ul li { cursor: pointer; padding: 5px 10px; border-radius: 4px; transition: background 0.3s; }
+        nav ul li:hover, nav ul li.active { background-color: #34495e; }
+        .auth-buttons button {
+            margin-left: 10px;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        .auth-buttons button:hover { background-color: #2980b9; }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 30px auto;
+            gap: 30px;
+            padding: 0 20px;
+        }
+
+        /* Sidebar (Profile) */
+        aside {
+            width: 250px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            text-align: center;
+            height: fit-content;
+        }
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #3498db;
+            margin-bottom: 10px;
+        }
+        .followers { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+        .msg-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .msg-btn:hover { background-color: #27ae60; }
+
+        /* Content Area */
+        main {
+            flex: 1;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .section { display: none; }
+        .section.active { display: block; }
+        
+        /* Grid Layouts for Photos/Videos */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .grid-item {
+            background: #ecf0f1;
+            height: 150px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #95a5a6;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 300px;
+            position: relative;
+        }
+        .modal h2 { margin-top: 0; }
+        .modal input, .modal textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal button {
+            width: 100%;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px; right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header & Navigation -->
+    <header>
+        <div class="logo">DevBlog</div>
+        <nav>
+            <ul id="nav-links">
+                <li onclick="showSection('home')" class="active">Homepage</li>
+                <li onclick="showSection('articles')">My Articles</li>
+                <li onclick="showSection('photos')">My Photos</li>
+                <li onclick="showSection('videos')">My Videos</li>
+                <li onclick="showSection('social')">Social Circle</li>
+            </ul>
+        </nav>
+        <div class="auth-buttons">
+            <button onclick="openModal('loginModal')">Login</button>
+            <button onclick="openModal('registerModal')">Register</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar / Profile -->
+        <aside>
+            <img src="https://via.placeholder.com/150" alt="User Avatar" class="avatar">
+            <h2>Alex Developer</h2>
+            <div class="followers"><strong>12.4k</strong> Followers</div>
+            <button class="msg-btn" onclick="openModal('messageModal')">✉ Private Message</button>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- Homepage -->
+            <div id="home" class="section active">
+                <h2>Welcome to my Blog!</h2>
+                <p>Hello! I'm Alex, a passionate developer and content creator. Explore my latest articles, photos, and videos using the navigation above.</p>
+                <hr>
+                <h3>Recent Activity</h3>
+                <ul>
+                    <li>📝 Published a new article: "Understanding JavaScript Closures"</li>
+                    <li>📸 Uploaded 5 new photos to the "Setup" album</li>
+                    <li>🎥 Posted a new video tutorial on CSS Grid</li>
+                </ul>
+            </div>
+
+            <!-- Articles -->
+            <div id="articles" class="section">
+                <h2>My Articles</h2>
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px;">
+                    <h3>Understanding JavaScript Closures</h3>
+                    <p>A deep dive into how closures work in JS and why they are useful...</p>
+                    <a href="#" style="color: #3498db;">Read more</a>
+                </div>
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px;">
+                    <h3>10 CSS Tricks for 2023</h3>
+                    <p>Modern CSS techniques to make your web applications stand out...</p>
+                    <a href="#" style="color: #3498db;">Read more</a>
+                </div>
+            </div>
+
+            <!-- Photos -->
+            <div id="photos" class="section">
+                <h2>My Photos</h2>
+                <div class="grid">
+                    <div class="grid-item">Photo 1</div>
+                    <div class="grid-item">Photo 2</div>
+                    <div class="grid-item">Photo 3</div>
+                    <div class="grid-item">Photo 4</div>
+                </div>
+            </div>
+
+            <!-- Videos -->
+            <div id="videos" class="section">
+                <h2>My Videos</h2>
+                <div class="grid">
+                    <div class="grid-item" style="background: #34495e; color: white;">▶ Video 1</div>
+                    <div class="grid-item" style="background: #34495e; color: white;">▶ Video 2</div>
+                </div>
+            </div>
+
+            <!-- Social Circle -->
+            <div id="social" class="section">
+                <h2>My Social Circle</h2>
+                <ul style="line-height: 2;">
+                    <li>👤 <strong>Jane Doe</strong> - Web Designer</li>
+                    <li>👤 <strong>John Smith</strong> - Backend Engineer</li>
+                    <li>👤 <strong>Sarah Lee</strong> - UI/UX Expert</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal-overlay">
+        <div class="modal">
+            <span class="close-btn" onclick="closeModal('loginModal')">&times;</span>
+            <h2>Login</h2>
+            <input type="text" placeholder="Username or Email">
+            <input type="password" placeholder="Password">
+            <button onclick="closeModal('loginModal')">Sign In</button>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal-overlay">
+        <div class="modal">
+            <span class="close-btn" onclick="closeModal('registerModal')">&times;</span>
+            <h2>Register</h2>
+            <input type="text" placeholder="Username">
+            <input type="email" placeholder="Email">
+            <input type="password" placeholder="Password">
+            <button onclick="closeModal('registerModal')">Sign Up</button>
+        </div>
+    </div>
+
+    <!-- Private Message Modal -->
+    <div id="messageModal" class="modal-overlay">
+        <div class="modal">
+            <span class="close-btn" onclick="closeModal('messageModal')">&times;</span>
+            <h2>Send Message</h2>
+            <p style="font-size: 14px; color: #7f8c8d;">To: Alex Developer</p>
+            <textarea rows="5" placeholder="Type your message here..."></textarea>
+            <button onclick="closeModal('messageModal'); alert('Message Sent!');">Send</button>
+        </div>
+    </div>
+
+    <!-- JavaScript for Interactivity -->
+    <script>
+        // Tab Switching Logic
+        function showSection(sectionId) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(sec => sec.classList.remove('active'));
+            
+            // Show target section
+            document.getElementById(sectionId).classList.add('active');
+
+            // Update active state on navigation
+            const navItems = document.querySelectorAll('#nav-links li');
+            navItems.forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Modal Logic
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

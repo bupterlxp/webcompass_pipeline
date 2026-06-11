@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Modular Synth</title>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1e1e1e; color: #fff; overflow: hidden; }
+        #toolbar { padding: 10px; background: #333; display: flex; gap: 10px; z-index: 10; position: relative; }
+        button { padding: 8px 12px; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #777; }
+        #workspace { position: relative; width: 100vw; height: calc(100vh - 50px); overflow: hidden; }
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        
+        .module { position: absolute; width: 150px; background: #2d2d2d; border: 1px solid #555; border-radius: 6px; padding: 10px; z-index: 2; box-shadow: 0 4px 6px rgba(0,0,0,0.3); user-select: none; }
+        .module-header { font-weight: bold; margin-bottom: 10px; cursor: grab; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .module-header:active { cursor: grabbing; }
+        .control { margin-bottom: 10px; font-size: 12px; }
+        .control input { width: 100%; }
+        
+        .port { width: 12px; height: 12px; background: #aaa; border-radius: 50%; cursor: crosshair; position: absolute; border: 2px solid #2d2d2d; }
+        .port:hover { background: #fff; }
+        .port.in { left: -8px; top: 50%; transform: translateY(-50%); }
+        .port.out { right: -8px; top: 50%; transform: translateY(-50%); }
+        .port.active { background: #4caf50; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <button onclick="addOscillator()">+ Oscillator</button>
+    <button onclick="addFilter()">+ Lowpass Filter</button>
+    <button id="recordBtn" onclick="toggleRecording()" style="margin-left: auto; background: #8b0000;">Start Recording</button>
+</div>
+
+<div id="workspace">
+    <svg id="connections"></svg>
+    <!-- Master Output Module -->
+    <div class="module" id="master-out" style="left: 600px; top: 200px;">
+        <div class="module-header">Master Output</div>
+        <div class="port in" data-node-id="master"></div>
+    </div>
+</div>
+
+<script>
+    // --- Web Audio API Setup ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const masterGain = audioCtx.createGain();
+    masterGain.connect(audioCtx.destination);
+
+    // Recording Setup
+    const destStream = audioCtx.createMediaStreamDestination();
+    masterGain.connect(destStream);
+    let mediaRecorder;
+    let recordedChunks = [];
+    let isRecording = false;
+
+    // --- State Management ---
+    const nodes = {
+        'master': { audioNode: masterGain, element: document.getElementById('master-out') }
+    };
+    let connectionState = { fromId: null, fromElement: null };
+    let nodeIdCounter = 0;
+
+    // --- UI & Dragging Logic ---
+    let draggedElement = null;
+    let offsetX = 0, offsetY = 0;
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('module-header')) {
+            draggedElement = e.target.parentElement;
+            offsetX = e.clientX - draggedElement.offsetLeft;
+            offsetY = e.clientY - draggedElement.offsetTop;
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (draggedElement) {
+            draggedElement.style.left = `${e.clientX - offsetX}px`;
+            draggedElement.style.top = `${e.clientY - offsetY}px`;
+            updateLines();
+        }
+    });
+
+    document.addEventListener('mouseup', () => { draggedElement = null; });
+
+    // --- Module Creation ---
+    function createModuleUI(id, title, controlsHtml, hasIn, hasOut) {
+        const mod = document.createElement('div');
+        mod.className = 'module';
+        mod.id = id;
+        mod.style.left = `${Math.random() * 200 + 50}px`;
+        mod.style.top = `${Math.random() * 200 + 50}px`;
+
+        let html = `<div class="module-header">${title}</div>`;
+        if (hasIn) html += `<div class="port in" data-node-id="${id}"></div>`;
+        if (hasOut) html += `<div class="port out" data-node-id="${id}"></div>`;
+        html += controlsHtml;
+
+        mod.innerHTML = html;
+        document.getElementById('workspace').appendChild(mod);
+
+        // Port click listeners
+        mod.querySelectorAll('.port').forEach(port => {
+            port.addEventListener('click', (e) => handlePortClick(e, port, id));
+        });
+
+        return mod;
+    }
+
+    function addOscillator() {
+        const id = `osc_${nodeIdCounter++}`;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.start();
+
+        const controls = `
+            <div class="control">
+                <label>Freq: <span id="${id}_val">440</span>Hz</label>
+                <input type="range" min="50" max="2000" value="440" oninput="updateParam('${id}', 'frequency', this.value)">
+            </div>
+        `;
+        const el = createModuleUI(id, 'Oscillator', controls, false, true);
+        nodes[id] = { audioNode: osc, element: el, connections: [] };
+    }
+
+    function addFilter() {
+        const id = `filter_${nodeIdCounter++}`;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1000;
+
+        const controls = `
+            <div class="control">
+                <label>Cutoff: <span id="${id}_val">1000</span>Hz</label>
+                <input type="range" min="100" max="5000" value="1000" oninput="updateParam('${id}', 'frequency', this.value)">
+            </div>
+        `;
+        const el = createModuleUI(id, 'Filter', controls, true, true);
+        nodes[id] = { audioNode: filter, element: el, connections: [] };
+    }
+
+    window.updateParam = function(id, param, value) {
+        document.getElementById(`${id}_val`).innerText = value;
+        nodes[id].audioNode[param].setValueAtTime(value, audioCtx.currentTime);
+    };
+
+    // --- Connection Logic ---
+    function handlePortClick(e, port, id) {
+        e.stopPropagation();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        if (port.classList.contains('out')) {
+            // Start connection
+            if (connectionState.fromElement) connectionState.fromElement.classList.remove('active');
+            connectionState = { fromId: id, fromElement: port };
+            port.classList.add('active');
+        } else if (port.classList.contains('in') && connectionState.fromId) {
+            // Complete connection
+            const fromNode = nodes[connectionState.fromId];
+            const toNode = nodes[id];
+            
+            fromNode.audioNode.connect(toNode.audioNode);
+            fromNode.connections.push(id);
+            
+            connectionState.fromElement.classList.remove('active');
+            connectionState = { fromId: null, fromElement: null };
+            updateLines();
+        }
+    }
+
+    function updateLines() {
+        const svg = document.getElementById('connections');
+        svg.innerHTML = ''; // Clear existing lines
+
+        Object.keys(nodes).forEach(fromId => {
+            const fromNode = nodes[fromId];
+            if (!fromNode.connections) return;
+
+            fromNode.connections.forEach(toId => {
+                const toNode = nodes[toId];
+                const outPort = fromNode.element.querySelector('.port.out');
+                const inPort = toNode.element.querySelector('.port.in');
+
+                if (outPort && inPort) {
+                    const outRect = outPort.getBoundingClientRect();
+                    const inRect = inPort.getBoundingClientRect();
+                    
+                    const x1 = outRect.left + outRect.width / 2;
+                    const y1 = outRect.top + outRect.height / 2 - 50; // offset for toolbar
+                    const x2 = inRect.left + inRect.width / 2;
+                    const y2 = inRect.top + inRect.height / 2 - 50;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const d = `M ${x1} ${y1} C ${x1 + 50} ${y1}, ${x2 - 50} ${y2}, ${x2} ${y2}`;
+                    line.setAttribute('d', d);
+                    line.setAttribute('stroke', '#4caf50');
+                    line.setAttribute('stroke-width', '3');
+                    line.setAttribute('fill', 'none');
+                    svg.appendChild(line);
+                }
+            });
+        });
+    }
+
+    // --- Recording / Export Logic ---
+    function toggleRecording() {
+        const btn = document.getElementById('recordBtn');
+        if (!isRecording) {
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(destStream.stream);
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = exportAudio;
+            mediaRecorder.start();
+            isRecording = true;
+            btn.innerText = "Stop & Export";
+            btn.style.background = "#ff0000";
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            btn.innerText = "Start Recording";
+            btn.style.background = "#8b0000";
+        }
+    }
+
+    function exportAudio() {
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'synth-export.webm';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    // Initialize Master Output port listener
+    document.querySelector('#master-out .port').addEventListener('click', (e) => {
+        handlePortClick(e, e.target, 'master');
+    });
+</script>
+</body>
+</html>

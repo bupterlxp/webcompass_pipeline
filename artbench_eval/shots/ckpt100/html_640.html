@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Sticker Tool</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  line-height: 1.5;
+  overflow: hidden;
+}
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 16px;
+  gap: 16px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1e293b;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+.pill {
+  background: #334155;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: #0ea5e9;
+  color: #fff;
+}
+.btn-primary:hover { background: #0284c7; transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+.btn-ghost:hover { background: #334155; color: #fff; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+.panel {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.panel h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #cbd5e1;
+}
+.panel-section { display: flex; flex-direction: column; gap: 8px; }
+.panel-section h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.add-sticker { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio { display: inline-flex; align-items: center; gap: 8px; color: #cbd5e1; cursor: pointer; font-size: 13px; }
+.radio input { accent-color: #0ea5e9; cursor: pointer; }
+.picker { display: flex; flex-direction: column; gap: 8px; }
+.picker input[type="file"] { padding: 8px; background: #273449; border: 1px solid #334155; color: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.picker input[type="text"] { padding: 8px; background: #273449; border: 1px solid #334155; color: #fff; border-radius: 8px; font-size: 13px; }
+.picker button {
+  padding: 8px 12px;
+  background: #273449;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.picker button:hover { background: #334155; color: #fff; border-color: #475569; }
+.picker-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.picker-grid button { font-size: 12px; }
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.control-group label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.control-group input[type="number"],
+.control-group input[type="checkbox"] {
+  padding: 8px;
+  background: #273449;
+  border: 1px solid #334155;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.control-group input[type="number"] { -moz-appearance: textfield; }
+.control-group input[type="number"]::-webkit-outer-spin-button,
+.control-group input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.canvas-wrap {
+  position: relative;
+  background: #0b1220;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #334155;
+  aspect-ratio: 3 / 2;
+  min-height: 500px;
+}
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+.empty-state .emoji { font-size: 64px; }
+.empty-state p { margin: 0; }
+
+.stickers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.sticker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #273449;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sticker-item:hover { background: #334155; border-color: #475569; }
+.sticker-item.removing { opacity: 0.35; }
+.sticker-item .sticker-preview {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e293b;
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-size: 22px;
+}
+.sticker-item .sticker-info { flex: 1; min-width: 0; }
+.sticker-item .sticker-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sticker-item .sticker-meta {
+  font-size: 11px;
+  color: #94a3b8;
+}
+.sticker-item .sticker-actions { display: flex; gap: 4px; }
+.sticker-actions button {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s;
+}
+.sticker-actions button:hover { background: #334155; color: #fff; }
+.sticker-actions button.delete:hover { background: #ef4444; color: #fff; }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s;
+  z-index: 100;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.shake { animation: shake 0.4s; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>✨ Dynamic Sticker Tool</h1>
+    <div class="topbar-right">
+      <span class="pill" id="formatPill">Format: GIF</span>
+      <button id="exportBtn" class="btn btn-primary">Export</button>
+      <button id="clearBtn" class="btn btn-ghost">Clear</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <div class="panel panel-left">
+      <h3>Canvas</h3>
+      <div id="canvasContainer" class="canvas-wrap">
+        <canvas id="canvas" width="1200" height="800"></canvas>
+        <div id="emptyState" class="empty-state">
+          <div class="emoji">🎉</div>
+          <p>Upload an image to start</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel panel-right">
+      <h3>Stickers</h3>
+      <div id="stickersList" class="stickers-list"></div>
+      <div class="panel-section">
+        <h4>Add Sticker</h4>
+        <div class="add-sticker">
+          <label class="radio">
+            <input type="radio" name="stickerType" value="emoji" checked>
+            <span>Emoji</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="stickerType" value="text">
+            <span>Text</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="stickerType" value="image">
+            <span>Image</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="stickerType" value="shape">
+            <span>Shape</span>
+          </label>
+        </div>
+        <div id="emojiPicker" class="picker" hidden>
+          <div class="picker-grid" id="emojiGrid"></div>
+        </div>
+        <div id="textInput" class="picker" hidden>
+          <input type="text" id="textValue" value="Hello!" placeholder="Text" maxlength="20">
+          <div class="picker-grid" id="textEffectGrid">
+            <button data-effect="bounce">Bounce</button>
+            <button data-effect="pulse">Pulse</button>
+            <button data-effect="trail">Trail</button>
+            <button data-effect="wave">Wave</button>
+            <button data-effect="fade">Fade</button>
+          </div>
+        </div>
+        <div id="imageInput" class="picker" hidden>
+          <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div id="shapeInput" class="picker" hidden>
+          <div class="picker-grid" id="shapeGrid">
+            <button data-shape="circle">Circle</button>
+            <button data-shape="star">Star</button>
+            <button data-shape="heart">Heart</button>
+            <button data-shape="square">Square</button>
+            <button data-shape="triangle">Triangle</button>
+            <button data-shape="diamond">Diamond</button>
+          </div>
+        </div>
+        <button id="addStickerBtn" class="btn btn-primary">Add</button>
+      </div>
+
+      <div class="panel-section">
+        <h4>Controls</h4>
+        <div class="control-group">
+          <label for="xInput">X</label>
+          <input id="xInput" type="number" value="0" min="-100" max="100">
+        </div>
+        <div class="control-group">
+          <label for="yInput">Y</label>
+          <input id="yInput" type="number" value="0" min="-100" max="100">
+        </div>
+        <div class="control-group">
+          <label for="sizeInput">Size</label>
+          <input id="sizeInput" type="number" value="100" min="10" max="500">
+        </div>
+        <div class="control-group">
+          <label for="angleInput">Angle (deg)</label>
+          <input id="angleInput" type="number" value="0" min="-180" max="180">
+        </div>
+        <div class="control-group">
+          <label for="opacityInput">Opacity</label>
+          <input id="opacityInput" type="number" value="1" min="0" max="1" step="0.05">
+        </div>
+        <div class="control-group">
+          <label for="speedInput">Speed</label>
+          <input id="speedInput" type="number" value="1" min="0.1" max="5" step="0.1">
+        </div>
+        <div class="control-group">
+          <label for="durationInput">Duration (s)</label>
+          <input id="durationInput" type="number" value="3" min="0.5" max="10" step="0.5">
+        </div>
+        <div class="control-group">
+          <label for="loopInput">Loop</label>
+          <input id="loopInput" type="checkbox" checked>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/build/gif.js"></script>
+<script>(() => {
+  'use strict';
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const emptyState = document.getElementById('emptyState');
+  const stickersList = document.getElementById('stickersList');
+  const emojiGrid = document.getElementById('emojiGrid');
+  const textEffectGrid = document.getElementById('textEffectGrid');
+  const shapeGrid = document.getElementById('shapeGrid');
+  const fileInput = document.getElementById('fileInput');
+  const textValue = document.getElementById('textValue');
+  const stickerType = document.querySelector('input[name="stickerType"]');
+  const xInput = document.getElementById('xInput');
+  const yInput = document.getElementById('yInput');
+  const sizeInput = document.getElementById('sizeInput');
+  const angleInput = document.getElementById('angleInput');
+  const opacityInput = document.getElementById('opacityInput');
+  const speedInput = document.getElementById('speedInput');
+  const durationInput = document.getElementById('durationInput');
+  const loopInput = document.getElementById('loopInput');
+  const addStickerBtn = document.getElementById('addStickerBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const formatPill = document.getElementById('formatPill');
+  const toast = document.getElementById('toast');
+
+  const state = {
+    stickers: [],
+    image: null,
+    imageW: 0,
+    imageH: 0,
+    imageRatio: 0,
+    undoStack: [],
+    redoStack: [],
+    lastExport: null,
+  };
+
+  // ---------- Emoji picker ----------
+  const EMOJIS = [
+    '🎉','🎊','🎈','💥','🔥','✨','⭐','💫','🌈','🚀','🎁','🎊','🌸','🌺','🌻','🌼',
+    '🌸','🌹','🌷','🌱','🍃','🍂','🍁','❄️','☀️','☁️','🌙','⭐','🌟','✨','💫','🌈',
+    '❤️','💙','💚','💛','💜','🧡','🖤','🤍','🤎','🧡','💛','💚','💙','💜','❤️',
+    '😍','🥰','😘','😗','😙','😚','😋','😛','😜','😝','🤑','🤗','🤭','🤫','🤐','🤓',
+    '😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰',
+    '😱','🥵','🥶','😳','🤪','😵','🥴','😠','😡','🤬','😷','🤒','🤕','🤢','🤮','🤧',
+    '😇','🤠','🥸','👽','👾','🤖','🎃','👻','💀','☠️','💩','🤡','🐶','🐱','🐭','🐹',
+    '🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔',
+    '🐧','🐦','🐤','🦆','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜',
+    '🦟','🦗','🕷️','🕸️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐟',
+    '🐠','🐡','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦥','🦦','🦛','🦡',
+    '🦫','🦘','🦡','🦥','🦦','🦛','🦡','🦫','🦘','🦡','🦥','🦦','🦛','🦡','🦫','🦘',
+    '🦄','🐴','🦄','🐴','🦄','🐴','🦄','🐴','🦄','🐴','🦄','🐴','🦄','🐴','🦄','🐴',
+  ];
+  EMOJIS.forEach(e => {
+    const b = document.createElement('button');
+    b.textContent = e;
+    b.className = 'picker-btn';
+    b.setAttribute('data-emoji', e);
+    b.addEventListener('click', () => {
+      stickerType.value = 'emoji';
+      emojiGrid.hidden = true;
+      textInput.hidden = false;
+      imageInput.hidden = false;
+      shapeInput.hidden = false;
+      textValue.value = e;
+      textValue.focus();
+    });
+    emojiGrid.appendChild(b);
+  });
+
+  // ---------- Text effects ----------
+  const TEXT_EFFECTS = ['bounce','pulse','trail','wave','fade'];
+  TEXT_EFFECTS.forEach(e => {
+    const b = document.createElement('button');
+    b.textContent = e;
+    b.dataset.effect = e;
+    b.addEventListener('click', () => {
+      stickerType.value = 'text';
+      emojiGrid.hidden = false;
+      textInput.hidden = true;
+      imageInput.hidden = true;
+      shapeInput.hidden = true;
+      textValue.value = textValue.value || 'Hello!';
+      textEffectGrid.querySelector(`[data-effect="${e}"]`).classList.add('active');
+    });
+    textEffectGrid.appendChild(b);
+  });
+
+  // ---------- Shape shapes ----------
+  const SHAPE_LABELS = {
+    circle: 'Circle',
+    star: 'Star',
+    heart: 'Heart',
+    square: 'Square',
+    triangle: 'Triangle',
+    diamond: 'Diamond',
+  };
+  Object.keys(SHAPE_LABELS).forEach(k => {
+    const b = document.createElement('button');
+    b.dataset.shape = k;
+    b.textContent = SHAPE_LABELS[k];
+    b.addEventListener('click', () => {
+      stickerType.value = 'shape';
+      emojiGrid.hidden = false;
+      textInput.hidden = true;
+      imageInput.hidden = true;
+      shapeInput.hidden = true;
+      textEffectGrid.querySelector('.active').classList.remove('active');
+      textEffectGrid.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    });
+    shapeGrid.appendChild(b);
+  });
+
+  // ---------- File upload ----------
+  fileInput.addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      state.image = ev.target.result;
+      state.imageW = f.width || f.naturalWidth || 0;
+      state.imageH = f.height || f.naturalHeight || 0;
+      state.imageRatio = state.imageW / state.imageH;
+      draw();
+      toast.textContent = `Image loaded (${f.name})`;
+      showToast();
+    };
+    reader.readAsDataURL(f);
+  });
+
+  // ---------- Add sticker ----------
+  addStickerBtn.addEventListener('click', () => {
+    const type = stickerType.value;
+    const x = parseFloat(xInput.value) || 0;
+    const y = parseFloat(yInput.value) || 0;
+    const size = parseFloat(sizeInput.value) || 100;
+    const angle = parseFloat(angleInput.value) || 0;
+    const opacity = parseFloat(opacityInput.value) || 1;
+    const speed = parseFloat(speedInput.value) || 1;
+    const duration = parseFloat(durationInput.value) || 3;
+    const loop = loopInput.checked;
+
+    const sticker = {
+      id: uid(),
+      type,
+      x, y,
+      size, angle,
+      opacity,
+      speed,
+      duration,
+      loop,
+      text: textValue.value || 'Sticker',
+      emoji: textValue.value || '🎉',
+      shape: 'circle',
+      color: '#ff6b6b',
+      rotation: 0,
+      phase: 0,
+      frame: 0,
+      textEffect: 'bounce',
+    };
+
+    state.stickers.push(sticker);
+    state.undoStack.push(JSON.stringify(state.stickers));
+    state.redoStack = [];
+    draw();
+    renderStickersList();
+    toast.textContent = `Added sticker`;
+    showToast();
+  });
+
+  // ---------- Clear ----------
+  clearBtn.addEventListener('click', () => {
+    if (state.stickers.length === 0) return;
+    state.stickers = [];
+    state.undoStack.push(JSON.stringify(state.stickers));
+    state.redoStack = [];
+    draw();
+    renderStickersList();
+    toast.textContent = `Cleared all stickers`;
+    showToast();
+  });
+
+  // ---------- Undo / Redo ----------
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  undoBtn.addEventListener('click', () => {
+    if (state.undoStack.length === 0) return;
+    const prev = state.undoStack.pop();
+    state.redoStack.push(JSON.stringify(state.stickers));
+    state.stickers = JSON.parse(prev);
+    draw();
+    renderStickersList();
+  });
+  redoBtn.addEventListener('click', () => {
+    if (state.redoStack.length === 0) return;
+    const next = state.redoStack.pop();
+    state.undoStack.push(JSON.stringify(state.stickers));
+    state.stickers = JSON.parse(next);
+    draw();
+    renderStickersList();
+  });
+
+  // ---------- Draw ----------
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Background
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Image
+    if (state.image) {
+      const iw = state.imageW;
+      const ih = state.imageH;
+      const ratio = canvas.width / canvas.height;
+      const targetW = canvas.width;
+      const targetH = canvas.height;
+      const scale = Math.min(targetW / iw, targetH / ih);
+      const sw = iw * scale;
+      const sh = ih * scale;
+      const sx = (targetW - sw) / 2;
+      const sy = (targetH - sh) / 2;
+      ctx.drawImage(state.image, sx, sy, sw, sh);
+    }
+
+    // Stickers
+    state.stickers.forEach(s => drawSticker(s));
+  }
+
+  function drawSticker(s) {
+    ctx.save();
+    ctx.globalAlpha = s.opacity;
+
+    // Position
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.angle * Math.PI / 180);
+
+    if (s.type === 'emoji') {
+      drawEmoji(s.emoji, s.size, s.rotation, s.phase, s.speed);
+    } else if (s.type === 'text') {
+      drawText(s.text, s.size, s.rotation, s.phase, s.speed, s.textEffect);
+    } else if (s.type === 'image') {
+      drawImage(s.image, s.size, s.rotation, s.phase, s.speed);
+    } else if (s.type === 'shape') {
+      drawShape(s.shape, s.size, s.rotation, s.phase, s.speed, s.color);
+    }
+
+    ctx.restore();
+  }
+
+  // ---------- Emoji ----------
+  function drawEmoji(emoji, size, rotation, phase, speed) {
+    const r = size / 2;
+    const cx = r;
+    const cy = r;
+    const t = phase * speed;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation + t * 0.1);
+    ctx.font = `bold ${size}px "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 0, 0);
+    ctx.restore();
+  }
+
+  // ---------- Text ----------
+  const TEXT_EFFECTS_IMPL = {
+    bounce: (t, size, rotation, phase, speed) => {
+      const amp = 40;
+      const cx = size / 2;
+      const cy = size / 2;
+      const t0 = phase * speed;
+      const tx = cx + Math.sin(t0) * amp;
+      const ty = cy + Math.cos(t0) * amp;
+      return { x: tx, y: ty };
+    },
+    pulse: (t, size, rotation, phase, speed) => {
+      const base = size;
+      const amp = 20;
+      const t0 = phase * speed;
+      const s = 0.5 + 0.5 * Math.sin(t0);
+      return { x: 0, y: 0, size: base + s * amp };
+    },
+    trail: (t, size, rotation, phase, speed) => {
+      const steps = 5;
+      const cx = size / 2;
+      const cy = size / 2;
+      const t0 = phase * speed;
+      const pts = [];
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const x = cx + Math.sin(t0 + a) * 10;
+        const y = cy + Math.cos(t0 + a) * 10;
+        pts.push({ x, y });
+      }
+      return { pts };
+    },
+    wave: (t, size, rotation, phase, speed) => {
+      const cx = size / 2;
+      const cy = size / 2;
+      const t0 = phase * speed;
+      const x = cx + Math.sin(t0) * 40;
+      const y = cy + Math.cos(t0) * 40;
+      return { x, y };
+    },
+    fade: (t, size, rotation, phase, speed) => {
+      const t0 = phase * speed;
+      const alpha = 0.5 + 0.5 * Math.sin(t0);
+      return { alpha };
+    },
+  };
+
+  function drawText(text, size, rotation, phase, speed, effect) {
+    const impl = TEXT_EFFECTS_IMPL[effect] || TEXT_EFFECTS_IMPL.bounce;
+    const opts = impl(t, size, rotation, phase, speed);
+    const r = size / 2;
+    const cx = r;
+    const cy = r;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    ctx.font = `bold ${size}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (opts.pts) {
+      opts.pts.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      });
+    } else if (opts.x !== undefined && opts.y !== undefined) {
+      ctx.translate(opts.x, opts.y);
+      ctx.fillText(text, 0, 0);
+    } else if (opts.alpha !== undefined) {
+      ctx.globalAlpha = opts.alpha;
+      ctx.fillText(text, 0, 0);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillText(text, 0, 0);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Image ----------
+  function drawImage(src, size, rotation, phase, speed) {
+    const r = size / 2;
+    const cx = r;
+    const cy = r;
+    const t = phase * speed;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation + t * 0.1);
+    ctx.drawImage(src, -r, -r, size, size);
+    ctx.restore();
+  }
+
+  // ---------- Shape ----------
+  function drawShape(shape, size, rotation, phase, speed, color) {
+    const r = size / 2;
+    const cx = r;
+    const cy = r;
+    const t = phase * speed;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation + t * 0.1);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (shape === 'star') {
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const x = r * Math.cos(a);
+        const y = r * Math.sin(a);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else if (shape === 'heart') {
+      const x1 = -r * 0.5, y1 = r * 0.5;
+      const x2 = r * 0.5, y2 = r * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.quadraticCurveTo(0, -r, x2, y2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (shape === 'square') {
+      ctx.fillRect(-r, -r, r * 2, r * 2);
+    } else if (shape === 'triangle') {
+      ctx.beginPath();
+      ctx.moveTo(-r, 0);
+      ctx.lineTo(0, -r);
+      ctx.lineTo(r, 0);
+      ctx.closePath();
+      ctx.fill();
+    } else if (shape === 'diamond') {
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r, 0);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ---------- Stickers list ----------
+  function renderStickersList() {
+    stickersList.innerHTML = '';
+    state.stickers.forEach((s, i) => {
+      const li = document.createElement('div');
+      li.className = 'sticker-item';
+      li.dataset.id = s.id;
+      li.innerHTML = `
+        <div class="sticker-preview" style="background:${s.color || '#ff6b6b'}">
+          ${s.type === 'emoji' ? s.emoji : s.type === 'text' ? s.text : s.type === 'shape' ? SHAPE_LABELS[s.shape] : 'Image'}
+        </div>
+        <div class="sticker-info">
+          <div class="sticker-name">${s.type === 'emoji' ? s.emoji : s.text}</div>
+          <div class="sticker-meta">${s.type} · ${s.size}px</div>
+        </div>
+        <div class="sticker-actions">
+          <button data-action="edit">✎</button>
+          <button data-action="delete" class="delete">✕</button>
+        </div>
+      `;
+      li.addEventListener('click', (e) => {
+        if (e.target.closest('[data-action]')) return;
+        selectSticker(s.id);
+      });
+      li.querySelector('[data-action="edit"]').addEventListener('click', () => {
+        selectSticker(s.id);
+      });
+      li.querySelector('[data-action="delete"]').addEventListener('click', () => {
+        deleteSticker(s.id);
+      });
+      stickersList.appendChild(li);
+    });
+  }
+
+  function selectSticker(id) {
+    const s = state.stickers.find(x => x.id === id);
+    if (!s) return;
+    xInput.value = s.x;
+    yInput.value = s.y;
+    sizeInput.value = s.size;
+    angleInput.value = s.angle;
+    opacityInput.value = s.opacity;
+    speedInput.value = s.speed;
+    durationInput.value = s.duration;
+    loopInput.checked = s.loop;
+    stickerType.value = s.type;
+    textValue.value = s.type === 'text' ? s.text : s.type === 'emoji' ? s.emoji : s.text;
+    textEffectGrid.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.effect === s.textEffect));
+    textEffectGrid.hidden = false;
+    imageInput.hidden = false;
+    shapeInput.hidden = false;
+    emojiGrid.hidden = false;
+    addStickerBtn.textContent = 'Update';
+    addStickerBtn.classList.add('btn-primary');
+    addStickerBtn.disabled = false;
+    addStickerBtn.addEventListener('click', () => {
+      s.x = parseFloat(xInput.value) || 0;
+      s.y = parseFloat(yInput.value) || 0;
+      s.size = parseFloat(sizeInput.value) || 100;
+      s.angle = parseFloat(angleInput.value) || 0;
+      s.opacity = parseFloat(opacityInput.value) || 1;
+      s.speed = parseFloat(speedInput.value) || 1;
+      s.duration = parseFloat(durationInput.value) || 3;
+      s.loop = loopInput.checked;
+      s.text = textValue.value || 'Sticker';
+      s.emoji = textValue.value || '🎉';
+      s.shape = 'circle';
+      s.color = '#ff6b6b';
+      s.rotation = 0;
+      s.phase = 0;
+      s.frame = 0;
+      s.textEffect = 'bounce';
+      state.undoStack.push(JSON.stringify(state.stickers));
+      state.redoStack = [];
+      draw();
+      renderStickersList();
+      addStickerBtn.textContent = 'Add';
+      addStickerBtn.classList.remove('btn-primary');
+      addStickerBtn.disabled = true;
+      addStickerBtn.removeEventListener('click', arguments.callee);
+      toast.textContent = `Updated sticker`;
+      showToast();
+    });
+  }
+
+  function deleteSticker(id) {
+    const idx = state.stickers.findIndex(x => x.id === id);
+    if (idx === -1) return;
+    state.stickers.splice(idx, 1);
+    state.undoStack.push(JSON.stringify(state.stickers));
+    state.redoStack = [];
+    draw();
+    renderStickersList();
+    toast.textContent = `Deleted sticker`;
+    showToast();
+  }
+
+  // ---------- Export ----------
+  exportBtn.addEventListener('click', async () => {
+    const format = formatPill.textContent.split(':')[1].trim().toLowerCase();
+    const stickers = state.stickers.filter(s => s.type !== 'image' || s.image);
+
+    if (stickers.length === 0) {
+      toast.textContent = 'No stickers to export';
+      showToast();
+      return;
+    }
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const duration = parseFloat(durationInput.value) || 3;
+    const fps = 12;
+    const totalFrames = Math.max(1, Math.round(duration * fps));
+
+    const frames = [];
+    for (let f = 0; f < totalFrames; f++) {
+      const frameCanvas = document.createElement('canvas');
+      frameCanvas.width = w;
+      frameCanvas.height = h;
+      const fc = frameCanvas.getContext('2d');
+      fc.fillStyle = '#0b1220';
+      fc.fillRect(0, 0, w, h);
+      if (state.image) {
+        const iw = state.imageW;
+        const ih = state.imageH;
+        const ratio = w / h;
+        const targetW = w;
+        const targetH = h;
+        const scale = Math.min(targetW / iw, targetH / ih);
+        const sw = iw * scale;
+        const sh = ih * scale;
+        const sx = (targetW - sw) / 2;
+        const sy = (targetH - sh) / 2;
+        fc.drawImage(state.image, sx, sy, sw, sh);
+      }
+      stickers.forEach(s => {
+        fc.save();
+        fc.globalAlpha = s.opacity;
+        fc.translate(s.x, s.y);
+        fc.rotate(s.angle * Math.PI / 180);
+        if (s.type === 'emoji') {
+          const r = s.size / 2;
+          const cx = r;
+          const cy = r;
+          const t = (f / totalFrames) * s.duration;
+          fc.save();
+          fc.translate(cx, cy);
+          fc.rotate(s.rotation + t * 0.1);
+          fc.font = `bold ${s.size}px "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+          fc.textAlign = 'center';
+          fc.textBaseline = 'middle';
+          fc.fillText(s.emoji, 0, 0);
+          fc.restore();
+        } else if (s.type === 'text') {
+          const impl = TEXT_EFFECTS_IMPL[s.textEffect] || TEXT_EFFECTS_IMPL.bounce;
+          const opts = impl(t, s.size, s.rotation, 0, s.speed);
+          const r = s.size / 2;
+          const cx = r;
+          const cy = r;
+          fc.save();
+          fc.translate(cx, cy);
+          fc.rotate(s.rotation);
+          fc.font = `bold ${s.size}px "Segoe UI", sans-serif`;
+          fc.textAlign = 'center';
+          fc.textBaseline = 'middle';
+          if (opts.pts) {
+            opts.pts.forEach(p => {
+              fc.save();
+              fc.translate(p.x, p.y);
+              fc.fillText(s.text, 0, 0);
+              fc.restore();
+            });
+          } else if (opts.x !== undefined && opts.y !== undefined) {
+            fc.translate(opts.x, opts.y);
+            fc.fillText(s.text, 0, 0);
+          } else if (opts.alpha !== undefined) {
+            fc.globalAlpha = opts.alpha;
+            fc.fillText(s.text, 0, 0);
+            fc.globalAlpha = 1;
+          } else {
+            fc.fillText(s.text, 0, 0);
+          }
+          fc.restore();
+        } else if (s.type === 'shape') {
+          const r = s.size / 2;
+          const cx = r;
+          const cy = r;
+          const t = (f / totalFrames) * s.duration;
+          fc.save();
+          fc.translate(cx, cy);
+          fc.rotate(s.rotation + t * 0.1);
+          fc.fillStyle = s.color;
+          fc.strokeStyle = s.color;
+          fc.lineWidth = 2;
+          fc.lineCap = 'round';
+          fc.lineJoin = 'round';
+          if (s.shape === 'circle') {
+            fc.beginPath();
+            fc.arc(0, 0, r, 0, Math.PI * 2);
+            fc.fill();
+          } else if (s.shape === 'star') {
+            fc.beginPath();
+            for (let i = 0; i < 5; i++) {
+              const a = (i / 5) * Math.PI * 2;
+              const x = r * Math.cos(a);
+              const y = r * Math.sin(a);
+              if (i === 0) fc.moveTo(x, y); else fc.lineTo(x, y);
+            }
+            fc.closePath();
+            fc.fill();
+          } else if (s.shape === 'heart') {
+            const x1 = -r * 0.5, y1 = r * 0.5;
+            const x2 = r * 0.5, y2 = r * 0.5;
+            fc.beginPath();
+            fc.moveTo(x1, y1);
+            fc.quadraticCurveTo(0, -r, x2, y2);
+            fc.closePath();
+            fc.fill();
+          } else if (s.shape === 'square') {
+            fc.fillRect(-r, -r, r * 2, r * 2);
+          } else if (s.shape === 'triangle') {
+            fc.beginPath();
+            fc.moveTo(-r, 0);
+            fc.lineTo(0, -r);
+            fc.lineTo(r, 0);
+            fc.closePath();
+            fc.fill();
+          } else if (s.shape === 'diamond') {
+            fc.beginPath();
+            fc.moveTo(0, -r);
+            fc.lineTo(r, 0);
+            fc.lineTo(0, r);
+            fc.lineTo(-r, 0);
+            fc.closePath();
+            fc.fill();
+          }
+          fc.restore();
+        }
+        fc.restore();
+      });
+      frames.push(frameCanvas);
+    }
+
+    if (format === 'gif') {
+      const gif = gifEncode(frames, w, h, fps);
+      download(gif, 'sticker-output.gif');
+      toast.textContent = `Exported GIF`;
+      showToast();
+    } else {
+      // WebM via WebCodecs (fallback to GIF if unsupported)
+      try {
+        const encoder = new ImageWriter({ width: w, height: h, frameRate: fps });
+        await Promise.all(frames.map((f, i) => encoder.writeFrame(f, i)));
+        const blob = await encoder.close();
+        download(blob, 'sticker-output.webm');
+        toast.textContent = `Exported WebM`;
+        showToast();
+      } catch (e) {
+        // Fallback to GIF
+        const gif = gifEncode(frames, w, h, fps);
+        download(gif, 'sticker-output.gif');
+        toast.textContent = `WebM export failed, exported GIF instead`;
+        showToast();
+      }
+    }
+  });
+
+  function gifEncode(frames, w, h, fps) {
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      width: w,
+      height: h,
+      fps,
+      repeat: 0,
+    });
+    frames.forEach((frame, i) => {
+      gif.addFrame(frame, { copy: true, delay: 1000 / fps });
+    });
+    return new Promise((resolve) => {
+      gif.on('finished', resolve);
+      gif.render();
+    });
+  }
+
+  function download(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- GIF.js fallback ----------
+  // We use gif.js for GIF export (it's lightweight and widely supported)
+  // WebM export via WebCodecs is not universally supported, so we use gif.js for both formats
+  // For WebM, we'll use a simple frame-by-frame PNG stitch + gif.js (since gif.js supports WebM-like formats via `format: 'webm'` in newer versions).
+  // But gif.js doesn't natively support WebM. So we'll use a different approach for WebM: record frames as data URL, then stitch into a GIF via gif.js (which supports WebM-like output).
+  // Actually, gif.js supports WebM via `format: 'webm'` (as of v0.2.0+). Let's use that.
+
+  // ---------- Helpers ----------
+  function uid() {
+    return Math.random().toString(36).slice(2, 10);
+  }
+
+  function showToast() {
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  // ---------- Resize ----------
+  window.addEventListener('resize', () => {
+    if (state.image) draw();
+  });
+
+  // ---------- Keyboard shortcuts ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      undoBtn.click();
+    } else if (e.key === 'y' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      redoBtn.click();
+    } else if (e.key === 'u') {
+      clearBtn.click();
+    }
+  });
+
+  // ---------- Init ----------
+  function init() {
+    if (!state.image) {
+      const defaultImg = new Image();
+      defaultImg.src = 'https://picsum.photos/seed/sticker/1200/800';
+      defaultImg.onload = () => {
+        state.image = defaultImg;
+        state.imageW = defaultImg.naturalWidth;
+        state.imageH = defaultImg.naturalHeight;
+        state.imageRatio = state.imageW / state.imageH;
+        draw();
+      };
+    } else {
+      draw();
+    }
+  }
+
+  init();
+})();
+</script></script>
+</body>
+</html>

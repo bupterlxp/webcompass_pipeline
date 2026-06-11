@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Audio Segmentation Labeler</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --panel: #171a2e;
+    --panel-2: #1f2340;
+    --text: #e7e9f5;
+    --muted: #9aa0c3;
+    --accent: #6ea8ff;
+    --accent-2: #8b5cf6;
+    --danger: #ef4444;
+    --ok: #22c55e;
+    --border: #2a2f55;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    padding: 14px 22px;
+    background: linear-gradient(90deg, #1a1f3d, #241a3d);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: 0.3px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-left: 10px; }
+  main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 16px;
+    padding: 16px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 0 0 10px 0;
+  }
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .drop.hover { border-color: var(--accent); color: var(--accent); background: rgba(110,168,255,0.06); }
+  .drop input { display: none; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button, .btn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  button:hover:not(:disabled), .btn:hover { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #0b1020; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { background: #88b8ff; color: #0b1020; }
+  button.danger { color: var(--danger); }
+  button.danger:hover { border-color: var(--danger); }
+  input[type="text"], input[type="number"], select {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  .wave-wrap {
+    position: relative;
+    background: #0b0e1c;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  canvas#wave { width: 100%; height: 160px; display: block; cursor: crosshair; }
+  .playhead {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: #fff;
+    pointer-events: none;
+    box-shadow: 0 0 6px rgba(255,255,255,0.6);
+    left: 0;
+  }
+  .time-bar {
+    display: flex;
+    justify-content: space-between;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .controls { margin-top: 10px; }
+  .label-list {
+    max-height: 520px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .label-item {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .label-item:hover { border-color: var(--accent); }
+  .label-item.active { background: #2a2f55; }
+  .label-item .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .label-item .name { font-weight: 600; }
+  .label-item .time {
+    font-family: ui-monospace, Menlo, monospace;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .label-item .actions { display: flex; gap: 4px; margin-top: 6px; }
+  .label-item .actions button { padding: 3px 8px; font-size: 11px; }
+  .empty { color: var(--muted); text-align: center; padding: 20px; font-size: 13px; }
+  .kbd {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--danger); }
+  .seg-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .seg-inputs label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .color-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🎧 Audio Segmentation Labeler</h1>
+    <span class="sub">Upload · Annotate · Export</span>
+  </div>
+  <div class="row">
+    <span class="status" id="status">Ready</span>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: player + waveform -->
+  <section class="panel">
+    <h2>Audio</h2>
+
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="audio/*" />
+      <div><strong>Click or drop an audio file here</strong></div>
+      <div class="hint">Supports MP3, WAV, OGG, FLAC, M4A</div>
+    </label>
+
+    <div class="wave-wrap" id="waveWrap" style="display:none;">
+      <canvas id="wave"></canvas>
+      <div class="playhead" id="playhead"></div>
+    </div>
+
+    <div class="time-bar" id="timeBar" style="display:none;">
+      <span id="curTime">00:00.000</span>
+      <span id="fileName">—</span>
+      <span id="durTime">00:00.000</span>
+    </div>
+
+    <div class="controls row" id="controls" style="display:none;">
+      <button id="playBtn" class="primary">▶ Play</button>
+      <button id="backBtn">⏪ -5s</button>
+      <button id="fwdBtn">⏩ +5s</button>
+      <span style="flex:1"></span>
+      <label style="font-size:12px;color:var(--muted);">Speed
+        <select id="speed">
+          <option>0.5</option><option>0.75</option>
+          <option selected>1</option>
+          <option>1.25</option><option>1.5</option><option>2</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="panel" style="margin-top:14px;">
+      <h2>New Segment</h2>
+      <div class="seg-inputs">
+        <div>
+          <label>Start (s) <span class="kbd">I</span></label>
+          <input type="number" id="segStart" step="0.001" min="0" value="0" />
+        </div>
+        <div>
+          <label>End (s) <span class="kbd">O</span></label>
+          <input type="number" id="segEnd" step="0.001" min="0" value="0" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input type="text" id="segLabel" placeholder="Label name (e.g. speech, music)" style="flex:1;" />
+        <input type="color" id="segColor" value="#6ea8ff" title="Segment color" />
+        <button id="useCurBtn" title="Use current playback time as both start and end marker">Mark at playhead</button>
+        <button id="addBtn" class="primary">+ Add <span class="kbd">L</span></button>
+      </div>
+      <div class="hint">Tip: press <span class="kbd">I</span> at segment start, <span class="kbd">O</span> at end, then <span class="kbd">L</span> to add.</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: label list + export -->
+  <aside class="panel">
+    <h2>Labels (<span id="count">0</span>)</h2>
+    <div class="label-list" id="labelList">
+      <div class="empty">No labels yet. Add your first segment on the left.</div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <h2>Data</h2>
+      <div class="row">
+        <button id="exportJson">⬇ Export JSON</button>
+        <button id="exportCsv">⬇ Export CSV</button>
+        <button id="importBtn">⬆ Import JSON</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none;" />
+        <button id="clearBtn" class="danger">🗑 Clear All</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">
+        JSON schema: <code>{ audio, duration, labels: [{id,name,start,end,color}] }</code>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <h2>Shortcuts</h2>
+      <div class="hint">
+        <span class="kbd">Space</span> Play / Pause &nbsp;
+        <span class="kbd">I</span> Set start &nbsp;
+        <span class="kbd">O</span> Set end &nbsp;
+        <span class="kbd">L</span> Add label &nbsp;
+        <span class="kbd">←/→</span> ±1s
+      </div>
+    </div>
+  </aside>
+</main>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+/* =========================================================
+   Audio Segmentation Labeler
+   Single-file vanilla JS implementation.
+   ========================================================= */
+
+const $ = (id) => document.getElementById(id);
+const audio     = $('audio');
+const fileInput = $('file');
+const drop      = $('drop');
+const waveWrap  = $('waveWrap');
+const canvas    = $('wave');
+const ctx       = canvas.getContext('2d');
+const playhead  = $('playhead');
+const timeBar   = $('timeBar');
+const controls  = $('controls');
+const curTimeEl = $('curTime');
+const durTimeEl = $('durTime');
+const fileNameEl= $('fileName');
+const playBtn   = $('playBtn');
+const backBtn   = $('backBtn');
+const fwdBtn    = $('fwdBtn');
+const speedSel  = $('speed');
+const segStart  = $('segStart');
+const segEnd    = $('segEnd');
+const segLabel  = $('segLabel');
+const segColor  = $('segColor');
+const addBtn    = $('addBtn');
+const useCurBtn = $('useCurBtn');
+const labelList = $('labelList');
+const countEl   = $('count');
+const statusEl  = $('status');
+
+let peaks = [];          // downsampled waveform peaks
+let duration = 0;        // seconds
+let labels = [];         // {id,name,start,end,color}
+let activeLabelId = null;
+let audioFileName = '';
+
+/* ---------- Utilities ---------- */
+function fmtTime(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = s - m * 60;
+  return `${String(m).padStart(2,'0')}:${sec.toFixed(3).padStart(6,'0')}`;
+}
+function setStatus(msg, kind='') {
+  statusEl.textContent = msg;
+  statusEl.className = 'status ' + kind;
+  if (kind) setTimeout(() => { statusEl.className='status'; statusEl.textContent='Ready'; }, 2500);
+}
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+/* ---------- File loading ---------- */
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('hover'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('hover'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  drop.classList.remove('hover');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+async function loadFile(file) {
+  if (!file.type.startsWith('audio/') && !/\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(file.name)) {
+    setStatus('Unsupported file type', 'err'); return;
+  }
+  audioFileName = file.name;
+  fileNameEl.textContent = file.name;
+  const url = URL.createObjectURL(file);
+  audio.src = url;
+
+  setStatus('Decoding waveform…');
+  try {
+    const buf = await file.arrayBuffer();
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await ac.decodeAudioData(buf.slice(0));
+    duration = decoded.duration;
+    peaks = extractPeaks(decoded, 2000);
+    ac.close();
+  } catch (err) {
+    console.error(err);
+    setStatus('Failed to decode audio', 'err');
+    return;
+  }
+
+  waveWrap.style.display = 'block';
+  timeBar.style.display = 'flex';
+  controls.style.display = 'flex';
+  segEnd.max = segStart.max = duration;
+  durTimeEl.textContent = fmtTime(duration);
+  resizeCanvas();
+  drawWaveform();
+  setStatus('Audio loaded', 'ok');
+}
+
+/* ---------- Waveform processing ---------- */
+function extractPeaks(buffer, targetSamples) {
+  const ch = buffer.getChannelData(0);
+  const len = ch.length;
+  const samplesPerPeak = Math.max(1, Math.floor(len / targetSamples));
+  const out = new Float32Array(Math.ceil(len / samplesPerPeak));
+  for (let i = 0, p = 0; i < len; i += samplesPerPeak, p++) {
+    let min = 1, max = -1;
+    const end = Math.min(len, i + samplesPerPeak);
+    for (let j = i; j < end; j++) {
+      const v = ch[j];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    out[p] = Math.max(Math.abs(min), Math.abs(max));
+  }
+  return out;
+}
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', () => { if (peaks.length) { resizeCanvas(); drawWaveform(); } });
+
+function drawWaveform() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  // background
+  ctx.fillStyle = '#0b0e1c';
+  ctx.fillRect(0, 0, w, h);
+
+  // label overlays
+  for (const lab of labels) {
+    const x1 = (lab.start / duration) * w;
+    const x2 = (lab.end   / duration) * w;
+    ctx.fillStyle = hexToRgba(lab.color || '#6ea8ff', 0.22);
+    ctx.fillRect(x1, 0, Math.max(1, x2 - x1), h);
+    if (lab.id === activeLabelId) {
+      ctx.strokeStyle = lab.color || '#6ea8ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x1 + 1, 1, Math.max(1, x2 - x1) - 2, h - 2);
+    }
+  }
+
+  // center line
+  ctx.strokeStyle = '#2a2f55';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+
+  // peaks
+  if (!peaks.length) return;
+  const barW = w / peaks.length;
+  ctx.fillStyle = '#6ea8ff';
+  for (let i = 0; i < peaks.length; i++) {
+    const amp = peaks[i] * (h / 2);
+    const x = i * barW;
+    ctx.fillRect(x, h/2 - amp, Math.max(1, barW - 0.5), amp * 2);
+  }
+}
+
+function hexToRgba(hex, a) {
+  const m = hex.replace('#','');
+  const r = parseInt(m.substring(0,2),16);
+  const g = parseInt(m.substring(2,4),16);
+  const b = parseInt(m.substring(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* ---------- Playback ---------- */
+playBtn.addEventListener('click', togglePlay);
+backBtn.addEventListener('click', () => { audio.currentTime = Math.max(0, audio.currentTime - 5); });
+fwdBtn .addEventListener('click', () => { audio.currentTime = Math.min(duration, audio.currentTime + 5); });
+speedSel.addEventListener('change', () => { audio.playbackRate = parseFloat(speedSel.value); });
+
+function togglePlay() {
+  if (!audio.src) return;
+  if (audio.paused) { audio.play(); } else { audio.pause(); }
+}
+audio.addEventListener('play',  () => playBtn.textContent = '⏸ Pause');
+audio.addEventListener('pause', () => playBtn.textContent = '▶ Play');
+audio.addEventListener('ended', () => playBtn.textContent = '▶ Play');
+audio.addEventListener('timeupdate', updatePlayhead);
+
+function updatePlayhead() {
+  const t = audio.currentTime;
+  curTimeEl.textContent = fmtTime(t);
+  const w = canvas.clientWidth;
+  playhead.style.left = ((t / duration) * w) + 'px';
+}
+
+canvas.addEventListener('click', (e) => {
+  if (!duration) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  audio.currentTime = (x / rect.width) * duration;
+});
+
+/* ---------- Segment creation ---------- */
+useCurBtn.addEventListener('click', () => {
+  const t = audio.currentTime || 0;
+  segStart.value = t.toFixed(3);
+  segEnd.value   = t.toFixed(3);
+});
+addBtn.addEventListener('click', addLabel);
+
+function addLabel() {
+  const start = parseFloat(segStart.value);
+  const end   = parseFloat(segEnd.value);
+  const name  = segLabel.value.trim() || 'untitled';
+  const color = segColor.value;
+
+  if (!duration) { setStatus('Load an audio file first', 'err'); return; }
+  if (isNaN(start) || isNaN(end)) { setStatus('Invalid times', 'err'); return; }
+  if (start < 0 || end > duration) { setStatus('Times out of range', 'err'); return; }
+  if (start >= end) { setStatus('Start must be < End', 'err'); return; }
+
+  labels.push({ id: uid(), name, start, end, color });
+  labels.sort((a,b) => a.start - b.start);
+  segLabel.value = '';
+  renderLabels();
+  drawWaveform();
+  setStatus(`Added "${name}"`, 'ok');
+}
+
+/* ---------- Label list ---------- */
+function renderLabels() {
+  countEl.textContent = labels.length;
+  if (!labels.length) {
+    labelList.innerHTML = '<div class="empty">No labels yet. Add your first segment on the left.</div>';
+    return;
+  }
+  labelList.innerHTML = '';
+  labels.forEach((lab, idx) => {
+    const el = document.createElement('div');
+    el.className = 'label-item' + (lab.id === activeLabelId ? ' active' : '');
+    el.style.borderLeftColor = lab.color;
+    el.innerHTML = `
+      <div class="head">
+        <div>
+          <span class="color-dot" style="background:${lab.color}"></span>
+          <span class="name">${escapeHtml(lab.name)}</span>
+        </div>
+        <span class="time">#${idx+1}</span>
+      </div>
+      <div class="time">${fmtTime(lab.start)} → ${fmtTime(lab.end)}  (${(lab.end-lab.start).toFixed(3)}s)</div>
+      <div class="actions">
+        <button data-act="goto">▶ Go to</button>
+        <button data-act="play">▶ Play segment</button>
+        <button data-act="edit">✎ Edit</button>
+        <button data-act="del" class="danger">✕ Delete</button>
+      </div>
+    `;
+    el.querySelector('[data-act="goto"]').onclick = (e) => {
+      e.stopPropagation();
+      audio.currentTime = lab.start;
+      activeLabelId = lab.id;
+      renderLabels(); drawWaveform();
+    };
+    el.querySelector('[data-act="play"]').onclick = (e) => {
+      e.stopPropagation();
+      audio.currentTime = lab.start;
+      audio.play();
+      const stopAt = lab.end;
+      const onTime = () => {
+        if (audio.currentTime >= stopAt) { audio.pause(); audio.removeEventListener('timeupdate', onTime); }
+      };
+      audio.addEventListener('timeupdate', onTime);
+      activeLabelId = lab.id;
+      renderLabels(); drawWaveform();
+    };
+    el.querySelector('[data-act="edit"]').onclick = (e) => {
+      e.stopPropagation();
+      const newName = prompt('Label name:', lab.name);
+      if (newName !== null) lab.name = newName.trim() || lab.name;
+      const newStart = prompt('Start (seconds):', lab.start.toFixed(3));
+      if (newStart !== null) { const v = parseFloat(newStart); if (!isNaN(v) && v >= 0 && v < lab.end) lab.start = v; }
+      const newEnd = prompt('End (seconds):', lab.end.toFixed(3));
+      if (newEnd !== null) { const v = parseFloat(newEnd); if (!isNaN(v) && v > lab.start && v <= duration) lab.end = v; }
+      labels.sort((a,b) => a.start - b.start);
+      renderLabels(); drawWaveform();
+    };
+    el.querySelector('[data-act="del"]').onclick = (e) => {
+      e.stopPropagation();
+      if (confirm(`Delete label "${lab.name}"?`)) {
+        labels = labels.filter(l => l.id !== lab.id);
+        if (activeLabelId === lab.id) activeLabelId = null;
+        renderLabels(); drawWaveform();
+      }
+    };
+    el.onclick = () => {
+      activeLabelId = lab.id;
+      segStart.value = lab.start.toFixed(3);
+      segEnd.value   = lab.end.toFixed(3);
+      segLabel.value = lab.name;
+      segColor.value = lab.color;
+      renderLabels(); drawWaveform();
+    };
+    labelList.appendChild(el);
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- Export / Import ---------- */
+$('exportJson').onclick = () => {
+  const data = {
+    audio: audioFileName,
+    duration,
+    exportedAt: new Date().toISOString(),
+    labels: labels.map(l => ({ id:l.id, name:l.name, start:+l.start.toFixed(3), end:+l.end.toFixed(3), color:l.color }))
+  };
+  download(JSON.stringify(data, null, 2), (audioFileName || 'labels') + '.json', 'application/json');
+  setStatus('Exported JSON', 'ok');
+};
+
+$('exportCsv').onclick = () => {
+  const rows = [['id','name','start_sec','end_sec','duration_sec','color']];
+  labels.forEach(l => rows.push([l.id, csvEscape(l.name), l.start.toFixed(3), l.end.toFixed(3), (l.end-l.start).toFixed(3), l.color]));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  download(csv, (audioFileName || 'labels') + '.csv', 'text/csv');
+  setStatus('Exported CSV', 'ok');
+};
+function csvEscape(v) {
+  v = String(v);
+  if (/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data.labels)) throw new Error('Invalid JSON');
+    labels = data.labels.map(l => ({
+      id: l.id || uid(),
+      name: String(l.name || 'untitled'),
+      start: parseFloat(l.start),
+      end:   parseFloat(l.end),
+      color: l.color || '#6ea8ff'
+    })).filter(l => !isNaN(l.start) && !isNaN(l.end) && l.end > l.start);
+    labels.sort((a,b) => a.start - b.start);
+    renderLabels(); drawWaveform();
+    setStatus(`Imported ${labels.length} labels`, 'ok');
+  } catch (err) {
+    setStatus('Import failed: ' + err.message, 'err');
+  }
+  e.target.value = '';
+});
+
+$('clearBtn').onclick = () => {
+  if (!labels.length) return;
+  if (confirm('Delete ALL labels?')) {
+    labels = []; activeLabelId = null;
+    renderLabels(); drawWaveform();
+  }
+};
+
+/* ---------- Keyboard shortcuts ---------- */
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'i' || e.key === 'I') { segStart.value = (audio.currentTime || 0).toFixed(3); }
+  else if (e.key === 'o' || e.key === 'O') { segEnd.value   = (audio.currentTime || 0).toFixed(3); }
+  else if (e.key === 'l' || e.key === 'L') { addLabel(); }
+  else if (e.key === 'ArrowLeft')  { audio.currentTime = Math.max(0, audio.currentTime - 1); }
+  else if (e.key === 'ArrowRight') { audio.currentTime = Math.min(duration, audio.currentTime + 1); }
+});
+
+/* ---------- Init ---------- */
+renderLabels();
+</script>
+</body>
+</html>

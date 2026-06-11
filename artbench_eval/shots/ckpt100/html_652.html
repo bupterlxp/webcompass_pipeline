@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheduler — Task Scheduler</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  color: #fff;
+  line-height: 1.6;
+}
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+.app-header p { margin: 0; opacity: 0.85; font-size: 15px; }
+.panel {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  padding: 24px;
+}
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #fff;
+  opacity: 0.88;
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.field textarea { resize: vertical; min-height: 80px; }
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: #fff; color: #1e3a8a; }
+.btn-primary:hover { background: #e2e8f0; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#tasks-list { list-style: none; padding: 0; margin: 0; }
+#tasks-list li {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+#tasks-list li:hover { background: rgba(255, 255, 255, 0.14); transform: translateX(2px); }
+#tasks-list li.removing { animation: fadeOut 0.3s ease forwards; }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+#add-task-btn { width: 100%; }
+#task-form { display: flex; flex-direction: column; gap: 14px; }
+.custom-field { display: none; }
+.custom-field.show { display: block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1>Scheduler</h1>
+    <p>Manage your scheduled tasks</p>
+  </header>
+
+  <section class="panel" id="tasks-panel">
+    <h2>Tasks</h2>
+    <ul id="tasks-list"></ul>
+    <button id="add-task-btn" class="btn">+ Add Task</button>
+  </section>
+
+  <section class="panel" id="task-form-panel">
+    <h2>Add a Task</h2>
+    <form id="task-form">
+      <div class="field">
+        <label for="task-name">Name</label>
+        <input type="text" id="task-name" placeholder="Reminder" required>
+      </div>
+      <div class="field">
+        <label for="task-time">Time</label>
+        <input type="time" id="task-time" required>
+      </div>
+      <div class="field">
+        <label for="task-repeat">Repeat</label>
+        <select id="task-repeat">
+          <option value="daily">Daily</option>
+          <option value="hourly">Every Hour</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="task-action">Action</label>
+        <select id="task-action">
+          <option value="notify">Show notification</option>
+          <option value="reload">Reload page</option>
+          <option value="custom">Custom script</option>
+        </select>
+      </div>
+      <div class="field custom-field" id="custom-script-field" hidden>
+        <label for="task-script">Custom JavaScript</label>
+        <textarea id="task-script" rows="4" placeholder="e.g., console.log('Hello');"></textarea>
+      </div>
+      <div class="field">
+        <label for="task-delay">Delay (seconds)</label>
+        <input type="number" id="task-delay" value="1" min="1" max="3600">
+      </div>
+      <button type="submit" class="btn btn-primary">Save Task</button>
+    </form>
+  </section>
+</div>
+
+<script>// ---------- Storage ----------
+const STORAGE_KEY = 'scheduler.tasks.v1';
+
+function loadTasks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveTasks(tasks) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch (e) {
+    // ignore
+  }
+}
+
+// ---------- Task Model ----------
+function Task(id, name, time, repeat, action, script, delay) {
+  this.id = id;
+  this.name = name;
+  this.time = time;
+  this.repeat = repeat;
+  this.action = action;
+  this.script = script;
+  this.delay = delay || 1;
+}
+
+Task.prototype.isDue = function(now) {
+  const [h, m] = this.time.split(':').map(Number);
+  const nowH = now.getHours();
+  const nowM = now.getMinutes();
+  const nowS = now.getSeconds();
+  const due = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+
+  if (this.repeat === 'hourly') {
+    // hourly: trigger every hour at the same minute
+    const hourDiff = (nowH - h + 24) % 24;
+    if (hourDiff === 0 && nowM === m && nowS >= 0) return true;
+  } else if (this.repeat === 'daily') {
+    // daily: trigger at the same time every day
+    if (nowH === h && nowM === m && nowS >= 0) return true;
+  } else if (this.repeat === 'weekly') {
+    // weekly: trigger on same day of week at same time
+    const dow = now.getDay();
+    const dueDow = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getDay();
+    if (dow === dueDow && nowH === h && nowM === m && nowS >= 0) return true;
+  }
+  return false;
+};
+
+// ---------- UI ----------
+const $ = (id) => document.getElementById(id);
+const tasksList = $('tasks-list');
+const taskForm = $('task-form');
+const taskName = $('task-name');
+const taskTime = $('task-time');
+const taskRepeat = $('task-repeat');
+const taskAction = $('task-action');
+const taskDelay = $('task-delay');
+const customScriptField = $('custom-script-field');
+const customScript = $('task-script');
+const addTaskBtn = $('add-task-btn');
+
+function renderTasks() {
+  const tasks = loadTasks();
+  tasksList.innerHTML = '';
+  tasks.forEach((t) => tasksList.appendChild(createTaskElement(t)));
+}
+
+function createTaskElement(task) {
+  const li = document.createElement('li');
+  li.dataset.id = task.id;
+  li.innerHTML = `
+    <span class="task-name">${escapeHtml(task.name)}</span>
+    <span class="task-time">${task.time}</span>
+    <span class="task-repeat">${task.repeat}</span>
+    <span class="task-action">${task.action}</span>
+    <button class="btn btn-danger" data-action="delete">✕ Delete</button>
+  `;
+  return li;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function updateCustomField() {
+  customScriptField.classList.toggle('show', taskAction.value === 'custom');
+}
+
+// ---------- Notifications ----------
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  Notification.requestPermission().then((p) => {
+    if (p === 'granted') {
+      Notification.permission = 'granted';
+    }
+  });
+  return Notification.permission === 'granted';
+}
+
+function showNotification(task) {
+  if (!requestNotificationPermission()) return;
+  const opts = {
+    body: `Task "${task.name}" is due`,
+    icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+  };
+  new Notification(task.name, opts);
+}
+
+// ---------- Actions ----------
+function executeAction(task, now) {
+  if (task.action === 'notify') {
+    showNotification(task);
+  } else if (task.action === 'reload') {
+    if (window.location.reload) window.location.reload();
+  } else if (task.action === 'custom') {
+    try {
+      const script = task.script.trim();
+      if (!script) return;
+      // Execute in current page context
+      const fn = new Function('window', 'console', script);
+      fn(window, console);
+    } catch (e) {
+      console.error('Custom script failed:', e);
+    }
+  }
+}
+
+// ---------- Scheduler ----------
+function scheduleTask(task) {
+  if (task.repeat === 'hourly') {
+    // Schedule every hour at the same minute
+    const [h, m] = task.time.split(':').map(Number);
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+    if (target <= now) target.setHours(target.getHours() + 24);
+    const delay = Math.max(1, target - now);
+    setTimeout(() => {
+      executeAction(task, new Date());
+      scheduleTask(task);
+    }, delay * 1000);
+  } else {
+    // Daily or weekly
+    const [h, m] = task.time.split(':').map(Number);
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    const delay = Math.max(1, target - now);
+    setTimeout(() => {
+      executeAction(task, new Date());
+      scheduleTask(task);
+    }, delay * 1000);
+  }
+}
+
+// ---------- Form ----------
+taskForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = taskName.value.trim();
+  const time = taskTime.value;
+  const repeat = taskRepeat.value;
+  const action = taskAction.value;
+  const delay = parseInt(taskDelay.value, 10) || 1;
+
+  if (!name || !time) return;
+
+  const id = 't_' + Date.now();
+  const task = new Task(id, name, time, repeat, action, customScript.value, delay);
+  const tasks = loadTasks();
+  tasks.push(task);
+  saveTasks(tasks);
+  renderTasks();
+
+  // Schedule it
+  scheduleTask(task);
+
+  taskName.value = '';
+  taskTime.value = '09:00';
+  taskRepeat.value = 'daily';
+  taskAction.value = 'notify';
+  taskDelay.value = '1';
+  customScript.value = '';
+  updateCustomField();
+  addTaskBtn.focus();
+});
+
+// Delete
+tasksList.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="delete"]');
+  if (!btn) return;
+  const li = btn.closest('li');
+  const id = li.dataset.id;
+  const tasks = loadTasks();
+  const idx = tasks.findIndex((t) => t.id === id);
+  if (idx >= 0) {
+    tasks.splice(idx, 1);
+    saveTasks(tasks);
+    li.classList.add('removing');
+    setTimeout(() => li.remove(), 300);
+  }
+});
+
+// Toggle custom field
+taskAction.addEventListener('change', updateCustomField);
+
+// ---------- Init ----------
+renderTasks();
+updateCustomField();
+</script></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

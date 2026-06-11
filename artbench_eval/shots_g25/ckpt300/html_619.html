@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>/* {{ url_for( not found in result */</style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <div class="brand">
+                <div class="brand-logo">📦</div>
+                <div>
+                    <h1>Inventory Management</h1>
+                    <p class="tagline">Track, manage, and alert on your stock</p>
+                </div>
+            </div>
+            <nav class="header-nav">
+                <a href="{{ url_for('index') }}" class="nav-link active">Dashboard</a>
+                <a href="{{ url_for('add_product') }}" class="nav-link">Add Product</a>
+                <a href="#" class="nav-link">Reports</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="page-intro">
+            <h2>Product Inventory</h2>
+            <p class="muted">Manage your products, set thresholds, and get alerted when stock gets low.</p>
+        </section>
+
+        <div class="card search-card">
+            <form class="search-form" method="GET" action="{{ url_for('index') }}">
+                <div class="search-field">
+                    <label for="search">Search</label>
+                    <input type="search" id="search" name="search" placeholder="Search by name..." value="{{ request.args.get('search', '') }}">
+                </div>
+                <div class="search-field">
+                    <label for="category">Category</label>
+                    <input type="search" id="category" name="category" placeholder="Category..." value="{{ request.args.get('category', '') }}">
+                </div>
+                <button type="submit" class="btn btn-primary">Search</button>
+                <a href="{{ url_for('index') }}" class="btn btn-ghost">Reset</a>
+            </form>
+        </div>
+
+        <div class="card stats-card">
+            <div class="stat">
+                <span class="stat-label">Total Products</span>
+                <span class="stat-value">{{ total }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Low Stock</span>
+                <span class="stat-value red">{{ low_stock_count }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Value</span>
+                <span class="stat-value">${{ total_value|floatformat:2 }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Avg Price</span>
+                <span class="stat-value">${{ avg_price|floatformat:2 }}</span>
+            </div>
+        </div>
+
+        <div class="card table-card">
+            <div class="table-header">
+                <h3>Products</h3>
+                <div class="table-actions">
+                    <a href="{{ url_for('add_product') }}" class="btn btn-primary">+ Add Product</a>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Qty</th>
+                            <th>Threshold</th>
+                            <th>Status</th>
+                            <th class="actions-col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products.items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <div class="product-name">
+                                    <strong>{{ product.name }}</strong>
+                                    {% if product.notes %}
+                                    <span class="muted small">({{ product.notes }})</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>{{ product.category or '—' }}</td>
+                            <td>$ {{ product.price|floatformat:2 }}</td>
+                            <td>{{ product.quantity }}</td>
+                            <td>{{ product.threshold }}</td>
+                            <td>
+                                <span class="status-pill {{ 'low' if product.is_low_stock() else 'ok' }}">
+                                    {% if product.is_low_stock() %}
+                                    <span class="dot red"></span> Low Stock
+                                    {% else %}
+                                    <span class="dot green"></span> OK
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="actions-col">
+                                <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-outline btn-sm">Edit</a>
+                                <a href="{{ url_for('delete_product', product_id=product.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this product?')">Delete</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <nav aria-label="Pagination">
+                    <a href="?page={{ products.prev_num }}&search={{ request.args.get('search')|urlencode }}&category={{ request.args.get('category')|urlencode }}" class="page-link {{ '' if products.prev_num else 'disabled' }}">‹ Prev</a>
+                    {% for p in products.iter_pages() %}
+                    {% if p %}
+                    <a href="?page={{ p }}&search={{ request.args.get('search')|urlencode }}&category={{ request.args.get('category')|urlencode }}" class="page-link {{ 'active' if p == products.page }}">{{ p }}</a>
+                    {% endif %}
+                    {% endfor %}
+                    <a href="?page={{ products.next_num }}&search={{ request.args.get('search')|urlencode }}&category={{ request.args.get('category')|urlencode }}" class="page-link {{ '' if products.next_num else 'disabled' }}">Next ›</a>
+                </nav>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>© {{ year }} Inventory Management · Built with Flask & SQLite</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

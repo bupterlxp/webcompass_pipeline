@@ -1,0 +1,80 @@
+<html>
+<head>
+    <title>Drone Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="#">Drone Management System</a>
+        <span class="navbar-text text-white">
+            Role: {{ role }} | <a href="/logout" class="text-danger text-decoration-none">Logout</a>
+        </span>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    {% if role == 'admin' %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">Add New Drone</div>
+        <div class="card-body">
+            <form method="POST" action="/add_drone" class="d-flex">
+                <input type="text" name="name" class="form-control me-2" placeholder="Drone Name" required>
+                <button type="submit" class="btn btn-success">Add Drone</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header bg-secondary text-white">Drone Fleet Status</div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drone in drones %}
+                    <tr>
+                        <td>{{ drone[0] }}</td>
+                        <td>{{ drone[1] }}</td>
+                        <td>
+                            {% if drone[2] == 'In-flight' %}
+                                <span class="badge bg-success">{{ drone[2] }}</span>
+                            {% elif drone[2] == 'Malfunction' %}
+                                <span class="badge bg-danger">{{ drone[2] }}</span>
+                            {% elif drone[2] == 'Landing' %}
+                                <span class="badge bg-warning text-dark">{{ drone[2] }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ drone[2] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if drone[2] == 'Idle' or drone[2] == 'Landing' %}
+                                <form method="POST" action="/action/{{ drone[0] }}" style="display:inline;">
+                                    <input type="hidden" name="action" value="takeoff">
+                                    <button type="submit" class="btn btn-sm btn-primary">Takeoff</button>
+                                </form>
+                            {% elif drone[2] == 'In-flight' %}
+                                <form method="POST" action="/action/{{ drone[0] }}" style="display:inline;">
+                                    <input type="hidden" name="action" value="land">
+                                    <button type="submit" class="btn btn-sm btn-warning">Land</button>
+                                </form>
+                            {% else %}
+                                <button class="btn btn-sm btn-secondary" disabled>Unavailable</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

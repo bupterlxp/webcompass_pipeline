@@ -1,0 +1,2659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Image Annotation Tool</title>
+    <style>
+        /* ========== Global Reset & Base Styles ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== Top Header Bar ========== */
+        .header {
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #e94560;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            color: #e94560;
+            letter-spacing: 1px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* ========== Button Styles ========== */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #ff6b81;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-secondary {
+            background: #533483;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #6c44a2;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #0f9b58;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #12b866;
+            transform: translateY(-1px);
+        }
+
+        .btn-warning {
+            background: #e67e22;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #f39c12;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* ========== Main Layout ========== */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ========== Left Toolbar ========== */
+        .toolbar {
+            width: 60px;
+            background: #16213e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            gap: 8px;
+            border-right: 1px solid #2a2a4a;
+            flex-shrink: 0;
+        }
+
+        .tool-btn {
+            width: 44px;
+            height: 44px;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            background: #1a1a2e;
+            color: #a0a0c0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tool-btn:hover {
+            background: #2a2a4a;
+            color: #e94560;
+        }
+
+        .tool-btn.active {
+            border-color: #e94560;
+            background: #2a1a3e;
+            color: #e94560;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+        }
+
+        .tool-btn .tooltip {
+            position: absolute;
+            left: 55px;
+            background: #333;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+        }
+
+        .tool-btn:hover .tooltip {
+            opacity: 1;
+        }
+
+        .toolbar-divider {
+            width: 30px;
+            height: 1px;
+            background: #2a2a4a;
+            margin: 5px 0;
+        }
+
+        /* ========== Canvas Area ========== */
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #12121f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #mainCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* Upload overlay shown when no image is loaded */
+        .upload-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(18, 18, 31, 0.95);
+            z-index: 10;
+        }
+
+        .upload-overlay.hidden {
+            display: none;
+        }
+
+        .upload-zone {
+            width: 400px;
+            height: 300px;
+            border: 3px dashed #533483;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover {
+            border-color: #e94560;
+            background: rgba(233, 69, 96, 0.05);
+        }
+
+        .upload-zone.dragover {
+            border-color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            color: #a0a0c0;
+            margin-bottom: 8px;
+        }
+
+        .upload-subtext {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* ========== Right Panel ========== */
+        .right-panel {
+            width: 280px;
+            background: #16213e;
+            border-left: 1px solid #2a2a4a;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            padding: 15px;
+            border-bottom: 1px solid #2a2a4a;
+        }
+
+        .panel-section h3 {
+            font-size: 13px;
+            color: #e94560;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        /* ========== Property Controls ========== */
+        .prop-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .prop-row label {
+            font-size: 12px;
+            color: #a0a0c0;
+            width: 70px;
+            flex-shrink: 0;
+        }
+
+        .prop-row input[type="color"] {
+            width: 36px;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .prop-row input[type="range"] {
+            flex: 1;
+            accent-color: #e94560;
+        }
+
+        .prop-row input[type="number"],
+        .prop-row input[type="text"] {
+            flex: 1;
+            padding: 5px 8px;
+            border: 1px solid #2a2a4a;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 12px;
+        }
+
+        .prop-row select {
+            flex: 1;
+            padding: 5px 8px;
+            border: 1px solid #2a2a4a;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 12px;
+        }
+
+        .prop-row .value-display {
+            font-size: 12px;
+            color: #e94560;
+            width: 30px;
+            text-align: right;
+        }
+
+        /* ========== Annotations List ========== */
+        .annotations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 15px;
+        }
+
+        .annotations-list h3 {
+            font-size: 13px;
+            color: #e94560;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            position: sticky;
+            top: 0;
+            background: #16213e;
+            padding: 5px 0;
+        }
+
+        .annotation-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+            gap: 8px;
+        }
+
+        .annotation-item:hover {
+            background: #1a1a2e;
+        }
+
+        .annotation-item.selected {
+            background: #2a1a3e;
+            border: 1px solid #e94560;
+        }
+
+        .annotation-item .ann-icon {
+            font-size: 16px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .annotation-item .ann-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .annotation-item .ann-delete {
+            width: 22px;
+            height: 22px;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .annotation-item .ann-delete:hover {
+            background: #e94560;
+            color: white;
+        }
+
+        .annotation-item .ann-visibility {
+            width: 22px;
+            height: 22px;
+            border: none;
+            background: transparent;
+            color: #a0a0c0;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .annotation-item .ann-visibility:hover {
+            color: #e94560;
+        }
+
+        /* ========== Status Bar ========== */
+        .status-bar {
+            background: #0f0f1a;
+            padding: 5px 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #666;
+            border-top: 1px solid #2a2a4a;
+            flex-shrink: 0;
+        }
+
+        /* ========== Scrollbar Styles ========== */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #533483;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e94560;
+        }
+
+        /* ========== Modal for text input ========== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 25px;
+            width: 380px;
+            border: 1px solid #2a2a4a;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h3 {
+            color: #e94560;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .modal input[type="text"],
+        .modal textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 15px;
+            resize: vertical;
+        }
+
+        .modal textarea {
+            height: 80px;
+            font-family: inherit;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* ========== Zoom Controls ========== */
+        .zoom-controls {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            display: flex;
+            gap: 5px;
+            z-index: 5;
+        }
+
+        .zoom-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: #16213e;
+            color: #a0a0c0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #2a2a4a;
+            color: #e94560;
+        }
+
+        .zoom-display {
+            height: 36px;
+            padding: 0 12px;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: #16213e;
+            color: #a0a0c0;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        /* ========== Context Menu ========== */
+        .context-menu {
+            position: fixed;
+            background: #16213e;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            padding: 5px 0;
+            min-width: 160px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 500;
+        }
+
+        .context-menu.hidden {
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background: #2a1a3e;
+            color: #e94560;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #2a2a4a;
+            margin: 4px 0;
+        }
+
+        /* ========== No selection info ========== */
+        .no-selection {
+            text-align: center;
+            color: #555;
+            font-size: 12px;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        /* ========== Keyboard shortcuts hint ========== */
+        .shortcuts-hint {
+            padding: 10px 15px;
+            font-size: 11px;
+            color: #555;
+            border-top: 1px solid #2a2a4a;
+        }
+
+        .shortcuts-hint div {
+            margin-bottom: 3px;
+        }
+
+        .shortcuts-hint kbd {
+            background: #1a1a2e;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #2a2a4a;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== Header ========== -->
+    <div class="header">
+        <h1>🖼️ Image Annotation Tool</h1>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="btnUpload" title="Upload a new image">
+                📂 Upload Image
+            </button>
+            <button class="btn btn-warning" id="btnUndo" disabled title="Undo (Ctrl+Z)">
+                ↩ Undo
+            </button>
+            <button class="btn btn-warning" id="btnRedo" disabled title="Redo (Ctrl+Y)">
+                ↪ Redo
+            </button>
+            <button class="btn btn-secondary" id="btnClearAll" title="Remove all annotations">
+                🗑️ Clear All
+            </button>
+            <button class="btn btn-success" id="btnExport" title="Export annotated image as PNG">
+                💾 Export PNG
+            </button>
+        </div>
+    </div>
+
+    <!-- ========== Main Content ========== -->
+    <div class="main-container">
+
+        <!-- Left Toolbar -->
+        <div class="toolbar">
+            <button class="tool-btn active" data-tool="select" title="Select & Move">
+                ➤
+                <span class="tooltip">Select (V)</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="tool-btn" data-tool="rectangle" title="Draw Rectangle">
+                ▭
+                <span class="tooltip">Rectangle (R)</span>
+            </button>
+            <button class="tool-btn" data-tool="circle" title="Draw Circle/Ellipse">
+                ○
+                <span class="tooltip">Circle (C)</span>
+            </button>
+            <button class="tool-btn" data-tool="line" title="Draw Line">
+                ╱
+                <span class="tooltip">Line (L)</span>
+            </button>
+            <button class="tool-btn" data-tool="arrow" title="Draw Arrow">
+                ➜
+                <span class="tooltip">Arrow (A)</span>
+            </button>
+            <button class="tool-btn" data-tool="freehand" title="Freehand Draw">
+                ✎
+                <span class="tooltip">Freehand (F)</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="tool-btn" data-tool="text" title="Add Text">
+                T
+                <span class="tooltip">Text (T)</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="tool-btn" data-tool="pan" title="Pan Canvas">
+                ✋
+                <span class="tooltip">Pan (Space)</span>
+            </button>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area" id="canvasArea">
+            <!-- Upload overlay -->
+            <div class="upload-overlay" id="uploadOverlay">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Drop an image here or click to upload</div>
+                    <div class="upload-subtext">Supports JPG, PNG, GIF, BMP, WebP</div>
+                </div>
+            </div>
+
+            <!-- Canvas wrapper -->
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <canvas id="mainCanvas"></canvas>
+            </div>
+
+            <!-- Zoom controls -->
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="btnZoomOut" title="Zoom Out">−</button>
+                <div class="zoom-display" id="zoomDisplay">100%</div>
+                <button class="zoom-btn" id="btnZoomIn" title="Zoom In">+</button>
+                <button class="zoom-btn" id="btnZoomFit" title="Fit to Screen">⊡</button>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <!-- Properties Section -->
+            <div class="panel-section" id="propertiesPanel">
+                <h3>🎨 Properties</h3>
+                <div id="propsContent">
+                    <div class="no-selection">Select an annotation to edit its properties</div>
+                </div>
+            </div>
+
+            <!-- Default Style Section -->
+            <div class="panel-section">
+                <h3>🖌️ Default Style</h3>
+                <div class="prop-row">
+                    <label>Stroke</label>
+                    <input type="color" id="defaultStrokeColor" value="#e94560">
+                </div>
+                <div class="prop-row">
+                    <label>Fill</label>
+                    <input type="color" id="defaultFillColor" value="#e94560">
+                    <label style="width:auto; margin-left:5px;">
+                        <input type="checkbox" id="defaultFillEnabled"> Fill
+                    </label>
+                </div>
+                <div class="prop-row">
+                    <label>Width</label>
+                    <input type="range" id="defaultStrokeWidth" min="1" max="20" value="3">
+                    <span class="value-display" id="defaultStrokeWidthVal">3</span>
+                </div>
+                <div class="prop-row">
+                    <label>Opacity</label>
+                    <input type="range" id="defaultOpacity" min="10" max="100" value="100">
+                    <span class="value-display" id="defaultOpacityVal">100%</span>
+                </div>
+                <div class="prop-row">
+                    <label>Font Size</label>
+                    <input type="number" id="defaultFontSize" value="20" min="8" max="120">
+                </div>
+            </div>
+
+            <!-- Annotations List -->
+            <div class="annotations-list" id="annotationsList">
+                <h3>📋 Annotations</h3>
+                <div id="annotationsListContent">
+                    <div class="no-selection">No annotations yet</div>
+                </div>
+            </div>
+
+            <!-- Keyboard Shortcuts -->
+            <div class="shortcuts-hint">
+                <div><kbd>Del</kbd> Delete selected</div>
+                <div><kbd>Ctrl+Z</kbd> Undo</div>
+                <div><kbd>Ctrl+Y</kbd> Redo</div>
+                <div><kbd>Ctrl+A</kbd> Select all</div>
+                <div><kbd>Esc</kbd> Deselect</div>
+                <div><kbd>Space</kbd> Pan mode</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Status Bar ========== -->
+    <div class="status-bar">
+        <span id="statusLeft">Ready — Upload an image to begin</span>
+        <span id="statusRight">Canvas: 0 × 0</span>
+    </div>
+
+    <!-- ========== Text Input Modal ========== -->
+    <div class="modal-overlay hidden" id="textModal">
+        <div class="modal">
+            <h3>✏️ Add Text Annotation</h3>
+            <textarea id="textInput" placeholder="Enter your text here..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="textCancel">Cancel</button>
+                <button class="btn btn-primary" id="textConfirm">Add Text</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Context Menu ========== -->
+    <div class="context-menu hidden" id="contextMenu">
+        <div class="context-menu-item" data-action="duplicate">📋 Duplicate</div>
+        <div class="context-menu-item" data-action="bringFront">⬆ Bring to Front</div>
+        <div class="context-menu-item" data-action="sendBack">⬇ Send to Back</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="delete">🗑️ Delete</div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+
+    <script>
+    /**
+     * ============================================================
+     *  ONLINE IMAGE ANNOTATION TOOL
+     *  A complete, self-contained image annotation application.
+     * ============================================================
+     */
+
+    // ==================== UTILITY FUNCTIONS ====================
+
+    /**
+     * Generate a unique ID for each annotation
+     */
+    function generateId() {
+        return 'ann_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    /**
+     * Clamp a value between min and max
+     */
+    function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+    }
+
+    /**
+     * Calculate distance between two points
+     */
+    function distance(x1, y1, x2, y2) {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    }
+
+    /**
+     * Check if a point is inside a rectangle
+     */
+    function pointInRect(px, py, x, y, w, h) {
+        const minX = Math.min(x, x + w);
+        const maxX = Math.max(x, x + w);
+        const minY = Math.min(y, y + h);
+        const maxY = Math.max(y, y + h);
+        return px >= minX && px <= maxX && py >= minY && py <= maxY;
+    }
+
+    /**
+     * Check if a point is inside an ellipse
+     */
+    function pointInEllipse(px, py, cx, cy, rx, ry) {
+        if (rx === 0 || ry === 0) return false;
+        return ((px - cx) ** 2) / (rx ** 2) + ((py - cy) ** 2) / (ry ** 2) <= 1;
+    }
+
+    /**
+     * Distance from point to line segment
+     */
+    function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return distance(px, py, x1, y1);
+        let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+        t = clamp(t, 0, 1);
+        return distance(px, py, x1 + t * dx, y1 + t * dy);
+    }
+
+    // ==================== ANNOTATION CLASSES ====================
+
+    /**
+     * Base class for all annotations
+     */
+    class Annotation {
+        constructor(type, options = {}) {
+            this.id = generateId();
+            this.type = type;
+            this.strokeColor = options.strokeColor || '#e94560';
+            this.fillColor = options.fillColor || '#e94560';
+            this.fillEnabled = options.fillEnabled || false;
+            this.strokeWidth = options.strokeWidth || 3;
+            this.opacity = options.opacity !== undefined ? options.opacity : 1;
+            this.visible = true;
+            this.selected = false;
+            this.name = options.name || type;
+        }
+
+        /**
+         * Draw the annotation on the canvas context
+         */
+        draw(ctx) {
+            // Override in subclasses
+        }
+
+        /**
+         * Check if a point (in image coordinates) hits this annotation
+         */
+        hitTest(x, y) {
+            return false;
+        }
+
+        /**
+         * Get bounding box {x, y, w, h}
+         */
+        getBounds() {
+            return { x: 0, y: 0, w: 0, h: 0 };
+        }
+
+        /**
+         * Move annotation by dx, dy
+         */
+        move(dx, dy) {
+            // Override in subclasses
+        }
+
+        /**
+         * Serialize to plain object for undo/redo
+         */
+        serialize() {
+            return JSON.parse(JSON.stringify(this));
+        }
+
+        /**
+         * Draw selection handles around the annotation
+         */
+        drawSelection(ctx) {
+            const bounds = this.getBounds();
+            const padding = 5;
+            const x = bounds.x - padding;
+            const y = bounds.y - padding;
+            const w = bounds.w + padding * 2;
+            const h = bounds.h + padding * 2;
+
+            ctx.save();
+            ctx.strokeStyle = '#00bfff';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 3]);
+            ctx.strokeRect(x, y, w, h);
+            ctx.setLineDash([]);
+
+            // Draw corner handles
+            const handleSize = 7;
+            const handles = this.getResizeHandles();
+            handles.forEach(handle => {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#00bfff';
+                ctx.lineWidth = 1.5;
+                ctx.fillRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
+                ctx.strokeRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
+            });
+
+            ctx.restore();
+        }
+
+        /**
+         * Get resize handle positions
+         */
+        getResizeHandles() {
+            const b = this.getBounds();
+            return [
+                { x: b.x, y: b.y, cursor: 'nw-resize', pos: 'tl' },
+                { x: b.x + b.w, y: b.y, cursor: 'ne-resize', pos: 'tr' },
+                { x: b.x + b.w, y: b.y + b.h, cursor: 'se-resize', pos: 'br' },
+                { x: b.x, y: b.y + b.h, cursor: 'sw-resize', pos: 'bl' },
+            ];
+        }
+
+        /**
+         * Check if a point hits a resize handle; returns handle or null
+         */
+        hitTestHandle(x, y) {
+            const handles = this.getResizeHandles();
+            const threshold = 8;
+            for (const handle of handles) {
+                if (Math.abs(x - handle.x) < threshold && Math.abs(y - handle.y) < threshold) {
+                    return handle;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Resize based on handle drag
+         */
+        resize(handle, dx, dy) {
+            // Override in subclasses
+        }
+    }
+
+    /**
+     * Rectangle annotation
+     */
+    class RectangleAnnotation extends Annotation {
+        constructor(x, y, w, h, options = {}) {
+            super('rectangle', options);
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.name = options.name || 'Rectangle';
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+
+            if (this.fillEnabled) {
+                ctx.fillStyle = this.fillColor;
+                ctx.fillRect(this.x, this.y, this.w, this.h);
+            }
+
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.strokeRect(this.x, this.y, this.w, this.h);
+
+            ctx.restore();
+        }
+
+        hitTest(x, y) {
+            const tolerance = this.strokeWidth + 4;
+            const minX = Math.min(this.x, this.x + this.w) - tolerance;
+            const maxX = Math.max(this.x, this.x + this.w) + tolerance;
+            const minY = Math.min(this.y, this.y + this.h) - tolerance;
+            const maxY = Math.max(this.y, this.y + this.h) + tolerance;
+
+            if (this.fillEnabled) {
+                return pointInRect(x, y, this.x, this.y, this.w, this.h);
+            }
+
+            // Check if near the border
+            if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                const innerMinX = Math.min(this.x, this.x + this.w) + tolerance;
+                const innerMaxX = Math.max(this.x, this.x + this.w) - tolerance;
+                const innerMinY = Math.min(this.y, this.y + this.h) + tolerance;
+                const innerMaxY = Math.max(this.y, this.y + this.h) - tolerance;
+                if (x >= innerMinX && x <= innerMaxX && y >= innerMinY && y <= innerMaxY) {
+                    return false; // Inside the inner area (not near border)
+                }
+                return true;
+            }
+            return false;
+        }
+
+        getBounds() {
+            return {
+                x: Math.min(this.x, this.x + this.w),
+                y: Math.min(this.y, this.y + this.h),
+                w: Math.abs(this.w),
+                h: Math.abs(this.h)
+            };
+        }
+
+        move(dx, dy) {
+            this.x += dx;
+            this.y += dy;
+        }
+
+        resize(handle, dx, dy) {
+            switch (handle.pos) {
+                case 'tl':
+                    this.x += dx;
+                    this.y += dy;
+                    this.w -= dx;
+                    this.h -= dy;
+                    break;
+                case 'tr':
+                    this.y += dy;
+                    this.w += dx;
+                    this.h -= dy;
+                    break;
+                case 'br':
+                    this.w += dx;
+                    this.h += dy;
+                    break;
+                case 'bl':
+                    this.x += dx;
+                    this.w -= dx;
+                    this.h += dy;
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Circle/Ellipse annotation
+     */
+    class CircleAnnotation extends Annotation {
+        constructor(cx, cy, rx, ry, options = {}) {
+            super('circle', options);
+            this.cx = cx;
+            this.cy = cy;
+            this.rx = rx;
+            this.ry = ry;
+            this.name = options.name || 'Ellipse';
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.beginPath();
+            ctx.ellipse(this.cx, this.cy, Math.abs(this.rx), Math.abs(this.ry), 0, 0, Math.PI * 2);
+
+            if (this.fillEnabled) {
+                ctx.fillStyle = this.fillColor;
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        hitTest(x, y) {
+            const tolerance = this.strokeWidth + 4;
+            if (this.fillEnabled) {
+                return pointInEllipse(x, y, this.cx, this.cy, Math.abs(this.rx) + tolerance, Math.abs(this.ry) + tolerance);
+            }
+            const outerHit = pointInEllipse(x, y, this.cx, this.cy, Math.abs(this.rx) + tolerance, Math.abs(this.ry) + tolerance);
+            const innerHit = pointInEllipse(x, y, this.cx, this.cy, Math.max(0, Math.abs(this.rx) - tolerance), Math.max(0, Math.abs(this.ry) - tolerance));
+            return outerHit && !innerHit;
+        }
+
+        getBounds() {
+            return {
+                x: this.cx - Math.abs(this.rx),
+                y: this.cy - Math.abs(this.ry),
+                w: Math.abs(this.rx) * 2,
+                h: Math.abs(this.ry) * 2
+            };
+        }
+
+        move(dx, dy) {
+            this.cx += dx;
+            this.cy += dy;
+        }
+
+        resize(handle, dx, dy) {
+            switch (handle.pos) {
+                case 'tl':
+                    this.rx -= dx / 2;
+                    this.ry -= dy / 2;
+                    this.cx += dx / 2;
+                    this.cy += dy / 2;
+                    break;
+                case 'tr':
+                    this.rx += dx / 2;
+                    this.ry -= dy / 2;
+                    this.cx += dx / 2;
+                    this.cy += dy / 2;
+                    break;
+                case 'br':
+                    this.rx += dx / 2;
+                    this.ry += dy / 2;
+                    this.cx += dx / 2;
+                    this.cy += dy / 2;
+                    break;
+                case 'bl':
+                    this.rx -= dx / 2;
+                    this.ry += dy / 2;
+                    this.cx += dx / 2;
+                    this.cy += dy / 2;
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Line annotation
+     */
+    class LineAnnotation extends Annotation {
+        constructor(x1, y1, x2, y2, options = {}) {
+            super('line', options);
+            this.x1 = x1;
+            this.y1 = y1;
+            this.x2 = x2;
+            this.y2 = y2;
+            this.name = options.name || 'Line';
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.beginPath();
+            ctx.moveTo(this.x1, this.y1);
+            ctx.lineTo(this.x2, this.y2);
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        hitTest(x, y) {
+            const tolerance = this.strokeWidth + 5;
+            return pointToSegmentDist(x, y, this.x1, this.y1, this.x2, this.y2) < tolerance;
+        }
+
+        getBounds() {
+            return {
+                x: Math.min(this.x1, this.x2),
+                y: Math.min(this.y1, this.y2),
+                w: Math.abs(this.x2 - this.x1),
+                h: Math.abs(this.y2 - this.y1)
+            };
+        }
+
+        move(dx, dy) {
+            this.x1 += dx;
+            this.y1 += dy;
+            this.x2 += dx;
+            this.y2 += dy;
+        }
+
+        getResizeHandles() {
+            return [
+                { x: this.x1, y: this.y1, cursor: 'move', pos: 'start' },
+                { x: this.x2, y: this.y2, cursor: 'move', pos: 'end' },
+            ];
+        }
+
+        resize(handle, dx, dy) {
+            if (handle.pos === 'start') {
+                this.x1 += dx;
+                this.y1 += dy;
+            } else {
+                this.x2 += dx;
+                this.y2 += dy;
+            }
+        }
+    }
+
+    /**
+     * Arrow annotation
+     */
+    class ArrowAnnotation extends LineAnnotation {
+        constructor(x1, y1, x2, y2, options = {}) {
+            super(x1, y1, x2, y2, options);
+            this.type = 'arrow';
+            this.name = options.name || 'Arrow';
+            this.headLength = options.headLength || 18;
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+
+            const angle = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
+            const headLen = this.headLength + this.strokeWidth;
+
+            // Draw the line
+            ctx.beginPath();
+            ctx.moveTo(this.x1, this.y1);
+            ctx.lineTo(this.x2, this.y2);
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Draw the arrowhead
+            ctx.beginPath();
+            ctx.moveTo(this.x2, this.y2);
+            ctx.lineTo(
+                this.x2 - headLen * Math.cos(angle - Math.PI / 6),
+                this.y2 - headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(this.x2, this.y2);
+            ctx.lineTo(
+                this.x2 - headLen * Math.cos(angle + Math.PI / 6),
+                this.y2 - headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+
+            ctx.restore();
+        }
+    }
+
+    /**
+     * Freehand drawing annotation
+     */
+    class FreehandAnnotation extends Annotation {
+        constructor(points, options = {}) {
+            super('freehand', options);
+            this.points = points || [];
+            this.name = options.name || 'Freehand';
+        }
+
+        draw(ctx) {
+            if (this.points.length < 2) return;
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.beginPath();
+            ctx.moveTo(this.points[0].x, this.points[0].y);
+
+            for (let i = 1; i < this.points.length; i++) {
+                ctx.lineTo(this.points[i].x, this.points[i].y);
+            }
+
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        hitTest(x, y) {
+            const tolerance = this.strokeWidth + 5;
+            for (let i = 0; i < this.points.length - 1; i++) {
+                const d = pointToSegmentDist(x, y,
+                    this.points[i].x, this.points[i].y,
+                    this.points[i + 1].x, this.points[i + 1].y
+                );
+                if (d < tolerance) return true;
+            }
+            return false;
+        }
+
+        getBounds() {
+            if (this.points.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            this.points.forEach(p => {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            });
+            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+        }
+
+        move(dx, dy) {
+            this.points.forEach(p => {
+                p.x += dx;
+                p.y += dy;
+            });
+        }
+
+        addPoint(x, y) {
+            this.points.push({ x, y });
+        }
+    }
+
+    /**
+     * Text annotation
+     */
+    class TextAnnotation extends Annotation {
+        constructor(x, y, text, options = {}) {
+            super('text', options);
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.fontSize = options.fontSize || 20;
+            this.fontFamily = options.fontFamily || 'Arial';
+            this.name = options.name || 'Text';
+            this._cachedBounds = null;
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+            ctx.textBaseline = 'top';
+
+            const lines = this.text.split('\n');
+            const lineHeight = this.fontSize * 1.3;
+
+            // Draw background if fill is enabled
+            if (this.fillEnabled) {
+                const bounds = this.getBounds();
+                ctx.fillStyle = this.fillColor;
+                ctx.globalAlpha = this.opacity * 0.3;
+                ctx.fillRect(bounds.x - 4, bounds.y - 4, bounds.w + 8, bounds.h + 8);
+                ctx.globalAlpha = this.opacity;
+            }
+
+            // Draw text
+            ctx.fillStyle = this.strokeColor;
+            lines.forEach((line, i) => {
+                ctx.fillText(line, this.x, this.y + i * lineHeight);
+            });
+
+            ctx.restore();
+        }
+
+        hitTest(x, y) {
+            const bounds = this.getBounds();
+            return pointInRect(x, y, bounds.x - 4, bounds.y - 4, bounds.w + 8, bounds.h + 8);
+        }
+
+        getBounds() {
+            // We need a canvas context to measure text; use a temporary one
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.font = `${this.fontSize}px ${this.fontFamily}`;
+
+            const lines = this.text.split('\n');
+            const lineHeight = this.fontSize * 1.3;
+            let maxWidth = 0;
+            lines.forEach(line => {
+                const metrics = tempCtx.measureText(line);
+                maxWidth = Math.max(maxWidth, metrics.width);
+            });
+
+            return {
+                x: this.x,
+                y: this.y,
+                w: maxWidth,
+                h: lines.length * lineHeight
+            };
+        }
+
+        move(dx, dy) {
+            this.x += dx;
+            this.y += dy;
+        }
+
+        resize(handle, dx, dy) {
+            // For text, resize changes font size
+            const bounds = this.getBounds();
+            if (bounds.h > 0) {
+                const scale = (bounds.h + dy) / bounds.h;
+                this.fontSize = Math.max(8, Math.round(this.fontSize * scale));
+            }
+        }
+    }
+
+    // ==================== MAIN APPLICATION ====================
+
+    class AnnotationApp {
+        constructor() {
+            // Canvas and context
+            this.canvas = document.getElementById('mainCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            this.canvasArea = document.getElementById('canvasArea');
+            this.canvasWrapper = document.getElementById('canvasWrapper');
+
+            // Image data
+            this.image = null;
+            this.imageLoaded = false;
+
+            // Annotations array
+            this.annotations = [];
+            this.selectedAnnotation = null;
+
+            // Current tool
+            this.currentTool = 'select';
+
+            // Drawing state
+            this.isDrawing = false;
+            this.isDragging = false;
+            this.isResizing = false;
+            this.isPanning = false;
+            this.drawStart = null;
+            this.dragStart = null;
+            this.resizeHandle = null;
+            this.lastMouse = null;
+            this.currentDrawing = null;
+
+            // Pan and zoom
+            this.panX = 0;
+            this.panY = 0;
+            this.zoom = 1;
+            this.panStart = null;
+
+            // Undo/Redo history
+            this.undoStack = [];
+            this.redoStack = [];
+            this.maxHistory = 50;
+
+            // Annotation counter for naming
+            this.annotationCounters = {
+                rectangle: 0,
+                circle: 0,
+                line: 0,
+                arrow: 0,
+                freehand: 0,
+                text: 0
+            };
+
+            // Space key held for panning
+            this.spaceHeld = false;
+
+            // Initialize
+            this.initEventListeners();
+            this.updateUI();
+        }
+
+        // ==================== EVENT LISTENERS ====================
+
+        initEventListeners() {
+            // File upload
+            document.getElementById('btnUpload').addEventListener('click', () => {
+                document.getElementById('fileInput').click();
+            });
+
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.loadImage(e.target.files[0]);
+                }
+            });
+
+            // Upload zone drag and drop
+            const uploadZone = document.getElementById('uploadZone');
+            uploadZone.addEventListener('click', () => {
+                document.getElementById('fileInput').click();
+            });
+
+            uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', () => {
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    this.loadImage(e.dataTransfer.files[0]);
+                }
+            });
+
+            // Also allow drop on the entire canvas area
+            this.canvasArea.addEventListener('dragover', (e) => e.preventDefault());
+            this.canvasArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files.length > 0 && e.dataTransfer.files[0].type.startsWith('image/')) {
+                    this.loadImage(e.dataTransfer.files[0]);
+                }
+            });
+
+            // Tool buttons
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.setTool(btn.dataset.tool);
+                });
+            });
+
+            // Canvas mouse events
+            this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+            this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+            this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+            this.canvas.addEventListener('mouseleave', (e) => this.onMouseUp(e));
+            this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
+            this.canvas.addEventListener('contextmenu', (e) => this.onContextMenu(e));
+
+            // Mouse wheel for zoom
+            this.canvasArea.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                this.setZoom(this.zoom + delta);
+            });
+
+            // Zoom buttons
+            document.getElementById('btnZoomIn').addEventListener('click', () => {
+                this.setZoom(this.zoom + 0.1);
+            });
+            document.getElementById('btnZoomOut').addEventListener('click', () => {
+                this.setZoom(this.zoom - 0.1);
+            });
+            document.getElementById('btnZoomFit').addEventListener('click', () => {
+                this.fitToScreen();
+            });
+
+            // Header buttons
+            document.getElementById('btnUndo').addEventListener('click', () => this.undo());
+            document.getElementById('btnRedo').addEventListener('click', () => this.redo());
+            document.getElementById('btnClearAll').addEventListener('click', () => this.clearAll());
+            document.getElementById('btnExport').addEventListener('click', () => this.exportImage());
+
+            // Default style controls
+            document.getElementById('defaultStrokeWidth').addEventListener('input', (e) => {
+                document.getElementById('defaultStrokeWidthVal').textContent = e.target.value;
+            });
+            document.getElementById('defaultOpacity').addEventListener('input', (e) => {
+                document.getElementById('defaultOpacityVal').textContent = e.target.value + '%';
+            });
+
+            // Text modal
+            document.getElementById('textCancel').addEventListener('click', () => {
+                document.getElementById('textModal').classList.add('hidden');
+                this.pendingTextPosition = null;
+            });
+            document.getElementById('textConfirm').addEventListener('click', () => {
+                this.confirmTextAnnotation();
+            });
+            document.getElementById('textInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.confirmTextAnnotation();
+                }
+            });
+
+            // Context menu
+            document.querySelectorAll('.context-menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    this.handleContextAction(item.dataset.action);
+                    document.getElementById('contextMenu').classList.add('hidden');
+                });
+            });
+
+            // Close context menu on click elsewhere
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.context-menu')) {
+                    document.getElementById('contextMenu').classList.add('hidden');
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => this.onKeyDown(e));
+            document.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                if (this.imageLoaded) {
+                    this.render();
+                }
+            });
+        }
+
+        // ==================== IMAGE LOADING ====================
+
+        loadImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    this.image = img;
+                    this.imageLoaded = true;
+
+                    // Set canvas size to image size
+                    this.canvas.width = img.width;
+                    this.canvas.height = img.height;
+
+                    // Clear annotations for new image
+                    this.annotations = [];
+                    this.selectedAnnotation = null;
+                    this.undoStack = [];
+                    this.redoStack = [];
+
+                    // Hide upload overlay
+                    document.getElementById('uploadOverlay').classList.add('hidden');
+
+                    // Fit to screen
+                    this.fitToScreen();
+
+                    // Update status
+                    document.getElementById('statusLeft').textContent =
+                        `Image loaded: ${file.name} (${img.width} × ${img.height})`;
+
+                    this.render();
+                    this.updateUI();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ==================== TOOL MANAGEMENT ====================
+
+        setTool(tool) {
+            this.currentTool = tool;
+
+            // Update toolbar UI
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tool === tool);
+            });
+
+            // Update cursor
+            this.updateCursor();
+
+            // Deselect when switching to drawing tools
+            if (tool !== 'select') {
+                this.deselectAll();
+            }
+
+            document.getElementById('statusLeft').textContent = `Tool: ${tool.charAt(0).toUpperCase() + tool.slice(1)}`;
+        }
+
+        updateCursor() {
+            switch (this.currentTool) {
+                case 'select':
+                    this.canvas.style.cursor = 'default';
+                    break;
+                case 'pan':
+                    this.canvas.style.cursor = 'grab';
+                    break;
+                case 'text':
+                    this.canvas.style.cursor = 'text';
+                    break;
+                default:
+                    this.canvas.style.cursor = 'crosshair';
+            }
+        }
+
+        // ==================== COORDINATE TRANSFORMS ====================
+
+        /**
+         * Convert screen (mouse event) coordinates to image coordinates
+         */
+        screenToImage(screenX, screenY) {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (screenX - rect.left) / this.zoom;
+            const y = (screenY - rect.top) / this.zoom;
+            return { x, y };
+        }
+
+        // ==================== MOUSE EVENT HANDLERS ====================
+
+        onMouseDown(e) {
+            if (!this.imageLoaded) return;
+            if (e.button === 2) return; // Right click handled by context menu
+
+            const pos = this.screenToImage(e.clientX, e.clientY);
+            this.lastMouse = pos;
+
+            // Pan mode or space held
+            if (this.currentTool === 'pan' || this.spaceHeld) {
+                this.isPanning = true;
+                this.panStart = { x: e.clientX, y: e.clientY, panX: this.panX, panY: this.panY };
+                this.canvas.style.cursor = 'grabbing';
+                return;
+            }
+
+            // Select tool
+            if (this.currentTool === 'select') {
+                // Check if clicking on a resize handle of selected annotation
+                if (this.selectedAnnotation) {
+                    const handle = this.selectedAnnotation.hitTestHandle(pos.x, pos.y);
+                    if (handle) {
+                        this.isResizing = true;
+                        this.resizeHandle = handle;
+                        this.dragStart = { x: pos.x, y: pos.y };
+                        this.saveState();
+                        return;
+                    }
+                }
+
+                // Check if clicking on an annotation (top-most first)
+                let found = null;
+                for (let i = this.annotations.length - 1; i >= 0; i--) {
+                    if (this.annotations[i].visible && this.annotations[i].hitTest(pos.x, pos.y)) {
+                        found = this.annotations[i];
+                        break;
+                    }
+                }
+
+                if (found) {
+                    this.selectAnnotation(found);
+                    this.isDragging = true;
+                    this.dragStart = { x: pos.x, y: pos.y };
+                    this.saveState();
+                } else {
+                    this.deselectAll();
+                }
+                return;
+            }
+
+            // Text tool
+            if (this.currentTool === 'text') {
+                this.pendingTextPosition = { x: pos.x, y: pos.y };
+                document.getElementById('textModal').classList.remove('hidden');
+                document.getElementById('textInput').value = '';
+                document.getElementById('textInput').focus();
+                return;
+            }
+
+            // Drawing tools
+            this.isDrawing = true;
+            this.drawStart = { x: pos.x, y: pos.y };
+
+            const styleOpts = this.getDefaultStyle();
+
+            if (this.currentTool === 'freehand') {
+                this.annotationCounters.freehand++;
+                this.currentDrawing = new FreehandAnnotation([{ x: pos.x, y: pos.y }], {
+                    ...styleOpts,
+                    name: `Freehand ${this.annotationCounters.freehand}`
+                });
+            }
+        }
+
+        onMouseMove(e) {
+            if (!this.imageLoaded) return;
+
+            const pos = this.screenToImage(e.clientX, e.clientY);
+
+            // Update status bar with coordinates
+            document.getElementById('statusRight').textContent =
+                `Canvas: ${this.canvas.width} × ${this.canvas.height} | Pos: ${Math.round(pos.x)}, ${Math.round(pos.y)} | Zoom: ${Math.round(this.zoom * 100)}%`;
+
+            // Panning
+            if (this.isPanning && this.panStart) {
+                const dx = e.clientX - this.panStart.x;
+                const dy = e.clientY - this.panStart.y;
+                this.panX = this.panStart.panX + dx;
+                this.panY = this.panStart.panY + dy;
+                this.applyTransform();
+                return;
+            }
+
+            // Resizing
+            if (this.isResizing && this.selectedAnnotation && this.dragStart) {
+                const dx = pos.x - this.dragStart.x;
+                const dy = pos.y - this.dragStart.y;
+                this.selectedAnnotation.resize(this.resizeHandle, dx, dy);
+                this.dragStart = { x: pos.x, y: pos.y };
+                this.render();
+                this.updatePropertiesPanel();
+                return;
+            }
+
+            // Dragging (moving) annotation
+            if (this.isDragging && this.selectedAnnotation && this.dragStart) {
+                const dx = pos.x - this.dragStart.x;
+                const dy = pos.y - this.dragStart.y;
+                this.selectedAnnotation.move(dx, dy);
+                this.dragStart = { x: pos.x, y: pos.y };
+                this.render();
+                this.updatePropertiesPanel();
+                return;
+            }
+
+            // Drawing
+            if (this.isDrawing && this.drawStart) {
+                const styleOpts = this.getDefaultStyle();
+
+                if (this.currentTool === 'rectangle') {
+                    const w = pos.x - this.drawStart.x;
+                    const h = pos.y - this.drawStart.y;
+                    this.currentDrawing = new RectangleAnnotation(
+                        this.drawStart.x, this.drawStart.y, w, h,
+                        { ...styleOpts, name: `Rectangle ${this.annotationCounters.rectangle + 1}` }
+                    );
+                } else if (this.currentTool === 'circle') {
+                    const cx = (this.drawStart.x + pos.x) / 2;
+                    const cy = (this.drawStart.y + pos.y) / 2;
+                    const rx = Math.abs(pos.x - this.drawStart.x) / 2;
+                    const ry = Math.abs(pos.y - this.drawStart.y) / 2;
+                    this.currentDrawing = new CircleAnnotation(cx, cy, rx, ry,
+                        { ...styleOpts, name: `Ellipse ${this.annotationCounters.circle + 1}` }
+                    );
+                } else if (this.currentTool === 'line') {
+                    this.currentDrawing = new LineAnnotation(
+                        this.drawStart.x, this.drawStart.y, pos.x, pos.y,
+                        { ...styleOpts, name: `Line ${this.annotationCounters.line + 1}` }
+                    );
+                } else if (this.currentTool === 'arrow') {
+                    this.currentDrawing = new ArrowAnnotation(
+                        this.drawStart.x, this.drawStart.y, pos.x, pos.y,
+                        { ...styleOpts, name: `Arrow ${this.annotationCounters.arrow + 1}` }
+                    );
+                } else if (this.currentTool === 'freehand' && this.currentDrawing) {
+                    this.currentDrawing.addPoint(pos.x, pos.y);
+                }
+
+                this.render();
+                return;
+            }
+
+            // Update cursor for select tool (check handles and annotations)
+            if (this.currentTool === 'select') {
+                if (this.selectedAnnotation) {
+                    const handle = this.selectedAnnotation.hitTestHandle(pos.x, pos.y);
+                    if (handle) {
+                        this.canvas.style.cursor = handle.cursor || 'move';
+                        return;
+                    }
+                }
+
+                let hovering = false;
+                for (let i = this.annotations.length - 1; i >= 0; i--) {
+                    if (this.annotations[i].visible && this.annotations[i].hitTest(pos.x, pos.y)) {
+                        hovering = true;
+                        break;
+                    }
+                }
+                this.canvas.style.cursor = hovering ? 'move' : 'default';
+            }
+        }
+
+        onMouseUp(e) {
+            // End panning
+            if (this.isPanning) {
+                this.isPanning = false;
+                this.panStart = null;
+                this.canvas.style.cursor = this.currentTool === 'pan' ? 'grab' : 'default';
+                return;
+            }
+
+            // End resizing
+            if (this.isResizing) {
+                this.isResizing = false;
+                this.resizeHandle = null;
+                this.dragStart = null;
+                this.render();
+                this.updateAnnotationsList();
+                return;
+            }
+
+            // End dragging
+            if (this.isDragging) {
+                this.isDragging = false;
+                this.dragStart = null;
+                this.render();
+                this.updateAnnotationsList();
+                return;
+            }
+
+            // End drawing
+            if (this.isDrawing && this.currentDrawing) {
+                this.isDrawing = false;
+
+                // Only add if the shape has some size
+                const bounds = this.currentDrawing.getBounds();
+                if (bounds.w > 2 || bounds.h > 2 || this.currentDrawing.type === 'freehand') {
+                    this.saveState();
+                    this.annotationCounters[this.currentDrawing.type]++;
+                    this.annotations.push(this.currentDrawing);
+                    this.selectAnnotation(this.currentDrawing);
+                }
+
+                this.currentDrawing = null;
+                this.drawStart = null;
+                this.render();
+                this.updateUI();
+            }
+        }
+
+        onDoubleClick(e) {
+            if (!this.imageLoaded) return;
+
+            const pos = this.screenToImage(e.clientX, e.clientY);
+
+            // Double-click on text annotation to edit
+            if (this.currentTool === 'select' && this.selectedAnnotation && this.selectedAnnotation.type === 'text') {
+                if (this.selectedAnnotation.hitTest(pos.x, pos.y)) {
+                    this.pendingTextPosition = { x: this.selectedAnnotation.x, y: this.selectedAnnotation.y };
+                    this.editingTextAnnotation = this.selectedAnnotation;
+                    document.getElementById('textModal').classList.remove('hidden');
+                    document.getElementById('textInput').value = this.selectedAnnotation.text;
+                    document.getElementById('textInput').focus();
+                }
+            }
+        }
+
+        onContextMenu(e) {
+            e.preventDefault();
+            if (!this.imageLoaded) return;
+
+            const pos = this.screenToImage(e.clientX, e.clientY);
+
+            // Find annotation under cursor
+            let found = null;
+            for (let i = this.annotations.length - 1; i >= 0; i--) {
+                if (this.annotations[i].visible && this.annotations[i].hitTest(pos.x, pos.y)) {
+                    found = this.annotations[i];
+                    break;
+                }
+            }
+
+            if (found) {
+                this.selectAnnotation(found);
+                const menu = document.getElementById('contextMenu');
+                menu.classList.remove('hidden');
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+            }
+        }
+
+        // ==================== KEYBOARD HANDLERS ====================
+
+        onKeyDown(e) {
+            // Don't handle if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Space for panning
+            if (e.code === 'Space' && !this.spaceHeld) {
+                e.preventDefault();
+                this.spaceHeld = true;
+                this.canvas.style.cursor = 'grab';
+                return;
+            }
+
+            // Delete selected annotation
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (this.selectedAnnotation) {
+                    this.saveState();
+                    this.deleteAnnotation(this.selectedAnnotation);
+                }
+                return;
+            }
+
+            // Escape to deselect
+            if (e.key === 'Escape') {
+                this.deselectAll();
+                document.getElementById('textModal').classList.add('hidden');
+                document.getElementById('contextMenu').classList.add('hidden');
+                return;
+            }
+
+            // Ctrl+Z for undo
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                this.undo();
+                return;
+            }
+
+            // Ctrl+Y for redo
+            if (e.ctrlKey && e.key === 'y') {
+                e.preventDefault();
+                this.redo();
+                return;
+            }
+
+            // Ctrl+A to select all (not implemented as multi-select, just select last)
+            if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                if (this.annotations.length > 0) {
+                    this.selectAnnotation(this.annotations[this.annotations.length - 1]);
+                }
+                return;
+            }
+
+            // Tool shortcuts
+            const toolShortcuts = {
+                'v': 'select', 'r': 'rectangle', 'c': 'circle',
+                'l': 'line', 'a': 'arrow', 'f': 'freehand', 't': 'text'
+            };
+            if (toolShortcuts[e.key.toLowerCase()] && !e.ctrlKey) {
+                this.setTool(toolShortcuts[e.key.toLowerCase()]);
+            }
+        }
+
+        onKeyUp(e) {
+            if (e.code === 'Space') {
+                this.spaceHeld = false;
+                this.updateCursor();
+            }
+        }
+
+        // ==================== ANNOTATION MANAGEMENT ====================
+
+        selectAnnotation(annotation) {
+            this.deselectAll();
+            annotation.selected = true;
+            this.selectedAnnotation = annotation;
+            this.render();
+            this.updatePropertiesPanel();
+            this.updateAnnotationsList();
+        }
+
+        deselectAll() {
+            this.annotations.forEach(a => a.selected = false);
+            this.selectedAnnotation = null;
+            this.render();
+            this.updatePropertiesPanel();
+            this.updateAnnotationsList();
+        }
+
+        deleteAnnotation(annotation) {
+            const index = this.annotations.indexOf(annotation);
+            if (index !== -1) {
+                this.annotations.splice(index, 1);
+                if (this.selectedAnnotation === annotation) {
+                    this.selectedAnnotation = null;
+                }
+                this.render();
+                this.updateUI();
+            }
+        }
+
+        duplicateAnnotation(annotation) {
+            const clone = JSON.parse(JSON.stringify(annotation));
+            clone.id = generateId();
+
+            // Offset the clone
+            let newAnn;
+            const opts = {
+                strokeColor: clone.strokeColor,
+                fillColor: clone.fillColor,
+                fillEnabled: clone.fillEnabled,
+                strokeWidth: clone.strokeWidth,
+                opacity: clone.opacity,
+                name: clone.name + ' copy'
+            };
+
+            switch (clone.type) {
+                case 'rectangle':
+                    newAnn = new RectangleAnnotation(clone.x + 20, clone.y + 20, clone.w, clone.h, opts);
+                    break;
+                case 'circle':
+                    newAnn = new CircleAnnotation(clone.cx + 20, clone.cy + 20, clone.rx, clone.ry, opts);
+                    break;
+                case 'line':
+                    newAnn = new LineAnnotation(clone.x1 + 20, clone.y1 + 20, clone.x2 + 20, clone.y2 + 20, opts);
+                    break;
+                case 'arrow':
+                    newAnn = new ArrowAnnotation(clone.x1 + 20, clone.y1 + 20, clone.x2 + 20, clone.y2 + 20, opts);
+                    break;
+                case 'freehand':
+                    const shiftedPoints = clone.points.map(p => ({ x: p.x + 20, y: p.y + 20 }));
+                    newAnn = new FreehandAnnotation(shiftedPoints, opts);
+                    break;
+                case 'text':
+                    newAnn = new TextAnnotation(clone.x + 20, clone.y + 20, clone.text, {
+                        ...opts,
+                        fontSize: clone.fontSize,
+                        fontFamily: clone.fontFamily
+                    });
+                    break;
+            }
+
+            if (newAnn) {
+                this.saveState();
+                this.annotations.push(newAnn);
+                this.selectAnnotation(newAnn);
+                this.updateUI();
+            }
+        }
+
+        clearAll() {
+            if (this.annotations.length === 0) return;
+            if (confirm('Are you sure you want to remove all annotations?')) {
+                this.saveState();
+                this.annotations = [];
+                this.selectedAnnotation = null;
+                this.render();
+                this.updateUI();
+            }
+        }
+
+        // ==================== CONTEXT MENU ACTIONS ====================
+
+        handleContextAction(action) {
+            if (!this.selectedAnnotation) return;
+
+            switch (action) {
+                case 'duplicate':
+                    this.duplicateAnnotation(this.selectedAnnotation);
+                    break;
+                case 'bringFront':
+                    this.saveState();
+                    const idx1 = this.annotations.indexOf(this.selectedAnnotation);
+                    if (idx1 !== -1) {
+                        this.annotations.splice(idx1, 1);
+                        this.annotations.push(this.selectedAnnotation);
+                        this.render();
+                        this.updateAnnotationsList();
+                    }
+                    break;
+                case 'sendBack':
+                    this.saveState();
+                    const idx2 = this.annotations.indexOf(this.selectedAnnotation);
+                    if (idx2 !== -1) {
+                        this.annotations.splice(idx2, 1);
+                        this.annotations.unshift(this.selectedAnnotation);
+                        this.render();
+                        this.updateAnnotationsList();
+                    }
+                    break;
+                case 'delete':
+                    this.saveState();
+                    this.deleteAnnotation(this.selectedAnnotation);
+                    break;
+            }
+        }
+
+        // ==================== TEXT ANNOTATION ====================
+
+        confirmTextAnnotation() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text || !this.pendingTextPosition) {
+                document.getElementById('textModal').classList.add('hidden');
+                return;
+            }
+
+            const styleOpts = this.getDefaultStyle();
+
+            // If editing existing text annotation
+            if (this.editingTextAnnotation) {
+                this.saveState();
+                this.editingTextAnnotation.text = text;
+                this.editingTextAnnotation = null;
+                this.pendingTextPosition = null;
+                document.getElementById('textModal').classList.add('hidden');
+                this.render();
+                this.updatePropertiesPanel();
+                return;
+            }
+
+            this.saveState();
+            this.annotationCounters.text++;
+            const textAnn = new TextAnnotation(
+                this.pendingTextPosition.x,
+                this.pendingTextPosition.y,
+                text,
+                {
+                    ...styleOpts,
+                    fontSize: parseInt(document.getElementById('defaultFontSize').value) || 20,
+                    name: `Text ${this.annotationCounters.text}`
+                }
+            );
+
+            this.annotations.push(textAnn);
+            this.selectAnnotation(textAnn);
+            this.pendingTextPosition = null;
+            document.getElementById('textModal').classList.add('hidden');
+            this.render();
+            this.updateUI();
+        }
+
+        // ==================== UNDO / REDO ====================
+
+        saveState() {
+            const state = this.annotations.map(a => {
+                const serialized = JSON.parse(JSON.stringify(a));
+                serialized._type = a.type;
+                return serialized;
+            });
+            this.undoStack.push(state);
+            if (this.undoStack.length > this.maxHistory) {
+                this.undoStack.shift();
+            }
+            this.redoStack = [];
+            this.updateUndoRedoButtons();
+        }
+
+        undo() {
+            if (this.undoStack.length === 0) return;
+
+            // Save current state to redo
+            const currentState = this.annotations.map(a => {
+                const serialized = JSON.parse(JSON.stringify(a));
+                serialized._type = a.type;
+                return serialized;
+            });
+            this.redoStack.push(currentState);
+
+            // Restore previous state
+            const prevState = this.undoStack.pop();
+            this.restoreState(prevState);
+            this.updateUndoRedoButtons();
+        }
+
+        redo() {
+            if (this.redoStack.length === 0) return;
+
+            // Save current state to undo
+            const currentState = this.annotations.map(a => {
+                const serialized = JSON.parse(JSON.stringify(a));
+                serialized._type = a.type;
+                return serialized;
+            });
+            this.undoStack.push(currentState);
+
+            // Restore next state
+            const nextState = this.redoStack.pop();
+            this.restoreState(nextState);
+            this.updateUndoRedoButtons();
+        }
+
+        restoreState(state) {
+            this.annotations = state.map(data => {
+                let ann;
+                const opts = {
+                    strokeColor: data.strokeColor,
+                    fillColor: data.fillColor,
+                    fillEnabled: data.fillEnabled,
+                    strokeWidth: data.strokeWidth,
+                    opacity: data.opacity,
+                    name: data.name
+                };
+
+                switch (data._type || data.type) {
+                    case 'rectangle':
+                        ann = new RectangleAnnotation(data.x, data.y, data.w, data.h, opts);
+                        break;
+                    case 'circle':
+                        ann = new CircleAnnotation(data.cx, data.cy, data.rx, data.ry, opts);
+                        break;
+                    case 'line':
+                        ann = new LineAnnotation(data.x1, data.y1, data.x2, data.y2, opts);
+                        break;
+                    case 'arrow':
+                        ann = new ArrowAnnotation(data.x1, data.y1, data.x2, data.y2, {
+                            ...opts,
+                            headLength: data.headLength
+                        });
+                        break;
+                    case 'freehand':
+                        ann = new FreehandAnnotation(data.points, opts);
+                        break;
+                    case 'text':
+                        ann = new TextAnnotation(data.x, data.y, data.text, {
+                            ...opts,
+                            fontSize: data.fontSize,
+                            fontFamily: data.fontFamily
+                        });
+                        break;
+                }
+
+                if (ann) {
+                    ann.id = data.id;
+                    ann.visible = data.visible !== false;
+                }
+                return ann;
+            }).filter(Boolean);
+
+            this.selectedAnnotation = null;
+            this.render();
+            this.updateUI();
+        }
+
+        updateUndoRedoButtons() {
+            document.getElementById('btnUndo').disabled = this.undoStack.length === 0;
+            document.getElementById('btnRedo').disabled = this.redoStack.length === 0;
+        }
+
+        // ==================== ZOOM & PAN ====================
+
+        setZoom(newZoom) {
+            this.zoom = clamp(newZoom, 0.1, 5);
+            this.applyTransform();
+            document.getElementById('zoomDisplay').textContent = Math.round(this.zoom * 100) + '%';
+        }
+
+        fitToScreen() {
+            if (!this.image) return;
+
+            const areaRect = this.canvasArea.getBoundingClientRect();
+            const padding = 40;
+            const availW = areaRect.width - padding * 2;
+            const availH = areaRect.height - padding * 2;
+
+            const scaleX = availW / this.image.width;
+            const scaleY = availH / this.image.height;
+            this.zoom = Math.min(scaleX, scaleY, 1);
+
+            // Center the canvas
+            this.panX = (areaRect.width - this.image.width * this.zoom) / 2;
+            this.panY = (areaRect.height - this.image.height * this.zoom) / 2;
+
+            this.applyTransform();
+            document.getElementById('zoomDisplay').textContent = Math.round(this.zoom * 100) + '%';
+        }
+
+        applyTransform() {
+            this.canvasWrapper.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+            this.canvasWrapper.style.transformOrigin = '0 0';
+        }
+
+        // ==================== RENDERING ====================
+
+        render() {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw the image
+            if (this.image) {
+                ctx.drawImage(this.image, 0, 0);
+            }
+
+            // Draw all annotations
+            this.annotations.forEach(ann => {
+                if (ann.visible) {
+                    ann.draw(ctx);
+                }
+            });
+
+            // Draw the current drawing preview
+            if (this.currentDrawing) {
+                this.currentDrawing.draw(ctx);
+            }
+
+            // Draw selection handles for selected annotation
+            if (this.selectedAnnotation && this.selectedAnnotation.visible) {
+                this.selectedAnnotation.drawSelection(ctx);
+            }
+        }
+
+        // ==================== EXPORT ====================
+
+        exportImage() {
+            if (!this.imageLoaded) {
+                alert('Please upload an image first.');
+                return;
+            }
+
+            // Create a temporary canvas for export (at original resolution)
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = this.canvas.width;
+            exportCanvas.height = this.canvas.height;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            // Draw the image
+            exportCtx.drawImage(this.image, 0, 0);
+
+            // Draw all visible annotations (without selection handles)
+            this.annotations.forEach(ann => {
+                if (ann.visible) {
+                    ann.draw(exportCtx);
+                }
+            });
+
+            // Download
+            const link = document.createElement('a');
+            link.download = 'annotated_image.png';
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+
+            document.getElementById('statusLeft').textContent = 'Image exported successfully!';
+        }
+
+        // ==================== STYLE HELPERS ====================
+
+        getDefaultStyle() {
+            return {
+                strokeColor: document.getElementById('defaultStrokeColor').value,
+                fillColor: document.getElementById('defaultFillColor').value,
+                fillEnabled: document.getElementById('defaultFillEnabled').checked,
+                strokeWidth: parseInt(document.getElementById('defaultStrokeWidth').value),
+                opacity: parseInt(document.getElementById('defaultOpacity').value) / 100
+            };
+        }
+
+        // ==================== UI UPDATES ====================
+
+        updateUI() {
+            this.updateAnnotationsList();
+            this.updatePropertiesPanel();
+            this.updateUndoRedoButtons();
+        }
+
+        updateAnnotationsList() {
+            const container = document.getElementById('annotationsListContent');
+
+            if (this.annotations.length === 0) {
+                container.innerHTML = '<div class="no-selection">No annotations yet</div>';
+                return;
+            }
+
+            const icons = {
+                rectangle: '▭',
+                circle: '○',
+                line: '╱',
+                arrow: '➜',
+                freehand: '✎',
+                text: 'T'
+            };
+
+            let html = '';
+            // Show in reverse order (top-most first)
+            for (let i = this.annotations.length - 1; i >= 0; i--) {
+                const ann = this.annotations[i];
+                const isSelected = ann === this.selectedAnnotation;
+                html += `
+                    <div class="annotation-item ${isSelected ? 'selected' : ''}" data-id="${ann.id}">
+                        <span class="ann-icon">${icons[ann.type] || '?'}</span>
+                        <span class="ann-name">${ann.name}</span>
+                        <button class="ann-visibility" data-id="${ann.id}" title="Toggle visibility">
+                            ${ann.visible ? '👁' : '👁‍🗨'}
+                        </button>
+                        <button class="ann-delete" data-id="${ann.id}" title="Delete">✕</button>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            // Add click handlers
+            container.querySelectorAll('.annotation-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.ann-delete') || e.target.closest('.ann-visibility')) return;
+                    const ann = this.annotations.find(a => a.id === item.dataset.id);
+                    if (ann) {
+                        this.selectAnnotation(ann);
+                        this.setTool('select');
+                    }
+                });
+            });
+
+            container.querySelectorAll('.ann-delete').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ann = this.annotations.find(a => a.id === btn.dataset.id);
+                    if (ann) {
+                        this.saveState();
+                        this.deleteAnnotation(ann);
+                    }
+                });
+            });
+
+            container.querySelectorAll('.ann-visibility').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ann = this.annotations.find(a => a.id === btn.dataset.id);
+                    if (ann) {
+                        ann.visible = !ann.visible;
+                        this.render();
+                        this.updateAnnotationsList();
+                    }
+                });
+            });
+        }
+
+        updatePropertiesPanel() {
+            const container = document.getElementById('propsContent');
+
+            if (!this.selectedAnnotation) {
+                container.innerHTML = '<div class="no-selection">Select an annotation to edit its properties</div>';
+                return;
+            }
+
+            const ann = this.selectedAnnotation;
+            let html = '';
+
+            // Name
+            html += `
+                <div class="prop-row">
+                    <label>Name</label>
+                    <input type="text" id="propName" value="${ann.name}">
+                </div>
+            `;
+
+            // Stroke color
+            html += `
+                <div class="prop-row">
+                    <label>Stroke</label>
+                    <input type="color" id="propStrokeColor" value="${ann.strokeColor}">
+                </div>
+            `;
+
+            // Fill color (not for lines, arrows, freehand)
+            if (ann.type !== 'line' && ann.type !== 'arrow' && ann.type !== 'freehand') {
+                html += `
+                    <div class="prop-row">
+                        <label>Fill</label>
+                        <input type="color" id="propFillColor" value="${ann.fillColor}">
+                        <label style="width:auto; margin-left:5px;">
+                            <input type="checkbox" id="propFillEnabled" ${ann.fillEnabled ? 'checked' : ''}> On
+                        </label>
+                    </div>
+                `;
+            }
+
+            // Stroke width
+            html += `
+                <div class="prop-row">
+                    <label>Width</label>
+                    <input type="range" id="propStrokeWidth" min="1" max="20" value="${ann.strokeWidth}">
+                    <span class="value-display" id="propStrokeWidthVal">${ann.strokeWidth}</span>
+                </div>
+            `;
+
+            // Opacity
+            html += `
+                <div class="prop-row">
+                    <label>Opacity</label>
+                    <input type="range" id="propOpacity" min="10" max="100" value="${Math.round(ann.opacity * 100)}">
+                    <span class="value-display" id="propOpacityVal">${Math.round(ann.opacity * 100)}%</span>
+                </div>
+            `;
+
+            // Text-specific properties
+            if (ann.type === 'text') {
+                html += `
+                    <div class="prop-row">
+                        <label>Font Size</label>
+                        <input type="number" id="propFontSize" value="${ann.fontSize}" min="8" max="120">
+                    </div>
+                    <div class="prop-row">
+                        <label>Text</label>
+                        <input type="text" id="propText" value="${ann.text.replace(/"/g, '&quot;')}">
+                    </div>
+                `;
+            }
+
+            // Position info
+            const bounds = ann.getBounds();
+            html += `
+                <div class="prop-row" style="margin-top:10px; padding-top:10px; border-top:1px solid #2a2a4a;">
+                    <label>Position</label>
+                    <span style="font-size:11px; color:#888;">
+                        X: ${Math.round(bounds.x)}, Y: ${Math.round(bounds.y)}
+                    </span>
+                </div>
+                <div class="prop-row">
+                    <label>Size</label>
+                    <span style="font-size:11px; color:#888;">
+                        ${Math.round(bounds.w)} × ${Math.round(bounds.h)}
+                    </span>
+                </div>
+            `;
+
+            container.innerHTML = html;
+
+            // Bind property change events
+            this.bindPropertyEvents(ann);
+        }
+
+        bindPropertyEvents(ann) {
+            const bind = (id, prop, transform) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const handler = () => {
+                    const val = el.type === 'checkbox' ? el.checked : (transform ? transform(el.value) : el.value);
+                    ann[prop] = val;
+
+                    // Update display values
+                    if (id === 'propStrokeWidth') {
+                        document.getElementById('propStrokeWidthVal').textContent = el.value;
+                    }
+                    if (id === 'propOpacity') {
+                        document.getElementById('propOpacityVal').textContent = el.value + '%';
+                    }
+
+                    this.render();
+                    this.updateAnnotationsList();
+                };
+
+                el.addEventListener('input', handler);
+                el.addEventListener('change', handler);
+            };
+
+            bind('propName', 'name');
+            bind('propStrokeColor', 'strokeColor');
+            bind('propFillColor', 'fillColor');
+            bind('propFillEnabled', 'fillEnabled');
+            bind('propStrokeWidth', 'strokeWidth', parseInt);
+            bind('propOpacity', 'opacity', v => parseInt(v) / 100);
+            bind('propFontSize', 'fontSize', parseInt);
+            bind('propText', 'text');
+        }
+    }
+
+    // ==================== INITIALIZE APPLICATION ====================
+
+    // Wait for DOM to be ready, then create the app
+    document.addEventListener('DOMContentLoaded', () => {
+        window.app = new AnnotationApp();
+    });
+
+    // Also initialize immediately if DOM is already loaded
+    if (document.readyState !== 'loading') {
+        window.app = new AnnotationApp();
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-container">
+                <h1>Documentation Management System</h1>
+                {% if current_user.is_authenticated %}
+                <div class="user-info">
+                    <span>Welcome, {{ current_user.username }}!</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+                </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <nav class="navbar">
+            <ul class="nav-menu">
+                {% if current_user.is_authenticated %}
+                <li class="nav-item">
+                    <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('documents') }}" class="nav-link">Documents</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('api_docs', document_id=1) }}" class="nav-link">API Docs</a>
+                </li>
+                {% endif %}
+                {% if current_user.role == 'admin' %}
+                <li class="nav-item">
+                    <a href="{{ url_for('projects') }}" class="nav-link">Projects</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('users') }}" class="nav-link">Users</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert {% if 'error' in message %}alert-error{% else %}alert-success{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2023 Documentation Management System. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>

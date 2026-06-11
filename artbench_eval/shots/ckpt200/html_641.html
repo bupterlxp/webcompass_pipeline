@@ -1,0 +1,49 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Annotator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="brand">
+      <i class="fa-solid fa-pen-ruler"></i>
+      <h1>Image Annotator</h1>
+    </div>
+    <div class="actions">
+      <button id="btn-upload" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+      <input type="file" id="file-input" accept="image/*" hidden />
+      <button id="btn-export" class="btn btn-secondary" disabled><i class="fa-solid fa-download"></i> Export</button>
+      <button id="btn-clear" class="btn btn-ghost" disabled><i class="fa-solid fa-eraser"></i> Clear</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <h2><i class="fa-solid fa-layer-group"></i> Annotations</h2>
+      <ul id="anno-list" class="anno-list"></ul>
+      <div class="legend">
+        <div class="legend-item"><span class="dot rect"></span>Rectangle</div>
+        <div class="legend-item"><span class="dot circ"></span>Circle</div>
+        <div class="legend-item"><span class="dot text"></span>Text</div>
+      </div>
+    </aside>
+
+    <section class="canvas-wrap">
+      <canvas id="canvas" width="800" height="600"></canvas>
+      <div id="canvas-overlay" class="canvas-overlay">
+        <div class="overlay-hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Click to draw, drag to resize. Double-click to edit.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Terrain Destruction Shooter</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+#ui {
+position: absolute; top: 10px; left: 10px; color: #0f0;
+font-size: 14px; text-shadow: 0 0 5px #0f0;
+pointer-events: none; z-index: 10;
+}
+#crosshair {
+position: absolute; top: 50%; left: 50%;
+transform: translate(-50%, -50%);
+color: #f00; font-size: 24px; pointer-events: none; z-index: 10;
+text-shadow: 0 0 5px #f00;
+}
+#instructions {
+position: absolute; bottom: 10px; left: 50%;
+transform: translateX(-50%); color: #aaa;
+font-size: 12px; text-align: center;
+pointer-events: none; z-index: 10;
+background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 4px;
+}
+#minimap {
+position: absolute; top: 10px; right: 10px;
+border: 2px solid #0f0; z-index: 10;
+}
+#gameOver {
+position: absolute; top: 50%; left: 50%;
+transform: translate(-50%, -50%);
+color: #f00; font-size: 48px; display: none;
+text-shadow: 0 0 20px #f00; z-index: 20;
+text-align: center;
+}
+#gameOver button {
+font-size: 18px; padding: 10px 30px;
+background: #f00; color: #fff; border: none;
+cursor: pointer; margin-top: 20px; font-family: inherit;
+pointer-events: all;
+}
+</style>
+</head>
+<body>
+<div id="ui">
+<div id="health">HP: ████████████████████ 100</div>
+<div id="ammo">AMMO: 30 / 90</div>
+<div id="score">SCORE: 0</div>
+<div id="wave">WAVE: 1</div>
+<div id="waterStatus"></div>
+</div>
+<div id="crosshair">+</div>
+<canvas id="minimap" width="160" height="160"></canvas>
+<div id="instructions">
+WASD: Move | Mouse: Aim | Click: Shoot | R: Reload | Space: Jump | E: Interact
+</div>
+<div id="gameOver">
+<div>GAME OVER</div>
+<div id="finalScore" style="font-size:24px;margin-top:10px;"></div>
+<button onclick="restartGame()">RESTART</button>
+</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+// ============================================================
+// PERLIN NOISE IMPLEMENTATION
+// ============================================================
+class PerlinNoise {
+constructor(seed = 0) {
+this.perm = new Uint8Array(512);
+this.grad3 = [
+[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],
+[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],
+[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]
+];
+const p = new Uint8Array(256);
+for (let i = 0; i < 256; i++) p[i] = i;
+let s = seed || Math.random() * 65536;
+for (let i = 255; i > 0; i--) {
+s = (s * 16807 + 0) % 2147483647;
+const j = s % (i + 1);
+[p[i], p[j]] = [p[j], p[i]];
+}
+for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+}
+
+dot3(g, x, y, z) { return g[0]*x + g[1]*y + g[2]*z; }
+fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+lerp(a, b, t) { return a + t * (b - a); }
+
+noise2D(x, y) {
+const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+x -= Math.floor(x); y -= Math.floor(y);
+const u = this.fade(x), v = this.fade(y);
+const A = this.perm[X] + Y, B = this.perm[X + 1] + Y;
+const g00 = this.grad3[this.perm[A] % 12];
+const g10 = this.grad3[this.perm[B] % 12];
+const g01 = this.grad3[this.perm[A + 1] % 12];
+const g11 = this.grad3[this.perm[B + 1] % 12];
+const n00 = g00[0]*x + g00[1]*y;
+const n10 = g10[0]*(x-1) + g10[1]*y;
+const n01 = g01[0]*x + g01[1]*(y-1);
+const n11 = g11[0]*(x-1) + g11[1]*(y-1);
+return this.lerp(this.lerp(n00, n10, u), this.lerp(n01, n11, u), v);
+}
+
+fbm(x, y, octaves = 6, lacunarity = 2.0, gain = 0.5) {
+let sum = 0, amp = 1, freq = 1, max = 0;
+for (let i = 0; i < octaves; i++) {
+sum += this.noise2D(x * freq, y * freq) * amp;
+max += amp;
+amp *= gain;
+freq *= lacunarity;
+}
+return sum / max;
+}
+}
+
+// ============================================================
+// WEBGL SETUP & SHADERS
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
+if (!gl) { alert('WebGL2 not supported'); }
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+gl.viewport(0, 0, canvas.width, canvas.height);
+
+// Terrain vertex shader
+const terrainVS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPosition;
+layout(location=1) in vec2 aUV;
+
+uniform mat4 uProjection;
+uniform mat4 uView;
+uniform sampler2D uHeightmap;
+uniform float uTerrainScale;
+uniform float uHeightScale;
+
+out vec3 vWorldPos;
+out vec2 vUV;
+out vec3 vNormal;
+out float vHeight;
+
+void main() {
+vec2 uv = aUV;
+float h = texture(uHeightmap, uv).r;
+vec3 pos = aPosition;
+pos.y = h * uHeightScale;
+
+// Calculate normal from heightmap
+float texel = 1.0 / ${TERRAIN_RES.toFixed(1)};
+float hL = texture(uHeightmap, uv + vec2(-texel, 0)).r * uHeightScale;
+float hR = texture(uHeightmap, uv + vec2(texel, 0)).r * uHeightScale;
+float hD = texture(uHeightmap, uv + vec2(0, -texel)).r * uHeightScale;
+float hU = texture(uHeightmap, uv + vec2(0, texel)).r * uHeightScale;
+vNormal = normalize(vec3(hL - hR, 2.0 * texel * uTerrainScale, hD - hU));
+
+vWorldPos = pos;
+vUV = uv;
+vHeight = h;
+gl_Position = uProjection * uView * vec4(pos, 1.0);
+}`;
+
+const terrainFS = `#version 300 es
+precision highp float;
+in vec3 vWorldPos;
+in vec2 vUV;
+in vec3 vNormal;
+in float vHeight;
+
+uniform vec3 uLightDir;
+uniform vec3 uCameraPos;
+uniform sampler2D uWaterMap;
+uniform float uTime;
+
+out vec4 fragColor;
+
+void main() {
+vec3 N = normalize(vNormal);
+vec3 L = normalize(uLightDir);
+float diff = max(dot(N, L), 0.0);
+float amb = 0.25;
+
+// Terrain coloring based on height and slope
+float slope = 1.0 - N.y;
+vec3 grass = vec3(0.2, 0.45, 0.15);
+vec3 dirt = vec3(0.45, 0.32, 0.2);
+vec3 rock = vec3(0.5, 0.48, 0.45);
+vec3 snow = vec3(0.9, 0.92, 0.95);
+
+vec3 color = grass;
+if (vHeight > 0.6) color = mix(grass, rock, (vHeight - 0.6) / 0.2);
+if (vHeight > 0.8) color = mix(rock, snow, (vHeight - 0.8) / 0.2);
+if (slope > 0.4) color = mix(color, rock, min((slope - 0.4) / 0.3, 1.0));
+if (vHeight < 0.2) color = mix(dirt, color, vHeight / 0.2);
+
+// Crater darkening
+float crater = smoothstep(0.0, 0.15, vHeight);
+color *= mix(0.4, 1.0, crater);
+
+vec3 lighting = color * (amb + diff * 0.75);
+
+// Specular
+vec3 V = normalize(uCameraPos - vWorldPos);
+vec3 H = normalize(L + V);
+float spec = pow(max(dot(N, H), 0.0), 32.0);
+lighting += spec * 0.15;
+
+// Water overlay
+float water = texture(uWaterMap, vUV).r;
+if (water > 0.01) {
+vec3 waterColor = vec3(0.1, 0.3, 0.6);
+float wave = sin(vWorldPos.x * 5.0 + uTime * 3.0) * 0.05 +
+sin(vWorldPos.z * 4.0 + uTime * 2.5) * 0.05;
+waterColor += wave;
+float waterAlpha = min(water * 3.0, 0.7);
+lighting = mix(lighting, waterColor, waterAlpha);
+// Water specular
+float wSpec = pow(max(dot(N, H), 0.0), 64.0);
+lighting += wSpec * waterAlpha * 0.5;
+}
+
+// Fog
+float dist = length(uCameraPos - vWorldPos);
+float fog = 1.0 - exp(-dist * 0.008);
+vec3 fogColor = vec3(0.6, 0.7, 0.8);
+lighting = mix(lighting, fogColor, fog);
+
+fragColor = vec4(lighting, 1.0);
+}`;
+
+// Entity shader (for players, enemies, objects)
+const entityVS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPosition;
+layout(location=1) in vec3 aNormal;
+
+uniform mat4 uProjection;
+uniform mat4 uView;
+uniform mat4 uModel;
+
+out vec3 vWorldPos;
+out vec3 vNormal;
+
+void main() {
+vec4 worldPos = uModel * vec4(aPosition, 1.0);
+vWorldPos = worldPos.xyz;
+vNormal = mat3(uModel) * aNormal;
+gl_Position = uProjection * uView * worldPos;
+}`;
+
+const entityFS = `#version 300 es
+precision highp float;
+in vec3 vWorldPos;
+in vec3 vNormal;
+
+uniform vec3 uColor;
+uniform vec3 uLightDir;
+uniform vec3 uCameraPos;
+uniform float uEmissive;
+
+out vec4 fragColor;
+
+void main() {
+vec3 N = normalize(vNormal);
+vec3 L = normalize(uLightDir);
+float diff = max(dot(N, L), 0.0);
+float amb = 0.3;
+vec3 color = uColor * (amb + diff * 0.7);
+
+vec3 V = normalize(uCameraPos - vWorldPos);
+vec3 H = normalize(L + V);
+float spec = pow(max(dot(N, H), 0.0), 16.0);
+color += spec * 0.2;
+
+color += uColor * uEmissive;
+
+float dist = length(uCameraPos - vWorldPos);
+float fog = 1.0 - exp(-dist * 0.008);
+color = mix(color, vec3(0.6, 0.7, 0.8), fog);
+
+fragColor = vec4(color, 1.0);
+}`;
+
+// Particle/bullet shader
+const particleVS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPosition;
+uniform mat4 uProjection;
+uniform mat4 uView;
+uniform mat4 uModel;
+uniform float uPointSize;
+void main() {
+gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+gl_PointSize = uPointSize / gl_Position.w * 100.0;
+}`;
+
+const particleFS = `#version 300 es
+precision highp float;
+uniform vec3 uColor;
+uniform float uEmissive;
+out vec4 fragColor;
+void main() {
+fragColor = vec4(uColor * (1.0 + uEmissive), 1.0);
+}`;
+
+// Sky shader
+const skyVS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPosition;
+uniform mat4 uProjection;
+uniform mat4 uView;
+out vec3 vDir;
+void main() {
+vDir = aPosition;
+mat4 viewNoTrans = uView;
+viewNoTrans[3] = vec4(0,0,0,1);
+gl_Position = (uProjection * viewNoTrans * vec4(aPosition * 500.0, 1.0)).xyww;
+}`;
+
+const skyFS = `#version 300 es
+precision highp float;
+in vec3 vDir;
+uniform vec3 uLightDir;
+out vec4 fragColor;
+void main() {
+vec3 dir = normalize(vDir);
+float y = dir.y * 0.5 + 0.5;
+vec3 sky = mix(vec3(0.7, 0.8, 0.9), vec3(0.2, 0.4, 0.8), y);
+float sun = pow(max(dot(dir, normalize(uLightDir)), 0.0), 128.0);
+sky += vec3(1.0, 0.9, 0.7) * sun;
+float horizon = pow(1.0 - abs(dir.y), 8.0);
+sky = mix(sky, vec3(0.8, 0.85, 0.9), horizon * 0.5);
+fragColor = vec4(sky, 1.0);
+}`;
+
+function compileShader(src, type) {
+const s = gl.createShader(type);
+gl.shaderSource(s, src);
+gl.compileShader(s);
+if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+console.error('Shader error:', gl.getShaderInfoLog(s));
+console.error(src.split('\n').map((l,i)=>`${i+1}: ${l}`).join('\n'));
+return null;
+}
+return s;
+}
+
+function createProgram(vs, fs) {
+const p = gl.createProgram();
+gl.attachShader(p, compileShader(vs, gl.VERTEX_SHADER));
+gl.attachShader(p, compileShader(fs, gl.FRAGMENT_SHADER));
+gl.linkProgram(p);
+if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+console.error('Link error:', gl.getProgramInfoLog(p));
+}
+return p;
+}
+
+const terrainProg = createProgram(terrainVS, terrainFS);
+const entityProg = createProgram(entityVS, entityFS);
+const particleProg = createProgram(particleVS, particleFS);
+const skyProg = createProgram(skyVS, skyFS);
+
+// ============================================================
+// TERRAIN GENERATION
+// ============================================================
+const TERRAIN_RES = 256;
+const TERRAIN_SIZE = 200;
+const HEIGHT_SCALE = 25;
+const perlin = new PerlinNoise(42);
+
+let heightData = new Float32Array(TERRAIN_RES * TERRAIN_RES);
+let waterData = new Float32Array(TERRAIN_RES * TERRAIN_RES);
+
+function generateTerrain() {
+for (let z = 0; z < TERRAIN_RES; z++) {
+for (let x = 0; x < TERRAIN_RES; x++) {
+const nx = x / TERRAIN_RES * 4;
+const nz = z / TERRAIN_RES * 4;
+let h = perlin.fbm(nx, nz, 6, 2.0, 0.5) * 0.5 + 0.5;
+// Add some ridges
+h += Math.abs(perlin.fbm(nx * 2 + 10, nz * 2 + 10, 4)) * 0.15;
+// Flatten center area for gameplay
+const cx = (x / TERRAIN_RES - 0.5) * 2;
+const cz = (z / TERRAIN_RES - 0.5) * 2;
+const centerDist = Math.sqrt(cx*cx + cz*cz);
+if (centerDist < 0.3) {
+h = h * (centerDist / 0.3) + 0.35 * (1 - centerDist / 0.3);
+}
+h = Math.max(0, Math.min(1, h));
+heightData[z * TERRAIN_RES + x] = h;
+}
+}
+}
+
+function getTerrainHeight(wx, wz) {
+const u = (wx / TERRAIN_SIZE + 0.5);
+const v = (wz / TERRAIN_SIZE + 0.5);
+if (u < 0 || u > 1 || v < 0 || v > 1) return 0;
+const fx = u * (TERRAIN_RES - 1);
+const fz = v * (TERRAIN_RES - 1);
+const ix = Math.floor(fx), iz = Math.floor(fz);
+const dx = fx - ix, dz = fz - iz;
+const ix1 = Math.min(ix + 1, TERRAIN_RES - 1);
+const iz1 = Math.min(iz + 1, TERRAIN_RES - 1);
+const h00 = heightData[iz * TERRAIN_RES + ix];
+const h10 = heightData[iz * TERRAIN_RES + ix1];
+const h01 = heightData[iz1 * TERRAIN_RES + ix];
+const h11 = heightData[iz1 * TERRAIN_RES + ix1];
+return (h00*(1-dx)*(1-dz) + h10*dx*(1-dz) + h01*(1-dx)*dz + h11*dx*dz) * HEIGHT_SCALE;
+}
+
+function getWaterLevel(wx, wz) {
+const u = (wx / TERRAIN_SIZE + 0.5);
+const v = (wz / TERRAIN_SIZE + 0.5);
+if (u < 0 || u > 1 || v < 0 || v > 1) return 0;
+const ix = Math.floor(u * (TERRAIN_RES - 1));
+const iz = Math.floor(v * (TERRAIN_RES - 1));
+return waterData[iz * TERRAIN_RES + ix];
+}
+
+// Create terrain mesh
+function createTerrainMesh() {
+const verts = [];
+const uvs = [];
+const indices = [];
+const step = TERRAIN_SIZE / (TERRAIN_RES - 1);
+
+for (let z = 0; z < TERRAIN_RES; z++) {
+for (let x = 0; x < TERRAIN_RES; x++) {
+const wx = (x / (TERRAIN_RES - 1) - 0.5) * TERRAIN_SIZE;
+const wz = (z / (TERRAIN_RES - 1) - 0.5) * TERRAIN_SIZE;
+const h = heightData[z * TERRAIN_RES + x] * HEIGHT_SCALE;
+verts.push(wx, h, wz);
+uvs.push(x / (TERRAIN_RES - 1), z / (TERRAIN_RES - 1));
+}
+}
+
+for (let z = 0; z < TERRAIN_RES - 1; z++) {
+for (let x = 0; x < TERRAIN_RES - 1; x++) {
+const i = z * TERRAIN_RES + x;
+indices.push(i, i + TERRAIN_RES, i + 1);
+indices.push(i + 1, i + TERRAIN_RES, i + TERRAIN_RES + 1);
+}
+}
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+const uvbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, uvbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(1);
+gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+
+const ibo = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
+
+gl.bindVertexArray(null);
+return { vao, count: indices.length };
+}
+
+// Heightmap texture
+let heightmapTex, watermapTex;
+
+function createDataTexture(data) {
+const tex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, tex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, TERRAIN_RES, TERRAIN_RES, 0, gl.RED, gl.FLOAT, data);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+return tex;
+}
+
+function updateTexture(tex, data) {
+gl.bindTexture(gl.TEXTURE_2D, tex);
+gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, TERRAIN_RES, TERRAIN_RES, gl.RED, gl.FLOAT, data);
+}
+
+// ============================================================
+// TERRAIN DESTRUCTION
+// ============================================================
+function createCrater(wx, wz, radius, depth) {
+const u = (wx / TERRAIN_SIZE + 0.5);
+const v = (wz / TERRAIN_SIZE + 0.5);
+const cx = u * (TERRAIN_RES - 1);
+const cz = v * (TERRAIN_RES - 1);
+const r = radius / TERRAIN_SIZE * TERRAIN_RES;
+const ri = Math.ceil(r);
+
+for (let dz = -ri; dz <= ri; dz++) {
+for (let dx = -ri; dx <= ri; dx++) {
+const px = Math.round(cx + dx);
+const pz = Math.round(cz + dz);
+if (px < 0 || px >= TERRAIN_RES || pz < 0 || pz >= TERRAIN_RES) continue;
+const dist = Math.sqrt(dx*dx + dz*dz);
+if (dist > r) continue;
+// Gaussian falloff for realistic crater
+const falloff = Math.exp(-(dist * dist) / (r * r * 0.3));
+const idx = pz * TERRAIN_RES + px;
+heightData[idx] = Math.max(0, heightData[idx] - depth * falloff / HEIGHT_SCALE);
+}
+}
+updateTexture(heightmapTex, heightData);
+rebuildTerrainMesh();
+}
+
+let terrainMesh;
+function rebuildTerrainMesh() {
+// Rebuild vertex positions
+const verts = [];
+for (let z = 0; z < TERRAIN_RES; z++) {
+for (let x = 0; x < TERRAIN_RES; x++) {
+const wx = (x / (TERRAIN_RES - 1) - 0.5) * TERRAIN_SIZE;
+const wz = (z / (TERRAIN_RES - 1) - 0.5) * TERRAIN_SIZE;
+const h = heightData[z * TERRAIN_RES + x] * HEIGHT_SCALE;
+verts.push(wx, h, wz);
+}
+}
+gl.bindVertexArray(terrainMesh.vao);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+gl.bindVertexArray(null);
+}
+
+// ============================================================
+// FLUID SIMULATION
+// ============================================================
+const FLUID_ITERATIONS = 4;
+
+function simulateFluid(dt) {
+const newData = new Float32Array(waterData);
+const flow = new Float32Array(TERRAIN_RES * TERRAIN_RES);
+
+for (let iter = 0; iter < FLUID_ITERATIONS; iter++) {
+for (let z = 1; z < TERRAIN_RES - 1; z++) {
+for (let x = 1; x < TERRAIN_RES - 1; x++) {
+const idx = z * TERRAIN_RES + x;
+const waterH = waterData[idx];
+if (waterH < 0.001) continue;
+
+const totalH = waterH + heightData[idx];
+const neighbors = [
+idx - 1, idx + 1,
+idx - TERRAIN_RES, idx + TERRAIN_RES
+];
+
+let totalDiff = 0;
+const diffs = [];
+for (const ni of neighbors) {
+const nTotalH = waterData[ni] + heightData[ni];
+const diff = totalH - nTotalH;
+diffs.push(Math.max(0, diff));
+totalDiff += Math.max(0, diff);
+}
+
+if (totalDiff > 0) {
+const maxFlow = waterH * 0.25;
+for (let n = 0; n < 4; n++) {
+const amount = Math.min(diffs[n] / totalDiff * maxFlow, maxFlow * 0.25);
+flow[idx] -= amount;
+flow[neighbors[n]] += amount;
+}
+}
+
+// Evaporation
+newData[idx] = Math.max(0, waterData[idx] + flow[idx] - 0.0001);
+flow[idx] = 0;
+for (const ni of neighbors) flow[ni] = 0;
+}
+}
+waterData.set(newData);
+}
+updateTexture(watermapTex, waterData);
+}
+
+// Water containers
+let waterContainers = [];
+
+function spawnWaterContainers() {
+waterContainers = [];
+for (let i = 0; i < 8; i++) {
+const angle = Math.random() * Math.PI * 2;
+const dist = 20 + Math.random() * 60;
+const wx = Math.cos(angle) * dist;
+const wz = Math.sin(angle) * dist;
+const wy = getTerrainHeight(wx, wz);
+waterContainers.push({
+x: wx, y: wy, z: wz,
+radius: 1.5, height: 3,
+water: 50, // water amount
+broken: false,
+color: [0.3, 0.5, 0.7]
+});
+}
+}
+
+function breakContainer(container) {
+if (container.broken) return;
+container.broken = true;
+
+// Release water into the terrain
+const u = (container.x / TERRAIN_SIZE + 0.5);
+const v = (container.z / TERRAIN_SIZE + 0.5);
+const cx = Math.floor(u * (TERRAIN_RES - 1));
+const cz = Math.floor(v * (TERRAIN_RES - 1));
+const spread = 8;
+
+for (let dz = -spread; dz <= spread; dz++) {
+for (let dx = -spread; dx <= spread; dx++) {
+const px = cx + dx, pz = cz + dz;
+if (px < 0 || px >= TERRAIN_RES || pz < 0 || pz >= TERRAIN_RES) continue;
+const dist = Math.sqrt(dx*dx + dz*dz);
+if (dist > spread) continue;
+const amount = (1 - dist / spread) * container.water / (spread * spread * 0.5);
+waterData[pz * TERRAIN_RES + px] += amount;
+}
+}
+updateTexture(watermapTex, waterData);
+
+// Spawn splash particles
+for (let i = 0; i < 20; i++) {
+particles.push({
+x: container.x, y: container.y + 2, z: container.z,
+vx: (Math.random() - 0.5) * 8,
+vy: Math.random() * 10 + 5,
+vz: (Math.random() - 0.5) * 8,
+life: 1.5,
+maxLife: 1.5,
+color: [0.2, 0.5, 0.9],
+size: 0.3
+});
+}
+}
+
+// ============================================================
+// MATRIX MATH
+// ============================================================
+function mat4Perspective(fov, aspect, near, far) {
+const f = 1 / Math.tan(fov / 2);
+const nf = 1 / (near - far);
+return new Float32Array([
+f/aspect, 0, 0, 0,
+0, f, 0, 0,
+0, 0, (far+near)*nf, -1,
+0, 0, 2*far*near*nf, 0
+]);
+}
+
+function mat4LookAt(eye, center, up) {
+const zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+let len = 1/Math.sqrt(zx*zx+zy*zy+zz*zz);
+const z = [zx*len, zy*len, zz*len];
+const xx = up[1]*z[2]-up[2]*z[1], xy = up[2]*z[0]-up[0]*z[2], xz = up[0]*z[1]-up[1]*z[0];
+len = 1/Math.sqrt(xx*xx+xy*xy+xz*xz);
+const x = [xx*len, xy*len, xz*len];
+const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
+return new Float32Array([
+x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+-(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]),
+-(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]),
+-(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]), 1
+]);
+}
+
+function mat4Identity() {
+return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+}
+
+function mat4Translate(m, x, y, z) {
+const r = new Float32Array(m);
+r[12] += m[0]*x + m[4]*y + m[8]*z;
+r[13] += m[1]*x + m[5]*y + m[9]*z;
+r[14] += m[2]*x + m[6]*y + m[10]*z;
+r[15] += m[3]*x + m[7]*y + m[11]*z;
+return r;
+}
+
+function mat4Scale(m, sx, sy, sz) {
+const r = new Float32Array(m);
+r[0]*=sx; r[1]*=sx; r[2]*=sx; r[3]*=sx;
+r[4]*=sy; r[5]*=sy; r[6]*=sy; r[7]*=sy;
+r[8]*=sz; r[9]*=sz; r[10]*=sz; r[11]*=sz;
+return r;
+}
+
+function mat4RotateY(m, angle) {
+const c = Math.cos(angle), s = Math.sin(angle);
+const r = new Float32Array(m);
+const m0=m[0],m1=m[1],m2=m[2],m3=m[3];
+const m8=m[8],m9=m[9],m10=m[10],m11=m[11];
+r[0]=m0*c+m8*s; r[1]=m1*c+m9*s; r[2]=m2*c+m10*s; r[3]=m3*c+m11*s;
+r[8]=m8*c-m0*s; r[9]=m9*c-m1*s; r[10]=m10*c-m2*s; r[11]=m11*c-m3*s;
+return r;
+}
+
+// ============================================================
+// GEOMETRY BUILDERS
+// ============================================================
+function createBoxGeometry() {
+const p = 0.5;
+const verts = [
+// Front
+-p,-p, p, 0,0,1, p,-p, p, 0,0,1, p, p, p, 0,0,1, -p, p, p, 0,0,1,
+// Back
+p,-p,-p, 0,0,-1, -p,-p,-p, 0,0,-1, -p, p,-p, 0,0,-1, p, p,-p, 0,0,-1,
+// Top
+-p, p, p, 0,1,0, p, p, p, 0,1,0, p, p,-p, 0,1,0, -p, p,-p, 0,1,0,
+// Bottom
+-p,-p,-p, 0,-1,0, p,-p,-p, 0,-1,0, p,-p, p, 0,-1,0, -p,-p, p, 0,-1,0,
+// Right
+p,-p, p, 1,0,0, p,-p,-p, 1,0,0, p, p,-p, 1,0,0, p, p, p, 1,0,0,
+// Left
+-p,-p,-p, -1,0,0, -p,-p, p, -1,0,0, -p, p, p, -1,0,0, -p, p,-p, -1,0,0,
+];
+const idx = [];
+for (let i = 0; i < 6; i++) {
+const o = i * 4;
+idx.push(o,o+1,o+2, o,o+2,o+3);
+}
+return createMeshFromData(verts, idx);
+}
+
+function createSphereGeometry(segments = 12) {
+const verts = [], idx = [];
+for (let lat = 0; lat <= segments; lat++) {
+const theta = lat * Math.PI / segments;
+const st = Math.sin(theta), ct = Math.cos(theta);
+for (let lon = 0; lon <= segments; lon++) {
+const phi = lon * 2 * Math.PI / segments;
+const sp = Math.sin(phi), cp = Math.cos(phi);
+const x = cp * st, y = ct, z = sp * st;
+verts.push(x, y, z, x, y, z);
+}
+}
+for (let lat = 0; lat < segments; lat++) {
+for (let lon = 0; lon < segments; lon++) {
+const a = lat * (segments + 1) + lon;
+const b = a + segments + 1;
+idx.push(a, b, a+1, b, b+1, a+1);
+}
+}
+return createMeshFromData(verts, idx);
+}
+
+function createCylinderGeometry(segments = 12) {
+const verts = [], idx = [];
+for (let i = 0; i <= segments; i++) {
+const a = i / segments * Math.PI * 2;
+const x = Math.cos(a), z = Math.sin(a);
+verts.push(x, -0.5, z, x, 0, z);
+verts.push(x, 0.5, z, x, 0, z);
+}
+for (let i = 0; i < segments; i++) {
+const a = i * 2, b = a + 2;
+idx.push(a, b, a+1, b, b+1, a+1);
+}
+// Caps
+const bc = verts.length / 6;
+verts.push(0, -0.5, 0, 0, -1, 0);
+for (let i = 0; i <= segments; i++) {
+const a = i / segments * Math.PI * 2;
+verts.push(Math.cos(a), -0.5, Math.sin(a), 0, -1, 0);
+}
+for (let i = 0; i < segments; i++) idx.push(bc, bc+1+i, bc+2+i);
+
+const tc = verts.length / 6;
+verts.push(0, 0.5, 0, 0, 1, 0);
+for (let i = 0; i <= segments; i++) {
+const a = i / segments * Math.PI * 2;
+verts.push(Math.cos(a), 0.5, Math.sin(a), 0, 1, 0);
+}
+for (let i = 0; i < segments; i++) idx.push(tc, tc+2+i, tc+1+i);
+
+return createMeshFromData(verts, idx);
+}
+
+function createMeshFromData(vertData, indexData) {
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertData), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+gl.enableVertexAttribArray(1);
+gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+const ibo = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), gl.STATIC_DRAW);
+gl.bindVertexArray(null);
+return { vao, count: indexData.length };
+}
+
+// Sky sphere
+function createSkyMesh() {
+const verts = [], idx = [];
+const seg = 16;
+for (let lat = 0; lat <= seg; lat++) {
+const theta = lat * Math.PI / seg;
+const st = Math.sin(theta), ct = Math.cos(theta);
+for (let lon = 0; lon <= seg; lon++) {
+const phi = lon * 2 * Math.PI / seg;
+verts.push(Math.cos(phi)*st, ct, Math.sin(phi)*st);
+}
+}
+for (let lat = 0; lat < seg; lat++) {
+for (let lon = 0; lon < seg; lon++) {
+const a = lat * (seg+1) + lon, b = a + seg + 1;
+idx.push(a, a+1, b, b, a+1, b+1);
+}
+}
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+const ibo = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+gl.bindVertexArray(null);
+return { vao, count: idx.length };
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let boxMesh, sphereMesh, cylinderMesh, skyMesh;
+let particles = [];
+let bullets = [];
+let enemies = [];
+let score = 0;
+let wave = 1;
+let gameTime = 0;
+let gameOver = false;
+
+const player = {
+x: 0, y: 5, z: 0,
+vx: 0, vy: 0, vz: 0,
+yaw: 0, pitch: 0,
+health: 100,
+maxHealth: 100,
+ammo: 30,
+maxAmmo: 30,
+reserve: 90,
+reloading: false,
+reloadTime: 0,
+speed: 12,
+grounded: false,
+inWater: false,
+shootCooldown: 0
+};
+
+const keys = {};
+let mouseDown = false;
+
+// ============================================================
+// ENEMY AI
+// ============================================================
+function spawnEnemy() {
+const angle = Math.random() * Math.PI * 2;
+const dist = 40 + Math.random() * 40;
+const ex = Math.cos(angle) * dist;
+const ez = Math.sin(angle) * dist;
+const ey = getTerrainHeight(ex, ez);
+
+enemies.push({
+x: ex, y: ey, z: ez,
+vx: 0, vy: 0, vz: 0,
+health: 30 + wave * 10,
+maxHealth: 30 + wave * 10,
+speed: 4 + wave * 0.5,
+shootTimer: Math.random() * 2,
+shootInterval: 2.5 - Math.min(wave * 0.2, 1.5),
+state: 'patrol',
+patrolAngle: Math.random() * Math.PI * 2,
+patrolTimer: 0,
+alertRange: 35,
+color: [0.8, 0.2, 0.15],
+hitFlash: 0
+});
+}
+
+function updateEnemies(dt) {
+for (let i = enemies.length - 1; i >= 0; i--) {
+const e = enemies[i];
+const dx = player.x - e.x;
+const dz = player.z - e.z;
+const dist = Math.sqrt(dx*dx + dz*dz);
+
+// Water slowdown
+const waterLevel = getWaterLevel(e.x, e.z);
+const waterSlow = waterLevel > 0.05 ? 0.4 : 1.0;
+
+e.hitFlash = Math.max(0, e.hitFlash - dt * 3);
+
+if (dist < e.alertRange) {
+e.state = 'chase';
+}
+
+if (e.state === 'chase') {
+const nx = dx / dist, nz = dz / dist;
+if (dist > 10) {
+e.vx = nx * e.speed * waterSlow;
+e.vz = nz * e.speed * waterSlow;
+} else {
+e.vx *= 0.9;
+e.vz *= 0.9;
+}
+
+// Shoot at player
+e.shootTimer -= dt;
+if (e.shootTimer <= 0 && dist < e.alertRange) {
+e.shootTimer = e.shootInterval;
+// Enemy bullet
+const bSpeed = 40;
+const aimY = player.y + 1.5;
+const dy = aimY - (e.y + 1.5);
+const bDist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+bullets.push({
+x: e.x, y: e.y + 1.5, z: e.z,
+vx: (dx/bDist) * bSpeed,
+vy: (dy/bDist) * bSpeed,
+vz: (dz/bDist) * bSpeed,
+life: 3,
+damage: 8 + wave * 2,
+isEnemy: true,
+trail: []
+});
+}
+} else {
+// Patrol
+e.patrolTimer -= dt;
+if (e.patrolTimer <= 0) {
+e.patrolAngle += (Math.random() - 0.5) * 2;
+e.patrolTimer = 2 + Math.random() * 3;
+}
+e.vx = Math.cos(e.patrolAngle) * e.speed * 0.3 * waterSlow;
+e.vz = Math.sin(e.patrolAngle) * e.speed * 0.3 * waterSlow;
+}
+
+e.x += e.vx * dt;
+e.z += e.vz * dt;
+e.y = getTerrainHeight(e.x, e.z);
+
+// Keep in bounds
+const bound = TERRAIN_SIZE * 0.45;
+e.x = Math.max(-bound, Math.min(bound, e.x));
+e.z = Math.max(-bound, Math.min(bound, e.z));
+
+// Check if dead
+if (e.health <= 0) {
+score += 100;
+// Death particles
+for (let p = 0; p < 15; p++) {
+particles.push({
+x: e.x, y: e.y + 1, z: e.z,
+vx: (Math.random()-0.5)*8,
+vy: Math.random()*8+2,
+vz: (Math.random()-0.5)*8,
+life: 1.5, maxLife: 1.5,
+color: [0.8, 0.2, 0.1],
+size: 0.3
+});
+}
+enemies.splice(i, 1);
+}
+}
+
+// Wave management
+if (enemies.length === 0) {
+wave++;
+const count = 3 + wave * 2;
+for (let i = 0; i < count; i++) {
+setTimeout(() => spawnEnemy(), i * 500);
+}
+}
+}
+
+// ============================================================
+// BULLET & PARTICLE SYSTEM
+// ============================================================
+function shootBullet() {
+if (player.ammo <= 0 || player.reloading || player.shootCooldown > 0) return;
+player.ammo--;
+player.shootCooldown = 0.1;
+
+const dirX = -Math.sin(player.yaw) * Math.cos(player.pitch);
+const dirY = Math.sin(player.pitch);
+const dirZ = -Math.cos(player.yaw) * Math.cos(player.pitch);
+const speed = 80;
+
+bullets.push({
+x: player.x, y: player.y + 1.7, z: player.z,
+vx: dirX * speed, vy: dirY * speed, vz: dirZ * speed,
+life: 3, damage: 25, isEnemy: false,
+trail: []
+});
+
+// Muzzle flash particles
+for (let i = 0; i < 5; i++) {
+particles.push({
+x: player.x + dirX * 1.5,
+y: player.y + 1.7 + dirY * 1.5,
+z: player.z + dirZ * 1.5,
+vx: dirX * 10 + (Math.random()-0.5)*5,
+vy: dirY * 10 + (Math.random()-0.5)*5,
+vz: dirZ * 10 + (Math.random()-0.5)*5,
+life: 0.2, maxLife: 0.2,
+color: [1, 0.8, 0.2],
+size: 0.2
+});
+}
+
+if (player.ammo <= 0 && player.reserve > 0) reload();
+}
+
+function reload() {
+if (player.reloading || player.ammo === player.maxAmmo || player.reserve <= 0) return;
+player.reloading = true;
+player.reloadTime = 1.5;
+}
+
+function updateBullets(dt) {
+for (let i = bullets.length - 1; i >= 0; i--) {
+const b = bullets[i];
+b.trail.push({x: b.x, y: b.y, z: b.z});
+if (b.trail.length > 8) b.trail.shift();
+
+b.x += b.vx * dt;
+b.y += b.vy * dt;
+b.z += b.vz * dt;
+b.vy -= 9.8 * dt; // gravity
+b.life -= dt;
+
+if (b.life <= 0) { bullets.splice(i, 1); continue; }
+
+// Terrain collision
+const th = getTerrainHeight(b.x, b.z);
+if (b.y <= th) {
+// Create crater
+createCrater(b.x, b.z, 3 + Math.random() * 2, 2 + Math.random());
+
+// Impact particles
+for (let p = 0; p < 10; p++) {
+particles.push({
+x: b.x, y: th + 0.1, z: b.z,
+vx: (Math.random()-0.5)*10,
+vy: Math.random()*8+2,
+vz: (Math.random()-0.5)*10,
+life: 1, maxLife: 1,
+color: [0.5, 0.4, 0.3],
+size: 0.2
+});
+}
+
+// Check water container hits
+for (const wc of waterContainers) {
+if (!wc.broken) {
+const d = Math.sqrt((b.x-wc.x)**2 + (b.z-wc.z)**2);
+if (d < wc.radius + 2) breakContainer(wc);
+}
+}
+
+bullets.splice(i, 1);
+continue;
+}
+
+// Enemy collision (player bullets)
+if (!b.isEnemy) {
+for (const e of enemies) {
+const dx = b.x - e.x, dy = b.y - (e.y + 1), dz = b.z - e.z;
+if (dx*dx + dy*dy + dz*dz < 2.5) {
+e.health -= b.damage;
+e.hitFlash = 1;
+e.state = 'chase';
+// Hit particles
+for (let p = 0; p < 5; p++) {
+particles.push({
+x: b.x, y: b.y, z: b.z,
+vx: (Math.random()-0.5)*6,
+vy: Math.random()*4,
+vz: (Math.random()-0.5)*6,
+life: 0.5, maxLife: 0.5,
+color: [1, 0.3, 0.1],
+size: 0.15
+});
+}
+bullets.splice(i, 1);
+break;
+}
+}
+}
+
+// Player collision (enemy bullets)
+if (b.isEnemy) {
+const dx = b.x - player.x, dy = b.y - (player.y + 1), dz = b.z - player.z;
+if (dx*dx + dy*dy + dz*dz < 2) {
+player.health -= b.damage;
+bullets.splice(i, 1);
+if (player.health <= 0) {
+gameOver = true;
+document.getElementById('gameOver').style.display = 'block';
+document.getElementById('finalScore').textContent = `Score: ${score} | Wave: ${wave}`;
+document.exitPointerLock();
+}
+}
+}
+
+// Water container collision
+for (const wc of waterContainers) {
+if (!wc.broken) {
+const dx = b.x - wc.x, dz = b.z - wc.z;
+const dy = b.y - (wc.y + wc.height/2);
+if (dx*dx + dz*dz < wc.radius*wc.radius && Math.abs(dy) < wc.height/2) {
+breakContainer(wc);
+bullets.splice(i, 1);
+break;
+}
+}
+}
+
+// Out of bounds
+const bound = TERRAIN_SIZE * 0.5;
+if (Math.abs(b.x) > bound || Math.abs(b.z) > bound) {
+bullets.splice(i, 1);
+}
+}
+}
+
+function updateParticles(dt) {
+for (let i = particles.length - 1; i >= 0; i--) {
+const p = particles[i];
+p.x += p.vx * dt;
+p.y += p.vy * dt;
+p.z += p.vz * dt;
+p.vy -= 15 * dt;
+p.life -= dt;
+if (p.life <= 0) particles.splice(i, 1);
+}
+}
+
+// ============================================================
+// PLAYER UPDATE
+// ============================================================
+function updatePlayer(dt) {
+if (gameOver) return;
+
+// Water check
+const waterLevel = getWaterLevel(player.x, player.z);
+player.inWater = waterLevel > 0.05;
+const speedMult = player.inWater ? 0.45 : 1.0;
+
+// Movement
+let mx = 0, mz = 0;
+if (keys['w'] || keys['arrowup']) { mx -= Math.sin(player.yaw); mz -= Math.cos(player.yaw); }
+if (keys['s'] || keys['arrowdown']) { mx += Math.sin(player.yaw); mz += Math.cos(player.yaw); }
+if (keys['a'] || keys['arrowleft']) { mx -= Math.cos(player.yaw); mz += Math.sin(player.yaw); }
+if (keys['d'] || keys['arrowright']) { mx += Math.cos(player.yaw); mz -= Math.sin(player.yaw); }
+
+const len = Math.sqrt(mx*mx + mz*mz);
+if (len > 0) { mx /= len; mz /= len; }
+
+player.vx = mx * player.speed * speedMult;
+player.vz = mz * player.speed * speedMult;
+
+// Gravity & jump
+player.vy -= 25 * dt;
+if ((keys[' '] || keys['space']) && player.grounded) {
+player.vy = player.inWater ? 6 : 10;
+player.grounded = false;
+}
+
+player.x += player.vx * dt;
+player.y += player.vy * dt;
+player.z += player.vz * dt;
+
+// Terrain collision
+const th = getTerrainHeight(player.x, player.z);
+if (player.y < th) {
+player.y = th;
+player.vy = 0;
+player.grounded = true;
+}
+
+// Bounds
+const bound = TERRAIN_SIZE * 0.45;
+player.x = Math.max(-bound, Math.min(bound, player.x));
+player.z = Math.max(-bound, Math.min(bound, player.z));
+
+// Shooting
+player.shootCooldown = Math.max(0, player.shootCooldown - dt);
+if (mouseDown && !player.reloading) shootBullet();
+
+// Reload
+if (player.reloading) {
+player.reloadTime -= dt;
+if (player.reloadTime <= 0) {
+const needed = player.maxAmmo - player.ammo;
+const available = Math.min(needed, player.reserve);
+player.ammo += available;
+player.reserve -= available;
+player.reloading = false;
+}
+}
+
+// Water splash when moving in water
+if (player.inWater && len > 0 && Math.random() < 0.3) {
+particles.push({
+x: player.x + (Math.random()-0.5),
+y: getTerrainHeight(player.x, player.z) + 0.1,
+z: player.z + (Math.random()-0.5),
+vx: (Math.random()-0.5)*2,
+vy: Math.random()*3+1,
+vz: (Math.random()-0.5)*2,
+life: 0.5, maxLife: 0.5,
+color: [0.3, 0.6, 0.9],
+size: 0.15
+});
+}
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+const lightDir = [0.5, 0.8, 0.3];
+
+function render() {
+gl.clearColor(0.6, 0.7, 0.8, 1);
+gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+gl.enable(gl.DEPTH_TEST);
+gl.enable(gl.CULL_FACE);
+
+const aspect = canvas.width / canvas.height;
+const proj = mat4Perspective(Math.PI / 3, aspect, 0.1, 500);
+
+const eyeX = player.x;
+const eyeY = player.y + 1.7;
+const eyeZ = player.z;
+const lookX = eyeX - Math.sin(player.yaw) * Math.cos(player.pitch);
+const lookY = eyeY + Math.sin(player.pitch);
+const lookZ = eyeZ - Math.cos(player.yaw) * Math.cos(player.pitch);
+const view = mat4LookAt([eyeX, eyeY, eyeZ], [lookX, lookY, lookZ], [0, 1, 0]);
+
+// Draw sky
+gl.depthMask(false);
+gl.cullFace(gl.FRONT);
+gl.useProgram(skyProg);
+gl.uniformMatrix4fv(gl.getUniformLocation(skyProg, 'uProjection'), false, proj);
+gl.uniformMatrix4fv(gl.getUniformLocation(skyProg, 'uView'), false, view);
+gl.uniform3fv(gl.getUniformLocation(skyProg, 'uLightDir'), lightDir);
+gl.bindVertexArray(skyMesh.vao);
+gl.drawElements(gl.TRIANGLES, skyMesh.count, gl.UNSIGNED_SHORT, 0);
+gl.depthMask(true);
+gl.cullFace(gl.BACK);
+
+// Draw terrain
+gl.useProgram(terrainProg);
+gl.uniformMatrix4fv(gl.getUniformLocation(terrainProg, 'uProjection'), false, proj);
+gl.uniformMatrix4fv(gl.getUniformLocation(terrainProg, 'uView'), false, view);
+gl.uniform3fv(gl.getUniformLocation(terrainProg, 'uLightDir'), lightDir);
+gl.uniform3f(gl.getUniformLocation(terrainProg, 'uCameraPos'), eyeX, eyeY, eyeZ);
+gl.uniform1f(gl.getUniformLocation(terrainProg, 'uTerrainScale'), TERRAIN_SIZE);
+gl.uniform1f(gl.getUniformLocation(terrainProg, 'uHeightScale'), HEIGHT_SCALE);
+gl.uniform1f(gl.getUniformLocation(terrainProg, 'uTime'), gameTime);
+
+gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, heightmapTex);
+gl.uniform1i(gl.getUniformLocation(terrainProg, 'uHeightmap'), 0);
+
+gl.activeTexture(gl.TEXTURE1);
+gl.bindTexture(gl.TEXTURE_2D, watermapTex);
+gl.uniform1i(gl.getUniformLocation(terrainProg, 'uWaterMap'), 1);
+
+gl.bindVertexArray(terrainMesh.vao);
+gl.drawElements(gl.TRIANGLES, terrainMesh.count, gl.UNSIGNED_INT, 0);
+
+// Draw entities
+gl.useProgram(entityProg);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uProjection'), false, proj);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uView'), false, view);
+gl.uniform3fv(gl.getUniformLocation(entityProg, 'uLightDir'), lightDir);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uCameraPos'), eyeX, eyeY, eyeZ);
+
+// Draw water containers
+for (const wc of waterContainers) {
+if (wc.broken) continue;
+let model = mat4Identity();
+model = mat4Translate(model, wc.x, wc.y + wc.height/2, wc.z);
+model = mat4Scale(model, wc.radius*2, wc.height, wc.radius*2);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, model);
+gl.uniform3fv(gl.getUniformLocation(entityProg, 'uColor'), wc.color);
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), 0);
+gl.bindVertexArray(cylinderMesh.vao);
+gl.drawElements(gl.TRIANGLES, cylinderMesh.count, gl.UNSIGNED_SHORT, 0);
+
+// Water level indicator
+if (wc.water > 0) {
+const wh = (wc.water / 50) * wc.height * 0.8;
+let wmodel = mat4Identity();
+wmodel = mat4Translate(wmodel, wc.x, wc.y + wh/2 + 0.1, wc.z);
+wmodel = mat4Scale(wmodel, wc.radius*1.8, wh, wc.radius*1.8);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, wmodel);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'), 0.1, 0.3, 0.7);
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), 0.1);
+gl.bindVertexArray(cylinderMesh.vao);
+gl.drawElements(gl.TRIANGLES, cylinderMesh.count, gl.UNSIGNED_SHORT, 0);
+}
+}
+
+// Draw enemies
+for (const e of enemies) {
+// Body
+let model = mat4Identity();
+model = mat4Translate(model, e.x, e.y + 1, e.z);
+model = mat4Scale(model, 1.2, 2, 0.8);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, model);
+const flash = e.hitFlash;
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'),
+e.color[0] + flash * 0.5, e.color[1] * (1-flash), e.color[2] * (1-flash));
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), flash * 0.5);
+gl.bindVertexArray(boxMesh.vao);
+gl.drawElements(gl.TRIANGLES, boxMesh.count, gl.UNSIGNED_SHORT, 0);
+
+// Head
+model = mat4Identity();
+model = mat4Translate(model, e.x, e.y + 2.3, e.z);
+model = mat4Scale(model, 0.6, 0.6, 0.6);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, model);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'),
+0.9 + flash*0.1, 0.7*(1-flash), 0.6*(1-flash));
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), 0);
+gl.bindVertexArray(sphereMesh.vao);
+gl.drawElements(gl.TRIANGLES, sphereMesh.count, gl.UNSIGNED_SHORT, 0);
+
+// Health bar
+if (e.health < e.maxHealth) {
+const hpRatio = e.health / e.maxHealth;
+model = mat4Identity();
+model = mat4Translate(model, e.x, e.y + 3, e.z);
+model = mat4Scale(model, hpRatio * 1.5, 0.15, 0.05);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, model);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'), 1-hpRatio, hpRatio, 0);
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), 0.3);
+gl.bindVertexArray(boxMesh.vao);
+gl.drawElements(gl.TRIANGLES, boxMesh.count, gl.UNSIGNED_SHORT, 0);
+}
+}
+
+// Draw bullets
+for (const b of bullets) {
+let model = mat4Identity();
+model = mat4Translate(model, b.x, b.y, b.z);
+model = mat4Scale(model, 0.15, 0.15, 0.15);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, model);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'),
+b.isEnemy ? 1 : 1, b.isEnemy ? 0.3 : 0.8, b.isEnemy ? 0.1 : 0.2);
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), 1.0);
+gl.bindVertexArray(sphereMesh.vao);
+gl.drawElements(gl.TRIANGLES, sphereMesh.count, gl.UNSIGNED_SHORT, 0);
+
+// Bullet trail
+for (let t = 0; t < b.trail.length; t++) {
+const tr = b.trail[t];
+const alpha = t / b.trail.length;
+let tm = mat4Identity();
+tm = mat4Translate(tm, tr.x, tr.y, tr.z);
+tm = mat4Scale(tm, 0.06 * alpha, 0.06 * alpha, 0.06 * alpha);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, tm);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'),
+1 * alpha, 0.7 * alpha, 0.2 * alpha);
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), alpha);
+gl.bindVertexArray(sphereMesh.vao);
+gl.drawElements(gl.TRIANGLES, sphereMesh.count, gl.UNSIGNED_SHORT, 0);
+}
+}
+
+// Draw particles
+for (const p of particles) {
+const alpha = p.life / p.maxLife;
+let model = mat4Identity();
+model = mat4Translate(model, p.x, p.y, p.z);
+model = mat4Scale(model, p.size * alpha, p.size * alpha, p.size * alpha);
+gl.uniformMatrix4fv(gl.getUniformLocation(entityProg, 'uModel'), false, model);
+gl.uniform3f(gl.getUniformLocation(entityProg, 'uColor'),
+p.color[0], p.color[1], p.color[2]);
+gl.uniform1f(gl.getUniformLocation(entityProg, 'uEmissive'), alpha * 0.5);
+gl.bindVertexArray(sphereMesh.vao);
+gl.drawElements(gl.TRIANGLES, sphereMesh.count, gl.UNSIGNED_SHORT, 0);
+}
+}
+
+// ============================================================
+// MINIMAP
+// ============================================================
+const minimapCanvas = document.getElementById('minimap');
+const mctx = minimapCanvas.getContext('2d');
+
+function drawMinimap() {
+const w = minimapCanvas.width, h = minimapCanvas.height;
+mctx.fillStyle = '#111';
+mctx.fillRect(0, 0, w, h);
+
+const scale = w / TERRAIN_SIZE;
+const ox = w / 2, oy = h / 2;
+
+// Terrain heightmap
+const imgData = mctx.createImageData(w, h);
+for (let y = 0; y < h; y++) {
+for (let x = 0; x < w; x++) {
+const wx = (x - ox) / scale;
+const wz = (y - oy) / scale;
+const th = getTerrainHeight(wx, wz) / HEIGHT_SCALE;
+const wl = getWaterLevel(wx, wz);
+const idx = (y * w + x) * 4;
+if (wl > 0.05) {
+imgData.data[idx] = 20;
+imgData.data[idx+1] = 60 + wl * 200;
+imgData.data[idx+2] = 150;
+} else {
+const v = Math.floor(th * 120 + 30);
+imgData.data[idx] = v * 0.6;
+imgData.data[idx+1] = v;
+imgData.data[idx+2] = v * 0.4;
+}
+imgData.data[idx+3] = 255;
+}
+}
+mctx.putImageData(imgData, 0, 0);
+
+// Water containers
+for (const wc of waterContainers) {
+if (wc.broken) continue;
+mctx.fillStyle = '#48f';
+mctx.beginPath();
+mctx.arc(ox + wc.x * scale, oy + wc.z * scale, 3, 0, Math.PI * 2);
+mctx.fill();
+}
+
+// Enemies
+mctx.fillStyle = '#f33';
+for (const e of enemies) {
+mctx.beginPath();
+mctx.arc(ox + e.x * scale, oy + e.z * scale, 2, 0, Math.PI * 2);
+mctx.fill();
+}
+
+// Player
+mctx.fillStyle = '#0f0';
+mctx.beginPath();
+mctx.arc(ox + player.x * scale, oy + player.z * scale, 3, 0, Math.PI * 2);
+mctx.fill();
+
+// Player direction
+mctx.strokeStyle = '#0f0';
+mctx.lineWidth = 1;
+mctx.beginPath();
+mctx.moveTo(ox + player.x * scale, oy + player.z * scale);
+mctx.lineTo(
+ox + (player.x - Math.sin(player.yaw) * 8) * scale,
+oy + (player.z - Math.cos(player.yaw) * 8) * scale
+);
+mctx.stroke();
+}
+
+// ============================================================
+// UI UPDATE
+// ============================================================
+function updateUI() {
+const hpPct = player.health / player.maxHealth;
+const bars = Math.floor(hpPct * 20);
+const hpBar = '█'.repeat(bars) + '░'.repeat(20 - bars);
+const hpColor = hpPct > 0.5 ? '#0f0' : hpPct > 0.25 ? '#ff0' : '#f00';
+document.getElementById('health').innerHTML =
+`HP: <span style="color:${hpColor}">${hpBar}</span> ${Math.ceil(player.health)}`;
+
+const ammoText = player.reloading ?
+`RELOADING... ${Math.ceil(player.reloadTime * 10)/10}s` :
+`AMMO: ${player.ammo} / ${player.reserve}`;
+document.getElementById('ammo').textContent = ammoText;
+document.getElementById('score').textContent = `SCORE: ${score}`;
+document.getElementById('wave').textContent = `WAVE: ${wave} | Enemies: ${enemies.length}`;
+
+const waterStatus = player.inWater ? '🌊 IN WATER - SPEED REDUCED' : '';
+document.getElementById('waterStatus').textContent = waterStatus;
+document.getElementById('waterStatus').style.color = '#4af';
+}
+
+// ============================================================
+// INPUT HANDLING
+// ============================================================
+document.addEventListener('keydown', e => {
+keys[e.key.toLowerCase()] = true;
+if (e.key.toLowerCase() === 'r') reload();
+if (e.key.toLowerCase() === 'e') {
+// Interact with nearby containers
+for (const wc of waterContainers) {
+if (!wc.broken) {
+const d = Math.sqrt((player.x-wc.x)**2 + (player.z-wc.z)**2);
+if (d < 4) breakContainer(wc);
+}
+}
+}
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+canvas.addEventListener('click', () => {
+if (!gameOver) canvas.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+// Pointer lock changed
+});
+
+document.addEventListener('mousemove', e => {
+if (document.pointerLockElement === canvas) {
+player.yaw += e.movementX * 0.002;
+player.pitch -= e.movementY * 0.002;
+player.pitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, player.pitch));
+}
+});
+
+document.addEventListener('mousedown', e => {
+if (e.button === 0) mouseDown = true;
+});
+document.addEventListener('mouseup', e => {
+if (e.button === 0) mouseDown = false;
+});
+
+window.addEventListener('resize', () => {
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+gl.viewport(0, 0, canvas.width, canvas.height);
+});
+
+// ============================================================
+// GAME INIT & LOOP
+// ============================================================
+function initGame() {
+generateTerrain();
+heightmapTex = createDataTexture(heightData);
+watermapTex = createDataTexture(waterData);
+terrainMesh = createTerrainMesh();
+boxMesh = createBoxGeometry();
+sphereMesh = createSphereGeometry();
+cylinderMesh = createCylinderGeometry();
+skyMesh = createSkyMesh();
+spawnWaterContainers();
+
+// Initial enemies
+for (let i = 0; i < 5; i++) spawnEnemy();
+
+// Place player
+player.x = 0;
+player.z = 0;
+player.y = getTerrainHeight(0, 0);
+}
+
+let lastTime = 0;
+let fluidTimer = 0;
+let minimapTimer = 0;
+
+function gameLoop(time) {
+const dt = Math.min((time - lastTime) / 1000, 0.05);
+lastTime = time;
+gameTime += dt;
+
+if (!gameOver) {
+updatePlayer(dt);
+updateEnemies(dt);
+updateBullets(dt);
+updateParticles(dt);
+
+// Fluid simulation at lower rate
+fluidTimer += dt;
+if (fluidTimer > 0.1) {
+simulateFluid(fluidTimer);
+fluidTimer = 0;
+}
+}
+
+render();
+
+// Minimap at lower rate
+minimapTimer += dt;
+if (minimapTimer > 0.2) {
+drawMinimap();
+minimapTimer = 0;
+}
+
+updateUI();
+requestAnimationFrame(gameLoop);
+}
+
+function restartGame() {
+gameOver = false;
+document.getElementById('gameOver').style.display = 'none';
+player.health = 100;
+player.ammo = 30;
+player.reserve = 90;
+player.reloading = false;
+score = 0;
+wave = 1;
+enemies = [];
+bullets = [];
+particles = [];
+waterData.fill(0);
+
+generateTerrain();
+updateTexture(heightmapTex, heightData);
+updateTexture(watermapTex, waterData);
+rebuildTerrainMesh();
+spawnWaterContainers();
+
+player.x = 0; player.z = 0;
+player.y = getTerrainHeight(0, 0);
+player.vx = 0; player.vy = 0; player.vz = 0;
+
+for (let i = 0; i < 5; i++) spawnEnemy();
+canvas.requestPointerLock();
+}
+
+// Check for OES_texture_float_linear
+const ext = gl.getExtension('OES_texture_float_linear');
+if (!ext) {
+// Fallback: use R16F if R32F linear filtering not available
+console.warn('Float linear filtering not available, using nearest');
+}
+
+// Enable uint32 indices
+gl.getExtension('OES_element_index_uint');
+
+initGame();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

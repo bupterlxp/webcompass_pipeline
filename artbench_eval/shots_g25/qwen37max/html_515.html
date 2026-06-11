@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CDN Distribution Monitor</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8;
+    --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --border:#334155;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:14px 22px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  header h1{margin:0;font-size:18px;font-weight:600}
+  header .status{margin-left:auto;display:flex;gap:14px;font-size:13px;color:var(--muted)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+  main{display:grid;grid-template-columns:1fr 340px;gap:14px;padding:14px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .panel h2{margin:0 0 10px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  #map{height:440px;border-radius:8px;background:#0b1220}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .chart-wrap{height:240px}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  input,select,button{width:100%;padding:8px 10px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:13px}
+  button{cursor:pointer;background:var(--accent);color:#0b1220;font-weight:600;border:none;margin-top:10px}
+  button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:500}
+  .badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .b-ok{background:rgba(34,197,94,.15);color:var(--ok)}
+  .b-warn{background:rgba(245,158,11,.15);color:var(--warn)}
+  .b-bad{background:rgba(239,68,68,.15);color:var(--bad)}
+  .rec{padding:10px;background:var(--panel2);border-left:3px solid var(--accent);border-radius:4px;margin:8px 0;font-size:13px}
+  .rec.critical{border-left-color:var(--bad)}
+  .rec.warn{border-left-color:var(--warn)}
+  .rec strong{color:var(--accent)}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .kpi div{background:var(--panel2);padding:10px;border-radius:6px}
+  .kpi .v{font-size:20px;font-weight:700}
+  .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase}
+  .leaflet-popup-content{color:#0b1220;font-size:12px}
+  .leaflet-popup-content b{color:#0369a1}
+  #alerts{max-height:180px;overflow-y:auto;font-size:12px}
+  .alert-item{padding:6px 8px;border-left:3px solid var(--bad);background:var(--panel2);margin:4px 0;border-radius:3px}
+  .alert-item.warn{border-left-color:var(--warn)}
+  .alert-item .t{color:var(--muted);font-size:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌐 CDN Distribution Monitor</h1>
+  <div class="status">
+    <span><span class="dot ok" id="statusDot"></span><span id="statusText">Monitoring</span></span>
+    <span>Probes: <b id="probeCount">0</b></span>
+    <span>Last tick: <b id="lastTick">—</b></span>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="panel">
+      <h2>Global Probe Map</h2>
+      <div id="map"></div>
+    </div>
+
+    <div class="kpi" style="margin-top:14px">
+      <div><div class="l">Avg Latency</div><div class="v" id="kpiLat">—</div></div>
+      <div><div class="l">Availability</div><div class="v" id="kpiAvail">—</div></div>
+      <div><div class="l">Error Rate</div><div class="v" id="kpiErr">—</div></div>
+      <div><div class="l">Active Alerts</div><div class="v" id="kpiAlerts">0</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Latency Trend (last 60 probes)</h2>
+        <div class="chart-wrap"><canvas id="latChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Availability & Error Rate</h2>
+        <div class="chart-wrap"><canvas id="errChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Regional Breakdown</h2>
+      <table id="regionTable">
+        <thead><tr><th>Region</th><th>Node</th><th>Latency</th><th>TTFB</th><th>Avail.</th><th>Err%</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h2>Target</h2>
+      <label>Website URL</label>
+      <input id="targetUrl" value="https://example.com" />
+      <label>Detection Frequency (seconds)</label>
+      <input id="freq" type="number" min="5" max="600" value="10" />
+      <button id="applyBtn">Apply & Restart</button>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Alert Thresholds</h2>
+      <label>Latency warning (ms)</label>
+      <input id="thLatWarn" type="number" value="300" />
+      <label>Latency critical (ms)</label>
+      <input id="thLatCrit" type="number" value="800" />
+      <label>Error rate warning (%)</label>
+      <input id="thErrWarn" type="number" step="0.1" value="1" />
+      <label>Error rate critical (%)</label>
+      <input id="thErrCrit" type="number" step="0.1" value="5" />
+      <label>Availability minimum (%)</label>
+      <input id="thAvail" type="number" step="0.1" value="99" />
+      <button class="secondary" id="saveThBtn">Save Thresholds</button>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>CDN Switching Recommendations</h2>
+      <div id="recs"><div class="rec">Collecting data…</div></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Recent Alerts</h2>
+      <div id="alerts"><div style="color:var(--muted);font-size:12px">No alerts</div></div>
+      <button class="secondary" id="clearAlerts">Clear</button>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* =========================================================
+   CDN Distribution Monitor — simulation engine + UI
+   ========================================================= */
+
+// --- Probe nodes (realistic global edge locations) ---
+const NODES = [
+  {id:'us-east',   name:'US East (Virginia)',   region:'North America', lat:37.5,  lng:-77.5,  baseLat:45},
+  {id:'us-west',   name:'US West (Oregon)',     region:'North America', lat:45.5,  lng:-122.7, baseLat:60},
+  {id:'ca-central',name:'Canada (Montreal)',    region:'North America', lat:45.5,  lng:-73.6,  baseLat:70},
+  {id:'mx',        name:'Mexico (Querétaro)',   region:'Latin America', lat:20.6,  lng:-100.4, baseLat:140},
+  {id:'br',        name:'Brazil (São Paulo)',   region:'Latin America', lat:-23.5, lng:-46.6,  baseLat:210},
+  {id:'uk',        name:'UK (London)',          region:'Europe',        lat:51.5,  lng:-0.1,   baseLat:90},
+  {id:'de',        name:'Germany (Frankfurt)',  region:'Europe',        lat:50.1,  lng:8.7,    baseLat:95},
+  {id:'nl',        name:'Netherlands (AMS)',    region:'Europe',        lat:52.4,  lng:4.9,    baseLat:100},
+  {id:'za',        name:'South Africa (CPT)',   region:'Africa',        lat:-33.9, lng:18.4,   baseLat:260},
+  {id:'ae',        name:'UAE (Dubai)',          region:'Middle East',   lat:25.3,  lng:55.3,   baseLat:180},
+  {id:'in',        name:'India (Mumbai)',       region:'Asia Pacific',  lat:19.1,  lng:72.9,   baseLat:200},
+  {id:'sg',        name:'Singapore',            region:'Asia Pacific',  lat:1.35,  lng:103.8,  baseLat:220},
+  {id:'jp',        name:'Japan (Tokyo)',        region:'Asia Pacific',  lat:35.7,  lng:139.7,  baseLat:170},
+  {id:'kr',        name:'South Korea (Seoul)',  region:'Asia Pacific',  lat:37.6,  lng:127.0,  baseLat:190},
+  {id:'au',        name:'Australia (Sydney)',   region:'Oceania',       lat:-33.9, lng:151.2,  baseLat:240},
+];
+
+// --- State ---
+const state = {
+  target:'https://example.com',
+  freq:10,
+  thresholds:{latWarn:300,latCrit:800,errWarn:1,errCrit:5,avail:99},
+  history:[],          // [{ts, nodes:{id:{lat,ttfb,avail,err}}}]
+  alerts:[],
+  markers:{},
+  timer:null,
+};
+
+// --- Map setup ---
+const map = L.map('map',{worldCopyJump:true}).setView([20,0],2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© OpenStreetMap © CARTO', maxZoom:18
+}).addTo(map);
+
+NODES.forEach(n=>{
+  const m = L.circleMarker([n.lat,n.lng],{
+    radius:10, color:'#38bdf8', fillColor:'#38bdf8', fillOpacity:.7, weight:2
+  }).addTo(map);
+  m.bindPopup(`<b>${n.name}</b><br/>Waiting for data…`);
+  state.markers[n.id] = m;
+});
+
+// --- Charts ---
+const latCtx = document.getElementById('latChart');
+const latChart = new Chart(latCtx,{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Avg Latency (ms)',data:[],borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.15)',tension:.3,fill:true,pointRadius:0},
+    {label:'P95 Latency (ms)',data:[],borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.1)',tension:.3,fill:false,pointRadius:0,borderDash:[4,4]}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+    scales:{x:{ticks:{color:'#64748b',maxTicksLimit:8},grid:{color:'#1e293b'}},
+            y:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}}}}
+});
+
+const errCtx = document.getElementById('errChart');
+const errChart = new Chart(errCtx,{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Availability %',data:[],borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.15)',tension:.3,fill:true,pointRadius:0,yAxisID:'y'},
+    {label:'Error Rate %',data:[],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.15)',tension:.3,fill:true,pointRadius:0,yAxisID:'y1'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+    scales:{
+      x:{ticks:{color:'#64748b',maxTicksLimit:8},grid:{color:'#1e293b'}},
+      y:{position:'left',min:95,max:100,ticks:{color:'#22c55e'},grid:{color:'#1e293b'}},
+      y1:{position:'right',min:0,max:10,ticks:{color:'#ef4444'},grid:{drawOnChartArea:false}}
+    }}
+});
+
+// --- Simulation: generate realistic probe data ---
+function simulateProbe(node){
+  // Base latency + jitter + occasional degradation
+  const jitter = (Math.random()-0.5) * node.baseLat * 0.3;
+  const spike = Math.random() < 0.03 ? node.baseLat * (1 + Math.random()*2) : 0;
+  let latency = Math.max(20, node.baseLat + jitter + spike);
+
+  // TTFB is typically 60-85% of total latency
+  const ttfb = latency * (0.6 + Math.random()*0.25);
+
+  // Error rate: mostly 0, occasionally elevated
+  let err = 0;
+  const r = Math.random();
+  if (r < 0.02) err = Math.random() * 8;          // rare outage
+  else if (r < 0.08) err = Math.random() * 1.5;   // occasional errors
+
+  // Availability derived from errors
+  const avail = Math.max(0, 100 - err - (spike>0 ? Math.random()*0.5 : 0));
+
+  return {
+    lat: Math.round(latency),
+    ttfb: Math.round(ttfb),
+    err: +err.toFixed(2),
+    avail: +avail.toFixed(2),
+    status: err>state.thresholds.errCrit || latency>state.thresholds.latCrit ? 'bad'
+          : err>state.thresholds.errWarn || latency>state.thresholds.latWarn ? 'warn' : 'ok'
+  };
+}
+
+// --- Core tick ---
+function tick(){
+  const snapshot = {ts: Date.now(), nodes:{}};
+  NODES.forEach(n=>{
+    const p = simulateProbe(n);
+    snapshot.nodes[n.id] = p;
+    updateMarker(n, p);
+    checkAlerts(n, p);
+  });
+  state.history.push(snapshot);
+  if (state.history.length > 60) state.history.shift();
+
+  updateKPIs(snapshot);
+  updateTable(snapshot);
+  updateCharts();
+  updateRecommendations();
+  renderAlerts();
+
+  document.getElementById('lastTick').textContent = new Date().toLocaleTimeString();
+  document.getElementById('probeCount').textContent = state.history.length;
+}
+
+function updateMarker(node, p){
+  const m = state.markers[node.id];
+  const color = p.status==='bad' ? '#ef4444' : p.status==='warn' ? '#f59e0b' : '#22c55e';
+  m.setStyle({color, fillColor:color, radius: 8 + Math.min(12, p.lat/80)});
+  m.setPopupContent(
+    `<b>${node.name}</b><br/>
+     Region: ${node.region}<br/>
+     Latency: <b>${p.lat} ms</b><br/>
+     TTFB: ${p.ttfb} ms<br/>
+     Availability: ${p.avail}%<br/>
+     Error Rate: ${p.err}%<br/>
+     Status: <b style="color:${color}">${p.status.toUpperCase()}</b>`
+  );
+}
+
+function updateKPIs(snap){
+  const vals = Object.values(snap.nodes);
+  const avgLat = vals.reduce((a,b)=>a+b.lat,0)/vals.length;
+  const avgAvail = vals.reduce((a,b)=>a+b.avail,0)/vals.length;
+  const avgErr = vals.reduce((a,b)=>a+b.err,0)/vals.length;
+  document.getElementById('kpiLat').textContent = avgLat.toFixed(0)+' ms';
+  document.getElementById('kpiAvail').textContent = avgAvail.toFixed(2)+'%';
+  document.getElementById('kpiErr').textContent = avgErr.toFixed(2)+'%';
+  document.getElementById('kpiAlerts').textContent = state.alerts.length;
+
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  if (avgErr > state.thresholds.errCrit){ dot.className='dot bad'; txt.textContent='Degraded'; }
+  else if (avgErr > state.thresholds.errWarn || avgLat > state.thresholds.latWarn){ dot.className='dot warn'; txt.textContent='Warning'; }
+  else { dot.className='dot ok'; txt.textContent='Healthy'; }
+}
+
+function updateTable(snap){
+  const tbody = document.querySelector('#regionTable tbody');
+  tbody.innerHTML = '';
+  NODES.forEach(n=>{
+    const p = snap.nodes[n.id];
+    const badge = p.status==='bad' ? 'b-bad' : p.status==='warn' ? 'b-warn' : 'b-ok';
+    tbody.insertAdjacentHTML('beforeend',
+      `<tr>
+        <td>${n.region}</td><td>${n.name}</td>
+        <td>${p.lat} ms</td><td>${p.ttfb} ms</td>
+        <td>${p.avail}%</td><td>${p.err}%</td>
+        <td><span class="badge ${badge}">${p.status.toUpperCase()}</span></td>
+      </tr>`);
+  });
+}
+
+function updateCharts(){
+  const labels = state.history.map(h=>new Date(h.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  const avgLats=[], p95Lats=[], avails=[], errs=[];
+  state.history.forEach(h=>{
+    const vs = Object.values(h.nodes);
+    avgLats.push(vs.reduce((a,b)=>a+b.lat,0)/vs.length);
+    const sorted = vs.map(v=>v.lat).sort((a,b)=>a-b);
+    p95Lats.push(sorted[Math.floor(sorted.length*0.95)]);
+    avails.push(vs.reduce((a,b)=>a+b.avail,0)/vs.length);
+    errs.push(vs.reduce((a,b)=>a+b.err,0)/vs.length);
+  });
+  latChart.data.labels = labels;
+  latChart.data.datasets[0].data = avgLats;
+  latChart.data.datasets[1].data = p95Lats;
+  latChart.update('none');
+
+  errChart.data.labels = labels;
+  errChart.data.datasets[0].data = avails;
+  errChart.data.datasets[1].data = errs;
+  errChart.update('none');
+}
+
+// --- Alerts ---
+function checkAlerts(node, p){
+  const th = state.thresholds;
+  const mk = (sev,msg)=> state.alerts.unshift({
+    ts:Date.now(), sev, node:node.name, msg
+  });
+  if (p.lat > th.latCrit) mk('crit',`Critical latency ${p.lat}ms`);
+  else if (p.lat > th.latWarn) mk('warn',`High latency ${p.lat}ms`);
+  if (p.err > th.errCrit) mk('crit',`Critical error rate ${p.err}%`);
+  else if (p.err > th.errWarn) mk('warn',`Elevated error rate ${p.err}%`);
+  if (p.avail < th.avail) mk('crit',`Availability ${p.avail}% below ${th.avail}%`);
+  if (state.alerts.length > 100) state.alerts.length = 100;
+}
+
+function renderAlerts(){
+  const el = document.getElementById('alerts');
+  if (!state.alerts.length){ el.innerHTML='<div style="color:var(--muted);font-size:12px">No alerts</div>'; return; }
+  el.innerHTML = state.alerts.slice(0,20).map(a=>
+    `<div class="alert-item ${a.sev==='warn'?'warn':''}">
+       <b>${a.node}</b> — ${a.msg}
+       <div class="t">${new Date(a.ts).toLocaleTimeString()}</div>
+     </div>`).join('');
+}
+
+// --- Recommendations engine ---
+function updateRecommendations(){
+  const el = document.getElementById('recs');
+  if (state.history.length < 5){ el.innerHTML='<div class="rec">Collecting baseline data…</div>'; return; }
+
+  // Aggregate per-region stats over history
+  const regionStats = {};
+  NODES.forEach(n=>{
+    if (!regionStats[n.region]) regionStats[n.region] = {lats:[],errs:[],avails:[],nodes:[]};
+    state.history.forEach(h=>{
+      const p = h.nodes[n.id];
+      regionStats[n.region].lats.push(p.lat);
+      regionStats[n.region].errs.push(p.err);
+      regionStats[n.region].avails.push(p.avail);
+    });
+    regionStats[n.region].nodes.push(n);
+  });
+
+  const recs = [];
+  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+  Object.entries(regionStats).forEach(([region,s])=>{
+    const aLat = avg(s.lats), aErr = avg(s.errs), aAvail = avg(s.avails);
+    if (aLat > state.thresholds.latCrit){
+      recs.push({sev:'critical',
+        text:`<strong>${region}</strong> avg latency ${aLat.toFixed(0)}ms exceeds critical threshold. <em>Recommendation:</em> enable a closer edge PoP (e.g., Cloudflare / AWS CloudFront regional edge) or switch origin pull to a regional mirror.`});
+    } else if (aLat > state.thresholds.latWarn){
+      recs.push({sev:'warn',
+        text:`<strong>${region}</strong> avg latency ${aLat.toFixed(0)}ms is elevated. <em>Recommendation:</em> consider adding an edge node or enabling Anycast routing for this region.`});
+    }
+    if (aErr > state.thresholds.errCrit){
+      recs.push({sev:'critical',
+        text:`<strong>${region}</strong> error rate ${aErr.toFixed(2)}% is critical. <em>Recommendation:</em> failover traffic to backup CDN provider (e.g., Fastly ↔ Akamai) via DNS weighted routing.`});
+    }
+    if (aAvail < state.thresholds.avail){
+      recs.push({sev:'critical',
+        text:`<strong>${region}</strong> availability ${aAvail.toFixed(2)}% below SLA. <em>Recommendation:</em> activate multi-CDN strategy with health-check-based routing (NS1 / Constellix).`});
+    }
+  });
+
+  // Global optimization suggestion
+  const allLats = Object.values(regionStats).flatMap(s=>s.lats);
+  const globalAvg = avg(allLats);
+  const bestRegion = Object.entries(regionStats).sort((a,b)=>avg(a[1].lats)-avg(b[1].lats))[0];
+  const worstRegion = Object.entries(regionStats).sort((a,b)=>avg(b[1].lats)-avg(a[1].lats))[0];
+
+  if (recs.length === 0){
+    recs.push({sev:'ok',
+      text:`All regions healthy. Global avg latency <strong>${globalAvg.toFixed(0)}ms</strong>. Best performing: <strong>${bestRegion[0]}</strong>. No CDN switch required.`});
+  }
+  recs.push({sev:'info',
+    text:`Performance spread: best <strong>${bestRegion[0]}</strong> (${avg(bestRegion[1].lats).toFixed(0)}ms) vs worst <strong>${worstRegion[0]}</strong> (${avg(worstRegion[1].lats).toFixed(0)}ms). Consider geo-routing optimization to reduce variance.`});
+
+  el.innerHTML = recs.map(r=>`<div class="rec ${r.sev}">${r.text}</div>`).join('');
+}
+
+// --- Controls ---
+function restart(){
+  state.target = document.getElementById('targetUrl').value;
+  state.freq = Math.max(5, +document.getElementById('freq').value || 10);
+  if (state.timer) clearInterval(state.timer);
+  state.history = []; state.alerts = [];
+  latChart.data.labels=[]; latChart.data.datasets.forEach(d=>d.data=[]); latChart.update();
+  errChart.data.labels=[]; errChart.data.datasets.forEach(d=>d.data=[]); errChart.update();
+  tick();
+  state.timer = setInterval(tick, state.freq*1000);
+}
+
+function saveThresholds(){
+  state.thresholds = {
+    latWarn:+document.getElementById('thLatWarn').value,
+    latCrit:+document.getElementById('thLatCrit').value,
+    errWarn:+document.getElementById('thErrWarn').value,
+    errCrit:+document.getElementById('thErrCrit').value,
+    avail:+document.getElementById('thAvail').value,
+  };
+  try{ localStorage.setItem('cdn-th', JSON.stringify(state.thresholds)); }catch(e){}
+  alert('Thresholds saved.');
+}
+
+document.getElementById('applyBtn').onclick = restart;
+document.getElementById('saveThBtn').onclick = saveThresholds;
+document.getElementById('clearAlerts').onclick = ()=>{ state.alerts=[]; renderAlerts(); };
+
+// Load saved thresholds
+try{
+  const saved = JSON.parse(localStorage.getItem('cdn-th')||'null');
+  if (saved){
+    state.thresholds = saved;
+    document.getElementById('thLatWarn').value = saved.latWarn;
+    document.getElementById('thLatCrit').value = saved.latCrit;
+    document.getElementById('thErrWarn').value = saved.errWarn;
+    document.getElementById('thErrCrit').value = saved.errCrit;
+    document.getElementById('thAvail').value = saved.avail;
+  }
+}catch(e){}
+
+// Start
+restart();
+</script>
+</body>
+</html>

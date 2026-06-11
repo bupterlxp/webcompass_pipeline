@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎵 Audio Watermark Creator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #e2e8f0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand i {
+  font-size: 28px;
+  color: #60a5fa;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.main {
+  display: grid;
+  gap: 24px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.card h2 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card h2 i { color: #60a5fa; }
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #cbd5e1;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+  font-size: 14px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.field input[type="text"]:hover,
+.field input[type="number"]:hover,
+.field select:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.field input[type="text"]:focus,
+.field input[type="number"]:focus,
+.field select:focus {
+  outline: none;
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap select {
+  appearance: none;
+  padding-right: 36px;
+}
+
+.select-wrap i {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.val {
+  color: #60a5fa;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.pitch-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.pitch-labels span:first-child { color: #fca5a5; }
+.pitch-labels span:last-child { color: #60a5fa; }
+
+input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #60a5fa;
+  cursor: pointer;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #60a5fa;
+  cursor: pointer;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.btn i { font-size: 13px; }
+
+.btn-primary {
+  background: #60a5fa;
+  color: #0f172a;
+}
+
+.btn-primary:hover { background: #3b82f6; transform: translateY(-1px); }
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.18); }
+
+.btn-success {
+  background: #10b981;
+  color: #fff;
+}
+
+.btn-success:hover { background: #059669; }
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+.btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+}
+
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); color: #e2e8f0; }
+
+.btn-block { width: 100%; }
+
+.upload-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-wrap:hover,
+.upload-wrap.dragover {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: #60a5fa;
+  color: #0f172a;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.upload-btn:hover { background: #3b82f6; transform: translateY(-1px); }
+
+.upload-btn i { font-size: 16px; }
+
+.hint {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.file-info {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-row i {
+  color: #60a5fa;
+  font-size: 18px;
+}
+
+.file-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+
+.file-meta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  border-radius: 999px;
+  transition: width 0.1s linear;
+}
+
+.time {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+#audio {
+  width: 100%;
+  height: 40px;
+}
+
+.foot {
+  margin-top: 32px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(15, 23, 42, 0.9);
+  color: #e2e8f0;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 1000;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.success { border-color: #34d399; }
+.toast.error { border-color: #fca5a5; }
+.toast.info { border-color: #60a5fa; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .app { padding: 20px 16px 48px; }
+  .card { padding: 18px; }
+  .preview-wrap { grid-template-columns: 1fr; }
+  .preview-wrap .btn { width: 100%; }
+  .brand h1 { font-size: 20px; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <i class="fa-solid fa-waveform-lines"></i>
+      <h1>Audio Watermark Creator</h1>
+    </div>
+    <p class="tagline">Upload, watermark, and download your audio</p>
+  </header>
+
+  <main class="main">
+    <section class="card upload-card" id="uploadCard">
+      <div class="upload-wrap">
+        <label for="fileInput" class="upload-btn">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Choose Audio File</span>
+        </label>
+        <input type="file" id="fileInput" accept="audio/*" hidden>
+        <p class="hint">Supported: MP3, WAV, OGG, M4A, AAC, WebM, FLAC</p>
+      </div>
+      <div class="file-info" id="fileInfo" hidden>
+        <div class="file-row">
+          <i class="fa-solid fa-file-audio"></i>
+          <div>
+            <div class="file-name" id="fileName"></div>
+            <div class="file-meta" id="fileMeta"></div>
+          </div>
+        </div>
+        <button class="btn btn-danger" id="clearBtn" type="button">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+      </div>
+    </section>
+
+    <section class="card settings-card">
+      <h2><i class="fa-solid fa-pen"></i> Watermark Settings</h2>
+
+      <div class="field">
+        <label for="watermarkText">Watermark Text</label>
+        <input type="text" id="watermarkText" placeholder="e.g. © 2025 YourName" value="© 2025 YourName">
+      </div>
+
+      <div class="field">
+        <label>Placement</label>
+        <div class="select-wrap">
+          <select id="placement">
+            <option value="beginning">Beginning</option>
+            <option value="middle">Middle</option>
+            <option value="end">End</option>
+          </select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Volume <span id="volVal" class="val">0%</span></label>
+        <input type="range" id="volume" min="0" max="100" value="30">
+      </div>
+
+      <div class="field">
+        <label for="duration">Watermark Duration (seconds)</label>
+        <input type="number" id="duration" min="0.5" max="30" step="0.1" value="3">
+      </div>
+
+      <div class="field">
+        <label for="pitch">Pitch Shift</label>
+        <input type="range" id="pitch" min="-24" max="24" value="0">
+        <div class="pitch-labels"><span>-24</span><span>0</span><span>+24</span></div>
+      </div>
+
+      <div class="field">
+        <label for="sampleRate">Sample Rate (Hz)</label>
+        <input type="number" id="sampleRate" min="11025" max="48000" step="1000" value="44100">
+      </div>
+
+      <button class="btn btn-primary btn-block" id="processBtn" type="button">
+        <i class="fa-solid fa-play"></i> Process Watermark
+      </button>
+    </section>
+
+    <section class="card preview-card" id="previewCard" hidden>
+      <h2><i class="fa-solid fa-waveform-path"></i> Preview</h2>
+      <div class="preview-wrap">
+        <div class="progress">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="time">
+          <span id="timeCurrent">0:00</span>
+          <span id="timeTotal">0:00</span>
+        </div>
+        <audio id="audio" preload="metadata"></audio>
+        <button class="btn btn-secondary" id="playBtn" type="button">
+          <i class="fa-solid fa-play"></i> Play
+        </button>
+        <button class="btn btn-ghost" id="stopBtn" type="button">
+          <i class="fa-solid fa-stop"></i> Stop
+        </button>
+        <button class="btn btn-success" id="downloadBtn" type="button">
+          <i class="fa-solid fa-download"></i> Download Watermarked Audio
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <small>Tip: Use headphones for best audio experience</small>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  const els = {
+    fileInput: $('fileInput'),
+    uploadCard: $('uploadCard'),
+    fileInfo: $('fileInfo'),
+    fileName: $('fileName'),
+    fileMeta: $('fileMeta'),
+    clearBtn: $('clearBtn'),
+    watermarkText: $('watermarkText'),
+    placement: $('placement'),
+    volume: $('volume'),
+    volVal: $('volVal'),
+    duration: $('duration'),
+    pitch: $('pitch'),
+    sampleRate: $('sampleRate'),
+    processBtn: $('processBtn'),
+    previewCard: $('previewCard'),
+    audio: $('audio'),
+    playBtn: $('playBtn'),
+    stopBtn: $('stopBtn'),
+    downloadBtn: $('downloadBtn'),
+    progressBar: $('progressBar'),
+    timeCurrent: $('timeCurrent'),
+    timeTotal: $('timeTotal'),
+  };
+
+  const WATERMARK_TEXT = els.watermarkText.value;
+  const DEFAULT_DURATION = 3;
+  const MAX_DURATION = 30;
+
+  let audioCtx = null;
+  let audioBuffer = null;
+  let audioSource = null;
+  let audioTimer = null;
+  let isPlaying = false;
+  let currentProgress = 0;
+  let totalDuration = 0;
+
+  // ---------- Toast ----------
+  let toastEl = null;
+  function toast(msg, type = 'info', duration = 2800) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'toast';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + type;
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(() => {
+      toastEl.className = 'toast ' + type;
+      setTimeout(() => { toastEl.className = 'toast'; }, 300);
+    }, duration);
+  }
+
+  // ---------- File handling ----------
+  function handleFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('audio/') && !file.name.endsWith('.wav')) {
+      toast('Please upload a valid audio file', 'error');
+      return;
+    }
+    if (file.size > 250 * 1024 * 1024) {
+      toast('File too large (max 250MB)', 'error');
+      return;
+    }
+    els.fileInput.value = '';
+    loadFile(file);
+  }
+
+  function loadFile(file) {
+    els.uploadCard.hidden = true;
+    els.previewCard.hidden = true;
+    els.processBtn.disabled = false;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target.result;
+        audioBuffer = await decodeAudioBuffer(arrayBuffer);
+        totalDuration = audioBuffer.duration;
+        els.timeTotal.textContent = formatTime(totalDuration);
+        els.fileName.textContent = file.name;
+        els.fileMeta.textContent = `${formatBytes(file.size)} · ${totalDuration.toFixed(2)}s`;
+        els.fileInfo.hidden = false;
+        els.previewCard.hidden = false;
+        els.processBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        toast('Failed to decode audio', 'error');
+      }
+    };
+    reader.onerror = () => toast('Failed to read file', 'error');
+    reader.readAsArrayBuffer(file);
+  }
+
+  function formatTime(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  // ---------- Audio decoding ----------
+  async function decodeAudioBuffer(ab) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.close();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.decodeAudioData(ab.slice(0));
+    return ctx;
+  }
+
+  // ---------- Watermark synthesis ----------
+  function createWatermarkBuffer(ctx, text, duration, sampleRate, volume) {
+    const channelCount = 1;
+    const channels = Array.from({ length: channelCount }, () => new Float32Array(sampleRate * duration));
+    const pitchShift = parseInt(els.pitch.value, 10) || 0;
+
+    // Pitch shift via resampling
+    const bufferSize = sampleRate * duration;
+    const buffer = ctx.createBuffer(channelCount, bufferSize, sampleRate);
+    const outL = buffer.getChannelData(0);
+
+    const textLen = text.length;
+    const step = Math.max(1, Math.round(sampleRate * 0.025)); // ~25ms per char
+    const totalSamples = sampleRate * duration;
+
+    for (let i = 0; i < textLen; i++) {
+      const ch = text[i];
+      const startSample = i * step;
+      const endSample = Math.min(totalSamples, startSample + step);
+      const samples = endSample - startSample;
+      const amp = (volume / 100) * 0.4; // normalize
+      const freq = 300 + i * 100; // rise in pitch
+      const t0 = startSample / sampleRate;
+      const t1 = endSample / sampleRate;
+      const dur = t1 - t0;
+
+      for (let s = 0; s < samples; s++) {
+        const t = t0 + s / sampleRate;
+        const trel = (t - t0) / dur;
+        const env = 1 - Math.pow(1 - trel, 3);
+        const freqShifted = freq * Math.pow(2, pitchShift / 12);
+        const phase = (2 * Math.PI * freqShifted * t) % (2 * Math.PI);
+        const val = Math.sin(phase) * env * amp;
+        outL[s + startSample] += val;
+      }
+    }
+
+    // Normalize
+    const max = Math.max(...outL.map(Math.abs));
+    if (max > 0) {
+      const scale = 1 / max;
+      outL.forEach((v, i) => { outL[i] *= scale; });
+    }
+
+    return buffer;
+  }
+
+  // ---------- Audio processing ----------
+  async function processWatermark() {
+    if (!audioBuffer) return;
+    if (!els.watermarkText.value.trim()) {
+      toast('Please enter watermark text', 'error');
+      return;
+    }
+    if (!els.fileInfo.hidden) {
+      toast('File already loaded. Please clear and upload again to apply new settings.', 'info');
+      return;
+    }
+
+    els.processBtn.disabled = true;
+    els.processBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+    const text = els.watermarkText.value.trim();
+    const placement = els.placement.value;
+    const volume = parseInt(els.volume.value, 10);
+    const duration = parseFloat(els.duration.value) || DEFAULT_DURATION;
+    const pitch = parseInt(els.pitch.value, 10) || 0;
+    const sampleRate = parseInt(els.sampleRate.value, 10) || 44100;
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const watermark = await createWatermarkBuffer(ctx, text, duration, sampleRate, volume);
+
+    // Place watermark
+    let finalBuffer = null;
+    const srcBuffer = audioBuffer;
+    const srcDuration = srcBuffer.duration;
+
+    if (placement === 'beginning') {
+      finalBuffer = mergeBuffers(ctx, watermark, srcBuffer, 0, srcDuration);
+    } else if (placement === 'middle') {
+      const mid = srcDuration / 2;
+      const srcLen = srcDuration;
+      const wmLen = duration;
+      const overlap = 0.15; // 150ms overlap
+      const overlapLen = overlap * sampleRate;
+      const wmStart = Math.max(0, mid - wmLen / 2 - overlapLen);
+      const wmEnd = Math.min(srcDuration, mid + wmLen / 2 + overlapLen);
+      finalBuffer = mergeBuffers(ctx, watermark, srcBuffer, wmStart, wmEnd);
+    } else {
+      finalBuffer = mergeBuffers(ctx, srcBuffer, watermark, 0, srcDuration);
+    }
+
+    // Export
+    const mime = 'audio/mpeg';
+    const blob = await encodeAudioBlob(finalBuffer, mime, sampleRate);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'watermarked-' + Date.now() + '.mp3';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    toast('Watermarked audio downloaded', 'success');
+    els.processBtn.disabled = false;
+    els.processBtn.innerHTML = '<i class="fa-solid fa-play"></i> Process Watermark';
+    els.watermarkText.value = WATERMARK_TEXT;
+    els.volume.value = 30;
+    els.volVal.textContent = '0%';
+  }
+
+  function mergeBuffers(ctx, ...buffers) {
+    const channels = buffers[0].numberOfChannels;
+    const sampleRate = buffers[0].sampleRate;
+    let totalDuration = 0;
+    buffers.forEach((b) => { totalDuration += b.duration; });
+    const final = ctx.createBuffer(channels, Math.floor(sampleRate * totalDuration), sampleRate);
+    let offset = 0;
+    buffers.forEach((b) => {
+      const data = b.getChannelData(0);
+      final.getChannelData(0).set(data, offset);
+      offset += data.length;
+    });
+    return final;
+  }
+
+  async function encodeAudioBlob(buffer, mime, sampleRate) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const encoder = new (window.MediaRecorder || window.webkitMediaRecorder)(buffer, { mimeType: mime });
+    const chunks = [];
+    encoder.ondataavailable = (e) => { chunks.push(e.data); };
+    await new Promise((res, rej) => {
+      encoder.onstop = () => res();
+      encoder.onerror = rej;
+      encoder.start();
+      setTimeout(() => encoder.stop(), 500);
+    });
+    const blob = new Blob(chunks, { type: mime });
+    return blob;
+  }
+
+  // ---------- Preview ----------
+  function playAudio() {
+    if (!audioBuffer) return;
+    if (isPlaying) stopAudio();
+    audioSource = audioCtx.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    audioSource.connect(audioCtx.destination);
+    audioSource.start(0);
+    isPlaying = true;
+    startTimer();
+  }
+
+  function stopAudio() {
+    if (audioSource) {
+      audioSource.stop();
+      audioSource = null;
+    }
+    stopTimer();
+  }
+
+  function startTimer() {
+    stopTimer();
+    currentProgress = 0;
+    audioTimer = setInterval(() => {
+      currentProgress += 0.05;
+      if (currentProgress >= totalDuration) {
+        currentProgress = totalDuration;
+        stopTimer();
+      }
+      els.progressBar.style.width = ((currentProgress / totalDuration) * 100) + '%';
+      els.timeCurrent.textContent = formatTime(currentProgress);
+    }, 50);
+  }
+
+  function stopTimer() {
+    if (audioTimer) {
+      clearInterval(audioTimer);
+      audioTimer = null;
+    }
+  }
+
+  // ---------- Event wiring ----------
+  els.fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+  els.uploadCard.addEventListener('click', () => els.fileInput.click());
+  els.clearBtn.addEventListener('click', () => {
+    els.fileInput.value = '';
+    els.uploadCard.hidden = false;
+    els.previewCard.hidden = true;
+    els.fileInfo.hidden = true;
+    els.processBtn.disabled = true;
+    els.processBtn.innerHTML = '<i class="fa-solid fa-play"></i> Process Watermark';
+  });
+
+  els.volume.addEventListener('input', () => {
+    els.volVal.textContent = els.volume.value + '%';
+  });
+
+  els.processBtn.addEventListener('click', processWatermark);
+
+  els.playBtn.addEventListener('click', playAudio);
+  els.stopBtn.addEventListener('click', stopAudio);
+
+  els.audio.addEventListener('timeupdate', () => {
+    currentProgress = els.audio.currentTime;
+    els.progressBar.style.width = ((currentProgress / totalDuration) * 100) + '%';
+    els.timeCurrent.textContent = formatTime(currentProgress);
+  });
+
+  els.audio.addEventListener('ended', () => {
+    currentProgress = totalDuration;
+    els.progressBar.style.width = '100%';
+    els.timeCurrent.textContent = formatTime(totalDuration);
+  });
+
+  els.downloadBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
+    const mime = 'audio/mpeg';
+    const sampleRate = audioBuffer.sampleRate || 44100;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const blob = await encodeAudioBlob(audioBuffer, mime, sampleRate);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'watermarked-' + Date.now() + '.mp3';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast('Watermarked audio downloaded', 'success');
+  });
+
+  // Drag & drop
+  ['dragenter', 'dragover'].forEach((ev) => {
+    els.uploadCard.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      els.uploadCard.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach((ev) => {
+    els.uploadCard.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      els.uploadCard.classList.remove('dragover');
+    });
+  });
+  els.uploadCard.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (isPlaying) stopAudio(); else playAudio();
+    }
+  });
+})();
+</script></script>
+</body>
+</html>

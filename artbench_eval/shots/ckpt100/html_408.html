@@ -1,0 +1,64 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Large File Uploader</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script>// src/utils/chunker.js
+import { v4 as uuidv4 } from 'uuid';
+
+export function createChunker(file, chunkSize = 5 * 1024 * 1024) {
+  const chunks = [];
+  const totalSize = file.size;
+  const totalChunks = Math.ceil(totalSize / chunkSize);
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, totalSize);
+    const blob = file.slice(start, end);
+    chunks.push({
+      id: `${uuidv4()}-${i}`,
+      index: i,
+      size: end - start,
+      blob,
+      uploaded: false,
+      failed: false,
+      retries: 0,
+      retryDelay: 1000,
+    });
+  }
+
+  return {
+    chunks,
+    totalSize,
+    totalChunks,
+    fileHash: computeFileHash(file),
+  };
+}
+
+function computeFileHash(file) {
+  return btoa(
+    new Uint8Array(file.slice(0, 1024).arrayBuffer()).reduce(
+      (data, byte) => data + String.fromCharCode(byte),
+      ''
+    )
+  ).slice(0, 16);
+}
+
+export function computeFileHashFromBlob(blob) {
+  return btoa(
+    new Uint8Array(blob.slice(0, 1024).arrayBuffer()).reduce(
+      (data, byte) => data + String.fromCharCode(byte),
+      ''
+    )
+  ).slice(0, 16);
+}
+</script></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

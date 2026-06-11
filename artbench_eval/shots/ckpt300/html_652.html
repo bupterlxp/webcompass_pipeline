@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Task Scheduler</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      max-width: 420px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+    .task {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .task:last-child { border-bottom: none; }
+    .task-info { flex: 1; min-width: 0; }
+    .task-name {
+      font-weight: 600;
+      color: #111;
+    }
+    .task-meta {
+      font-size: 13px;
+      color: #666;
+    }
+    .task-actions { display: flex; gap: 8px; }
+    button {
+      background: #e5e7eb;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    button:hover { background: #d1d5db; }
+    button.danger { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
+    button.danger:hover { background: #fecaca; }
+    input[type="text"], input[type="time"] {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 100%;
+    }
+    textarea {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 100%;
+      min-height: 60px;
+    }
+    .empty { color: #9ca3af; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Task Scheduler</h1>
+  <div id="tasks" class="tasks"></div>
+  <div id="empty" class="empty">No tasks yet. Add one above.</div>
+
+  <h2>Add Task</h2>
+  <form id="addForm">
+    <div>
+      <label for="name">Name</label>
+      <input id="name" type="text" placeholder="e.g. Daily reminder" required />
+    </div>
+    <div>
+      <label for="type">Schedule</label>
+      <select id="type">
+        <option value="daily">Daily at</option>
+        <option value="hourly">Every hour at</option>
+      </select>
+    </div>
+    <div>
+      <label for="time">Time</label>
+      <input id="time" type="time" required />
+    </div>
+    <div>
+      <label for="js">JavaScript to run</label>
+      <textarea id="js" placeholder="e.g. location.reload()">location.reload()</textarea>
+    </div>
+    <button type="submit">Add Task</button>
+  </form>
+
+  <script src="popup.js"></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

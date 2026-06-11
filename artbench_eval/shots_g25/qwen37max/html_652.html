@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced JS Task Scheduler</title>
+    <style>
+        :root {
+            --bg: #f4f7f6;
+            --card: #ffffff;
+            --primary: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --text: #1f2937;
+            --border: #e5e7eb;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { text-align: center; color: var(--primary); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        .card h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--primary); padding-bottom: 8px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        input, select, textarea { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; font-family: monospace; }
+        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; color: white; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+        .task-list { max-height: 300px; overflow-y: auto; }
+        .task-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 8px; border: 1px solid var(--border); }
+        .log-box { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .log-time { color: #61afef; }
+        .log-msg { color: #98c379; }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; color: white; }
+        .status-granted { background: var(--success); }
+        .status-denied { background: var(--danger); }
+        .status-default { background: #6b7280; }
+        .flex-row { display: flex; gap: 10px; }
+        .flex-row > * { flex: 1; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⏱️ System Task Scheduler</h1>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+        <span>Notification Status: <span id="perm-status" class="status-badge">Checking...</span></span>
+        <button id="btn-perm" class="btn-primary btn-sm" style="margin-left: 10px;">Enable Notifications</button>
+    </div>
+
+    <div class="grid">
+        <!-- Left Column: Controls -->
+        <div>
+            <div class="card">
+                <h2>Create New Task</h2>
+                <label>Task Name</label>
+                <input type="text" id="task-name" placeholder="e.g., Daily Standup Reminder">
+                
+                <div class="flex-row">
+                    <div>
+                        <label>Schedule Type</label>
+                        <select id="task-type">
+                            <option value="interval">Interval (Seconds)</option>
+                            <option value="hourly">Hourly (at minute)</option>
+                            <option value="daily">Daily (Time)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Value (Sec / Min / Hour)</label>
+                        <input type="number" id="task-value" placeholder="e.g., 10, 0, 9" value="10">
+                    </div>
+                </div>
+
+                <label>Notification Message</label>
+                <input type="text" id="task-msg" placeholder="e.g., Time to reload!">
+
+                <label>JavaScript Snippet (Action)</label>
+                <textarea id="task-action" rows="3" placeholder="e.g., location.reload();">console.log('Action executed!');</textarea>
+
+                <button id="btn-add" class="btn-success" style="width: 100%;">Add Task</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h2>Active Tasks</h2>
+                <div id="task-list" class="task-list">
+                    <p style="color: #6b7280; text-align: center;">No active tasks.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Logs -->
+        <div>
+            <div class="card">
+                <h2>Execution Log</h2>
+                <div id="log-box" class="log-box"></div>
+                <button id="btn-clear-log" class="btn-danger btn-sm" style="margin-top: 10px;">Clear Logs</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Professional Task Scheduler Engine
+ */
+class TaskScheduler {
+    constructor() {
+        this.tasks = new Map();
+        this.ticker = null;
+        this.onExecuteCallback = null; // For UI logging
+        this._startTicker();
+    }
+
+    _startTicker() {
+        // Tick every 5 seconds to balance accuracy and CPU usage
+        this.ticker = setInterval(() => this._tick(), 5000);
+        this._tick(); // Initial check
+    }
+
+    addTask(config) {
+        const task = {
+            id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: config.name || 'Unnamed Task',
+            schedule: config.schedule,
+            notification: config.notification,
+            actionSnippet: config.actionSnippet,
+            lastExecuted: null
+        };
+        this.tasks.set(task.id, task);
+        return task.id;
+    }
+
+    removeTask(id) {
+        this.tasks.delete(id);
+    }
+
+    forceExecute(id) {
+        const task = this.tasks.get(id);
+        if (task) this._execute(task, new Date(), true);
+    }
+
+    _tick() {
+        const now = new Date();
+        for (const [id, task] of this.tasks.entries()) {
+            if (this._shouldExecute(task, now)) {
+                this._execute(task, now, false);
+            }
+        }
+    }
+
+    _shouldExecute(task, now) {
+        const schedule = task.schedule;
+        const last = task.lastExecuted;
+
+        if (schedule.type === 'daily') {
+            if (now.getHours() === schedule.hour && now.getMinutes() === schedule.minute) {
+                return last !== now.toDateString();
+            }
+        } 
+        else if (schedule.type === 'hourly') {
+            if (now.getMinutes() === schedule.minute) {
+                const currentHourKey = now.toDateString() + now.getHours();
+                return last !== currentHourKey;
+            }
+        } 
+        else if (schedule.type === 'interval') {
+            if (!last) return true;
+            return (now.getTime() - last.getTime()) >= schedule.ms;
+        }
+        return false;
+    }
+
+    _execute(task, now, isForced) {
+        // 1. Update State
+        if (task.schedule.type === 'daily') task.lastExecuted = now.toDateString();
+        else if (task.schedule.type === 'hourly') task.lastExecuted = now.toDateString() + now.getHours();
+        else task.lastExecuted = new Date(now);
+
+        const triggerType = isForced ? 'MANUAL TRIGGER' : 'SCHEDULED';
+
+        // 2. System Notification
+        if (Notification.permission === "granted" && task.notification) {
+            const n = new Notification(task.notification.title, {
+                body: task.notification.body,
+                icon: 'https://cdn-icons-png.flaticon.com/512/1827/1827392.png' // Clock icon
+            });
+            n.onclick = () => window.focus();
+        }
+
+        // 3. Execute JS Snippet
+        let execSuccess = true;
+        try {
+            if (task.actionSnippet && task.actionSnippet.trim() !== '') {
+                // Using new Function to execute string snippets safely in local scope
+                const fn = new Function(task.actionSnippet);
+                fn();
+            }
+        } catch (e) {
+            execSuccess = false;
+            console.error(`[Scheduler] Error in task ${task.name}:`, e);
+        }
+
+        // 4. Callback for UI Logging
+        if (this.onExecuteCallback) {
+            this.onExecuteCallback(task, now, triggerType, execSuccess);
+        }
+    }
+}
+
+// ==========================================
+// UI & Controller Logic
+// ==========================================
+
+const scheduler = new TaskScheduler();
+const logBox = document.getElementById('log-box');
+const taskListUI = document.getElementById('task-list');
+const permStatus = document.getElementById('perm-status');
+
+// Logging setup
+scheduler.onExecuteCallback = (task, time, type, success) => {
+    const timeStr = time.toLocaleTimeString();
+    const status = success ? '✅' : '❌';
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry';
+    logEntry.innerHTML = `<span class="log-time">[${timeStr}]</span> <strong>${task.name}</strong> (${type}) ${status}`;
+    logBox.prepend(logEntry);
+};
+
+// Notification Permission Handling
+function updatePermUI() {
+    const perm = Notification.permission;
+    permStatus.textContent = perm.toUpperCase();
+    permStatus.className = `status-badge status-${perm}`;
+    document.getElementById('btn-perm').style.display = perm === 'granted' ? 'none' : 'inline-block';
+}
+
+document.getElementById('btn-perm').addEventListener('click', async () => {
+    if ("Notification" in window) {
+        await Notification.requestPermission();
+        updatePermUI();
+    } else {
+        alert("Your browser does not support system notifications.");
+    }
+});
+updatePermUI();
+
+// Render Tasks UI
+function renderTasks() {
+    taskListUI.innerHTML = '';
+    if (scheduler.tasks.size === 0) {
+        taskListUI.innerHTML = '<p style="color: #6b7280; text-align: center;">No active tasks.</p>';
+        return;
+    }
+
+    scheduler.tasks.forEach((task) => {
+        let scheduleStr = '';
+        if (task.schedule.type === 'daily') scheduleStr = `Daily at ${task.schedule.hour}:${String(task.schedule.minute).padStart(2, '0')}`;
+        if (task.schedule.type === 'hourly') scheduleStr = `Hourly at min ${task.schedule.minute}`;
+        if (task.schedule.type === 'interval') scheduleStr = `Every ${task.schedule.ms / 1000}s`;
+
+        const div = document.createElement('div');
+        div.className = 'task-item';
+        div.innerHTML = `
+            <div>
+                <strong>${task.name}</strong><br>
+                <small style="color: #6b7280;">${scheduleStr}</small>
+            </div>
+            <div>
+                <button class="btn-primary btn-sm" onclick="triggerManual('${task.id}')">Run</button>
+                <button class="btn-danger btn-sm" onclick="deleteTask('${task.id}')">Del</button>
+            </div>
+        `;
+        taskListUI.appendChild(div);
+    });
+}
+
+// Global functions for UI buttons
+window.triggerManual = (id) => scheduler.forceExecute(id);
+window.deleteTask = (id) => {
+    scheduler.removeTask(id);
+    renderTasks();
+};
+
+// Add Task Form Handler
+document.getElementById('btn-add').addEventListener('click', () => {
+    const name = document.getElementById('task-name').value || 'Unnamed Task';
+    const type = document.getElementById('task-type').value;
+    const val = parseInt(document.getElementById('task-value').value, 10);
+    const msg = document.getElementById('task-msg').value || 'Task Executed';
+    const action = document.getElementById('task-action').value;
+
+    let schedule = {};
+    if (type === 'daily') schedule = { type: 'daily', hour: val, minute: 0 };
+    else if (type === 'hourly') schedule = { type: 'hourly', minute: val };
+    else schedule = { type: 'interval', ms: val * 1000 };
+
+    scheduler.addTask({
+        name: name,
+        schedule: schedule,
+        notification: { title: name, body: msg },
+        actionSnippet: action
+    });
+
+    renderTasks();
+    
+    // Reset form
+    document.getElementById('task-name').value = '';
+    document.getElementById('task-msg').value = '';
+});
+
+document.getElementById('btn-clear-log').addEventListener('click', () => {
+    logBox.innerHTML = '';
+});
+
+// ==========================================
+// Initialize with Demo Tasks
+// ==========================================
+scheduler.addTask({
+    name: 'Hourly Time Announcement',
+    schedule: { type: 'hourly', minute: 0 }, // Triggers at the top of every hour
+    notification: { title: 'Hourly Chime', body: 'A new hour has begun.' },
+    actionSnippet: 'console.log("Hourly chime executed");'
+});
+
+scheduler.addTask({
+    name: 'Daily 9:00 AM Reminder',
+    schedule: { type: 'daily', hour: 9, minute: 0 },
+    notification: { title: 'Good Morning!', body: 'It is 9:00 AM. Time to start the day.' },
+    actionSnippet: 'console.log("9 AM Daily Trigger");'
+});
+
+// Added a 15-second interval task so you can test it immediately without waiting!
+scheduler.addTask({
+    name: 'Test Interval (15s)',
+    schedule: { type: 'interval', ms: 15000 },
+    notification: { title: 'Test Ping', body: 'This triggers every 15 seconds.' },
+    actionSnippet: 'console.log("15s Interval Ping");'
+});
+
+renderTasks();
+</script>
+
+</body>
+</html>

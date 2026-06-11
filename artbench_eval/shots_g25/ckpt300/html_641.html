@@ -1,0 +1,76 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Annotator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="brand">
+      <i class="fa-solid fa-pen-ruler"></i>
+      <h1>Image Annotator</h1>
+    </div>
+    <div class="actions">
+      <button id="btn-upload" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+      <input type="file" id="file-input" accept="image/*" hidden />
+      <button id="btn-export" class="btn btn-secondary" disabled><i class="fa-solid fa-download"></i> Export</button>
+      <button id="btn-clear" class="btn btn-ghost" disabled><i class="fa-solid fa-eraser"></i> Clear</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="panel">
+        <h2><i class="fa-solid fa-layer-group"></i> Annotations</h2>
+        <ul id="anno-list" class="anno-list"></ul>
+        <div id="empty-state" class="empty-state">
+          <i class="fa-solid fa-layer-group"></i>
+          <p>No annotations yet. Start by uploading an image and drawing something.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2><i class="fa-solid fa-palette"></i> Tools</h2>
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="rectangle" title="Rectangle"><i class="fa-solid fa-square"></i></button>
+          <button class="tool-btn" data-tool="circle" title="Circle"><i class="fa-solid fa-circle"></i></button>
+          <button class="tool-btn" data-tool="text" title="Text"><i class="fa-solid fa-font"></i></button>
+        </div>
+        <div class="tool-group">
+          <label class="color-label">Color</label>
+          <input type="color" id="color-picker" value="#FF6B6B" />
+        </div>
+        <div class="tool-group">
+          <label class="color-label">Opacity</label>
+          <input type="range" id="opacity-slider" min="10" max="100" value="80" />
+          <span id="opacity-val">80%</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h2><i class="fa-solid fa-rotate"></i> Rotate</h2>
+        <input type="range" id="rotate-slider" min="-180" max="180" value="0" />
+      </div>
+    </aside>
+
+    <section class="canvas-area">
+      <div class="canvas-wrap">
+        <canvas id="canvas"></canvas>
+        <div id="canvas-overlay" class="canvas-overlay"></div>
+        <div id="status" class="status"></div>
+      </div>
+      <div id="preview-box" class="preview-box">
+        <div class="preview-head">
+          <i class="fa-solid fa-image"></i>
+          <span id="preview-name">No image loaded</span>
+        </div>
+        <img id="preview-img" alt="Preview" />
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

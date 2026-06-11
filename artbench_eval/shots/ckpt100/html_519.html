@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FurniSpace — Virtual Furniture Shopping</title>
+<style>:root {
+  --primary: #1a1a1a;
+  --primary-2: #2a2a2a;
+  --accent: #ff6b35;
+  --accent-2: #ff956b;
+  --text: #f5f5f5;
+  --text-dim: #b8b8b8;
+  --bg: #121212;
+  --panel: #1a1a1a;
+  --panel-2: #222222;
+  --border: #333333;
+  --shadow: 0 10px 40px rgba(0,0,0,0.35);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --transition: 0.25s ease;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { color: var(--accent); }
+
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.topnav { display: flex; gap: 4px; }
+.navlink {
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 14px;
+  transition: color var(--transition), background var(--transition);
+}
+.navlink:hover { color: var(--text); background: var(--panel-2); }
+.navlink.active { color: var(--text); background: var(--panel-2); }
+
+.topright { display: flex; gap: 8px; align-items: center; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--panel-2); }
+
+/* Layout */
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: calc(100vh - 140px);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel.active { display: flex; }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.panel-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+
+.filter { display: flex; align-items: center; gap: 10px; }
+.filter label { font-size: 13px; color: var(--text-dim); }
+.select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Furniture list */
+.furniture-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.furniture-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.furniture-card:hover {
+  background: #2a2a2a;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+.furniture-card.dragging { opacity: 0.5; }
+.furniture-card .f-name { font-weight: 600; font-size: 14px; }
+.furniture-card .f-price { font-size: 13px; color: var(--accent); font-weight: 600; }
+.furniture-card .f-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.furniture-card .f-actions { display: flex; gap: 8px; margin-top: auto; }
+.furniture-card .btn { padding: 6px 10px; font-size: 12px; }
+.furniture-card .btn-add { background: var(--accent); color: #fff; }
+.furniture-card .btn-add:hover { background: var(--accent-2); }
+.furniture-card .btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Room */
+.room-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background:
+    linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.room-canvas svg { display: block; width: 100%; height: 100%; }
+
+.room-controls { display: flex; gap: 8px; }
+
+/* Cart */
+.cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.cart-item {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.cart-item:hover { background: #2a2a2a; }
+.cart-item .ci-img {
+  width: 64px; height: 64px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 18px;
+  position: relative;
+}
+.cart-item .ci-img svg { position: absolute; inset: 0; }
+.cart-item .ci-info { min-width: 0; }
+.cart-item .ci-name { font-weight: 600; font-size: 14px; }
+.cart-item .ci-desc { font-size: 12px; color: var(--text-dim); }
+.cart-item .ci-price { font-size: 14px; color: var(--accent); font-weight: 600; }
+.cart-item .ci-qty { font-size: 14px; font-weight: 600; color: var(--text-dim); }
+.cart-item .ci-remove {
+  color: var(--text-dim);
+  border: none;
+  background: transparent;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.cart-item .ci-remove:hover { color: var(--accent); background: var(--panel-2); }
+
+.cart-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.cart-total { color: var(--accent); font-weight: 600; }
+.cart-count { color: var(--text-dim); }
+
+.empty-cart {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+}
+.empty-icon { color: var(--accent); margin-bottom: 12px; }
+.empty-cart h3 { margin: 0 0 6px; color: var(--text); font-size: 18px; }
+.empty-cart p { margin: 0; font-size: 14px; }
+
+/* Account */
+.account-actions { display: flex; gap: 8px; }
+.account-body { min-height: 200px; }
+.account-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+}
+.avatar {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.account-card h3 { margin: 0 0 2px; }
+.account-card p { margin: 0 0 16px; font-size: 13px; }
+
+.saved-plans h4 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.saved-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.saved-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.saved-list li .plan-name { color: var(--text); }
+.saved-list li .plan-id { color: var(--text-dim); font-size: 12px; }
+.saved-list li .plan-remove {
+  color: var(--text-dim);
+  border: none;
+  background: transparent;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.saved-list li .plan-remove:hover { color: var(--accent); background: var(--panel-2); }
+
+/* Responsive */
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  .panel-head { flex-direction: column; align-items: flex-start; }
+  .topnav { display: none; }
+}
+@media (max-width: 480px) {
+  .app { padding: 12px; }
+  .topbar { padding: 12px; }
+  .panel { padding: 12px; }
+  .furniture-list { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="32" height="32">
+          <rect x="4" y="4" width="24" height="24" rx="3" fill="#1a1a1a"/>
+          <path d="M8 20 L16 12 L24 20" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>FurniSpace</h1>
+    </div>
+    <nav class="topnav" aria-label="Primary">
+      <a href="#browse" class="navlink">Browse</a>
+      <a href="#room" class="navlink">Room</a>
+      <a href="#cart" class="navlink">Cart</a>
+      <a href="#account" class="navlink">Account</a>
+    </nav>
+    <div class="topright">
+      <button id="shareBtn" class="btn btn-ghost" title="Share">Share</button>
+      <button id="saveBtn" class="btn btn-primary" title="Save plan">Save</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- BROWSE -->
+    <section id="browse" class="panel active" aria-labelledby="browse-title">
+      <div class="panel-head">
+        <h2 id="browse-title">Browse Furniture</h2>
+        <div class="filter">
+          <label for="catFilter">Category</label>
+          <select id="catFilter" class="select">
+            <option value="all">All</option>
+            <option value="sofa">Sofa</option>
+            <option value="table">Table</option>
+            <option value="lamp">Lamp</option>
+            <option value="bed">Bed</option>
+            <option value="chair">Chair</option>
+          </select>
+        </div>
+      </div>
+      <div id="furnitureList" class="furniture-list"></div>
+    </section>
+
+    <!-- ROOM -->
+    <section id="room" class="panel" aria-labelledby="room-title">
+      <div class="panel-head">
+        <h2 id="room-title">Virtual Room</h2>
+        <div class="room-controls">
+          <button id="clearBtn" class="btn btn-ghost" title="Clear room">Clear</button>
+          <button id="resetBtn" class="btn btn-ghost" title="Reset view">Reset</button>
+        </div>
+      </div>
+      <div id="roomCanvas" class="room-canvas" aria-label="Virtual room"></div>
+    </section>
+
+    <!-- CART -->
+    <section id="cart" class="panel" aria-labelledby="cart-title">
+      <div class="panel-head">
+        <h2 id="cart-title">Shopping Cart</h2>
+        <div class="cart-summary">
+          <span class="cart-total">Total: $<span id="cartTotal">$0</span></span>
+          <span class="cart-count" id="cartCount">0 items</span>
+        </div>
+      </div>
+      <div id="cartItems" class="cart-items"></div>
+      <div id="emptyCart" class="empty-cart">
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="64" height="64">
+            <rect x="4" y="4" width="56" height="56" rx="4" fill="#1a1a1a"/>
+            <path d="M14 32 L28 40 L28 24 Z" fill="#fff"/>
+          </svg>
+        </div>
+        <h3>Your cart is empty</h3>
+        <p>Start browsing furniture to add to your cart.</p>
+      </div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section id="account" class="panel" aria-labelledby="account-title">
+      <div class="panel-head">
+        <h2 id="account-title">Your Account</h2>
+        <div class="account-actions">
+          <button id="loginBtn" class="btn btn-primary">Sign In</button>
+          <button id="logoutBtn" class="btn btn-ghost" hidden>Sign Out</button>
+        </div>
+      </div>
+      <div id="accountBody" class="account-body">
+        <div class="account-card">
+          <div class="avatar" aria-hidden="true">U</div>
+          <h3 id="userName">Guest</h3>
+          <p id="userEmail">guest@example.com</p>
+          <div class="saved-plans">
+            <h4>Saved Arrangements</h4>
+            <ul id="savedPlans" class="saved-list"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>// ---------- Data ----------
+const FURNITURE = [
+  { id: 'sofa1', name: 'Modern Sofa', desc: 'Leather 3-seater', price: 1299, cat: 'sofa', icon: 'S' },
+  { id: 'sofa2', name: 'Rattan Sofa', desc: 'Outdoor woven', price: 899, cat: 'sofa', icon: 'R' },
+  { id: 'table1', name: 'Oak Dining Table', desc: 'Solid wood', price: 649, cat: 'table', icon: 'T' },
+  { id: 'table2', name: 'Glass Coffee Table', desc: 'Tempered glass', price: 299, cat: 'table', icon: 'G' },
+  { id: 'lamp1', name: 'Floor Lamp', desc: 'Warm ambient', price: 249, cat: 'lamp', icon: 'L' },
+  { id: 'lamp2', name: 'Table Lamp', desc: 'Adjustable arm', price: 129, cat: 'lamp', icon: 'A' },
+  { id: 'bed1', name: 'Queen Bed', desc: 'King size', price: 949, cat: 'bed', icon: 'B' },
+  { id: 'bed2', name: 'Platform Bed', desc: 'Minimalist', price: 749, cat: 'bed', icon: 'P' },
+  { id: 'chair1', name: 'Office Chair', desc: 'Ergonomic', price: 349, cat: 'chair', icon: 'O' },
+  { id: 'chair2', name: 'Armchair', desc: 'Velvet', price: 299, cat: 'chair', icon: 'V' },
+  { id: 'chair3', name: 'Bar Stool', desc: 'High back', price: 149, cat: 'chair', icon: 'H' },
+];
+
+const ROOM = {
+  width: 1600,
+  height: 1000,
+  walls: [
+    { x1: 0, y1: 0, x2: 1600, y2: 0 },
+    { x1: 1600, y1: 0, x2: 1600, y2: 1000 },
+    { x1: 1600, y1: 1000, x2: 0, y2: 1000 },
+    { x1: 0, y1: 1000, x2: 0, y2: 0 },
+  ],
+  doors: [
+    { x: 600, y: 500, w: 80, h: 220, dir: 'right' },
+    { x: 1000, y: 400, w: 80, h: 220, dir: 'left' },
+  ],
+  windows: [
+    { x: 1200, y: 200, w: 240, h: 160 },
+    { x: 200, y: 600, w: 240, h: 160 },
+  ],
+};
+
+// ---------- State ----------
+const state = {
+  cart: [],
+  roomItems: [],
+  currentPlan: null,
+  user: null,
+  savedPlans: [],
+};
+
+// ---------- Helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+function fmt(n) {
+  return '$' + n.toFixed(2);
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem('furnispace_cart', JSON.stringify(state.cart));
+    localStorage.setItem('furnispace_room', JSON.stringify(state.roomItems));
+    if (state.user) {
+      localStorage.setItem('furnispace_user', JSON.stringify(state.user));
+    }
+    if (state.savedPlans.length) {
+      localStorage.setItem('furnispace_saved', JSON.stringify(state.savedPlans));
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function loadFromStorage() {
+  try {
+    const cart = localStorage.getItem('furnispace_cart');
+    if (cart) state.cart = JSON.parse(cart);
+    const room = localStorage.getItem('furnispace_room');
+    if (room) state.roomItems = JSON.parse(room);
+    const user = localStorage.getItem('furnispace_user');
+    if (user) state.user = JSON.parse(user);
+    const saved = localStorage.getItem('furnispace_saved');
+    if (saved) state.savedPlans = JSON.parse(saved);
+  } catch (e) { /* ignore */ }
+}
+
+function getCartTotal() {
+  return state.cart.reduce((sum, it) => sum + it.price * it.qty, 0);
+}
+
+function getCartCount() {
+  return state.cart.reduce((sum, it) => sum + it.qty, 0);
+}
+
+// ---------- Rendering ----------
+function renderFurnitureList(filter = 'all') {
+  const list = $('#furnitureList');
+  list.innerHTML = '';
+  const items = filter === 'all'
+    ? FURNITURE
+    : FURNITURE.filter(f => f.cat === filter);
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-furni" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim);">No furniture in this category.</div>';
+    return;
+  }
+
+  items.forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'furniture-card';
+    card.dataset.id = f.id;
+    card.innerHTML = `
+      <div class="f-name">${f.name}</div>
+      <div class="f-desc">${f.desc}</div>
+      <div class="f-price">${fmt(f.price)}</div>
+      <div class="f-actions">
+        <button class="btn btn-add" data-add="${f.id}" ${state.cart.some(i => i.id === f.id) ? 'disabled' : ''}>Add to Cart</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  $$('.furniture-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-add]');
+      if (btn) {
+        e.stopPropagation();
+        addToCart(card.dataset.id);
+      }
+    });
+  });
+}
+
+function renderCart() {
+  const itemsEl = $('#cartItems');
+  const emptyEl = $('#emptyCart');
+  const totalEl = $('#cartTotal');
+  const countEl = $('#cartCount');
+
+  if (state.cart.length === 0) {
+    itemsEl.style.display = 'none';
+    emptyEl.style.display = 'flex';
+    totalEl.textContent = '$0';
+    countEl.textContent = '0 items';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  itemsEl.style.display = 'flex';
+
+  itemsEl.innerHTML = state.cart.map(it => {
+    const f = FURNITURE.find(x => x.id === it.id);
+    return `
+      <div class="cart-item" data-id="${it.id}">
+        <div class="ci-img">${f ? `<svg viewBox="0 0 64 64" width="64" height="64"><rect x="4" y="4" width="56" height="56" rx="4" fill="${f.cat === 'sofa' ? '#ff956b' : f.cat === 'table' ? '#ff6b35' : f.cat === 'lamp' ? '#ff6b35' : f.cat === 'bed' ? '#ff956b' : '#ff6b35'}"/><text x="32" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">${f.icon}</text></svg>` : 'F'}</div>
+        <div class="ci-info">
+          <div class="ci-name">${f ? f.name : 'Item'}</div>
+          <div class="ci-desc">${f ? f.desc : ''}</div>
+        </div>
+        <div class="ci-price">${fmt(it.price)}</div>
+        <div class="ci-qty">${it.qty} × ${fmt(it.price)}</div>
+        <button class="ci-remove" data-remove="${it.id}">Remove</button>
+      </div>
+    `;
+  }).join('');
+
+  totalEl.textContent = fmt(getCartTotal());
+  countEl.textContent = `${getCartCount()} item${getCartCount() === 1 ? '' : 's'}`;
+
+  $$('.ci-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.cart = state.cart.filter(i => i.id !== btn.dataset.remove);
+      saveToStorage();
+      renderCart();
+      renderFurnitureList($('#catFilter').value);
+    });
+  });
+}
+
+function renderRoom() {
+  const canvas = $('#roomCanvas');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', ROOM.width);
+  svg.setAttribute('height', ROOM.height);
+  svg.setAttribute('viewBox', `0 0 ${ROOM.width} ${ROOM.height}`);
+
+  // Background gradient
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const linear = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  linear.setAttribute('id', 'bg');
+  linear.setAttribute('x1', '0'); linear.setAttribute('y1', '0');
+  linear.setAttribute('x2', '0'); linear.setAttribute('y2', '1');
+  const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stop1.setAttribute('offset', '0%'); stop1.setAttribute('stop-color', '#0f0f0f');
+  const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stop2.setAttribute('offset', '100%'); stop2.setAttribute('stop-color', '#1a1a1a');
+  linear.appendChild(stop1); linear.appendChild(stop2);
+  grad.appendChild(linear);
+  svg.appendChild(grad);
+
+  // Walls
+  ROOM.walls.forEach(w => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', w.x1);
+    line.setAttribute('y1', w.y1);
+    line.setAttribute('x2', w.x2);
+    line.setAttribute('y2', w.y2);
+    line.setAttribute('stroke', '#000');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-dasharray', '6 4');
+    svg.appendChild(line);
+  });
+
+  // Doors
+  ROOM.doors.forEach(d => {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', d.x);
+    rect.setAttribute('y', d.y);
+    rect.setAttribute('width', d.w);
+    rect.setAttribute('height', d.h);
+    rect.setAttribute('fill', '#1a1a1a');
+    rect.setAttribute('stroke', '#fff');
+    rect.setAttribute('stroke-width', '1');
+    svg.appendChild(rect);
+  });
+
+  // Windows
+  ROOM.windows.forEach(w => {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', w.x);
+    rect.setAttribute('y', w.y);
+    rect.setAttribute('width', w.w);
+    rect.setAttribute('height', w.h);
+    rect.setAttribute('fill', '#3a3a3a');
+    rect.setAttribute('stroke', '#fff');
+    rect.setAttribute('stroke-width', '1');
+    svg.appendChild(rect);
+  });
+
+  // Furniture items
+  state.roomItems.forEach(it => {
+    const f = FURNITURE.find(x => x.id === it.id);
+    if (!f) return;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', it.x);
+    rect.setAttribute('y', it.y);
+    rect.setAttribute('width', f.width || 120);
+    rect.setAttribute('height', f.height || 80);
+    rect.setAttribute('fill', f.cat === 'sofa' ? '#ff956b' : f.cat === 'table' ? '#ff6b35' : f.cat === 'lamp' ? '#ff6b35' : f.cat === 'bed' ? '#ff956b' : '#ff6b35');
+    rect.setAttribute('stroke', '#fff');
+    rect.setAttribute('stroke-width', '1.5');
+    rect.setAttribute('opacity', '0.95');
+    svg.appendChild(rect);
+  });
+
+  canvas.innerHTML = '';
+  canvas.appendChild(svg);
+}
+
+function renderAccount() {
+  const body = $('#accountBody');
+  const saved = $('#savedPlans');
+  const user = state.user;
+
+  if (!user) {
+    body.innerHTML = `
+      <div class="account-card">
+        <div class="avatar" aria-hidden="true">G</div>
+        <h3>Guest</h3>
+        <p>guest@example.com</p>
+        <div class="saved-plans">
+          <h4>Saved Arrangements</h4>
+          <p style="color:var(--text-dim);margin:0;padding:12px;background:var(--panel-2);border-radius:var(--radius-sm);">Sign in to save your arrangements.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="account-card">
+      <div class="avatar" aria-hidden="true">${user.name[0]}</div>
+      <h3 id="userName">${user.name}</h3>
+      <p id="userEmail">${user.email}</p>
+      <div class="saved-plans">
+        <h4>Saved Arrangements</h4>
+        ${state.savedPlans.length === 0
+          ? `<p style="color:var(--text-dim);margin:0;padding:12px;background:var(--panel-2);border-radius:var(--radius-sm);">No saved arrangements yet.</p>`
+          : `<ul id="savedPlans" class="saved-list"></ul>`
+        }
+      </div>
+    </div>
+  `;
+
+  if (state.savedPlans.length) {
+    saved.innerHTML = state.savedPlans.map(p => `
+      <li>
+        <div class="plan-name">${p.name}</div>
+        <div class="plan-id">${p.id}</div>
+        <button class="plan-remove" data-remove="${p.id}">Remove</button>
+      </li>
+    `).join('');
+  }
+
+  $$('.plan-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.savedPlans = state.savedPlans.filter(p => p.id !== btn.dataset.remove);
+      saveToStorage();
+      renderAccount();
+    });
+  });
+}
+
+// ---------- Actions ----------
+function addToCart(id) {
+  const f = FURNITURE.find(x => x.id === id);
+  if (!f) return;
+  const existing = state.cart.find(i => i.id === id);
+  if (existing) existing.qty++;
+  else state.cart.push({ id, price: f.price, qty: 1 });
+  saveToStorage();
+  renderCart();
+  renderFurnitureList($('#catFilter').value);
+}
+
+function removeFromCart(id) {
+  state.cart = state.cart.filter(i => i.id !== id);
+  saveToStorage();
+  renderCart();
+  renderFurnitureList($('#catFilter').value);
+}
+
+function clearCart() {
+  if (state.cart.length === 0) return;
+  if (!confirm('Clear your cart?')) return;
+  state.cart = [];
+  saveToStorage();
+  renderCart();
+  renderFurnitureList($('#catFilter').value);
+}
+
+function savePlan() {
+  if (state.roomItems.length === 0) {
+    alert('Add some furniture to your room first.');
+    return;
+  }
+  const name = prompt('Name your arrangement:', 'My Room');
+  if (!name || !name.trim()) return;
+  const plan = {
+    id: uid(),
+    name: name.trim(),
+    items: state.roomItems.map(it => ({ ...it })),
+    timestamp: Date.now(),
+  };
+  state.savedPlans.push(plan);
+  saveToStorage();
+  renderAccount();
+  alert('Arrangement saved successfully!');
+}
+
+function sharePlan() {
+  if (state.savedPlans.length === 0) {
+    alert('Save an arrangement first to share.');
+    return;
+  }
+  const plan = state.savedPlans[state.savedPlans.length - 1];
+  const shareUrl = `${window.location.origin}${window.location.pathname}?plan=${plan.id}`;
+  if (navigator.share) {
+    navigator.share({ title: plan.name, url: shareUrl }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert('Share link copied to clipboard:\n' + shareUrl);
+    }).catch(() => {
+      alert('Share link:\n' + shareUrl);
+    });
+  }
+}
+
+function loadPlan(id) {
+  const plan = state.savedPlans.find(p => p.id === id);
+  if (!plan) return;
+  state.roomItems = plan.items;
+  saveToStorage();
+  renderRoom();
+  alert(`Loaded arrangement: "${plan.name}"`);
+}
+
+function clearRoom() {
+  if (state.roomItems.length === 0) return;
+  if (!confirm('Clear all furniture from the room?')) return;
+  state.roomItems = [];
+  saveToStorage();
+  renderRoom();
+}
+
+function resetView() {
+  // Reset camera-like view (in a real app, this would be canvas scaling)
+  alert('Room view reset.');
+}
+
+function togglePanel(panelId) {
+  $$('.panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(panelId);
+  if (target) target.classList.add('active');
+  $$('.navlink').forEach(l => l.classList.toggle('active', l.id === panelId));
+}
+
+// ---------- Drag & Drop for room ----------
+function setupRoomDrag() {
+  const canvas = $('#roomCanvas');
+  const roomItems = state.roomItems;
+
+  canvas.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  canvas.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    const f = FURNITURE.find(x => x.id === id);
+    if (!f) return;
+    // Snap to grid
+    const grid = 80;
+    const x = Math.round(e.clientX / grid) * grid;
+    const y = Math.round(e.clientY / grid) * grid;
+    roomItems.push({ id: f.id, x, y, width: f.width || 120, height: f.height || 80 });
+    saveToStorage();
+    renderRoom();
+  });
+
+  // Allow dropping furniture from the browse panel into room
+  document.addEventListener('dragover', (e) => {
+    if (e.dataTransfer.types.includes('text/plain')) e.preventDefault();
+  });
+  document.addEventListener('drop', (e) => {
+    if (e.dataTransfer.types.includes('text/plain')) {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      const f = FURNITURE.find(x => x.id === id);
+      if (!f) return;
+      const grid = 80;
+      const x = Math.round(e.clientX / grid) * grid;
+      const y = Math.round(e.clientY / grid) * grid;
+      roomItems.push({ id: f.id, x, y, width: f.width || 120, height: f.height || 80 });
+      saveToStorage();
+      renderRoom();
+    }
+  });
+}
+
+// ---------- Init ----------
+function init() {
+  loadFromStorage();
+  renderFurnitureList($('#catFilter').value);
+  renderCart();
+  renderRoom();
+  renderAccount();
+
+  // Nav
+  $$('.navlink').forEach(l => {
+    l.addEventListener('click', () => togglePanel(l.id));
+  });
+
+  // Filter
+  $('#catFilter').addEventListener('change', () => renderFurnitureList($('#catFilter').value));
+
+  // Buttons
+  $('#clearBtn').addEventListener('click', clearRoom);
+  $('#resetBtn').addEventListener('click', resetView);
+  $('#saveBtn').addEventListener('click', savePlan);
+  $('#shareBtn').addEventListener('click', sharePlan);
+  $('#loginBtn').addEventListener('click', () => {
+    const name = prompt('Enter your name:', 'Guest');
+    if (name && name.trim()) {
+      state.user = { name: name.trim(), email: 'guest@' + name.trim().toLowerCase() + '.com' };
+      saveToStorage();
+      renderAccount();
+    }
+  });
+  $('#logoutBtn').addEventListener('click', () => {
+    state.user = null;
+    saveToStorage();
+    renderAccount();
+  });
+
+  // Cart
+  $('#clearBtn').addEventListener('click', clearCart);
+
+  // Room drag
+  setupRoomDrag();
+
+  // Keyboard: Ctrl/Cmd + Enter to add selected item
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      const card = document.activeElement.closest('.furniture-card');
+      if (card) {
+        e.preventDefault();
+        addToCart(card.dataset.id);
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script></script>
+</body>
+</html>

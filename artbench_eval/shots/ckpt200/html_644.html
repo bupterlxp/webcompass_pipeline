@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geometric Calculator</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-600: #4338ca;
+    --primary-50: #eef2ff;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --danger: #ef4444;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+
+  .hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .hero h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .hero p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    max-width: 560px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--primary-50);
+    color: var(--primary);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .badge svg { width: 14px; height: 14px; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .shape-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .shape-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+    transition: all 0.2s ease;
+  }
+  .shape-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .shape-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+  }
+
+  .input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .input-row label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .input-row input {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input-row input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-50);
+  }
+  .input-row input.invalid {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+  }
+
+  .canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+  }
+
+  .canvas-wrap canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .formula-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--primary-50);
+    color: var(--primary);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .formula-toggle:hover { background: var(--primary); color: #fff; }
+  .formula-toggle svg { width: 14px; height: 14px; }
+
+  .formula-panel {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #f1f5f9;
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border);
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .formula-panel.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; }
+  .formula-panel h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .formula-panel code {
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    color: var(--primary);
+  }
+
+  .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .result-card h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .result-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .result-unit {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .btn {
+    padding: 10px 18px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn.primary {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .btn.primary:hover { background: var(--primary-600); border-color: var(--primary-600); }
+  .btn.danger {
+    background: #fee2e2;
+    color: var(--danger);
+    border-color: #fecaca;
+  }
+  .btn.danger:hover { background: #fca5a5; border-color: #fca5a5; }
+
+  @media (max-width: 640px) {
+    .app { padding: 20px 16px 48px; }
+    .hero h1 { font-size: 22px; }
+    .hero p { font-size: 14px; }
+    .toolbar { gap: 8px; }
+    .shape-btn { padding: 6px 12px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hero">
+    <div>
+      <h1>Geometric Calculator</h1>
+      <p>Calculate area, perimeter, volume, and surface area for 2D and 3D shapes with real-time preview.</p>
+    </div>
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+      <span>Interactive Preview</span>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="shape-group" id="shapeGroup"></div>
+    <button class="formula-toggle" id="formulaToggle" title="Toggle formulas">
+      <svg id="formulaIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      <span>Formulas</span>
+    </button>
+  </div>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="preview" width="600" height="400"></canvas>
+    <div class="canvas-label" id="canvasLabel">Select a shape to begin</div>
+  </div>
+
+  <div class="formula-panel" id="formulaPanel">
+    <h4 id="formulaTitle">Formulas</h4>
+    <div id="formulaContent"></div>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <div class="actions">
+    <button class="btn" id="copyBtn">📋 Copy Results</button>
+    <button class="btn danger" id="resetBtn">↺ Reset</button>
+  </div>
+
+</div>
+
+<script>
+// ---------- Shape Definitions ----------
+const SHAPES = {
+  circle: {
+    label: 'Circle',
+    params: [{ key: 'r', label: 'Radius', step: 0.1 }],
+    formulas: {
+      area: 'A = π × r²',
+      circumference: 'C = 2 × π × r'
+    },
+    compute: (params) => {
+      const r = parseFloat(params.r);
+      return { area: Math.PI * r * r, circumference: 2 * Math.PI * r };
+    },
+    draw: (ctx, params) => {
+      const r = parseFloat(params.r);
+      const x = 300, y = 200;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#dbeafe';
+      ctx.fill();
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#1e3a8a';
+      ctx.font = '11px "JetBrains Mono", monospace';
+      ctx.fillText('r', x + r + 4, y + 3);
+    }
+  },
+  triangle: {
+    label: 'Triangle',
+    params: [{ key: 'a', label: 'Side a', step: 0.1 }],
+    formulas: {
+      area: 'A = √[s(s−a)(s−b)(s−c)]',
+      perimeter: 'P = a + b + c'
+    },
+    compute: (params) => {
+      const a = parseFloat(params.a);
+      const b = a, c = a;
+      const s = (a + b + c) / 2;
+      const area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
+      return { area, perimeter: a + b + c };
+    },
+    draw: (ctx, params) => {
+      const a = parseFloat(params.a);
+      const x = 300, y = 200;
+      ctx.beginPath();
+      ctx.moveTo(x, y - a);
+      ctx.lineTo(x - a, y + a);
+      ctx.lineTo(x + a, y + a);
+      ctx.closePath();
+      ctx.fillStyle = '#f3e8ff';
+      ctx.fill();
+      ctx.strokeStyle = '#c7a2f7';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#4c1d95';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('a', x - a + 3, y + a - 3);
+      ctx.fillText('a', x + a - 3, y + a - 3);
+      ctx.fillText('a', x + 3, y - a - 3);
+    }
+  },
+  rectangle: {
+    label: 'Rectangle',
+    params: [
+      { key: 'w', label: 'Width', step: 0.1 },
+      { key: 'h', label: 'Height', step: 0.1 }
+    ],
+    formulas: {
+      area: 'A = w × h',
+      perimeter: 'P = 2 × (w + h)'
+    },
+    compute: (params) => {
+      const w = parseFloat(params.w), h = parseFloat(params.h);
+      return { area: w * h, perimeter: 2 * (w + h) };
+    },
+    draw: (ctx, params) => {
+      const w = parseFloat(params.w), h = parseFloat(params.h);
+      const x = 300, y = 200;
+      ctx.beginPath();
+      ctx.rect(x - w / 2, y - h / 2, w, h);
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#475569';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('w', x + w / 2 - 4, y + h / 2 + 3);
+      ctx.fillText('h', x + w / 2 - 4, y - h / 2 - 3);
+    }
+  },
+  polygon: {
+    label: 'Regular Polygon',
+    params: [
+      { key: 'n', label: 'Sides (3–12)', step: 1, type: 'number', min: 3, max: 12, value: 6 },
+      { key: 's', label: 'Side Length', step: 0.1 }
+    ],
+    formulas: {
+      area: 'A = (n × s²) / (4 × tan(π/n))',
+      perimeter: 'P = n × s'
+    },
+    compute: (params) => {
+      const n = parseInt(params.n, 10);
+      const s = parseFloat(params.s);
+      const apothem = s / (2 * Math.tan(Math.PI / n));
+      const area = (n * s * apothem) / 2;
+      return { area, perimeter: n * s };
+    },
+    draw: (ctx, params) => {
+      const n = parseInt(params.n, 10);
+      const s = parseFloat(params.s);
+      const cx = 300, cy = 200;
+      const radius = s / (2 * Math.sin(Math.PI / n));
+      const angle = (Math.PI * 2) / n;
+      ctx.beginPath();
+      ctx.moveTo(cx + radius * Math.cos(-angle / 2), cy + radius * Math.sin(-angle / 2));
+      for (let i = 1; i <= n; i++) {
+        const x = cx + radius * Math.cos(-angle / 2 + i * angle);
+        const y = cy + radius * Math.sin(-angle / 2 + i * angle);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#ede9fe';
+      ctx.fill();
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('s', cx + radius * Math.cos(-angle / 2 + angle * 0.5), cy + radius * Math.sin(-angle / 2 + angle * 0.5) + 3);
+    }
+  },
+  sphere: {
+    label: 'Sphere',
+    params: [{ key: 'r', label: 'Radius', step: 0.1 }],
+    formulas: {
+      surfaceArea: 'A = 4 × π × r²',
+      volume: 'V = (4/3) × π × r³'
+    },
+    compute: (params) => {
+      const r = parseFloat(params.r);
+      return { surfaceArea: 4 * Math.PI * r * r, volume: (4 / 3) * Math.PI * r * r * r };
+    },
+    draw: (ctx, params) => {
+      const r = parseFloat(params.r);
+      const x = 300, y = 200;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#fde68a';
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#b45309';
+      ctx.font = '11px "JetBrains Mono", monospace';
+      ctx.fillText('r', x + r + 4, y + 3);
+    }
+  },
+  cylinder: {
+    label: 'Cylinder',
+    params: [
+      { key: 'r', label: 'Base Radius', step: 0.1 },
+      { key: 'h', label: 'Height', step: 0.1 }
+    ],
+    formulas: {
+      surfaceArea: 'A = 2 × π × r² + 2 × π × r × h',
+      volume: 'V = π × r² × h'
+    },
+    compute: (params) => {
+      const r = parseFloat(params.r), h = parseFloat(params.h);
+      return {
+        surfaceArea: 2 * Math.PI * r * r + 2 * Math.PI * r * h,
+        volume: Math.PI * r * r * h
+      };
+    },
+    draw: (ctx, params) => {
+      const r = parseFloat(params.r), h = parseFloat(params.h);
+      const x = 300, y = 200;
+      // Top ellipse
+      ctx.beginPath();
+      ctx.ellipse(x, y - h / 2, r, r / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#f3e8ff';
+      ctx.fill();
+      ctx.strokeStyle = '#c7a2f7';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Body
+      ctx.beginPath();
+      ctx.ellipse(x, y, r, r / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#ede9fe';
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Bottom ellipse
+      ctx.beginPath();
+      ctx.ellipse(x, y + h / 2, r, r / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#f3e8ff';
+      ctx.fill();
+      ctx.strokeStyle = '#c7a2f7';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#4c1d95';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('r', x + r + 4, y + 3);
+      ctx.fillText('h', x + r + 4, y + h / 2 + 3);
+    }
+  },
+  cone: {
+    label: 'Cone',
+    params: [
+      { key: 'r', label: 'Base Radius', step: 0.1 },
+      { key: 'h', label: 'Height', step: 0.1 }
+    ],
+    formulas: {
+      surfaceArea: 'A = π × r² + π × r × l',
+      volume: 'V = (1/3) × π × r² × h',
+      slantHeight: 'l = √(r² + h²)'
+    },
+    compute: (params) => {
+      const r = parseFloat(params.r), h = parseFloat(params.h);
+      const l = Math.sqrt(r * r + h * h);
+      return {
+        surfaceArea: Math.PI * r * r + Math.PI * r * l,
+        volume: (1 / 3) * Math.PI * r * r * h,
+        slantHeight: l
+      };
+    },
+    draw: (ctx, params) => {
+      const r = parseFloat(params.r), h = parseFloat(params.h);
+      const x = 300, y = 200;
+      // Base ellipse
+      ctx.beginPath();
+      ctx.ellipse(x, y - h / 2, r, r / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#f3e8ff';
+      ctx.fill();
+      ctx.strokeStyle = '#c7a2f7';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Body
+      ctx.beginPath();
+      ctx.moveTo(x - r, y - h / 2);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x + r, y - h / 2);
+      ctx.closePath();
+      ctx.fillStyle = '#ede9fe';
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#4c1d95';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('r', x + r + 4, y + 3);
+      ctx.fillText('h', x + r + 4, y + h / 2 + 3);
+    }
+  },
+  prism: {
+    label: 'Rectangular Prism',
+    params: [
+      { key: 'l', label: 'Length', step: 0.1 },
+      { key: 'w', label: 'Width', step: 0.1 },
+      { key: 'h', label: 'Height', step: 0.1 }
+    ],
+    formulas: {
+      surfaceArea: 'A = 2 × (lw + lh + wh)',
+      volume: 'V = l × w × h'
+    },
+    compute: (params) => {
+      const l = parseFloat(params.l), w = parseFloat(params.w), h = parseFloat(params.h);
+      return {
+        surfaceArea: 2 * (l * w + l * h + w * h),
+        volume: l * w * h
+      };
+    },
+    draw: (ctx, params) => {
+      const l = parseFloat(params.l), w = parseFloat(params.w), h = parseFloat(params.h);
+      const x = 300, y = 200;
+      // Front face
+      ctx.beginPath();
+      ctx.moveTo(x - l / 2, y - h / 2);
+      ctx.lineTo(x + l / 2, y - h / 2);
+      ctx.lineTo(x + l / 2, y + h / 2);
+      ctx.lineTo(x - l / 2, y + h / 2);
+      ctx.closePath();
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Top face
+      ctx.beginPath();
+      ctx.moveTo(x - l / 2, y - h / 2);
+      ctx.lineTo(x + l / 2, y - h / 2);
+      ctx.lineTo(x + l / 2, y - h / 2 - w / 2);
+      ctx.lineTo(x - l / 2, y - h / 2 - w / 2);
+      ctx.closePath();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Right face
+      ctx.beginPath();
+      ctx.moveTo(x + l / 2, y - h / 2);
+      ctx.lineTo(x + l / 2, y + h / 2);
+      ctx.lineTo(x + l / 2 + w / 2, y + h / 2);
+      ctx.lineTo(x + l / 2 + w / 2, y - h / 2);
+      ctx.closePath();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#475569';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('l', x + l / 2 - 3, y + h / 2 + 3);
+      ctx.fillText('w', x + l / 2 + w / 2 - 3, y + h / 2 + 3);
+      ctx.fillText('h', x + l / 2 - 3, y - h / 2 - 3);
+    }
+  }
+};
+
+// ---------- State ----------
+let currentShape = 'circle';
+let params = {};
+let canvas = null;
+let ctx = null;
+
+// ---------- DOM ----------
+const shapeGroup = document.getElementById('shapeGroup');
+const canvasWrap = document.getElementById('canvasWrap');
+const canvasLabel = document.getElementById('canvasLabel');
+const canvasEl = document.getElementById('preview');
+const formulaPanel = document.getElementById('formulaPanel');
+const formulaContent = document.getElementById('formulaContent');
+const formulaTitle = document.getElementById('formulaTitle');
+const formulaToggle = document.getElementById('formulaToggle');
+const resultsEl = document.getElementById('results');
+const copyBtn = document.getElementById('copyBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+// ---------- Build UI ----------
+function buildShapeButtons() {
+  shapeGroup.innerHTML = '';
+  Object.entries(SHAPES).forEach(([key, shape]) => {
+    const btn = document.createElement('button');
+    btn.className = 'shape-btn' + (key === currentShape ? ' active' : '');
+    btn.textContent = shape.label;
+    btn.dataset.shape = key;
+    btn.addEventListener('click', () => selectShape(key));
+    shapeGroup.appendChild(btn);
+  });
+}
+
+function selectShape(key) {
+  currentShape = key;
+  params = {};
+  Object.entries(SHAPES[key].params).forEach(([pKey, p]) => {
+    params[pKey] = p.value ?? (p.type === 'number' ? 1 : '');
+  });
+  buildInputs();
+  buildFormula();
+  draw();
+}
+
+function buildInputs() {
+  const container = document.getElementById('shapeInputs');
+  container.innerHTML = '';
+  Object.entries(SHAPES[currentShape].params).forEach(([pKey, p]) => {
+    const row = document.createElement('div');
+    row.className = 'input-row';
+    row.dataset.param = pKey;
+    row.innerHTML = `
+      <label for="${pKey}">${p.label}</label>
+      <input id="${pKey}" type="${p.type || 'number'}" step="${p.step}" min="${p.min || ''}" max="${p.max || ''}" value="${params[pKey]}" />
+    `;
+    container.appendChild(row);
+  });
+  attachInputHandlers();
+}
+
+function attachInputHandlers() {
+  const container = document.getElementById('shapeInputs');
+  container.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', () => {
+      const key = input.dataset.param;
+      params[key] = input.value;
+      validateInput(input);
+      draw();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') { e.target.step = e.target.step * 10 || 1; e.target.step = parseFloat(e.target.step); e.target.value = parseFloat(e.target.value) + parseFloat(e.target.step); e.target.dispatchEvent(new Event('input')); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { e.target.step = e.target.step * 10 || 1; e.target.step = parseFloat(e.target.step); e.target.value = parseFloat(e.target.value) - parseFloat(e.target.step); e.target.dispatchEvent(new Event('input')); e.preventDefault(); }
+    });
+  });
+}
+
+function validateInput(input) {
+  const key = input.dataset.param;
+  const p = SHAPES[currentShape].params.find(x => x.key === key);
+  const val = parseFloat(input.value);
+  if (!Number.isFinite(val) || (p.min !== undefined && val < p.min) || (p.max !== undefined && val > p.max)) {
+    input.classList.add('invalid');
+  } else {
+    input.classList.remove('invalid');
+  }
+}
+
+function buildFormula() {
+  const shape = SHAPES[currentShape];
+  formulaTitle.textContent = `${shape.label} Formulas`;
+  formulaContent.innerHTML = '';
+  Object.entries(shape.formulas).forEach(([key, formula]) => {
+    const div = document.createElement('div');
+    div.innerHTML = `<code>${formula}</code>`;
+    formulaContent.appendChild(div);
+  });
+}
+
+function draw() {
+  const shape = SHAPES[currentShape];
+  const paramsObj = {};
+  Object.entries(params).forEach(([k, v]) => { paramsObj[k] = parseFloat(v); });
+  const result = shape.compute(paramsObj);
+
+  canvasLabel.textContent = `${shape.label} — ${Object.entries(params).map(([k, v]) => `${k}: ${v}`).join(', ')}`;
+  canvasEl.width = 600;
+  canvasEl.height = 400;
+  ctx = canvasEl.getContext('2d');
+  ctx.clearRect(0, 0, 600, 400);
+  shape.draw(ctx, params);
+
+  renderResults(result, shape);
+}
+
+function renderResults(result, shape) {
+  resultsEl.innerHTML = '';
+  const keys = Object.keys(result);
+  keys.forEach(k => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    const label = k.charAt(0).toUpperCase() + k.slice(1);
+    const value = result[k] === undefined ? '' : result[k].toFixed(2);
+    card.innerHTML = `
+      <h4>${label}</h4>
+      <div class="result-value">${value}</div>
+      <div class="result-unit">${shape.label.includes('Solid') ? 'm³' : 'm²'}</div>
+    `;
+    resultsEl.appendChild(card);
+  });
+}
+
+function copyResults() {
+  const shape = SHAPES[currentShape];
+  const keys = Object.keys(result);
+  const lines = [];
+  keys.forEach(k => {
+    const label = k.charAt(0).toUpperCase() + k.slice(1);
+    const value = result[k] === undefined ? '' : result[k].toFixed(2);
+    lines.push(`${label}: ${value} ${shape.label.includes('Solid') ? 'm³' : 'm²'}`);
+  });
+  navigator.clipboard?.writeText(lines.join('\n'))?.then(() => {
+    copyBtn.textContent = '✓ Copied';
+    setTimeout(() => { copyBtn.textContent = '📋 Copy Results'; }, 1500);
+  });
+}
+
+// ---------- Init ----------
+function init() {
+  canvas = canvasEl;
+  buildShapeButtons();
+  buildInputs();
+  buildFormula();
+  draw();
+  canvasWrap.addEventListener('click', () => {
+    if (canvasWrap.contains(event.target)) {
+      canvasEl.focus();
+    }
+  });
+  formulaToggle.addEventListener('click', () => {
+    formulaPanel.classList.toggle('collapsed');
+    const icon = document.getElementById('formulaIcon');
+    if (formulaPanel.classList.contains('collapsed')) {
+      icon.innerHTML = '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>';
+      formulaToggle.querySelector('span').textContent = 'Hide Formulas';
+    } else {
+      icon.innerHTML = '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="12" y1="19" x2="20" y2="11"/><line x1="12" y1="5" x2="20" y2="13"/></svg>';
+      formulaToggle.querySelector('span').textContent = 'Formulas';
+    }
+  });
+  copyBtn.addEventListener('click', copyResults);
+  resetBtn.addEventListener('click', () => {
+    selectShape('circle');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

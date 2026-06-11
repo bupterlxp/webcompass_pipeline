@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meeting Room Reservation</title>
+  <style>* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: #f4f6fa;
+  color: #1f2937;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  margin-bottom: 24px;
+}
+
+.brand { display: flex; align-items: center; gap: 16px; }
+.brand-logo {
+  width: 48px; height: 48px;
+  background: #1f2937;
+  color: #fff;
+  border-radius: 12px;
+  display: grid; place-items: center;
+  font-weight: 700;
+  font-size: 20px;
+}
+.brand h1 { margin: 0; font-size: 20px; }
+.subtitle { margin: 0; color: #6b7280; font-size: 14px; }
+
+.topnav { display: flex; gap: 8px; }
+.topnav a {
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: #1f2937;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.topnav a:hover { background: #eef2f7; }
+
+.view { display: none; }
+.view.active { display: block; }
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.hidden { display: none !important; }
+
+h3 { margin: 0 0 16px; font-size: 18px; }
+.muted { margin: 0; color: #6b7280; font-size: 14px; }
+
+.form { display: flex; flex-direction: column; gap: 12px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; color: #374151; }
+.field input, .field select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: #1f2937;
+  box-shadow: 0 0 0 3px rgba(31,41,55,0.1);
+}
+
+.btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+}
+.btn-primary { background: #1f2937; color: #fff; }
+.btn-primary:hover { background: #374151; transform: translateY(-1px); }
+.btn-ghost { background: #fff; color: #1f2937; border: 1px solid #d1d5db; }
+.btn-ghost:hover { background: #f3f4f6; }
+
+.dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+.rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.room-card {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
+}
+.room-card:hover { transform: translateY(-2px); border-color: #1f2937; background: #fff; }
+.room-card h4 { margin: 0 0 4px; font-size: 16px; }
+.room-card p { margin: 0; color: #6b7280; font-size: 13px; }
+
+.quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+
+.reservations-list { display: flex; flex-direction: column; gap: 12px; }
+.reservation {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.reservation h4 { margin: 0 0 4px; font-size: 14px; }
+.reservation p { margin: 0; font-size: 13px; color: #6b7280; }
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-pill.pending { background: #fef3c7; color: #92400e; }
+.status-pill.approved { background: #dcfce7; color: #166534; }
+.status-pill.cancelled { background: #fee2e2; color: #991b1b; }
+
+.admin-list { display: flex; flex-direction: column; gap: 12px; }
+.admin-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+.admin-row h4 { margin: 0; font-size: 14px; }
+.admin-row p { margin: 0; font-size: 13px; color: #6b7280; }
+.admin-actions { display: flex; gap: 6px; }
+
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filters input, .filters select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  .app { padding: 12px; }
+  .topbar { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px; }
+  .topnav { justify-content: flex-start; }
+  .dashboard { grid-template-columns: 1fr; }
+  .admin-row { grid-template-columns: 1fr auto; }
+  .admin-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .quick-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">MR</div>
+        <div>
+          <h1>Meeting Room Reservation</h1>
+          <p class="subtitle">Book a room, anytime</p>
+        </div>
+      </div>
+      <nav class="topnav">
+        <a href="#" id="navHome">Home</a>
+        <a href="#" id="navLogin">Login</a>
+        <a href="#" id="navLogout" style="display:none;">Logout</a>
+      </nav>
+    </header>
+
+    <main id="app-main">
+      <!-- Login -->
+      <section id="view-login" class="view">
+        <div class="card login-card">
+          <h2>Welcome back</h2>
+          <p class="muted">Sign in to reserve a meeting room</p>
+          <form id="login-form" class="form">
+            <div class="field">
+              <label for="l-username">Username</label>
+              <input id="l-username" type="text" required placeholder="admin" />
+            </div>
+            <div class="field">
+              <label for="l-password">Password</label>
+              <input id="l-password" type="password" required placeholder="admin123" />
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Home / Dashboard -->
+      <section id="view-home" class="view hidden">
+        <div class="dashboard">
+          <div class="card">
+            <h3>Available Rooms</h3>
+            <div id="rooms-grid" class="rooms-grid"></div>
+          </div>
+          <div class="card">
+            <h3>Quick Reserve</h3>
+            <form id="quick-reserve" class="form">
+              <div class="field">
+                <label for="q-room">Room</label>
+                <select id="q-room"></select>
+              </div>
+              <div class="field">
+                <label for="q-date">Date</label>
+                <input id="q-date" type="date" />
+              </div>
+              <div class="field">
+                <label for="q-start">Start</label>
+                <select id="q-start"></select>
+              </div>
+              <div class="field">
+                <label for="q-end">End</label>
+                <select id="q-end"></select>
+              </div>
+              <div class="field">
+                <label for="q-reason">Reason</label>
+                <input id="q-reason" type="text" placeholder="e.g. Team sync" />
+              </div>
+              <button type="submit" class="btn btn-primary">Reserve</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- My Reservations -->
+      <section id="view-my" class="view hidden">
+        <div class="card">
+          <h3>My Reservations</h3>
+          <div id="my-reservations" class="reservations-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>const db = require('./db');
+
+const seed = async () => {
+  // Seed rooms
+  const rooms = [
+    { name: 'Boardroom A', capacity: 10, description: 'Main conference room with projector' },
+    { name: 'Boardroom B', capacity: 8, description: 'Small private meeting room' },
+    { name: 'Conference Hall', capacity: 30, description: 'Large hall for presentations' },
+    { name: 'Team Room 1', capacity: 6, description: 'Collaboration space' },
+    { name: 'Team Room 2', capacity: 6, description: 'Collaboration space' }
+  ];
+  for (const r of rooms) {
+    db.run('INSERT OR IGNORE INTO rooms (name, capacity, description) VALUES (?, ?, ?)', r.name, r.capacity, r.description);
+  }
+
+  // Seed admin user
+  db.get('SELECT * FROM users WHERE username = ?', 'admin', (err, row) => {
+    if (!row) {
+      db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 'admin', 'admin123', 'admin');
+    }
+  });
+
+  console.log('Database seeded');
+};
+
+seed();
+</script></script>
+<script>/* admin.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

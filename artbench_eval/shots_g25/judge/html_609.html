@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Watermark Creator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="file"], select, input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .volume-display {
+            text-align: right;
+            font-size: 0.9em;
+            color: #666;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Audio Watermark</h1>
+    
+    <div class="form-group">
+        <label for="mainAudio">1. Upload Main Audio File</label>
+        <input type="file" id="mainAudio" accept="audio/*">
+    </div>
+
+    <div class="form-group">
+        <label for="watermarkAudio">2. Upload Watermark Audio File</label>
+        <input type="file" id="watermarkAudio" accept="audio/*">
+    </div>
+
+    <div class="form-group">
+        <label for="placement">3. Watermark Placement</label>
+        <select id="placement">
+            <option value="beginning">Beginning</option>
+            <option value="middle">Middle</option>
+            <option value="end">End</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="volume">4. Watermark Volume</label>
+        <input type="range" id="volume" min="0" max="1" step="0.05" value="0.5">
+        <div class="volume-display">Volume: <span id="volumeValue">50%</span></div>
+    </div>
+
+    <button id="processBtn">Process & Download</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    // Update volume display
+    const volumeInput = document.getElementById('volume');
+    const volumeValue = document.getElementById('volumeValue');
+    volumeInput.addEventListener('input', (e) => {
+        volumeValue.textContent = Math.round(e.target.value * 100) + '%';
+    });
+
+    // Audio processing logic
+    const processBtn = document.getElementById('processBtn');
+    const statusDiv = document.getElementById('status');
+
+    // Helper function to read file as ArrayBuffer
+    const readFileAsArrayBuffer = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    };
+
+    // Helper function to convert AudioBuffer to WAV format
+    const audioBufferToWav = (buffer) => {
+        const numOfChan = buffer.numberOfChannels;
+        const length = buffer.length * numOfChan * 2 + 44;
+        const out = new ArrayBuffer(length);
+        const view = new DataView(out);
+        const channels = [];
+        let sample = 0;
+        let offset = 0;
+        let pos = 0;
+
+        // Write WAV header
+        const setUint16 = (data) => { view.setUint16(pos, data, true); pos += 2; };
+        const setUint32 = (data) => { view.setUint32(pos, data, true); pos += 4; };
+        
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8); // file length - 8
+        setUint32(0x45564157); // "WAVE"
+        setUint32(0x20746d66); // "fmt " chunk
+        setUint32(16); // length = 16
+        setUint16(1); // PCM (uncompressed)
+        setUint16(numOfChan);
+        setUint32(buffer.sampleRate);
+        setUint32(buffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+        setUint16(numOfChan * 2); // block-align
+        setUint16(16); // 16-bit
+        setUint32(0x61746164); // "data" - chunk
+        setUint32(length - pos - 4); // chunk length
+
+        // Write interleaved data
+        for (let i = 0; i < buffer.numberOfChannels; i++) {
+            channels.push(buffer.getChannelData(i));
+        }
+
+        while (pos < length) {
+            for (let i = 0; i < numOfChan; i++) {
+                sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit integer
+                view.setInt16(pos, sample, true);
+                pos += 2;
+            }
+            offset++;
+        }
+        return new Blob([out], { type: 'audio/wav' });
+    };
+
+    processBtn.addEventListener('click', async () => {
+        const mainAudioFile = document.getElementById('mainAudio').files[0];
+        const watermarkAudioFile = document.getElementById('watermarkAudio').files[0];
+        const placement = document.getElementById('placement').value;
+        const volume = parseFloat(document.getElementById('volume').value);
+
+        if (!mainAudioFile || !watermarkAudioFile) {
+            alert('Please upload both main and watermark audio files.');
+            return;
+        }
+
+        processBtn.disabled = true;
+        statusDiv.textContent = 'Processing... Please wait.';
+        statusDiv.style.color = '#f39c12';
+
+        try {
+            // Initialize AudioContext for decoding
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Read and decode main audio
+            const mainArrayBuffer = await readFileAsArrayBuffer(mainAudioFile);
+            const mainBuffer = await audioCtx.decodeAudioData(mainArrayBuffer);
+
+            // Read and decode watermark audio
+            const watermarkArrayBuffer = await readFileAsArrayBuffer(watermarkAudioFile);
+            const watermarkBuffer = await audioCtx.decodeAudioData(watermarkArrayBuffer);
+
+            // Calculate start time for watermark
+            let startTime = 0;
+            if (placement === 'middle') {
+                startTime = Math.max(0, (mainBuffer.duration - watermarkBuffer.duration) / 2);
+            } else if (placement === 'end') {
+                startTime = Math.max(0, mainBuffer.duration - watermarkBuffer.duration);
+            }
+
+            // Calculate total duration needed for the offline context
+            const totalDuration = Math.max(mainBuffer.duration, startTime + watermarkBuffer.duration);
+
+            // Create OfflineAudioContext to render the mixed audio
+            const offlineCtx = new OfflineAudioContext(
+                mainBuffer.numberOfChannels,
+                audioCtx.sampleRate * totalDuration,
+                audioCtx.sampleRate
+            );
+
+            // Setup main audio source
+            const mainSource = offlineCtx.createBufferSource();
+            mainSource.buffer = mainBuffer;
+            mainSource.connect(offlineCtx.destination);
+            mainSource.start(0);
+
+            // Setup watermark audio source with gain (volume) control
+            const watermarkSource = offlineCtx.createBufferSource();
+            watermarkSource.buffer = watermarkBuffer;
+            
+            const gainNode = offlineCtx.createGain();
+            gainNode.gain.value = volume;
+            
+            watermarkSource.connect(gainNode);
+            gainNode.connect(offlineCtx.destination);
+            watermarkSource.start(startTime);
+
+            // Render the audio
+            const renderedBuffer = await offlineCtx.startRendering();
+
+            // Convert to WAV and download
+            const wavBlob = audioBufferToWav(renderedBuffer);
+            const url = URL.createObjectURL(wavBlob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'watermarked_audio.wav';
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+
+            statusDiv.textContent = 'Success! Audio downloaded.';
+            statusDiv.style.color = '#27ae60';
+        } catch (error) {
+            console.error(error);
+            statusDiv.textContent = 'An error occurred during processing.';
+            statusDiv.style.color = '#e74c3c';
+        } finally {
+            processBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

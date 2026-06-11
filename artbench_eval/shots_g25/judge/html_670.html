@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Subtitle Generator</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* Video Player Styles */
+        .video-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; aspect-ratio: 16/9; }
+        video { width: 100%; height: 100%; display: block; }
+        .subtitle-overlay {
+            position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
+            text-align: center; width: 90%; pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* Form Styles */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        input, select, button { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #0056b3; }
+        button.export-btn { background: #28a745; margin-top: 10px; }
+        button.export-btn:hover { background: #1e7e34; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Subtitle List */
+        .subtitle-list { margin-top: 20px; max-height: 200px; overflow-y: auto; }
+        .subtitle-item { background: #f9f9f9; padding: 10px; border-left: 4px solid #007bff; margin-bottom: 10px; font-size: 0.9rem; }
+        
+        /* Hidden Canvas for Export */
+        #exportCanvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Left Panel: Video & Preview -->
+    <div class="panel">
+        <h2>1. Video Preview</h2>
+        <div class="form-group">
+            <input type="file" id="videoUpload" accept="video/*">
+        </div>
+        <div class="video-container" id="videoContainer">
+            <video id="videoPlayer" controls></video>
+            <div id="subtitleOverlay" class="subtitle-overlay"></div>
+        </div>
+        <button id="exportBtn" class="export-btn" disabled>Export Video with Subtitles</button>
+        <p id="exportStatus" style="font-size: 0.85rem; color: #666;"></p>
+    </div>
+
+    <!-- Right Panel: Subtitle Controls -->
+    <div class="panel">
+        <h2>2. Add Subtitles</h2>
+        <div class="row">
+            <div class="form-group">
+                <label>Start Time (sec)</label>
+                <input type="number" id="subStart" step="0.1" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label>End Time (sec)</label>
+                <input type="number" id="subEnd" step="0.1" min="0" value="5">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Subtitle Text</label>
+            <input type="text" id="subText" placeholder="Enter subtitle text here...">
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>Font Size (px)</label>
+                <input type="number" id="subSize" value="24">
+            </div>
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" id="subColor" value="#ffffff">
+            </div>
+            <div class="form-group">
+                <label>Font Family</label>
+                <select id="subFont">
+                    <option value="Arial">Arial</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Impact">Impact</option>
+                </select>
+            </div>
+        </div>
+        <button id="addSubtitleBtn">Add Subtitle</button>
+
+        <div class="subtitle-list" id="subtitleList">
+            <!-- Subtitles will appear here -->
+        </div>
+    </div>
+</div>
+
+<canvas id="exportCanvas"></canvas>
+
+<script>
+    const videoUpload = document.getElementById('videoUpload');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const subtitleOverlay = document.getElementById('subtitleOverlay');
+    const addSubtitleBtn = document.getElementById('addSubtitleBtn');
+    const subtitleList = document.getElementById('subtitleList');
+    const exportBtn = document.getElementById('exportBtn');
+    const exportStatus = document.getElementById('exportStatus');
+    const exportCanvas = document.getElementById('exportCanvas');
+    const ctx = exportCanvas.getContext('2d');
+
+    let subtitles = [];
+    let activeSubtitle = null;
+
+    // Handle Video Upload
+    videoUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            videoPlayer.src = url;
+            exportBtn.disabled = false;
+        }
+    });
+
+    // Add Subtitle to Array and UI
+    addSubtitleBtn.addEventListener('click', () => {
+        const start = parseFloat(document.getElementById('subStart').value);
+        const end = parseFloat(document.getElementById('subEnd').value);
+        const text = document.getElementById('subText').value;
+        const size = document.getElementById('subSize').value;
+        const color = document.getElementById('subColor').value;
+        const font = document.getElementById('subFont').value;
+
+        if (!text || start >= end) {
+            alert("Please enter valid text and ensure End Time is greater than Start Time.");
+            return;
+        }
+
+        const sub = { start, end, text, size, color, font };
+        subtitles.push(sub);
+        
+        // Sort subtitles by start time
+        subtitles.sort((a, b) => a.start - b.start);
+        renderSubtitleList();
+        document.getElementById('subText').value = ''; // clear input
+    });
+
+    function renderSubtitleList() {
+        subtitleList.innerHTML = '';
+        subtitles.forEach((sub, index) => {
+            const div = document.createElement('div');
+            div.className = 'subtitle-item';
+            div.innerHTML = `<strong>${sub.start}s - ${sub.end}s:</strong> ${sub.text} <br>
+                             <small>Font: ${sub.font}, Size: ${sub.size}px, Color: <span style="color:${sub.color}">&#9608;</span></small>`;
+            subtitleList.appendChild(div);
+        });
+    }
+
+    // Sync Subtitles during playback
+    videoPlayer.addEventListener('timeupdate', () => {
+        const currentTime = videoPlayer.currentTime;
+        activeSubtitle = subtitles.find(sub => currentTime >= sub.start && currentTime <= sub.end);
+
+        if (activeSubtitle) {
+            subtitleOverlay.innerText = activeSubtitle.text;
+            subtitleOverlay.style.fontSize = activeSubtitle.size + 'px';
+            subtitleOverlay.style.color = activeSubtitle.color;
+            subtitleOverlay.style.fontFamily = activeSubtitle.font;
+        } else {
+            subtitleOverlay.innerText = '';
+        }
+    });
+
+    // Export Logic using Canvas and MediaRecorder
+    exportBtn.addEventListener('click', async () => {
+        if (!videoPlayer.src) return;
+
+        exportBtn.disabled = true;
+        exportStatus.innerText = "Preparing export... Please wait.";
+
+        // Set canvas dimensions to match video
+        exportCanvas.width = videoPlayer.videoWidth;
+        exportCanvas.height = videoPlayer.videoHeight;
+
+        // Setup MediaStream from Canvas
+        const canvasStream = exportCanvas.captureStream(30); // 30 FPS
+        
+        // Attempt to capture audio from the original video
+        let audioStream;
+        if (videoPlayer.captureStream) {
+            audioStream = videoPlayer.captureStream();
+        } else if (videoPlayer.mozCaptureStream) {
+            audioStream = videoPlayer.mozCaptureStream();
+        }
+
+        if (audioStream && audioStream.getAudioTracks().length > 0) {
+            canvasStream.addTrack(audioStream.getAudioTracks()[0]);
+        }
+
+        const mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm; codecs=vp9' });
+        const recordedChunks = [];
+
+        mediaRecorder.ondataavailable = e => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'video_with_subtitles.webm';
+            a.click();
+            
+            exportBtn.disabled = false;
+            exportStatus.innerText = "Export complete!";
+            videoPlayer.controls = true;
+        };
+
+        // Start recording process
+        videoPlayer.currentTime = 0;
+        videoPlayer.controls = false; // Hide controls during recording
+        
+        videoPlayer.onseeked = () => {
+            mediaRecorder.start();
+            videoPlayer.play();
+            exportStatus.innerText = "Recording in progress... Do not switch tabs.";
+            drawFrame();
+        };
+    });
+
+    function drawFrame() {
+        if (videoPlayer.paused || videoPlayer.ended) {
+            if (videoPlayer.ended && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            return;
+        }
+
+        // Draw Video Frame
+        ctx.drawImage(videoPlayer, 0, 0, exportCanvas.width, exportCanvas.height);
+
+        // Draw Subtitle if active
+        if (activeSubtitle) {
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            
+            // Scale font size relative to video resolution vs screen resolution
+            const scaleFactor = exportCanvas.width / videoPlayer.clientWidth;
+            const scaledFontSize = activeSubtitle.size * scaleFactor;
+            
+            ctx.font = `bold ${scaledFontSize}px ${activeSubtitle.font}`;
+            
+            const x = exportCanvas.width / 2;
+            const y = exportCanvas.height - (exportCanvas.height * 0.1); // 10% from bottom
+
+            // Draw text shadow/stroke for readability
+            ctx.fillStyle = "black";
+            ctx.fillText(activeSubtitle.text, x + 2, y + 2);
+            
+            // Draw actual text
+            ctx.fillStyle = activeSubtitle.color;
+            ctx.fillText(activeSubtitle.text, x, y);
+        }
+
+        requestAnimationFrame(drawFrame);
+    }
+</script>
+</body>
+</html>

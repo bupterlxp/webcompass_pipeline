@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MusicTheoryLab — Learn Scales & Chords</title>
+<style>:root {
+  --bg: #1a1d23;
+  --bg-elev: #23272f;
+  --bg-card: #2a2f38;
+  --border: #3a404c;
+  --text: #e6e8ee;
+  --text-dim: #a8adba;
+  --accent: #6fb1ff;
+  --accent-2: #a78bfa;
+  --success: #3ddc97;
+  --danger: #f472b6;
+  --warning: #fbbf24;
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(0,0,0,0.25);
+  --transition: 0.25s ease;
+}
+
+[data-theme="light"] {
+  --bg: #f5f6fa;
+  --bg-elev: #ffffff;
+  --bg-card: #ffffff;
+  --border: #e3e6ee;
+  --text: #1a1d23;
+  --text-dim: #5a6070;
+  --accent: #4f46e5;
+  --accent-2: #7c3aed;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --shadow: 0 8px 24px rgba(15,23,42,0.08);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(107,177,255,0.12), transparent 40%),
+    radial-gradient(circle at 90% 100%, rgba(124,58,237,0.12), transparent 40%);
+}
+
+a { color: inherit; text-decoration: none; }
+
+button { font-family: inherit; cursor: pointer; }
+
+/* Header */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(26,29,35,0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { font-size: 24px; }
+.site-header h1 { margin: 0; font-size: 18px; letter-spacing: 0.5px; }
+.nav { display: flex; gap: 8px; }
+.nav a {
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: var(--text-dim);
+  transition: color var(--transition), background var(--transition);
+}
+.nav a:hover { color: var(--text); background: var(--bg-elev); }
+.nav a.active { color: var(--accent); background: rgba(107,177,255,0.1); }
+
+.theme-toggle {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  display: grid; place-items: center;
+  transition: all var(--transition);
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Hero */
+.hero {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 80px 24px 60px;
+  text-align: center;
+}
+.hero h2 {
+  font-size: clamp(28px, 4vw, 44px);
+  margin: 0 0 16px;
+  letter-spacing: -0.5px;
+}
+.hero p {
+  font-size: clamp(16px, 1.6vw, 19px);
+  color: var(--text-dim);
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  transition: all var(--transition);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+.btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--bg-elev); border-color: var(--accent); }
+
+/* Intro */
+.intro {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: grid;
+  gap: 24px;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  letter-spacing: -0.3px;
+}
+.card p { margin: 0 0 16px; color: var(--text-dim); }
+.card ul { padding-left: 20px; margin: 0 0 16px; color: var(--text-dim); }
+.card li { margin-bottom: 6px; }
+.card strong { color: var(--text); }
+
+.audio-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.audio-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-weight: 600;
+  transition: all var(--transition);
+}
+.audio-btn:hover { background: var(--accent); color: white; border-color: var(--accent); transform: translateY(-1px); }
+
+.interval-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 15px;
+}
+.interval-table th, .interval-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.interval-table th {
+  background: var(--bg-elev);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* Practice */
+.practice {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: grid;
+  gap: 24px;
+}
+.practice-card { padding: 32px; }
+.practice-card h2 { margin: 0 0 8px; font-size: 24px; }
+.practice-card p { margin: 0 0 20px; color: var(--text-dim); }
+
+.practice-info {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.info-item {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.info-item .label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.info-item .value { font-weight: 600; font-size: 16px; }
+
+.note-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.note-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.note-inputs input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 16px;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+.note-inputs input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(107,177,255,0.2);
+}
+
+.result {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: center;
+}
+.result.success { background: rgba(61,220,151,0.12); color: var(--success); border: 1px solid rgba(61,220,151,0.3); }
+.result.error { background: rgba(244,114,182,0.12); color: var(--danger); border: 1px solid rgba(244,114,182,0.3); }
+.result.warning { background: rgba(251,191,36,0.12); color: var(--warning); border: 1px solid rgba(251,191,36,0.3); }
+
+.scale-select { margin-bottom: 20px; }
+.scale-select label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.scale-select select {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Footer */
+.site-footer {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .site-header { padding: 12px 16px; }
+  .nav { display: none; }
+  .hero { padding: 56px 20px 40px; }
+  .practice-info, .note-inputs { grid-template-columns: 1fr; }
+  .intro { padding: 24px 16px; }
+  .card { padding: 20px; }
+  .practice-card { padding: 24px; }
+}
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo">♪</span>
+      <h1>MusicTheoryLab</h1>
+    </div>
+    <nav class="nav">
+      <a href="intro.html#scales" data-page="scales">Scales</a>
+      <a href="intro.html#chords" data-page="chords">Chords</a>
+      <a href="intro.html#intervals" data-page="intervals">Intervals</a>
+      <a href="practice.html" data-page="practice">Practice</a>
+      <a href="intro.html#about" data-page="about">About</a>
+    </nav>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <span class="icon">☾</span>
+    </button>
+  </header>
+
+  <main class="hero">
+    <h2>Learn Music Theory, One Note at a Time</h2>
+    <p>Interactive lessons on scales, chords, and intervals — with real audio examples and instant practice feedback.</p>
+    <div class="cta">
+      <a href="intro.html" class="btn btn-primary">Start Learning →</a>
+      <a href="practice.html" class="btn btn-ghost">Practice Now</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>© MusicTheoryLab · Built with HTML, CSS & Web Audio API</p>
+  </footer>
+
+  <script>// ---------- Music Theory Data ----------
+const SCALES = {
+  'C major': {
+    name: 'C Major',
+    notes: ['C','D','E','F','G','A','B'],
+    type: 'major'
+  },
+  'A minor': {
+    name: 'A Minor',
+    notes: ['A','B','C','D','E','F','G'],
+    type: 'minor'
+  },
+  'D Dorian': {
+    name: 'D Dorian',
+    notes: ['D','E','F','G','A','B','C'],
+    type: 'dorian'
+  },
+  'E Phrygian': {
+    name: 'E Phrygian',
+    notes: ['E','F','G','A','B','C','D'],
+    type: 'phrygian'
+  },
+  'G Lydian': {
+    name: 'G Lydian',
+    notes: ['G','A','B','C','D','E','F#'],
+    type: 'lydian'
+  },
+  'F Mixolydian': {
+    name: 'F Mixolydian',
+    notes: ['F','G','A','Bb','C','D','E'],
+    type: 'mixolydian'
+  },
+  'B Locrian': {
+    name: 'B Locrian',
+    notes: ['B','C','D','E','F','G','A'],
+    type: 'locrian'
+  }
+};
+
+const CHORDS = {
+  'C major triad': { root: 'C', notes: ['C','E','G'], type: 'major' },
+  'Am minor triad': { root: 'A', notes: ['A','C','E'], type: 'minor' },
+  'C diminished triad': { root: 'C', notes: ['C','Eb','Gb'], type: 'diminished' }
+};
+
+// ---------- Audio Synthesis ----------
+const audioCtx = (() => {
+  let ctx = null;
+  try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+  catch (e) { return null; }
+  return ctx;
+})();
+
+function noteToFreq(note) {
+  const [letter, accidental] = note.split(/[b#]/);
+  const baseFreq = { C: 261.63, D: 293.66, E: 329.63, F: 346.90, G: 392.00, A: 440.00, B: 493.88 }[letter];
+  if (!baseFreq) return null;
+  let acc = 0;
+  if (accidental === '#') acc = 1;
+  else if (accidental === 'b') acc = -1;
+  return baseFreq * Math.pow(2, acc / 12);
+}
+
+function playNote(note, duration = 0.35, volume = 0.25, attack = 0.05, release = 0.1) {
+  if (!audioCtx) return;
+  const ctx = audioCtx;
+  const freq = noteToFreq(note);
+  if (!freq) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + attack);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration - release);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playChord(chord, duration = 0.5) {
+  chord.notes.forEach(n => playNote(n, duration * 0.6, 0.22));
+}
+
+function playScale(scale, duration = 0.5) {
+  scale.notes.forEach(n => playNote(n, duration * 0.6, 0.22));
+}
+
+function playNotes(notes, duration = 0.5) {
+  notes.forEach(n => playNote(n, duration * 0.6, 0.22));
+}
+
+// ---------- Navigation ----------
+function setActiveNav(page) {
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.page === page);
+  });
+}
+
+document.querySelectorAll('.nav a, .audio-btn, .scale-select select').forEach(el => {
+  el.addEventListener('click', (e) => {
+    e.preventDefault();
+    const href = el.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      const target = document.querySelector(href);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// ---------- Intro Audio ----------
+document.querySelectorAll('.audio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.scale;
+    const scale = SCALES[key];
+    if (!scale) return;
+    playScale(scale, 1.2);
+  });
+});
+
+// ---------- Practice ----------
+(function initPractice() {
+  const keyLabel = document.getElementById('keyLabel');
+  const chordLabel = document.getElementById('chordLabel');
+  const notesLabel = document.getElementById('notesLabel');
+  const n1 = document.getElementById('n1');
+  const n2 = document.getElementById('n2');
+  const n3 = document.getElementById('n3');
+  const checkBtn = document.getElementById('checkBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const result = document.getElementById('result');
+
+  const chord = CHORDS['C major triad'];
+  keyLabel.textContent = chord.root;
+  chordLabel.textContent = chord.type;
+  notesLabel.textContent = chord.notes.join(' ');
+
+  const correct = [chord.notes[0], chord.notes[1], chord.notes[2]];
+
+  checkBtn.addEventListener('click', () => {
+    const user = [n1.value.trim().toUpperCase(), n2.value.trim().toUpperCase(), n3.value.trim().toUpperCase()];
+    if (!user.every(n => n.length === 2)) {
+      showError('Please enter all three notes.');
+      return;
+    }
+    const matches = user.map((u, i) => u === correct[i]);
+    const allCorrect = matches.every(m => m);
+    const score = matches.filter(m => m).length;
+
+    if (allCorrect) {
+      showSuccess(`Perfect! You got all 3 notes correct. 🎉`);
+      playChord(chord, 0.8);
+    } else if (score === 2) {
+      showWarning(`Good! You got ${score} out of 3. The missing note is ${correct[matches.indexOf(false)]}.`);
+      playNote(correct[matches.indexOf(false)], 1, 0.25);
+    } else {
+      showError(`Try again. The correct notes are ${correct.join(', ')}.`);
+      playChord(chord, 1.2);
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    n1.value = ''; n2.value = ''; n3.value = '';
+    result.hidden = true;
+    playChord(chord, 0.4);
+  });
+
+  function showSuccess(msg) { showResult(msg, 'success'); }
+  function showError(msg) { showResult(msg, 'error'); }
+  function showWarning(msg) { showResult(msg, 'warning'); }
+  function showResult(msg, cls) {
+    result.textContent = msg;
+    result.className = 'result ' + cls;
+    result.hidden = false;
+  }
+
+  // Auto-check on Enter
+  [n1, n2, n3].forEach(inp => {
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') checkBtn.click();
+    });
+  });
+})();
+
+// ---------- Scale Practice ----------
+(function initScalePractice() {
+  const scaleSelect = document.getElementById('scaleSelect');
+  const playScaleBtn = document.getElementById('playScaleBtn');
+  const playChordBtn = document.getElementById('playChordBtn');
+  const scaleResult = document.getElementById('scaleResult');
+
+  playScaleBtn.addEventListener('click', () => {
+    const key = scaleSelect.value;
+    const scale = SCALES[key];
+    if (!scale) return;
+    playScale(scale, 1.5);
+  });
+
+  playChordBtn.addEventListener('click', () => {
+    const key = scaleSelect.value;
+    const scale = SCALES[key];
+    if (!scale) return;
+    const root = scale.notes[0];
+    playChord({ root, notes: [root, scale.notes[2], scale.notes[4]], type: 'major' }, 1);
+  });
+
+  scaleSelect.addEventListener('change', () => {
+    const key = scaleSelect.value;
+    const scale = SCALES[key];
+    if (!scale) return;
+    scaleResult.textContent = `You selected: ${scale.name} (${scale.notes.join(' ')})`;
+    scaleResult.hidden = false;
+  });
+})();
+
+// ---------- Theme Toggle ----------
+(function initTheme() {
+  const toggle = document.getElementById('themeToggle');
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+
+  toggle.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  });
+})();
+
+// ---------- Smooth scroll for anchor links ----------
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', (e) => {
+    const id = a.getAttribute('href');
+    if (id.length > 1) {
+      const target = document.querySelector(id);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  });
+});
+</script></script>
+</body>
+</html>

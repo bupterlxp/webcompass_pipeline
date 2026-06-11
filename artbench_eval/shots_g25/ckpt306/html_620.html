@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Graphic Video Generator</title>
+<style>* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 10px;
+  font-size: 18px;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+.brand h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+
+.topbar-right { display: flex; gap: 8px; }
+
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f8fafc;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn:hover { background: #334155; border-color: #475569; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.icon-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  cursor: pointer;
+  font-size: 14px;
+  display: grid; place-items: center;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover { background: #334155; }
+
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 0;
+}
+
+.sidebar {
+  background: #0b1220;
+  border-right: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.panel {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.panel h2 {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.layer-list {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.layer-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #1e293b;
+  border: 1px solid transparent;
+  cursor: grab;
+  transition: all 0.15s ease;
+}
+.layer-item:hover { background: #334155; }
+.layer-item:active { cursor: grabbing; }
+.layer-item.dragging { opacity: 0.4; }
+.layer-item .layer-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.layer-item .layer-info { flex: 1; min-width: 0; }
+.layer-item .layer-name { font-size: 12px; }
+.layer-item .layer-type { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.layer-item .layer-controls { display: flex; gap: 2px; opacity: 0.6; }
+.layer-item .layer-controls button {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f8fafc;
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: all 0.15s ease;
+}
+.layer-item .layer-controls button:hover { background: #334155; border-color: #475569; }
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+.preset {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  cursor: pointer;
+  display: grid; place-items: center;
+  font-size: 14px;
+  color: #f8fafc;
+  transition: all 0.15s ease;
+  padding: 6px;
+}
+.preset:hover { background: #334155; border-color: #60a5fa; }
+.preset.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: #8b5cf6; color: white; }
+
+.timeline {
+  height: 64px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  position: relative;
+  cursor: pointer;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 10px; bottom: 10px;
+  left: 0; right: 0;
+  background: linear-gradient(to right, #1e293b, #0f172a 60%, #1e293b);
+  pointer-events: none;
+}
+.timeline-marker {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: #334155;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.timeline-marker:hover { background: #60a5fa; }
+.timeline-marker.active { background: #60a5fa; }
+.timeline-controls {
+  position: absolute;
+  bottom: 8px; left: 8px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.canvas-area {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #0b1220;
+}
+
+.canvas-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+.toolbar-left, .toolbar-right {
+  display: flex; align-items: center; gap: 8px;
+}
+.chip {
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.chip:hover { background: #334155; }
+.chip.active { background: #6366f1; border-color: #6366f1; color: white; }
+
+.canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.15), transparent 50%),
+    #05070d;
+}
+#preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#preview-canvas.hidden { display: none; }
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #64748b;
+  text-align: center;
+  padding: 20px;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.empty-state.hidden { opacity: 0; }
+.empty-icon { font-size: 48px; }
+.empty-state h3 { margin: 0; color: #f8fafc; font-size: 18px; }
+.empty-state p { margin: 0; max-width: 280px; }
+
+@media (max-width: 860px) {
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar { border-right: none; border-bottom: 1px solid #1e293b; }
+  .brand h1 { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🎬</div>
+      <h1>FrameForge</h1>
+    </div>
+    <div class="topbar-right">
+      <button id="btn-add" class="btn btn-primary">+ Add Element</button>
+      <button id="btn-export" class="btn btn-secondary" disabled>▶ Export MP4</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>Elements</h2>
+        <ul id="layer-list" class="layer-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>Presets</h2>
+        <div class="preset-grid" id="preset-grid"></div>
+      </div>
+      <div class="panel">
+        <h2>Timeline</h2>
+        <div class="timeline" id="timeline"></div>
+        <div class="timeline-controls">
+          <span id="time-display">00:00 / 00:00</span>
+          <button id="play-btn" class="icon-btn" title="Play">▶</button>
+          <button id="stop-btn" class="icon-btn" title="Stop">■</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="canvas-area">
+      <div class="canvas-toolbar">
+        <div class="toolbar-left">
+          <label class="chip" data-type="shape">Shape</label>
+          <label class="chip" data-type="line">Line</label>
+          <label class="chip" data-type="icon">Icon</label>
+          <label class="chip" data-type="text">Text</label>
+        </div>
+        <div class="toolbar-right">
+          <span id="fps-display">30 fps</span>
+          <span id="duration-display">0s</span>
+        </div>
+      </div>
+      <div id="canvas-wrap" class="canvas-wrap">
+        <canvas id="preview-canvas"></canvas>
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">✏️</div>
+          <h3>No elements yet</h3>
+          <p>Add your first element to begin animating.</p>
+          <button id="empty-add" class="btn btn-primary">Start Creating</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>// EOF
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

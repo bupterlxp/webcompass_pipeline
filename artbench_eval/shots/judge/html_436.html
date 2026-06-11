@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Sun Movement Simulation</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* The sky container */
+        #sky {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: #87CEEB; /* Default sky blue */
+            transition: background-color 0.1s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        /* The Sun */
+        #sun {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #fffdfa 0%, #ffdf00 40%, #ff8c00 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 40px #ffdf00, 0 0 80px #ff8c00;
+            transform: translate(-50%, -50%);
+            /* Initial position */
+            left: 0;
+            top: 100%;
+        }
+
+        /* The Ground */
+        #ground {
+            position: relative;
+            width: 100%;
+            height: 20vh;
+            background: linear-gradient(to bottom, #2e8b57, #006400);
+            z-index: 10;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+        }
+
+        /* UI Controls */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 20;
+        }
+
+        #controls label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #timeSlider {
+            width: 200px;
+            cursor: pointer;
+        }
+
+        #timeDisplay {
+            font-size: 1.2em;
+            color: #333;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sky">
+        <div id="controls">
+            <label for="timeSlider">Time of Day (0:00 - 24:00)</label>
+            <input type="range" id="timeSlider" min="0" max="24" step="0.1" value="12">
+            <div id="timeDisplay">12:00</div>
+        </div>
+        
+        <div id="sun"></div>
+        <div id="ground"></div>
+    </div>
+
+    <script>
+        const sun = document.getElementById('sun');
+        const sky = document.getElementById('sky');
+        const timeSlider = document.getElementById('timeSlider');
+        const timeDisplay = document.getElementById('timeDisplay');
+
+        // Function to format time for display
+        function formatTime(hoursDecimal) {
+            const hours = Math.floor(hoursDecimal);
+            const minutes = Math.floor((hoursDecimal - hours) * 60);
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+
+        // Function to interpolate between two hex colors
+        function interpolateColor(color1, color2, factor) {
+            const hex1 = color1.match(/[0-9a-f]{2}/gi).map(c => parseInt(c, 16));
+            const hex2 = color2.match(/[0-9a-f]{2}/gi).map(c => parseInt(c, 16));
+            
+            const result = hex1.map((c, i) => Math.round(c + factor * (hex2[i] - c)));
+            return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
+        }
+
+        // Update the simulation based on the time of day (0 to 24)
+        function updateSimulation(time) {
+            timeDisplay.textContent = formatTime(time);
+
+            // Calculate Sun Position (Arc from 6:00 to 18:00)
+            // We use a semi-circle (or ellipse) path
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            
+            // Ground is 20vh, so horizon is at 80% of screen height
+            const horizonY = screenHeight * 0.8; 
+            
+            // Map time (6 to 18) to an angle (0 to PI)
+            // If time is outside 6-18, the sun is below the horizon
+            let angle = 0;
+            if (time >= 6 && time <= 18) {
+                // Map 6-18 to 180 degrees (PI radians)
+                const progress = (time - 6) / 12; 
+                angle = progress * Math.PI;
+            } else if (time < 6) {
+                const progress = (time + 6) / 12; // -PI to 0
+                angle = progress * Math.PI - Math.PI;
+            } else {
+                const progress = (time - 18) / 12; // PI to 2PI
+                angle = Math.PI + progress * Math.PI;
+            }
+
+            // Calculate X and Y using parametric equations for an ellipse
+            const radiusX = screenWidth / 2;
+            const radiusY = horizonY - 50; // Max height of the sun
+
+            const sunX = (screenWidth / 2) - Math.cos(angle) * radiusX;
+            const sunY = horizonY - Math.sin(angle) * radiusY;
+
+            sun.style.left = `${sunX}px`;
+            sun.style.top = `${sunY}px`;
+
+            // Calculate Sky Color
+            let skyColor = '#000000';
+            if (time >= 5 && time < 7) {
+                // Dawn: Night to Sunrise
+                const factor = (time - 5) / 2;
+                skyColor = interpolateColor('#0a0a2a', '#ff7b54', factor);
+            } else if (time >= 7 && time < 12) {
+                // Morning: Sunrise to Noon
+                const factor = (time - 7) / 5;
+                skyColor = interpolateColor('#ff7b54', '#87CEEB', factor);
+            } else if (time >= 12 && time < 17) {
+                // Afternoon: Noon to Sunset
+                const factor = (time - 12) / 5;
+                skyColor = interpolateColor('#87CEEB', '#ff4500', factor);
+            } else if (time >= 17 && time < 19) {
+                // Dusk: Sunset to Night
+                const factor = (time - 17) / 2;
+                skyColor = interpolateColor('#ff4500', '#0a0a2a', factor);
+            } else {
+                // Night
+                skyColor = '#0a0a2a';
+            }
+
+            sky.style.backgroundColor = skyColor;
+        }
+
+        // Event listener for the slider
+        timeSlider.addEventListener('input', (e) => {
+            updateSimulation(parseFloat(e.target.value));
+        });
+
+        // Handle window resize to keep sun path accurate
+        window.addEventListener('resize', () => {
+            updateSimulation(parseFloat(timeSlider.value));
+        });
+
+        // Initialize
+        updateSimulation(parseFloat(timeSlider.value));
+    </script>
+</body>
+</html>

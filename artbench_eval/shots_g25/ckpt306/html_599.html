@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arena Royale</title>
+<link rel="stylesheet" href="main.css">
+</head>
+<body>
+<div class="app">
+  <header class="top-bar">
+    <div class="brand">
+      <span class="logo">⚔</span>
+      <h1>Arena Royale</h1>
+    </div>
+    <div class="status">
+      <span class="pill" id="statusPill">Lobby</span>
+      <span class="pill" id="playerCountPill">0/8</span>
+    </div>
+  </header>
+
+  <div class="sidebar">
+    <div class="panel">
+      <h3>Rooms</h3>
+      <ul id="roomList" class="room-list"></ul>
+      <input id="roomIdInput" type="text" placeholder="Create room name..." />
+      <button id="createRoomBtn" class="btn">Create Room</button>
+    </div>
+    <div class="panel">
+      <h3>Chat</h3>
+      <div id="chatBox" class="chat-box"></div>
+      <div class="chat-input-wrap">
+        <input id="chatInput" type="text" placeholder="Type a message..." />
+        <button id="sendChatBtn" class="btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="game-area">
+    <canvas id="gameCanvas" width="1000" height="600"></canvas>
+    <div id="gameInfo" class="game-info">
+      <div class="info-item">
+        <span class="label">Score</span>
+        <span class="value" id="scoreValue">0</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Kills</span>
+        <span class="value" id="killsValue">0</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Deaths</span>
+        <span class="value" id="deathsValue">0</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Health</span>
+        <span class="value" id="healthValue">100</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>// server.js
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+app.use(express.static('public'));
+
+// Room manager
+const Rooms = require('./rooms');
+const rooms = new Rooms();
+
+// Chat manager
+const Chat = require('./chat');
+const chat = new Chat();
+
+// Player manager
+const Players = require('./players');
+const players = new Players();
+
+io.on('connection', (socket) => {
+  console.log(`Client connected: ${socket.id}`);
+
+  // Room join
+  socket.on('joinRoom', ({ roomId, playerName }) => {
+    rooms.join(socket, roomId, playerName);
+    players.add(socket.id, { name: playerName, health: 100, kills: 0, deaths: 0, score: 0, x: 0, y: 0, color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'), roomId });
+    socket.emit('joinedRoom', { roomId, playerName });
+    io.to(roomId).emit('playerJoined', { id: socket.id, name: playerName, color: players.get(socket.id).color });
+    chat.joinRoom(socket, roomId);
+  });
+
+  // Room create
+  socket.on('createRoom', ({ roomId, playerName }) => {
+    rooms.create(socket, roomId, playerName);
+    players.add(socket.id, { name: playerName, health: 100, kills: 0, deaths: 0, score: 0, x: 0, y: 0, color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'), roomId });
+    socket.emit('joinedRoom', { roomId, playerName });
+    io.to(roomId).emit('playerJoined', { id: socket.id, name: playerName, color: players.get(socket.id).color });
+    chat.joinRoom(socket, roomId);
+  });
+
+  // Room leave
+  socket.on('leaveRoom', () => {
+    const room = rooms.get(socket.roomId);
+    if (room) {
+      io.to(socket.roomId).emit('playerLeft', { id: socket.id, name: players.get(socket.id).name });
+    }
+    rooms.leave(socket);
+    players.remove(socket.id);
+    chat.leaveRoom(socket);
+    socket.emit('leftRoom');
+  });
+
+  // Chat
+  socket.on('chatMessage', (msg) => {
+    chat.send(socket, msg);
+  });
+  socket.on('chatTyping', (typing) => {
+    chat.typing(socket, typing);
+  });
+
+  // Game input
+  socket.on('move', (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    player.x = data.x;
+    player.y = data.y;
+    io.to(player.roomId).emit('playerMoved', { id: socket.id, x: player.x, y: player.y });
+  });
+  socket.on('shoot', (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    io.to(player.roomId).emit('shoot', { shooterId: socket.id, x: player.x, y: player.y, angle: data.angle, power: data.power });
+  });
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    const room = rooms.get(socket.roomId);
+    if (room) {
+      io.to(room.id).emit('playerLeft', { id: socket.id, name: players.get(socket.id).name });
+    }
+    players.remove(socket.id);
+    chat.leaveRoom(socket);
+    console.log(`Client disconnected: ${socket.id}`);
+  });
+});
+
+server.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});
+</script></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

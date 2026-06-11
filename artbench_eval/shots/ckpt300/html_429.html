@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Starship: Gravity Escape</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  body { margin: 0; overflow: hidden; cursor: grab; }
+  body.grabbing { cursor: grabbing; }
+  canvas { display: block; }
+  #hud {
+    position: absolute; top: 10px; left: 10px; color: #fff; font-family: monospace; font-size: 14px;
+    pointer-events: none; text-shadow: 2px 2px 0 #000;
+  }
+  #hud .stat { display: inline-block; margin-right: 18px; }
+  #hud .stat strong { color: #f00; }
+  #hud .stat.ok { color: #0f0; }
+  #hud .stat.warn { color: #ff9; }
+  #controls { position: absolute; bottom: 15px; left: 15px; color: #fff; font-family: monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="stat"><span>Speed</span><strong id="speed">0.0</strong></div>
+  <div class="stat"><span>Thrust</span><strong id="thrust">0.0</strong></div>
+  <div class="stat"><span>Altitude</span><strong id="alt">0.0</strong></div>
+  <div class="stat"><span>Planet</span><strong id="planet">—</strong></div>
+</div>
+<div id="controls">WASD = thrust · Mouse = look · R = reset · Space = glow</div>
+
+<script>
+// ---------- Game ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05070f);
+scene.fog = new THREE.FogExp2(0x05070f, 0.005);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 3, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// ---------- Lights ----------
+const ambient = new THREE.AmbientLight(0x4060ff, 0.5);
+scene.add(ambient);
+
+const sun = new THREE.PointLight(0xfff6a8, 1.2, 500);
+sun.position.set(0, 20, 0);
+scene.add(sun);
+
+const stars = new THREE.PointLight(0xffffff, 0.8, 100);
+stars.position.set(0, 0, 0);
+scene.add(stars);
+
+// ---------- Stars field ----------
+const starGeo = new THREE.BufferGeometry();
+const starCount = 1200;
+const starPos = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  const r = Math.random() * 20;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+  starPos[i * 3 + 2] = r * Math.cos(phi);
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({ size: 0.6, sizeAttenuation: true, color: 0xffffff, transparent: true, opacity: 0.9 });
+const starField = new THREE.Points(starGeo, starMat);
+scene.add(starField);
+
+// ---------- Planets ----------
+const planets = [];
+const planetCount = 4;
+
+function makePlanet(radius, color, orbitRadius, orbitSpeed, orbitAngle, gravity = 0.0001) {
+  const geo = new THREE.SphereGeometry(radius, 32, 32);
+  const mat = new THREE.MeshBasicMaterial({ color, wireframe: false });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+
+  const orbitGeo = new THREE.BufferGeometry();
+  const orbitPos = new Float32Array(1000 * 3);
+  for (let i = 0; i < 1000; i++) {
+    const a = (i / 1000) * Math.PI * 2;
+    orbitPos[i * 3] = Math.cos(a) * orbitRadius;
+    orbitPos[i * 3 + 1] = 0;
+    orbitPos[i * 3 + 2] = Math.sin(a) * orbitRadius;
+  }
+  orbitGeo.setAttribute('position', new THREE.BufferAttribute(orbitPos, 3));
+  const orbitLine = new THREE.Line(orbitGeo, new THREE.LineBasicMaterial({ color: color, opacity: 0.2, transparent: true }));
+  scene.add(orbitLine);
+
+  const ringGeo = new THREE.RingGeometry(orbitRadius * 0.9, orbitRadius * 1.1, 64);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x333, side: THREE.DoubleSide, transparent: true, opacity: 0.2 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI / 2;
+  scene.add(ring);
+
+  const body = {
+    mesh,
+    orbitRadius,
+    orbitSpeed,
+    orbitAngle,
+    gravity,
+    color,
+    radius,
+    ring,
+    orbitLine,
+    orbitMesh: mesh,
+    orbitAngle: orbitAngle,
+    lastOrbitTime: performance.now(),
+  };
+  planets.push(body);
+  return body;
+}
+
+const mercury = makePlanet(0.3, 0xb8860b, 2.5, 0.02, 0, 0.00005);
+const venus = makePlanet(0.5, 0xffb347, 5.0, 0.015, Math.PI / 2, 0.0001);
+const earth = makePlanet(0.55, 0x3bb0d5, 8.0, 0.012, Math.PI, 0.00015);
+const mars = makePlanet(0.4, 0xe06020, 11.0, 0.01, -Math.PI / 2, 0.0001);
+const jupiter = makePlanet(1.2, 0xe8d172, 16.0, 0.008, Math.PI * 1.2, 0.00025);
+const saturn = makePlanet(1.0, 0xf4c28f, 22.0, 0.006, 0, 0.00018);
+
+// Saturn rings orbit around Y axis
+const saturnRingGeo = new THREE.RingGeometry(9, 11, 64);
+const saturnRingMat = new THREE.MeshBasicMaterial({ color: 0x888, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+const saturnRing = new THREE.Mesh(saturnRingGeo, saturnRingMat);
+saturnRing.rotation.x = Math.PI / 2;
+saturnRing.position.y = 1.2;
+scene.add(saturnRing);
+
+// Saturn's moon
+const moonGeo = new THREE.SphereGeometry(0.15, 16, 16);
+const moonMat = new THREE.MeshBasicMaterial({ color: 0x888 });
+const moon = new THREE.Mesh(moonGeo, moonMat);
+moon.position.set(3.5, 0, 0);
+scene.add(moon);
+
+// ---------- Ship ----------
+const shipGroup = new THREE.Group();
+scene.add(shipGroup);
+
+const shipMat = new THREE.MeshBasicMaterial({ color: 0xff22aa });
+const shipGeo = new THREE.SphereGeometry(0.35, 24, 24);
+const ship = new THREE.Mesh(shipGeo, shipMat);
+shipGroup.add(ship);
+
+// Thruster cone
+const coneGeo = new THREE.ConeGeometry(0.2, 0.5, 12);
+const coneMat = new THREE.MeshBasicMaterial({ color: 0xff22aa });
+const cone = new THREE.Mesh(coneGeo, coneMat);
+cone.position.y = -0.35;
+cone.rotation.x = Math.PI / 2;
+shipGroup.add(cone);
+
+// Glow
+const glowGeo = new THREE.SphereGeometry(0.35, 12, 12);
+const glowMat = new THREE.MeshBasicMaterial({ color: 0xff22aa, transparent: true, opacity: 0 });
+const glow = new THREE.Mesh(glowGeo, glowMat);
+shipGroup.add(glow);
+
+// Particles
+const particleGeo = new THREE.BufferGeometry();
+const particleCount = 40;
+const particlePos = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount; i++) {
+  particlePos[i * 3] = (Math.random() - 0.5) * 0.6;
+  particlePos[i * 3 + 1] = (Math.random() - 0.5) * 0.6;
+  particlePos[i * 3 + 2] = (Math.random() - 0.5) * 0.6;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+const particleMat = new THREE.PointsMaterial({
+  color: 0xff22aa,
+  size: 0.04,
+  sizeAttenuation: true,
+  transparent: true,
+  opacity: 0.9,
+});
+const particles = new THREE.Points(particleGeo, particleMat);
+shipGroup.add(particles);
+
+// ---------- Controls ----------
+const keys = {};
+const pitch = 0;
+const yaw = 0;
+let thrust = 0;
+let glowOn = false;
+let resetRequested = false;
+
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (e.code === 'Space') { glowOn = !glowOn; glowMat.opacity = glowOn ? 0.6 : 0; }
+  if (e.code === 'KeyR') { resetRequested = true; }
+}, { passive: true });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; }, { passive: true });
+
+const mouseState = { x: 0, y: 0, active: false };
+window.addEventListener('mousedown', (e) => { mouseState.active = true; });
+window.addEventListener('mousemove', (e) => {
+  mouseState.x = (e.clientX - window.innerWidth / 2) / window.innerWidth;
+  mouseState.y = (e.clientY - window.innerHeight / 2) / window.innerHeight;
+});
+window.addEventListener('mouseup', (e) => { mouseState.active = false; });
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- Ship state ----------
+let shipPos = new THREE.Vector3(0, 0, 0);
+let shipVel = new THREE.Vector3(0, 0, 0);
+let shipDir = new THREE.Vector3(0, 0, -1);
+let shipUp = new THREE.Vector3(0, 1, 0);
+let shipRight = new THREE.Vector3(1, 0, 0);
+
+let thrustAccum = 0;
+let lastTime = performance.now();
+
+function updateShipDir() {
+  shipDir.set(0, 0, -1);
+  shipDir.applyQuaternion(shipGroup.quaternion);
+  shipRight.set(1, 0, 0);
+  shipRight.applyQuaternion(shipGroup.quaternion);
+  shipUp.set(0, 1, 0);
+  shipUp.applyQuaternion(shipGroup.quaternion);
+}
+
+function applyThrust() {
+  const forward = shipDir.clone().normalize();
+  shipVel.addScaledVector(forward, thrust * 0.001);
+  thrustAccum += thrust * 0.001;
+}
+
+function resetShip() {
+  shipPos.set(0, 0, 0);
+  shipVel.set(0, 0, 0);
+  shipGroup.position.copy(shipPos);
+  shipGroup.quaternion.set(0, 0, 0, 1);
+  thrustAccum = 0;
+  thrust = 0;
+  resetRequested = false;
+}
+
+// ---------- Update ----------
+function update(dt) {
+  const t = performance.now() - lastTime;
+  lastTime = performance.now();
+
+  // Mouse look
+  if (mouseState.active) {
+    yaw -= mouseState.x * 0.005 * t;
+    pitch -= mouseState.y * 0.005 * t;
+    pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch));
+  }
+  shipGroup.quaternion.setFromEuler(pitch, yaw, 0);
+
+  // Thrust
+  if (keys['KeyW']) thrust = Math.min(thrust + 0.02, 0.5);
+  if (keys['KeyS']) thrust = Math.max(thrust - 0.02, -0.5);
+  else thrust = Math.max(thrust - 0.005, 0);
+
+  applyThrust();
+
+  // Gravity from planets
+  const shipSpeed = shipVel.length();
+  const shipAltitude = shipPos.length();
+  let closest = null;
+  let closestDist = Infinity;
+
+  for (const p of planets) {
+    const dx = p.mesh.position.x - shipPos.x;
+    const dy = p.mesh.position.y - shipPos.y;
+    const dz = p.mesh.position.z - shipPos.z;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    const d = Math.sqrt(d2);
+    const force = p.gravity / (d + 0.001) * dt;
+    if (d < 10) {
+      shipVel.addScaledVector(new THREE.Vector3(dx, dy, dz).normalize(), -force);
+    }
+    if (d < closestDist) {
+      closestDist = d;
+      closest = p;
+    }
+  }
+
+  // Update orbit angles
+  for (const p of planets) {
+    const now = performance.now();
+    const dtSec = (now - p.lastOrbitTime) / 1000;
+    p.lastOrbitTime = now;
+    p.orbitAngle += p.orbitSpeed * dtSec;
+    p.mesh.position.x = Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.mesh.position.z = Math.sin(p.orbitAngle) * p.orbitRadius;
+    p.ring.position.x = Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.ring.position.z = Math.sin(p.orbitAngle) * p.orbitRadius;
+    p.orbitMesh.position.copy(p.mesh.position);
+  }
+
+  // Saturn ring rotation
+  saturnRing.rotation.y += 0.005 * t;
+  // Saturn moon orbit
+  moon.position.x = Math.cos(performance.now() / 1000) * 3.5;
+  moon.position.z = Math.sin(performance.now() / 1000) * 0.5;
+
+  // Ship movement
+  shipVel.addScaledVector(shipDir, thrust * 0.001 * shipSpeed * 0.1);
+  shipPos.addScaledVector(shipVel, dt * 0.001);
+  shipGroup.position.copy(shipPos);
+
+  // Thruster particles
+  if (thrust !== 0) {
+    const p = particles.geometry.attributes.position;
+    const step = 1 / particleCount;
+    for (let i = 0; i < particleCount; i++) {
+      const f = i * step;
+      const emitX = Math.sin(f * 10) * 0.1;
+      const emitY = Math.cos(f * 10) * 0.1;
+      p.array[i * 3] = emitX;
+      p.array[i * 3 + 1] = emitY;
+      p.array[i * 3 + 2] = 0;
+    }
+    particles.geometry.attributes.position.needsUpdate = true;
+    particles.geometry.attributes.position.array = p.array;
+  }
+
+  // Update HUD
+  document.getElementById('speed').textContent = shipSpeed.toFixed(2);
+  document.getElementById('thrust').textContent = thrust.toFixed(2);
+  document.getElementById('alt').textContent = shipAltitude.toFixed(2);
+  const pEl = document.getElementById('planet');
+  if (closest) {
+    pEl.textContent = closest.color.toString(16).toUpperCase().slice(1);
+    pEl.className = 'stat ok';
+  } else {
+    pEl.textContent = '—';
+    pEl.className = 'stat';
+  }
+
+  // Reset on demand
+  if (resetRequested) resetShip();
+}
+
+// ---------- Animation loop ----------
+function animate() {
+  requestAnimationFrame(animate);
+  update(16); // fixed dt = 16ms
+  renderer.render(scene, camera);
+}
+
+animate();
+</script>
+</body>
+</html>

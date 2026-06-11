@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Doc Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f5f6fa; color:#222; }
+  header { background:#1f2937; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:18px; }
+  header button { background:#3b82f6; color:#fff; border:0; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:8px; }
+  main { padding:20px; max-width:1400px; margin:0 auto; }
+  .card { background:#fff; border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  input, textarea, select { width:100%; padding:8px; border:1px solid #d1d5db; border-radius:4px; font-family:inherit; font-size:14px; }
+  textarea { font-family: ui-monospace, Menlo, monospace; }
+  .btn { background:#3b82f6; color:#fff; border:0; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:14px; }
+  .btn.secondary { background:#6b7280; }
+  .btn.danger { background:#ef4444; }
+  .btn.small { padding:4px 8px; font-size:12px; }
+  .row { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:12px; }
+  .project-card { cursor:pointer; border:1px solid #e5e7eb; }
+  .project-card:hover { border-color:#3b82f6; }
+  .editor-wrap { display:grid; grid-template-columns: 1fr 1fr; gap:12px; height:70vh; }
+  .editor-wrap textarea { height:100%; resize:none; }
+  .preview { border:1px solid #e5e7eb; border-radius:4px; padding:16px; overflow:auto; background:#fff; }
+  .preview h1,.preview h2,.preview h3 { margin-top:0; }
+  .preview code { background:#f3f4f6; padding:2px 4px; border-radius:3px; }
+  .preview pre { background:#1f2937; color:#f9fafb; padding:12px; border-radius:4px; overflow:auto; }
+  .sidebar { display:grid; grid-template-columns: 1fr 320px; gap:16px; }
+  .version-list { max-height:70vh; overflow:auto; }
+  .version-item { padding:8px; border-bottom:1px solid #e5e7eb; cursor:pointer; }
+  .version-item:hover { background:#f9fafb; }
+  .version-item.active { background:#eff6ff; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#e5e7eb; }
+  .tag.api { background:#dbeafe; color:#1e40af; }
+  .tag.spec { background:#fef3c7; color:#92400e; }
+  .tag.design { background:#d1fae5; color:#065f46; }
+  .hidden { display:none !important; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid #e5e7eb; margin-bottom:12px; }
+  .tab { padding:8px 14px; cursor:pointer; border-bottom:2px solid transparent; }
+  .tab.active { border-color:#3b82f6; color:#3b82f6; font-weight:600; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:8px; text-align:left; border-bottom:1px solid #e5e7eb; }
+  .notice { padding:10px; background:#fef3c7; border-radius:4px; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📘 Doc Manager</h1>
+  <div id="userArea"></div>
+</header>
+<main id="app"></main>
+
+<script>
+const API = '';
+let state = { token: localStorage.getItem('token'), user: null, view: 'login' };
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const res = await fetch(API + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function $(sel, root=document) { return root.querySelector(sel); }
+function el(tag, attrs={}, ...children) {
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === 'onclick' || k === 'oninput') e[k] = v;
+    else if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) {
+    if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+    else if (c) e.appendChild(c);
+  }
+  return e;
+}
+
+function render() {
+  const app = $('#app');
+  app.innerHTML = '';
+  const ua = $('#userArea');
+  ua.innerHTML = '';
+  if (state.user) {
+    ua.appendChild(el('span', {}, `${state.user.username} (${state.user.role})`));
+    ua.appendChild(el('button', { onclick: logout }, 'Logout'));
+  }
+
+  if (!state.token) return renderLogin();
+  if (state.view === 'projects') return renderProjects();
+  if (state.view === 'project') return renderProject();
+  if (state.view === 'document') return renderDocument();
+  if (state.view === 'admin') return renderAdmin();
+}
+
+function renderLogin() {
+  const form = el('div', { class:'card', style:'max-width:400px;margin:60px auto' },
+    el('h2', {}, 'Sign in'),
+    el('input', { id:'u', placeholder:'Username' }),
+    el('div', { style:'height:8px' }),
+    el('input', { id:'p', type:'password', placeholder:'Password' }),
+    el('div', { style:'height:8px' }),
+    el('button', { class:'btn', onclick: doLogin }, 'Login'),
+    el('button', { class:'btn secondary', onclick: doRegister, style:'margin-left:8px' }, 'Register'),
+    el('p', { style:'color:#6b7280;font-size:12px;margin-top:12px' }, 'Default admin: admin / admin123')
+  );
+  $('#app').appendChild(form);
+}
+
+async function doLogin() {
+  try {
+    const d = await api('/api/auth/login', { method:'POST', body: JSON.stringify({ username: $('#u').value, password: $('#p').value }) });
+    state.token = d.token; state.user = d.user; localStorage.setItem('token', d.token);
+    state.view = 'projects'; render();
+  } catch (e) { alert(e.message); }
+}
+async function doRegister() {
+  try {
+    const d = await api('/api/auth/register', { method:'POST', body: JSON.stringify({ username: $('#u').value, password: $('#p').value }) });
+    state.token = d.token; state.user = d.user; localStorage.setItem('token', d.token);
+    state.view = 'projects'; render();
+  } catch (e) { alert(e.message); }
+}
+function logout() { localStorage.removeItem('token'); state.token=null; state.user=null; render(); }
+
+async function renderProjects() {
+  const data = await api('/api/projects');
+  const app = $('#app');
+  const header = el('div', { class:'row' },
+    el('h2', { style:'margin:0;flex:1' }, 'My Projects'),
+    state.user.role === 'admin' ? el('button', { class:'btn secondary', onclick: () => { state.view='admin'; render(); } }, 'Admin Panel') : null,
+    el('button', { class:'btn', onclick: newProject }, '+ New Project')
+  );
+  app.appendChild(header);
+
+  const grid = el('div', { class:'grid' });
+  for (const p of data.projects) {
+    const card = el('div', { class:'card project-card', onclick: () => openProject(p.id) },
+      el('h3', { style:'margin:0 0 6px' }, p.name),
+      el('p', { style:'color:#6b7280;margin:0;font-size:13px' }, p.description || '—')
+    );
+    grid.appendChild(card);
+  }
+  if (!data.projects.length) grid.appendChild(el('p', {}, 'No projects yet.'));
+  app.appendChild(grid);
+}
+
+async function newProject() {
+  const name = prompt('Project name:'); if (!name) return;
+  const description = prompt('Description (optional):') || '';
+  await api('/api/projects', { method:'POST', body: JSON.stringify({ name, description }) });
+  render();
+}
+
+let currentProject = null;
+async function openProject(id) {
+  currentProject = await api(`/api/projects/${id}`);
+  state.view = 'project'; render();
+}
+
+function renderProject() {
+  const p = currentProject.project;
+  const app = $('#app');
+  app.appendChild(el('div', { class:'row' },
+    el('button', { class:'btn secondary', onclick: () => { state.view='projects'; render(); } }, '← Back'),
+    el('h2', { style:'margin:0;flex:1' }, p.name),
+    el('button', { class:'btn', onclick: newDocument }, '+ New Document'),
+    el('button', { class:'btn secondary', onclick: openApiGenerator }, '⚡ Generate API Doc')
+  ));
+
+  const tabs = el('div', { class:'tabs' });
+  ['Documents','Members'].forEach((t,i) => {
+    tabs.appendChild(el('div', { class:'tab'+(i===0?' active':''), onclick: (e) => switchTab(e, t.toLowerCase()) }, t));
+  });
+  app.appendChild(tabs);
+
+  const docsPane = el('div', { id:'pane-documents' });
+  const grid = el('div', { class:'grid' });
+  for (const d of currentProject.documents) {
+    grid.appendChild(el('div', { class:'card project-card', onclick: () => openDocument(d.id) },
+      el('div', { class:'row', style:'margin:0' },
+        el('h3', { style:'margin:0;flex:1' }, d.title),
+        el('span', { class:'tag '+d.type }, d.type)
+      ),
+      el('p', { style:'color:#6b7280;font-size:12px;margin:6px 0 0' }, `v${d.current_version} · ${new Date(d.updated_at).toLocaleString()}`)
+    ));
+  }
+  if (!currentProject.documents.length) grid.appendChild(el('p', {}, 'No documents yet.'));
+  docsPane.appendChild(grid);
+  app.appendChild(docsPane);
+
+  const membersPane = el('div', { id:'pane-members', class:'hidden' });
+  const table = el('table');
+  table.appendChild(el('thead', {}, el('tr', {}, el('th',{},'User'), el('th',{},'Project Role'), el('th',{},'Actions'))));
+  const tbody = el('tbody');
+  for (const m of currentProject.members) {
+    const tr = el('tr', {},
+      el('td', {}, m.username),
+      el('td', {}, m.project_role),
+      el('td', {}, el('button', { class:'btn danger small', onclick: () => removeMember(m.id) }, 'Remove'))
+    );
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  membersPane.appendChild(table);
+
+  const addRow = el('div', { class:'row', style:'margin-top:12px' },
+    el('select', { id:'newMemberUser' }),
+    el('select', { id:'newMemberRole' },
+      el('option', { value:'viewer' }, 'viewer'),
+      el('option', { value:'editor' }, 'editor'),
+      el('option', { value:'owner' }, 'owner')
+    ),
+    el('button', { class:'btn', onclick: addMember }, 'Add Member')
+  );
+  membersPane.appendChild(addRow);
+  app.appendChild(membersPane);
+
+  // Populate user dropdown
+  api('/api/users').then(d => {
+    const sel = $('#newMemberUser');
+    if (sel) d.users.forEach(u => sel.appendChild(el('option', { value: u.id }, u.username)));
+  }).catch(() => { /* non-admin can't list users */ });
+}
+
+function switchTab(e, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  $('#pane-documents').classList.toggle('hidden', name !== 'documents');
+  $('#pane-members').classList.toggle('hidden', name !== 'members');
+}
+
+async function addMember() {
+  const user_id = Number($('#newMemberUser').value);
+  const role = $('#newMemberRole').value;
+  await api(`/api/projects/${currentProject.project.id}/members`, { method:'POST', body: JSON.stringify({ user_id, role }) });
+  openProject(currentProject.project.id);
+}
+async function removeMember(userId) {
+  if (!confirm('Remove member?')) return;
+  await api(`/api/projects/${currentProject.project.id}/members/${userId}`, { method:'DELETE' });
+  openProject(currentProject.project.id);
+}
+
+async function newDocument() {
+  const title = prompt('Document title:'); if (!title) return;
+  const type = prompt('Type (spec / api / design):', 'spec') || 'spec';
+  const d = await api(`/api/documents/project/${currentProject.project.id}`, {
+    method:'POST', body: JSON.stringify({ title, type, content: `# ${title}\n\nStart writing...` })
+  });
+  openDocument(d.document.id);
+}
+
+let currentDoc = null;
+async function openDocument(id) {
+  currentDoc = await api(`/api/documents/${id}`);
+  state.view = 'document'; render();
+}
+
+function renderDocument() {
+  const d = currentDoc.document;
+  const app = $('#app');
+  app.appendChild(el('div', { class:'row' },
+    el('button', { class:'btn secondary', onclick: () => openProject(d.project_id) }, '← Back'),
+    el('h2', { style:'margin:0;flex:1' }, d.title),
+    el('span', { class:'tag '+d.type }, d.type),
+    el('span', { style:'margin-left:8px;color:#6b7280' }, `v${d.current_version}`)
+  ));
+
+  const wrap = el('div', { class:'sidebar' });
+  const editorCol = el('div');
+  const editorWrap = el('div', { class:'editor-wrap' });
+  const ta = el('textarea', { id:'mdEditor' });
+  ta.value = d.content;
+  const preview = el('div', { class:'preview', id:'mdPreview' });
+  editorWrap.appendChild(ta);
+  editorWrap.appendChild(preview);
+  editorCol.appendChild(editorWrap);
+
+  const actions = el('div', { class:'row', style:'margin-top:10px' },
+    el('input', { id:'changeNote', placeholder:'Change note (optional)', style:'flex:1' }),
+    el('button', { class:'btn', onclick: saveDocument }, '💾 Save New Version')
+  );
+  editorCol.appendChild(actions);
+  wrap.appendChild(editorCol);
+
+  const side = el('div', { class:'card version-list' });
+  side.appendChild(el('h3', { style:'margin-top:0' }, 'Version History'));
+  for (const v of currentDoc.versions) {
+    const item = el('div', { class:'version-item', onclick: () => loadVersion(v.version) },
+      el('div', {}, el('strong', {}, `v${v.version}`), ` — ${v.username}`),
+      el('div', { style:'font-size:12px;color:#6b7280' }, v.change_note || '(no note)'),
+      el('div', { style:'font-size:11px;color:#9ca3af' }, new Date(v.created_at).toLocaleString()),
+      el('button', { class:'btn small secondary', style:'margin-top:4px', onclick: (e) => { e.stopPropagation(); restoreVersion(v.version); } }, 'Restore')
+    );
+    side.appendChild(item);
+  }
+  wrap.appendChild(side);
+  app.appendChild(wrap);
+
+  const updatePreview = () => { preview.innerHTML = marked.parse(ta.value); };
+  ta.oninput = updatePreview;
+  updatePreview();
+}
+
+async function saveDocument() {
+  const content = $('#mdEditor').value;
+  const change_note = $('#changeNote').value;
+  await api(`/api/documents/${currentDoc.document.id}`, {
+    method:'PUT', body: JSON.stringify({ content, change_note })
+  });
+  openDocument(currentDoc.document.id);
+}
+async function loadVersion(v) {
+  const data = await api(`/api/documents/${currentDoc.document.id}/version/${v}`);
+  $('#mdEditor').value = data.version.content;
+  $('#mdPreview').innerHTML = marked.parse(data.version.content);
+}
+async function restoreVersion(v) {
+  if (!confirm(`Restore v${v} as a new version?`)) return;
+  await api(`/api/documents/${currentDoc.document.id}/restore/${v}`, { method:'POST' });
+  openDocument(currentDoc.document.id);
+}
+
+function openApiGenerator() {
+  const sample = `title: User Service API
+version: 1.0.0
+baseUrl: https://api.example.com
+endpoints:
+  - method: GET
+    path: /users
+    summary: List users
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number
+    responses:
+      200:
+        description: OK
+        body: |
+          { "users": [] }
+  - method: POST
+    path: /users
+    summary: Create user
+    requestBody:
+      name: string
+      email: string
+    responses:
+      201:
+        description: Created`;
+  const spec = prompt('Paste YAML/JSON API spec (or edit sample):', sample);
+  if (!spec) return;
+  const title = prompt('Document title:', 'API Documentation') || 'API Documentation';
+  api('/api/documents/generate-api', {
+    method:'POST', body: JSON.stringify({ spec, projectId: currentProject.project.id, title })
+  }).then(() => openProject(currentProject.project.id))
+    .catch(e => alert(e.message));
+}
+
+async function renderAdmin() {
+  const app = $('#app');
+  app.appendChild(el('div', { class:'row' },
+    el('button', { class:'btn secondary', onclick: () => { state.view='projects'; render(); } }, '← Back'),
+    el('h2', { style:'margin:0' }, 'Admin Panel — Users')
+  ));
+  const data = await api('/api/users');
+  const table = el('table', { class:'card' });
+  table.appendChild(el('thead', {}, el('tr', {}, el('th',{},'ID'), el('th',{},'Username'), el('th',{},'Role'), el('th',{},'Actions'))));
+  const tbody = el('tbody');
+  for (const u of data.users) {
+    const roleSel = el('select', { onchange: async (e) => {
+      await api(`/api/users/${u.id}/role`, { method:'PATCH', body: JSON.stringify({ role: e.target.value }) });
+    }}, el('option', { value:'member', selected: u.role==='member' }, 'member'),
+         el('option', { value:'admin', selected: u.role==='admin' }, 'admin'));
+    tbody.appendChild(el('tr', {},
+      el('td', {}, String(u.id)),
+      el('td', {}, u.username),
+      el('td', {}, roleSel),
+      el('td', {}, el('button', { class:'btn danger small', onclick: () => deleteUser(u.id) }, 'Delete'))
+    ));
+  }
+  table.appendChild(tbody);
+  app.appendChild(table);
+}
+async function deleteUser(id) {
+  if (!confirm('Delete user?')) return;
+  await api(`/api/users/${id}`, { method:'DELETE' });
+  render();
+}
+
+(async function init() {
+  if (state.token) {
+    try {
+      const d = await api('/api/auth/me');
+      state.user = d.user;
+      state.view = 'projects';
+    } catch { localStorage.removeItem('token'); state.token = null; }
+  }
+  render();
+})();
+</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

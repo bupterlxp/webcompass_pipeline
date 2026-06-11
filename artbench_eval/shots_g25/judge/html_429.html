@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Gravity Spacecraft Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            pointer-events: none;
+        }
+        h1 { margin: 0 0 10px 0; font-size: 20px; color: #00ffcc; }
+        p { margin: 5px 0; font-size: 14px; }
+        .key { background: #333; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+    </style>
+    <!-- Load Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>Orbital Escape</h1>
+        <p><span class="key">W</span> / <span class="key">S</span> : Thrust Forward / Backward</p>
+        <p><span class="key">A</span> / <span class="key">D</span> : Turn Left / Right (Yaw)</p>
+        <p><span class="key">↑</span> / <span class="key">↓</span> : Pitch Up / Down</p>
+        <p id="speedDisplay">Speed: 0.00</p>
+    </div>
+
+    <script>
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+        const sunLight = new THREE.PointLight(0xffffff, 1.5, 5000);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        // --- Starfield Background ---
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 0.5});
+        const starsVertices = [];
+        for(let i=0; i<5000; i++) {
+            const x = THREE.MathUtils.randFloatSpread(2000);
+            const y = THREE.MathUtils.randFloatSpread(2000);
+            const z = THREE.MathUtils.randFloatSpread(2000);
+            starsVertices.push(x, y, z);
+        }
+        starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+        const starField = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(starField);
+
+        // --- Spacecraft ---
+        const shipGeometry = new THREE.ConeGeometry(0.5, 2, 16);
+        shipGeometry.rotateX(Math.PI / 2); // Point the cone along the Z axis
+        const shipMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, flatShading: true });
+        const ship = new THREE.Mesh(shipGeometry, shipMaterial);
+        ship.position.set(0, 0, 100);
+        scene.add(ship);
+
+        // --- Planets & Physics Setup ---
+        const G = 0.5; // Gravitational constant (scaled for gameplay)
+        const planets = [];
+
+        function createPlanet(radius, mass, color, x, y, z, isSun = false) {
+            const geo = new THREE.SphereGeometry(radius, 32, 32);
+            const mat = isSun 
+                ? new THREE.MeshBasicMaterial({ color: color }) 
+                : new THREE.MeshPhongMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            planets.push({ mesh, mass, radius });
+        }
+
+        // Create a central "Sun" and some planets
+        createPlanet(15, 500, 0xffdd00, 0, 0, 0, true); // Sun
+        createPlanet(5, 100, 0x0044ff, 150, 0, 0);      // Blue Planet
+        createPlanet(8, 200, 0xff4400, -200, 50, -100); // Red Planet
+        createPlanet(3, 50, 0xaaaaaa, 0, -100, 150);    // Gray Moon
+
+        // Ship Physics State
+        const velocity = new THREE.Vector3(0, 0, 0);
+        const thrustPower = 0.02;
+        const turnSpeed = 0.03;
+
+        // --- Controls ---
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        // --- Game Loop ---
+        const speedDisplay = document.getElementById('speedDisplay');
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 1. Handle Input (Rotation & Thrust)
+            if (keys['KeyA']) ship.rotateY(turnSpeed);
+            if (keys['KeyD']) ship.rotateY(-turnSpeed);
+            if (keys['ArrowUp']) ship.rotateX(-turnSpeed);
+            if (keys['ArrowDown']) ship.rotateX(turnSpeed);
+
+            // Calculate forward direction based on ship's current rotation
+            const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(ship.quaternion);
+
+            if (keys['KeyW']) {
+                velocity.add(forward.clone().multiplyScalar(thrustPower));
+            }
+            if (keys['KeyS']) {
+                velocity.add(forward.clone().multiplyScalar(-thrustPower));
+            }
+
+            // 2. Apply Gravity from all planets
+            planets.forEach(planet => {
+                const direction = new THREE.Vector3().subVectors(planet.mesh.position, ship.position);
+                const distanceSq = direction.lengthSq();
+                const distance = Math.sqrt(distanceSq);
+
+                // Only apply gravity if outside the planet (prevent infinite gravity at center)
+                if (distance > planet.radius) {
+                    // F = G * (m1 * m2) / r^2. Ship mass is assumed to be 1.
+                    const forceMagnitude = (G * planet.mass) / distanceSq;
+                    direction.normalize().multiplyScalar(forceMagnitude);
+                    velocity.add(direction);
+                } else {
+                    // Collision with planet - bounce back slightly and lose speed
+                    velocity.multiplyScalar(-0.5);
+                    ship.position.add(direction.normalize().multiplyScalar(-1));
+                }
+            });
+
+            // 3. Update Ship Position
+            ship.position.add(velocity);
+
+            // 4. Update Camera (Follow Ship)
+            // Place camera slightly behind and above the ship
+            const relativeCameraOffset = new THREE.Vector3(0, 3, -10);
+            const cameraOffset = relativeCameraOffset.applyMatrix4(ship.matrixWorld);
+            camera.position.lerp(cameraOffset, 0.1);
+            camera.lookAt(ship.position);
+
+            // Update UI
+            speedDisplay.innerText = `Speed: ${(velocity.length() * 100).toFixed(1)}`;
+
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start Game
+        animate();
+    </script>
+</body>
+</html>

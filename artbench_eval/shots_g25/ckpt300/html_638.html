@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sandbox Shooting Editor</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #111;
+    color: #fff;
+    display: grid;
+    grid-template-rows: 48px 600px 180px;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #toolbar {
+    background: #222;
+    padding: 8px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #toolbar h1 {
+    margin: 0;
+    font-size: 18px;
+  }
+  .btn {
+    background: #333;
+    color: #fff;
+    border: 1px solid #444;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn:hover { background: #444; }
+  .btn.active { background: #555; border-color: #666; }
+  #canvas-wrap {
+    position: relative;
+    background: #000;
+    overflow: hidden;
+  }
+  #canvas {
+    display: block;
+    cursor: crosshair;
+  }
+  #inspector {
+    background: #222;
+    padding: 12px;
+    border-top: 1px solid #333;
+    overflow-y: auto;
+  }
+  .inspector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .inspector-title {
+    font-size: 16px;
+    font-weight: bold;
+  }
+  .prop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .prop-row label {
+    flex: 0 0 auto;
+    font-size: 13px;
+  }
+  .prop-row input, .prop-row select {
+    flex: 1;
+    background: #333;
+    color: #fff;
+    border: 1px solid #444;
+    padding: 4px 8px;
+    border-radius: 3px;
+  }
+  .prop-row input:focus, .prop-row select:focus {
+    outline: 2px solid #555;
+  }
+  .prop-row .val {
+    flex: 0 0 auto;
+    font-size: 13px;
+    text-align: right;
+    min-width: 40px;
+  }
+  .prop-row .unit {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: #bbb;
+  }
+  .inspector-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .inspector-actions .btn {
+    flex: 1;
+  }
+  #preview {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    z-index: 10;
+    color: #fff;
+    font-size: 13px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 3px;
+  }
+  #preview.show { display: block; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Sandbox Shooting Editor</h1>
+  <div class="btn-group" id="entityGroup">
+    <button class="btn" data-type="enemy">Enemy</button>
+    <button class="btn" data-type="obstacle">Obstacle</button>
+    <button class="btn" data-type="prop">Prop</button>
+    <button class="btn" data-type="flag">Flag</button>
+    <button class="btn" data-type="spawn">Spawn Point</button>
+  </div>
+  <button class="btn" id="btnSave">Save</button>
+  <button class="btn" id="btnLoad">Load</button>
+  <button class="btn" id="btnReset">Reset</button>
+  <span id="status">Ready</span>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas" width="600" height="600"></canvas>
+  <div id="preview" class="preview">Preview: <span id="previewText">None</span></div>
+</div>
+
+<div id="inspector">
+  <div class="inspector-header">
+    <div class="inspector-title" id="inspectorTitle">Select an entity</div>
+    <button class="btn" id="btnDelete">Delete</button>
+  </div>
+  <div id="props"></div>
+  <div class="inspector-actions">
+    <button class="btn" id="btnAdd">Add</button>
+    <button class="btn" id="btnDeleteAll">Delete All</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+const state = {
+  entities: [],
+  selected: null,
+  dragged: null,
+  dragging: false,
+  dragOffset: { x: 0, y: 0 },
+  grid: 20,
+  previewText: 'None',
+  previewVisible: false,
+  previewTimer: 0,
+  mouse: { x: 0, y: 0, px: 0, py: 0 },
+  camera: { x: 0, y: 0 },
+  zoom: 1,
+  showGrid: true,
+};
+
+const TYPE_COLORS = {
+  enemy: '#ff6b6b',
+  obstacle: '#4ecdc4',
+  prop: '#ffd166',
+  flag: '#ff9f43',
+  spawn: '#6b5bff',
+};
+
+const DEFAULT_PROPS = {
+  enemy: { health: 100, speed: 2, damage: 10 },
+  obstacle: { width: 60, height: 60 },
+  prop: { value: 10 },
+  flag: { message: 'Reach the flag' },
+  spawn: { message: 'Player spawn' },
+};
+
+function loadLevel() {
+  const saved = localStorage.getItem('sandboxLevel');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      state.entities = data.entities || [];
+      state.previewText = data.name || 'Untitled';
+      state.previewVisible = true;
+    } catch (e) {
+      console.error(e);
+    }
+  } else {
+    state.entities = [];
+    state.previewText = 'Untitled';
+    state.previewVisible = false;
+  }
+}
+
+function saveLevel() {
+  localStorage.setItem('sandboxLevel', JSON.stringify({
+    name: state.previewText,
+    width: W,
+    height: H,
+    entities: state.entities,
+  }));
+  document.getElementById('status').textContent = 'Saved';
+}
+
+function resetLevel() {
+  state.entities = [];
+  state.selected = null;
+  state.previewText = 'Untitled';
+  state.previewVisible = false;
+  saveLevel();
+  render();
+}
+
+function getEntityAt(x, y) {
+  for (let i = state.entities.length - 1; i >= 0; i--) {
+    const e = state.entities[i];
+    if (e.type === 'flag' || e.type === 'spawn') continue;
+    if (e.type === 'enemy' && e.dead) continue;
+    if (e.type === 'prop' && e.collected) continue;
+    if (e.x < x && x < e.x + e.w && e.y < y && y < e.y + e.h) return e;
+  }
+  return null;
+}
+
+function addEntity(type, x, y) {
+  const props = { ...DEFAULT_PROPS[type] };
+  const id = 'e' + Date.now() + Math.random().toString(36).slice(2, 6);
+  state.entities.push({
+    id,
+    type,
+    x, y,
+    w: props.width || 40,
+    h: props.height || 40,
+    props,
+    dead: false,
+    collected: false,
+  });
+  state.selected = id;
+  render();
+}
+
+function deleteEntity(id) {
+  const idx = state.entities.findIndex(e => e.id === id);
+  if (idx >= 0) state.entities.splice(idx, 1);
+  if (state.selected === id) state.selected = null;
+  render();
+}
+
+function deleteAll() {
+  state.entities = [];
+  state.selected = null;
+  render();
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  if (state.showGrid) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    const g = state.grid;
+    for (let x = 0; x <= W; x += g) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= H; y += g) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+  }
+
+  // Entities
+  for (const e of state.entities) {
+    if (e.type === 'flag' || e.type === 'spawn') continue;
+    if (e.type === 'enemy' && e.dead) continue;
+    if (e.type === 'prop' && e.collected) continue;
+
+    ctx.fillStyle = TYPE_COLORS[e.type];
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(e.type.charAt(0).toUpperCase() + e.type.slice(1), e.x + e.w/2, e.y + e.h/2);
+  }
+
+  // Flag
+  const flag = state.entities.find(e => e.type === 'flag');
+  if (flag) {
+    ctx.fillStyle = '#ff9f43';
+    ctx.fillRect(flag.x, flag.y, flag.w, flag.h);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(flag.props.message || 'Flag', flag.x + flag.w/2, flag.y + flag.h/2);
+  }
+
+  // Spawn
+  const spawn = state.entities.find(e => e.type === 'spawn');
+  if (spawn) {
+    ctx.fillStyle = '#6b5bff';
+    ctx.fillRect(spawn.x, spawn.y, spawn.w, spawn.h);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(spawn.props.message || 'Spawn', spawn.x + spawn.w/2, spawn.y + spawn.h/2);
+  }
+
+  // Selected highlight
+  if (state.selected) {
+    const sel = state.entities.find(e => e.id === state.selected);
+    if (sel) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
+    }
+  }
+
+  // Drag preview
+  if (state.dragged) {
+    const d = state.dragged;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(d.x, d.y, d.w, d.h);
+  }
+
+  // Mouse crosshair
+  if (state.mouse.px !== state.mouse.x || state.mouse.py !== state.mouse.y) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(state.mouse.px, state.mouse.py);
+    ctx.lineTo(state.mouse.x, state.mouse.y);
+    ctx.stroke();
+  }
+}
+
+function update(dt) {
+  // Move entities
+  for (const e of state.entities) {
+    if (e.type === 'enemy' && !e.dead) {
+      // Simple AI: move toward spawn or wander
+      const spawn = state.entities.find(s => s.type === 'spawn');
+      if (spawn) {
+        const dx = spawn.x - e.x;
+        const dy = spawn.y - e.y;
+        const d = Math.hypot(dx, dy) || 1;
+        e.x += (dx / d) * e.props.speed * dt;
+        e.y += (dy / d) * e.props.speed * dt;
+      } else {
+        e.x += (Math.random() - 0.5) * 2;
+        e.y += (Math.random() - 0.5) * 2;
+      }
+    }
+    if (e.type === 'enemy' && e.dead) {
+      e.y += 2;
+      if (e.y > H + 50) e.dead = false;
+    }
+  }
+
+  // Collision: player (spawn) vs enemies
+  const player = state.entities.find(e => e.type === 'spawn');
+  for (const e of state.entities) {
+    if (e.type === 'enemy' && !e.dead) {
+      if (player && !e.dead) {
+        const dx = e.x - player.x;
+        const dy = e.y - player.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 40) {
+          e.dead = true;
+          player.props.kills = (player.props.kills || 0) + 1;
+        }
+      }
+    }
+  }
+
+  // Collision: player vs props
+  if (player) {
+    for (const e of state.entities) {
+      if (e.type === 'prop' && !e.collected) {
+        const dx = e.x - player.x;
+        const dy = e.y - player.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 40) {
+          e.collected = true;
+          player.props.score = (player.props.score || 0) + e.props.value;
+        }
+      }
+    }
+  }
+
+  // Flag reach
+  const flag = state.entities.find(e => e.type === 'flag');
+  if (flag && player) {
+    const dx = flag.x - player.x;
+    const dy = flag.y - player.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 40) {
+      player.props.flag = true;
+    }
+  }
+
+  // Check objectives
+  checkObjectives();
+
+  render();
+}
+
+function checkObjectives() {
+  const player = state.entities.find(e => e.type === 'spawn');
+  if (!player) return;
+
+  const kills = (player.props.kills || 0);
+  const score = (player.props.score || 0);
+  const flag = !!player.props.flag;
+
+  const obj = state.entities.find(e => e.type === 'objective');
+  if (obj) {
+    const o = obj.props;
+    if (o.type === 'kill' && kills >= o.count) {
+      state.previewText = `Objective: ${o.message} ✓`;
+      state.previewVisible = true;
+    } else if (o.type === 'reach' && flag) {
+      state.previewText = `Objective: ${o.message} ✓`;
+      state.previewVisible = true;
+    } else {
+      state.previewText = `Objective: ${o.message} (${kills}/${o.count})`;
+      state.previewVisible = true;
+    }
+  } else {
+    state.previewVisible = false;
+  }
+}
+
+function getScreenPos(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (clientX - rect.left) * (W / rect.width);
+  const sy = (clientY - rect.top) * (H / rect.height);
+  return { x: sx, y: sy };
+}
+
+function getCanvasPos(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (clientX - rect.left) * (W / rect.width);
+  const sy = (clientY - rect.top) * (H / rect.height);
+  return { x: sx, y: sy };
+}
+
+function onMouseMove(e) {
+  const clientX = e.clientX, clientY = e.clientY;
+  const p = getCanvasPos(clientX, clientY);
+  state.mouse.x = p.x;
+  state.mouse.y = p.y;
+  state.mouse.px = p.x;
+  state.mouse.py = p.y;
+
+  const hit = getEntityAt(p.x, p.y);
+  if (hit) {
+    state.selected = hit.id;
+    state.dragged = hit;
+    state.dragging = true;
+    state.dragOffset = { x: p.x - hit.x, y: p.y - hit.y };
+  } else if (!state.dragging && state.selected) {
+    state.dragged = null;
+  }
+  render();
+}
+
+function onMouseDown(e) {
+  if (e.button !== 0) return;
+  const clientX = e.clientX, clientY = e.clientY;
+  const p = getCanvasPos(clientX, clientY);
+  state.mouse.x = p.x;
+  state.mouse.y = p.y;
+
+  const hit = getEntityAt(p.x, p.y);
+  if (hit) {
+    state.selected = hit.id;
+    state.dragged = hit;
+    state.dragging = true;
+    state.dragOffset = { x: p.x - hit.x, y: p.y - hit.y };
+  } else if (!state.dragging && state.selected) {
+    state.dragged = null;
+  }
+  render();
+}
+
+function onMouseUp(e) {
+  if (state.dragged && state.dragging) {
+    const clientX = e.clientX, clientY = e.clientY;
+    const p = getCanvasPos(clientX, clientY);
+    const dx = p.x - state.dragOffset.x;
+    const dy = p.y - state.dragOffset.y;
+    if (state.dragged) {
+      state.dragged.x = dx;
+      state.dragged.y = dy;
+      state.dragged = null;
+      state.dragging = false;
+      state.selected = null;
+    }
+    render();
+  }
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('text/type');
+  if (type) {
+    const clientX = e.clientX, clientY = e.clientY;
+    const p = getCanvasPos(clientX, clientY);
+    addEntity(type, p.x, p.y);
+  }
+}
+
+function onEntityClick(e) {
+  const clientX = e.clientX, clientY = e.clientY;
+  const p = getCanvasPos(clientX, clientY);
+  const hit = getEntityAt(p.x, p.y);
+  if (hit) {
+    state.selected = hit.id;
+  }
+  render();
+}
+
+function buildInspector() {
+  const title = document.getElementById('inspectorTitle');
+  const propsEl = document.getElementById('props');
+  propsEl.innerHTML = '';
+
+  if (!state.selected) {
+    title.textContent = 'Select an entity';
+    return;
+  }
+
+  const e = state.entities.find(x => x.id === state.selected);
+  if (!e) return;
+
+  title.textContent = e.type.charAt(0).toUpperCase() + e.type.slice(1);
+
+  const fields = {
+    enemy: ['health', 'speed', 'damage'],
+    obstacle: ['width', 'height'],
+    prop: ['value'],
+    flag: ['message'],
+    spawn: ['message'],
+  }[e.type] || [];
+
+  for (const key of fields) {
+    const label = document.createElement('label');
+    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = 0;
+    input.step = 1;
+    input.value = e.props[key];
+    input.addEventListener('change', () => {
+      e.props[key] = parseFloat(input.value);
+      render();
+    });
+    const unit = document.createElement('span');
+    unit.className = 'unit';
+    unit.textContent = key === 'speed' ? 'px/s' : key === 'value' ? 'points' : '';
+    const val = document.createElement('span');
+    val.className = 'val';
+    val.textContent = e.props[key];
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    row.appendChild(label);
+    row.appendChild(input);
+    row.appendChild(val);
+    if (unit.textContent) row.appendChild(unit);
+    propsEl.appendChild(row);
+  }
+}
+
+function renderPreview() {
+  const preview = document.getElementById('preview');
+  const text = document.getElementById('previewText');
+  text.textContent = state.previewText;
+  preview.className = 'preview' + (state.previewVisible ? ' show' : '');
+}
+
+// ---------- Event wiring ----------
+document.getElementById('entityGroup').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-type]');
+  if (!btn) return;
+  const type = btn.dataset.type;
+  const clientX = e.clientX, clientY = e.clientY;
+  const p = getCanvasPos(clientX, clientY);
+  addEntity(type, p.x, p.y);
+});
+
+document.getElementById('btnSave').addEventListener('click', saveLevel);
+document.getElementById('btnLoad').addEventListener('click', loadLevel);
+document.getElementById('btnReset').addEventListener('click', resetLevel);
+document.getElementById('btnDelete').addEventListener('click', () => {
+  if (state.selected) deleteEntity(state.selected);
+});
+document.getElementById('btnDeleteAll').addEventListener('click', deleteAll);
+document.getElementById('btnAdd').addEventListener('click', () => {
+  if (state.selected) addEntity(state.entities.find(x => x.id === state.selected).type, 0, 0);
+});
+
+canvas.addEventListener('mousemove', onMouseMove);
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mouseup', onMouseUp);
+canvas.addEventListener('mouseleave', () => {
+  state.dragged = null;
+  state.dragging = false;
+  state.selected = null;
+  render();
+});
+
+canvas.addEventListener('dragover', onDragOver);
+canvas.addEventListener('drop', onDrop);
+
+canvas.addEventListener('click', onEntityClick);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state.selected) deleteEntity(state.selected);
+  }
+  if (e.key === 'Enter') {
+    if (state.selected) addEntity(state.entities.find(x => x.id === state.selected).type, 0, 0);
+  }
+  if (e.key === 'g') {
+    state.showGrid = !state.showGrid;
+  }
+});
+
+// ---------- Loop ----------
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- Init ----------
+loadLevel();
+render();
+buildInspector();
+renderPreview();
+</script>
+</body>
+</html>

@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academic Conference Submission System</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<header class="bg-white shadow-sm border-b">
+  <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900"><i class="fa-solid fa-graduation-cap"></i> Conference Submission Portal</h1>
+      <p class="text-sm text-gray-500">Submit your paper and track review progress</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-semibold">v1.0</span>
+      <button id="logoutBtn" class="text-sm text-blue-600 hover:text-blue-900"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-8">
+
+  <!-- Progress Tracker -->
+  <section class="mb-8">
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="text-lg font-semibold">Submission Progress</h2>
+      <span id="progressPercent" class="text-sm text-gray-500">0%</span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-3">
+      <div id="progressBar" class="bg-blue-600 h-3 rounded-full" style="width:0%"></div>
+    </div>
+    <div class="mt-2 flex gap-2">
+      <span class="flex-1 text-xs text-center py-1 bg-gray-100 rounded text-gray-500"><i class="fa-solid fa-file"></i> Upload PDF</span>
+      <span class="flex-1 text-xs text-center py-1 bg-gray-100 rounded text-gray-500"><i class="fa-solid fa-check"></i> Format Check</span>
+      <span class="flex-1 text-xs text-center py-1 bg-gray-100 rounded text-gray-500"><i class="fa-solid fa-user-secret"></i> Double-Blind</span>
+      <span class="flex-1 text-xs text-center py-1 bg-gray-100 rounded text-gray-500"><i class="fa-solid fa-shield-halved"></i> Plagiarism</span>
+      <span class="flex-1 text-xs text-center py-1 bg-gray-100 rounded text-gray-500"><i class="fa-solid fa-paper-plane"></i> Submit</span>
+    </div>
+  </section>
+
+  <!-- Upload -->
+  <section class="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <h2 class="text-lg font-semibold mb-4">Upload Your Paper</h2>
+    <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 transition">
+      <i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 text-gray-400"></i>
+      <p class="mb-1"><strong>Drag & drop your PDF here</strong> or click to browse</p>
+      <p class="text-sm text-gray-500">Accepted: .pdf only · Max 20MB</p>
+      <input type="file" id="fileInput" accept="application/pdf" hidden />
+    </div>
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="p-4 bg-blue-50 rounded-lg">
+        <i class="fa-solid fa-file-pdf text-blue-600 text-xl mb-2"></i>
+        <p class="font-semibold">File Selected</p>
+        <p id="fileName" class="text-sm text-gray-500">—</p>
+      </div>
+      <div class="p-4 bg-green-50 rounded-lg">
+        <i class="fa-solid fa-check text-green-600 text-xl mb-2"></i>
+        <p class="font-semibold">Format Check</p>
+        <p id="formatStatus" class="text-sm text-green-700">Not checked</p>
+      </div>
+      <div class="p-4 bg-purple-50 rounded-lg">
+        <i class="fa-solid fa-user-secret text-purple-600 text-xl mb-2"></i>
+        <p class="font-semibold">Double-Blind</p>
+        <p id="blindStatus" class="text-sm text-purple-700">Off</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Paper Preview -->
+  <section class="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-semibold">Paper Preview</h2>
+      <button id="toggleBlindBtn" class="text-sm text-blue-600 font-semibold"><i class="fa-solid fa-eye-slash" id="blindIcon"></i> Toggle Double-Blind</button>
+    </div>
+    <div id="preview" class="border border-gray-200 rounded-lg h-64 overflow-auto p-4">
+      <p class="text-sm text-gray-500 italic">Preview area — content will appear here after upload.</p>
+    </div>
+  </section>
+
+  <!-- Turnitin -->
+  <section class="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-semibold">Plagiarism Check</h2>
+      <span id="plagStatus" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-500 text-xs font-semibold rounded">
+        <i class="fa-solid fa-sparkles"></i> Simulated
+      </span>
+    </div>
+    <div class="mb-4">
+      <div class="w-full bg-gray-200 rounded-full h-3">
+        <div id="plagBar" class="bg-blue-600 h-3 rounded-full" style="width:0%"></div>
+      </div>
+    </div>
+    <div id="plagResults" class="grid grid-cols-3 gap-2 text-center">
+      <div class="p-3 bg-white border rounded-lg shadow-sm">
+        <p class="text-xs text-gray-500">Similarity</p>
+        <p id="plagSimilarity" class="font-semibold text-gray-900">—</p>
+      </div>
+      <div class="p-3 bg-white border rounded-lg shadow-sm">
+        <p class="text-xs text-gray-500">Matched</p>
+        <p id="plagMatched" class="font-semibold text-gray-900">—</p>
+      </div>
+      <div class="p-3 bg-white border rounded-lg shadow-sm">
+        <p class="text-xs text-gray-500">Source</p>
+        <p id="plagSource" class="font-semibold text-gray-900">—</p>
+      </div>
+    </div>
+    <button id="runPlagBtn" class="w-full mt-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"><i class="fa-solid fa-play"></i> Run Plagiarism Check</button>
+  </section>
+
+  <!-- Submit -->
+  <section class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="text-lg font-semibold mb-4">Submit for Review</h2>
+    <form id="submitForm" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Title</label>
+          <input type="text" id="title" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500" placeholder="Paper title" required />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Track</label>
+          <select id="track" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500">
+            <option>Machine Learning</option>
+            <option>Computer Vision</option>
+            <option>Natural Language Processing</option>
+            <option>Systems & Networking</option>
+            <option>Security</option>
+            <option>Human-Computer Interaction</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Authors</label>
+          <input type="text" id="authors" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500" placeholder="Name, Affiliation" required />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Abstract</label>
+          <textarea id="abstract" rows="3" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500" placeholder="Abstract (200–300 words)" required></textarea>
+        </div>
+      </div>
+      <button type="submit" id="submitBtn" class="w-full py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"><i class="fa-solid fa-paper-plane"></i> Submit Submission</button>
+    </form>
+  </section>
+
+</main>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 hidden" role="status">
+  <span id="toastMsg"></span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.18.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/* =========================================================
+   Academic Conference Submission System
+   ========================================================= */
+
+const STORAGE_KEY = 'conf_submissions_v1';
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const ALLOWED_TYPES = ['application/pdf'];
+
+const state = {
+  file: null,
+  fileName: '',
+  format: { ok: false, font: '—', margin: '—', pages: 0 },
+  blind: false,
+  plag: { similarity: '—', matched: '—', source: '—', status: 'idle', percent: 0 },
+  history: [],
+  stage: 0, // 0: upload, 1: format, 2: blind, 3: plag, 4: submit
+};
+
+// ---------- Helpers ----------
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+function showToast(msg) {
+  const t = $('#toast');
+  $('#toastMsg').textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state.history = JSON.parse(raw);
+  } catch { state.history = []; }
+}
+
+function saveHistory() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history)); } catch {}
+}
+
+function formatNumber(n) { return n.toLocaleString(); }
+
+// ---------- File Handling ----------
+$('#fileInput').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (!ALLOWED_TYPES.includes(f.type) && !f.name.toLowerCase().endsWith('.pdf')) {
+    showToast('Please upload a PDF file.');
+    e.target.value = '';
+    return;
+  }
+  if (f.size > MAX_FILE_SIZE) {
+    showToast('File exceeds 20MB limit.');
+    e.target.value = '';
+    return;
+  }
+  handleFile(f);
+});
+
+$('#dropZone').addEventListener('click', () => $('#fileInput').click());
+$('#dropZone').addEventListener('dragover', (e) => { e.preventDefault(); $('#dropZone').classList.add('border-blue-500'); });
+$('#dropZone').addEventListener('dragleave', () => $('#dropZone').classList.remove('border-blue-500'));
+$('#dropZone').addEventListener('drop', (e) => {
+  e.preventDefault();
+  $('#dropZone').classList.remove('border-blue-500');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function handleFile(file) {
+  state.file = file;
+  state.fileName = file.name;
+  $('#fileName').textContent = file.name;
+  $('#formatStatus').textContent = 'Checking…';
+  $('#formatStatus').classList.remove('text-green-700');
+  $('#formatStatus').classList.add('text-blue-700');
+
+  // Simulate async analysis
+  setTimeout(() => {
+    const font = Math.random() < 0.7 ? 'Times New Roman' : 'Arial';
+    const margin = Math.random() < 0.6 ? '✓ OK' : '⚠ Off';
+    const pages = Math.floor(Math.random() * 10) + 4;
+    state.format = { ok: true, font, margin, pages };
+    renderFormat();
+    showToast(`Format analysis complete: ${pages} pages, ${font} font, ${margin} margins.`);
+  }, 1200);
+}
+
+// ---------- Format Checker ----------
+function renderFormat() {
+  $('#formatStatus').textContent = state.format.ok ? '✓ OK' : '⚠ Needs attention';
+  $('#formatStatus').classList.toggle('text-green-700', state.format.ok);
+  $('#formatStatus').classList.toggle('text-red-700', !state.format.ok);
+  $('#formatStatus').classList.toggle('text-blue-700', !state.format.ok);
+  $('#preview').innerHTML = `
+    <div class="font-sans text-sm">
+      <p><strong>Authors:</strong> <span id="previewAuthors"></span></p>
+      <p><strong>Title:</strong> <span id="previewTitle"></span></p>
+      <p><strong>Abstract:</strong> <span id="previewAbstract"></span></p>
+      <p><strong>Track:</strong> <span id="previewTrack"></span></p>
+      <p><strong>Pages:</strong> ${formatNumber(state.format.pages)}</p>
+      <p><strong>Font:</strong> ${state.format.font}</p>
+      <p><strong>Margins:</strong> ${state.format.margin}</p>
+    </div>
+  `;
+  $('#previewAuthors').textContent = state.blind ? '[REDACTED]' : (state.authors || '—');
+  $('#previewTitle').textContent = state.title || 'Untitled';
+  $('#previewAbstract').textContent = state.abstract || 'No abstract provided.';
+  $('#previewTrack').textContent = state.track || '—';
+
+  // Progress
+  const pct = Math.round((state.stage / 4) * 100);
+  $('#progressPercent').textContent = `${pct}%`;
+  $('#progressBar').style.width = `${pct}%`;
+
+  // Stage indicators
+  $$('.progress-step').forEach((el, i) => {
+    el.classList.toggle('bg-blue-600', i <= state.stage);
+    el.classList.toggle('text-blue-600', i <= state.stage);
+  });
+}
+
+// ---------- Double-Blind ----------
+$('#toggleBlindBtn').addEventListener('click', () => {
+  state.blind = !state.blind;
+  const icon = $('#blindIcon');
+  const label = $('#toggleBlindBtn');
+  if (state.blind) {
+    icon.className = 'fa-solid fa-eye-slash';
+    label.textContent = 'Toggle Double-Blind <i class="fa-solid fa-eye-slash"></i>';
+    $('#blindStatus').textContent = 'On';
+    $('#blindStatus').classList.add('text-green-700');
+    $('#blindStatus').classList.remove('text-purple-700');
+    showToast('Double-blind mode enabled.');
+  } else {
+    icon.className = 'fa-solid fa-eye';
+    label.textContent = 'Toggle Double-Blind <i class="fa-solid fa-eye"></i>';
+    $('#blindStatus').textContent = 'Off';
+    $('#blindStatus').classList.remove('text-green-700');
+    $('#blindStatus').classList.add('text-purple-700');
+    showToast('Double-blind mode disabled.');
+  }
+});
+
+// ---------- Turnitin Simulation ----------
+function runPlagiarism() {
+  if (!state.file) {
+    showToast('Please upload a PDF first.');
+    return;
+  }
+  if (state.plag.status !== 'idle') {
+    showToast('Plagiarism check already running.');
+    return;
+  }
+  state.plag.status = 'running';
+  $('#plagStatus').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running…';
+  $('#plagSimilarity').textContent = '—';
+  $('#plagMatched').textContent = '—';
+  $('#plagSource').textContent = '—';
+  $('#plagBar').style.width = '0%';
+
+  // Simulate progress
+  const steps = 6;
+  const delay = 120;
+  let i = 0;
+  const interval = setInterval(() => {
+    i++;
+    const p = Math.min(100, (i / steps) * 100);
+    state.plag.percent = p;
+    $('#plagBar').style.width = `${p}%`;
+    $('#plagSimilarity').textContent = `${Math.round(p)}%`;
+
+    if (i >= steps) {
+      clearInterval(interval);
+      const similarity = Math.round(Math.random() * 40) + 15;
+      const matched = Math.round(Math.random() * 12) + 3;
+      const source = ['Journal of Machine Learning Research', 'ACM Transactions on Computer Systems', 'IEEE Transactions on Neural Networks', 'Springer LNCS', 'Elsevier Pattern Recognition Letters'][Math.floor(Math.random() * 5)];
+      state.plag.similarity = `${similarity}%`;
+      state.plag.matched = `${matched} matches`;
+      state.plag.source = source;
+      state.plag.status = 'complete';
+
+      const color = similarity < 15 ? 'text-green-600' : similarity < 25 ? 'text-yellow-600' : 'text-red-600';
+      const label = similarity < 15 ? 'Excellent' : similarity < 25 ? 'Good' : 'Needs attention';
+
+      $('#plagSimilarity').textContent = `${similarity}%`;
+      $('#plagMatched').textContent = `${matched} matches`;
+      $('#plagSource').textContent = source;
+      $('#plagStatus').innerHTML = `<i class="fa-solid fa-check"></i> ${label}`;
+      $('#plagStatus').classList.remove('bg-gray-100', 'text-gray-500');
+      $('#plagStatus').classList.add('bg-green-100', color, 'text-sm', 'font-semibold', 'px-2', 'py-1', 'rounded');
+
+      showToast(`Plagiarism check complete: ${similarity}% similarity.`);
+    }
+  }, delay);
+}
+
+$('#runPlagBtn').addEventListener('click', runPlagiarism);
+
+// ---------- Submission ----------
+$('#submitForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const title = $('#title').value.trim();
+  const authors = $('#authors').value.trim();
+  const abstract = $('#abstract').value.trim();
+  const track = $('#track').value;
+
+  if (!title || !authors || !abstract) {
+    showToast('Please fill in all fields.');
+    return;
+  }
+
+  state.title = title;
+  state.authors = authors;
+  state.track = track;
+
+  // Final progress
+  state.stage = 4;
+  renderFormat();
+
+  // Simulate submission
+  setTimeout(() => {
+    const submission = {
+      id: Date.now(),
+      title,
+      authors,
+      abstract,
+      track,
+      file: state.fileName,
+      status: 'submitted',
+      date: new Date().toISOString(),
+      format: state.format,
+      blind: state.blind,
+      plag: state.plag,
+    };
+    state.history.unshift(submission);
+    saveHistory();
+    showToast('Submission successful!');
+
+    // Reset for next submission
+    state.stage = 0;
+    state.file = null;
+    state.fileName = '';
+    state.format = { ok: false, font: '—', margin: '—', pages: 0 };
+    state.blind = false;
+    state.plag = { similarity: '—', matched: '—', source: '—', status: 'idle', percent: 0 };
+    $('#fileInput').value = '';
+    $('#fileName').textContent = '—';
+    $('#formatStatus').textContent = 'Not checked';
+    $('#preview').innerHTML = `<p class="text-sm text-gray-500 italic">Preview area — content will appear here after upload.</p>`;
+    $('#plagSimilarity').textContent = '—';
+    $('#plagMatched').textContent = '—';
+    $('#plagSource').textContent = '—';
+    $('#plagStatus').innerHTML = '<i class="fa-solid fa-sparkles"></i> Simulated';
+    $('#plagStatus').classList.remove('bg-green-100', 'text-green-600');
+    $('#plagStatus').classList.add('bg-gray-100', 'text-gray-500');
+    $('#plagBar').style.width = '0%';
+    $('#progressPercent').textContent = '0%';
+    $('#progressBar').style.width = '0%';
+    $$('.progress-step').forEach(el => el.classList.remove('bg-blue-600', 'text-blue-600'));
+  }, 1400);
+});
+
+// ---------- Progress Steps (visual) ----------
+const steps = $$('.progress-step');
+steps.forEach((el, i) => {
+  el.dataset.index = i;
+  el.addEventListener('click', () => {
+    if (i < state.stage) return;
+    state.stage = i;
+    renderFormat();
+  });
+});
+
+// ---------- History ----------
+function renderHistory() {
+  const list = $('#historyList');
+  if (!state.history.length) {
+    list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No submissions yet.</p>';
+    return;
+  }
+  list.innerHTML = state.history.map(s => `
+    <div class="border rounded-lg p-3 mb-2">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="font-semibold text-sm">${s.title}</p>
+          <p class="text-xs text-gray-500">${s.track} · ${s.date.split('T')[0]}</p>
+        </div>
+        <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${s.status === 'submitted' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}">
+          <i class="fa-solid fa-paper-plane"></i> ${s.status}
+        </span>
+      </div>
+    </div>
+  `).join('');
+}
+
+$('#historyBtn').addEventListener('click', () => {
+  $('#historyPanel').classList.toggle('hidden');
+});
+
+// ---------- Logout ----------
+$('#logoutBtn').addEventListener('click', () => {
+  state.history = [];
+  saveHistory();
+  showToast('Logged out.');
+});
+
+// ---------- Init ----------
+loadHistory();
+renderHistory();
+renderFormat();
+</script>
+
+</body>
+</html>

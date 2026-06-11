@@ -1,0 +1,2598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Strike - Multiplayer Online Shooter</title>
+    <style>
+        /* ============================================
+           GLOBAL STYLES & RESET
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0f;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ============================================
+           LOBBY SCREEN STYLES
+           ============================================ */
+        #lobby-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #lobby-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(120, 0, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 200, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(255, 0, 100, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .lobby-title {
+            font-size: 4rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2fff, #ff2d95);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        .lobby-subtitle {
+            font-size: 1.1rem;
+            color: #8888aa;
+            margin-bottom: 50px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            position: relative;
+            z-index: 1;
+        }
+
+        .lobby-container {
+            display: flex;
+            gap: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .lobby-panel {
+            background: rgba(20, 20, 40, 0.8);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            border-radius: 16px;
+            padding: 35px;
+            width: 350px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .lobby-panel:hover {
+            border-color: rgba(100, 100, 255, 0.6);
+            box-shadow: 0 0 30px rgba(100, 100, 255, 0.1);
+        }
+
+        .lobby-panel h2 {
+            font-size: 1.4rem;
+            margin-bottom: 25px;
+            color: #00d4ff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .lobby-panel h2 .icon {
+            font-size: 1.6rem;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #8888aa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(10, 10, 30, 0.8);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #7b2fff);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #ff2d95, #ff6b35);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 45, 149, 0.3);
+        }
+
+        .room-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(10, 10, 30, 0.6);
+            border: 1px solid rgba(100, 100, 200, 0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .room-item:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .room-item .room-name {
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .room-item .room-players {
+            font-size: 0.85rem;
+            color: #00d4ff;
+        }
+
+        .room-item .room-status {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(0, 255, 100, 0.2);
+            color: #00ff64;
+        }
+
+        /* ============================================
+           GAME SCREEN STYLES
+           ============================================ */
+        #game-screen {
+            display: none;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            background: #111118;
+        }
+
+        /* Game Canvas */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* HUD Overlay */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-overlay > * {
+            pointer-events: auto;
+        }
+
+        /* Top Bar - Scoreboard */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 30px;
+            background: rgba(0, 0, 0, 0.7);
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+
+        .team-score {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: 900;
+        }
+
+        .score-red { color: #ff4444; }
+        .score-blue { color: #4488ff; }
+
+        .score-divider {
+            font-size: 1.5rem;
+            color: #555;
+        }
+
+        .game-timer {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffcc00;
+            padding: 5px 15px;
+            background: rgba(255, 204, 0, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 204, 0, 0.3);
+        }
+
+        /* Player Stats - Bottom Left */
+        .player-stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .health-bar-container {
+            width: 250px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff64, #00cc50);
+            border-radius: 12px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .health-bar.low {
+            background: linear-gradient(90deg, #ff4444, #ff6644);
+        }
+
+        .health-bar.medium {
+            background: linear-gradient(90deg, #ffaa00, #ffcc00);
+        }
+
+        .health-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .ammo-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ammo-current {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #ffffff;
+        }
+
+        .ammo-separator {
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .ammo-reserve {
+            font-size: 1.2rem;
+            color: #888;
+        }
+
+        /* Weapon Selector - Bottom Center */
+        .weapon-selector {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+
+        .weapon-slot {
+            width: 70px;
+            height: 70px;
+            background: rgba(30, 30, 50, 0.8);
+            border: 2px solid rgba(100, 100, 200, 0.3);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .weapon-slot:hover {
+            border-color: rgba(100, 100, 255, 0.6);
+        }
+
+        .weapon-slot.active {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .weapon-slot .weapon-icon {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+
+        .weapon-slot .weapon-name {
+            font-size: 0.6rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .weapon-slot .weapon-key {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 0.6rem;
+            color: #666;
+            font-weight: 700;
+        }
+
+        /* Minimap - Top Right */
+        .minimap-container {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            width: 180px;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Kill Feed - Top Right */
+        .kill-feed {
+            position: absolute;
+            top: 60px;
+            right: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-width: 300px;
+        }
+
+        .kill-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            animation: fadeIn 0.3s ease;
+            white-space: nowrap;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .kill-entry .killer { color: #ff4444; font-weight: 600; }
+        .kill-entry .victim { color: #4488ff; font-weight: 600; }
+        .kill-entry .weapon-used { color: #888; font-size: 0.7rem; }
+
+        /* Chat Panel - Bottom Right */
+        .chat-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            height: 280px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(100, 100, 200, 0.2);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(5px);
+        }
+
+        .chat-header {
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.2);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #00d4ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .chat-message {
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .chat-message .sender {
+            font-weight: 600;
+            margin-right: 6px;
+        }
+
+        .chat-message .sender.team-red { color: #ff6666; }
+        .chat-message .sender.team-blue { color: #6699ff; }
+        .chat-message .sender.system { color: #ffcc00; }
+
+        .chat-input-container {
+            padding: 10px;
+            border-top: 1px solid rgba(100, 100, 200, 0.2);
+        }
+
+        .chat-input-container input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(10, 10, 30, 0.8);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .chat-input-container input:focus {
+            border-color: #00d4ff;
+        }
+
+        /* Scoreboard Overlay */
+        .scoreboard-overlay {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            background: rgba(10, 10, 25, 0.95);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .scoreboard-overlay.visible {
+            display: block;
+        }
+
+        .scoreboard-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+
+        .scoreboard-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .scoreboard-table th {
+            padding: 10px 15px;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #666;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.2);
+        }
+
+        .scoreboard-table td {
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.1);
+        }
+
+        .scoreboard-table tr.team-red td:first-child {
+            border-left: 3px solid #ff4444;
+        }
+
+        .scoreboard-table tr.team-blue td:first-child {
+            border-left: 3px solid #4488ff;
+        }
+
+        .scoreboard-table tr.self {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        /* Crosshair */
+        .crosshair {
+            position: absolute;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Damage Indicator */
+        .damage-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+
+        .damage-indicator.active {
+            opacity: 1;
+            background: radial-gradient(ellipse at center, transparent 50%, rgba(255, 0, 0, 0.3) 100%);
+        }
+
+        /* Hit Marker */
+        .hit-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 51;
+            opacity: 0;
+            font-size: 1.5rem;
+            color: #ff4444;
+        }
+
+        .hit-marker.show {
+            animation: hitMarkerAnim 0.3s ease forwards;
+        }
+
+        @keyframes hitMarkerAnim {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* Respawn Screen */
+        .respawn-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .respawn-screen.visible {
+            display: flex;
+        }
+
+        .respawn-text {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ff4444;
+            margin-bottom: 10px;
+        }
+
+        .respawn-timer {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #ffffff;
+        }
+
+        /* Notification */
+        .notification {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 25px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 204, 0, 0.5);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #ffcc00;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 60;
+        }
+
+        .notification.visible {
+            opacity: 1;
+        }
+
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 200, 0.3);
+            border-radius: 2px;
+        }
+
+        /* Player name tags */
+        .player-nametag {
+            position: absolute;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            z-index: 15;
+        }
+
+        /* Muzzle flash effect */
+        .muzzle-flash {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ffff00, #ff8800, transparent);
+            pointer-events: none;
+            z-index: 20;
+            opacity: 0;
+        }
+
+        .muzzle-flash.active {
+            animation: flashAnim 0.1s ease forwards;
+        }
+
+        @keyframes flashAnim {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+
+        /* Game over screen */
+        .game-over-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 300;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-over-screen.visible {
+            display: flex;
+        }
+
+        .game-over-title {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+        }
+
+        .game-over-title.victory {
+            color: #00ff64;
+        }
+
+        .game-over-title.defeat {
+            color: #ff4444;
+        }
+
+        .game-over-stats {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+
+        .game-over-stat {
+            text-align: center;
+        }
+
+        .game-over-stat .stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #00d4ff;
+        }
+
+        .game-over-stat .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================
+         LOBBY SCREEN
+         ============================================ -->
+    <div id="lobby-screen">
+        <h1 class="lobby-title">Arena Strike</h1>
+        <p class="lobby-subtitle">Multiplayer Tactical Shooter</p>
+        
+        <div class="lobby-container">
+            <!-- Create Room Panel -->
+            <div class="lobby-panel">
+                <h2><span class="icon">⚔️</span> Create Room</h2>
+                <div class="input-group">
+                    <label>Player Name</label>
+                    <input type="text" id="player-name" placeholder="Enter your name" value="Player1">
+                </div>
+                <div class="input-group">
+                    <label>Room Name</label>
+                    <input type="text" id="room-name" placeholder="Enter room name" value="Battle Arena">
+                </div>
+                <div class="input-group">
+                    <label>Map</label>
+                    <select id="map-select">
+                        <option value="dust">Dust Valley</option>
+                        <option value="urban">Urban Warfare</option>
+                        <option value="forest">Dark Forest</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Max Players</label>
+                    <select id="max-players">
+                        <option value="4">4 Players</option>
+                        <option value="6" selected>6 Players</option>
+                        <option value="8">8 Players</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="createRoom()">Create & Join</button>
+            </div>
+
+            <!-- Join Room Panel -->
+            <div class="lobby-panel">
+                <h2><span class="icon">🎮</span> Join Room</h2>
+                <div class="input-group">
+                    <label>Player Name</label>
+                    <input type="text" id="join-player-name" placeholder="Enter your name" value="Player2">
+                </div>
+                <div class="room-list" id="room-list">
+                    <!-- Rooms will be populated dynamically -->
+                </div>
+                <button class="btn btn-secondary" onclick="quickMatch()">Quick Match</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         GAME SCREEN
+         ============================================ -->
+    <div id="game-screen">
+        <!-- Main Game Canvas -->
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- Minimap Canvas -->
+        <div class="minimap-container">
+            <canvas id="minimap-canvas"></canvas>
+        </div>
+
+        <!-- HUD Overlay -->
+        <div class="hud-overlay">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="team-score">
+                    <span class="score-value score-red" id="red-score">0</span>
+                    <span class="score-divider">VS</span>
+                    <span class="score-value score-blue" id="blue-score">0</span>
+                </div>
+                <div class="game-timer" id="game-timer">5:00</div>
+            </div>
+
+            <!-- Player Stats -->
+            <div class="player-stats">
+                <div class="health-bar-container">
+                    <div class="health-bar" id="health-bar" style="width: 100%">
+                        <span class="health-text" id="health-text">100 HP</span>
+                    </div>
+                </div>
+                <div class="ammo-display">
+                    <span class="ammo-current" id="ammo-current">30</span>
+                    <span class="ammo-separator">/</span>
+                    <span class="ammo-reserve" id="ammo-reserve">120</span>
+                </div>
+            </div>
+
+            <!-- Weapon Selector -->
+            <div class="weapon-selector" id="weapon-selector">
+                <div class="weapon-slot active" data-weapon="0" onclick="selectWeapon(0)">
+                    <span class="weapon-key">1</span>
+                    <span class="weapon-icon">🔫</span>
+                    <span class="weapon-name">Pistol</span>
+                </div>
+                <div class="weapon-slot" data-weapon="1" onclick="selectWeapon(1)">
+                    <span class="weapon-key">2</span>
+                    <span class="weapon-icon">🔫</span>
+                    <span class="weapon-name">Rifle</span>
+                </div>
+                <div class="weapon-slot" data-weapon="2" onclick="selectWeapon(2)">
+                    <span class="weapon-key">3</span>
+                    <span class="weapon-icon">💥</span>
+                    <span class="weapon-name">Shotgun</span>
+                </div>
+                <div class="weapon-slot" data-weapon="3" onclick="selectWeapon(3)">
+                    <span class="weapon-key">4</span>
+                    <span class="weapon-icon">🎯</span>
+                    <span class="weapon-name">Sniper</span>
+                </div>
+            </div>
+
+            <!-- Kill Feed -->
+            <div class="kill-feed" id="kill-feed"></div>
+
+            <!-- Chat Panel -->
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <span>💬 Team Chat</span>
+                    <span style="font-size: 0.7rem; color: #666;">Press Enter to chat</span>
+                </div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chat-input" placeholder="Type a message..." 
+                           onkeypress="handleChatInput(event)">
+                </div>
+            </div>
+
+            <!-- Damage Indicator -->
+            <div class="damage-indicator" id="damage-indicator"></div>
+
+            <!-- Hit Marker -->
+            <div class="hit-marker" id="hit-marker">✕</div>
+
+            <!-- Notification -->
+            <div class="notification" id="notification"></div>
+        </div>
+
+        <!-- Scoreboard Overlay (Tab) -->
+        <div class="scoreboard-overlay" id="scoreboard-overlay">
+            <div class="scoreboard-title">SCOREBOARD</div>
+            <table class="scoreboard-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Kills</th>
+                        <th>Deaths</th>
+                        <th>Assists</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreboard-body">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Respawn Screen -->
+        <div class="respawn-screen" id="respawn-screen">
+            <div class="respawn-text">YOU WERE ELIMINATED</div>
+            <div class="respawn-timer" id="respawn-timer">3</div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="game-over-screen" id="game-over-screen">
+            <div class="game-over-title" id="game-over-title">VICTORY</div>
+            <div class="game-over-stats">
+                <div class="game-over-stat">
+                    <div class="stat-value" id="final-kills">0</div>
+                    <div class="stat-label">Kills</div>
+                </div>
+                <div class="game-over-stat">
+                    <div class="stat-value" id="final-deaths">0</div>
+                    <div class="stat-label">Deaths</div>
+                </div>
+                <div class="game-over-stat">
+                    <div class="stat-value" id="final-score">0</div>
+                    <div class="stat-label">Score</div>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width: 200px;" onclick="returnToLobby()">Return to Lobby</button>
+        </div>
+    </div>
+
+    <!-- ============================================
+         JAVASCRIPT - GAME LOGIC
+         ============================================ -->
+    <script>
+        // ============================================
+        // GAME CONFIGURATION & CONSTANTS
+        // ============================================
+        
+        /** Map dimensions in game world units */
+        const MAP_WIDTH = 3000;
+        const MAP_HEIGHT = 2000;
+        
+        /** Player configuration */
+        const PLAYER_RADIUS = 15;
+        const PLAYER_SPEED = 3.5;
+        const PLAYER_MAX_HEALTH = 100;
+        
+        /** Weapon definitions with stats */
+        const WEAPONS = [
+            {
+                name: 'Pistol',
+                damage: 20,
+                fireRate: 400,      // ms between shots
+                ammo: 12,
+                maxAmmo: 60,
+                reloadTime: 1500,
+                bulletSpeed: 15,
+                spread: 0.03,
+                range: 500,
+                color: '#ffcc00',
+                automatic: false
+            },
+            {
+                name: 'Rifle',
+                damage: 15,
+                fireRate: 100,
+                ammo: 30,
+                maxAmmo: 120,
+                reloadTime: 2200,
+                bulletSpeed: 20,
+                spread: 0.05,
+                range: 700,
+                color: '#00ff88',
+                automatic: true
+            },
+            {
+                name: 'Shotgun',
+                damage: 12,
+                fireRate: 800,
+                ammo: 6,
+                maxAmmo: 30,
+                reloadTime: 2500,
+                bulletSpeed: 12,
+                spread: 0.15,
+                range: 300,
+                pellets: 8,
+                color: '#ff6600',
+                automatic: false
+            },
+            {
+                name: 'Sniper',
+                damage: 80,
+                fireRate: 1500,
+                ammo: 5,
+                maxAmmo: 20,
+                reloadTime: 3000,
+                bulletSpeed: 30,
+                spread: 0.005,
+                range: 1200,
+                color: '#ff00ff',
+                automatic: false
+            }
+        ];
+
+        /** Map obstacle definitions */
+        const OBSTACLES = [
+            // Buildings / walls
+            { x: 400, y: 300, w: 200, h: 150, color: '#2a2a3a' },
+            { x: 800, y: 200, w: 150, h: 200, color: '#2a2a3a' },
+            { x: 1200, y: 400, w: 250, h: 100, color: '#2a2a3a' },
+            { x: 1600, y: 150, w: 180, h: 180, color: '#2a2a3a' },
+            { x: 2000, y: 300, w: 200, h: 120, color: '#2a2a3a' },
+            { x: 2400, y: 200, w: 160, h: 200, color: '#2a2a3a' },
+            { x: 300, y: 800, w: 120, h: 250, color: '#2a2a3a' },
+            { x: 700, y: 700, w: 200, h: 150, color: '#2a2a3a' },
+            { x: 1100, y: 800, w: 150, h: 200, color: '#2a2a3a' },
+            { x: 1500, y: 700, w: 250, h: 120, color: '#2a2a3a' },
+            { x: 1900, y: 800, w: 180, h: 180, color: '#2a2a3a' },
+            { x: 2300, y: 700, w: 200, h: 150, color: '#2a2a3a' },
+            { x: 500, y: 1200, w: 180, h: 180, color: '#2a2a3a' },
+            { x: 900, y: 1300, w: 200, h: 120, color: '#2a2a3a' },
+            { x: 1300, y: 1200, w: 150, h: 200, color: '#2a2a3a' },
+            { x: 1700, y: 1300, w: 220, h: 150, color: '#2a2a3a' },
+            { x: 2100, y: 1200, w: 180, h: 180, color: '#2a2a3a' },
+            { x: 2500, y: 1300, w: 160, h: 160, color: '#2a2a3a' },
+            { x: 400, y: 1600, w: 200, h: 120, color: '#2a2a3a' },
+            { x: 1000, y: 1650, w: 250, h: 100, color: '#2a2a3a' },
+            { x: 1600, y: 1600, w: 180, h: 150, color: '#2a2a3a' },
+            { x: 2200, y: 1650, w: 200, h: 120, color: '#2a2a3a' },
+        ];
+
+        /** Spawn points for each team */
+        const SPAWN_POINTS = {
+            red: [
+                { x: 100, y: 100 }, { x: 200, y: 500 }, { x: 100, y: 1000 },
+                { x: 150, y: 1500 }, { x: 200, y: 1800 }
+            ],
+            blue: [
+                { x: 2800, y: 100 }, { x: 2900, y: 500 }, { x: 2850, y: 1000 },
+                { x: 2800, y: 1500 }, { x: 2900, y: 1800 }
+            ]
+        };
+
+        // ============================================
+        // GAME STATE
+        // ============================================
+        
+        let gameState = {
+            running: false,
+            paused: false,
+            timeRemaining: 300, // 5 minutes in seconds
+            redScore: 0,
+            blueScore: 0,
+            scoreLimit: 30
+        };
+
+        /** Local player state */
+        let player = {
+            id: 'player_1',
+            name: 'Player1',
+            x: 100,
+            y: 100,
+            angle: 0,
+            health: PLAYER_MAX_HEALTH,
+            team: 'red',
+            kills: 0,
+            deaths: 0,
+            assists: 0,
+            currentWeapon: 0,
+            weapons: WEAPONS.map(w => ({ ...w, currentAmmo: w.ammo, reserveAmmo: w.maxAmmo })),
+            isReloading: false,
+            reloadTimer: 0,
+            lastShotTime: 0,
+            alive: true,
+            respawnTimer: 0,
+            speed: PLAYER_SPEED
+        };
+
+        /** Other players (simulated AI opponents and teammates) */
+        let otherPlayers = [];
+
+        /** Active bullets in the game */
+        let bullets = [];
+
+        /** Visual effects */
+        let effects = [];
+
+        /** Camera position (follows player) */
+        let camera = { x: 0, y: 0 };
+
+        /** Input state */
+        let keys = {};
+        let mouse = { x: 0, y: 0, down: false };
+
+        /** Canvas references */
+        let canvas, ctx, minimapCanvas, minimapCtx;
+
+        /** Animation frame ID */
+        let animFrameId;
+
+        /** Chat messages */
+        let chatMessages = [];
+
+        /** Kill feed entries */
+        let killFeedEntries = [];
+
+        // ============================================
+        // MOCK DATA - Simulated multiplayer rooms
+        // ============================================
+        
+        const mockRooms = [
+            { id: 1, name: 'Pro Arena #1', players: 4, maxPlayers: 6, map: 'dust', status: 'waiting' },
+            { id: 2, name: 'Casual Fun', players: 3, maxPlayers: 8, map: 'urban', status: 'waiting' },
+            { id: 3, name: 'Ranked Match', players: 6, maxPlayers: 6, map: 'forest', status: 'full' },
+            { id: 4, name: 'Newbie Friendly', players: 2, maxPlayers: 4, map: 'dust', status: 'waiting' },
+        ];
+
+        /** AI player names for simulation */
+        const aiNames = [
+            'ShadowHunter', 'NightWolf', 'CyberNinja', 'StormBreaker',
+            'IronFist', 'PhantomX', 'BlazeFury', 'FrostBite',
+            'ThunderBolt', 'ViperStrike', 'DarkKnight', 'SilverArrow'
+        ];
+
+        /** Mock chat messages for simulation */
+        const mockChatMessages = [
+            'Good luck everyone!', 'Let\'s go team!', 'Watch the flanks!',
+            'Enemy spotted near building!', 'Need backup!', 'Nice shot!',
+            'Cover me, reloading!', 'Push forward!', 'Fall back!',
+            'They\'re on the right side!', 'GG', 'One more round!'
+        ];
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        /**
+         * Initialize the lobby screen with mock room data
+         */
+        function initLobby() {
+            const roomList = document.getElementById('room-list');
+            roomList.innerHTML = '';
+            
+            mockRooms.forEach(room => {
+                const roomItem = document.createElement('div');
+                roomItem.className = 'room-item';
+                roomItem.innerHTML = `
+                    <div>
+                        <div class="room-name">${room.name}</div>
+                        <div class="room-players">${room.players}/${room.maxPlayers} players • ${room.map}</div>
+                    </div>
+                    <span class="room-status" style="${room.status === 'full' ? 'background: rgba(255,50,50,0.2); color: #ff5555;' : ''}">
+                        ${room.status === 'full' ? 'Full' : 'Open'}
+                    </span>
+                `;
+                if (room.status !== 'full') {
+                    roomItem.onclick = () => joinRoom(room);
+                }
+                roomList.appendChild(roomItem);
+            });
+        }
+
+        /**
+         * Create a new room and start the game
+         */
+        function createRoom() {
+            const name = document.getElementById('player-name').value || 'Player1';
+            player.name = name;
+            startGame();
+        }
+
+        /**
+         * Join an existing room
+         */
+        function joinRoom(room) {
+            const name = document.getElementById('join-player-name').value || 'Player2';
+            player.name = name;
+            startGame();
+        }
+
+        /**
+         * Quick match - auto join a room
+         */
+        function quickMatch() {
+            const name = document.getElementById('join-player-name').value || 'Player2';
+            player.name = name;
+            startGame();
+        }
+
+        /**
+         * Transition from lobby to game screen
+         */
+        function startGame() {
+            document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            
+            initGame();
+        }
+
+        /**
+         * Initialize the game - set up canvas, players, and start game loop
+         */
+        function initGame() {
+            // Set up main canvas
+            canvas = document.getElementById('game-canvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            
+            // Set up minimap canvas
+            minimapCanvas = document.getElementById('minimap-canvas');
+            minimapCtx = minimapCanvas.getContext('2d');
+            minimapCanvas.width = 180;
+            minimapCanvas.height = 180;
+            
+            // Reset game state
+            gameState = {
+                running: true,
+                paused: false,
+                timeRemaining: 300,
+                redScore: 0,
+                blueScore: 0,
+                scoreLimit: 30
+            };
+            
+            // Reset player
+            const spawnPoint = SPAWN_POINTS.red[0];
+            player.x = spawnPoint.x;
+            player.y = spawnPoint.y;
+            player.health = PLAYER_MAX_HEALTH;
+            player.kills = 0;
+            player.deaths = 0;
+            player.assists = 0;
+            player.alive = true;
+            player.currentWeapon = 0;
+            player.weapons = WEAPONS.map(w => ({ ...w, currentAmmo: w.ammo, reserveAmmo: w.maxAmmo }));
+            player.isReloading = false;
+            
+            // Create AI players (simulated other players)
+            createAIPlayers();
+            
+            // Clear bullets and effects
+            bullets = [];
+            effects = [];
+            chatMessages = [];
+            killFeedEntries = [];
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Add system message
+            addChatMessage('System', 'Game started! Good luck!', 'system');
+            addChatMessage('System', `Room: Battle Arena | Map: Dust Valley`, 'system');
+            
+            // Start game loop
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            gameLoop();
+            
+            // Start game timer
+            startGameTimer();
+            
+            // Start AI chat simulation
+            startAIChatSimulation();
+        }
+
+        /**
+         * Create AI-controlled players to simulate multiplayer
+         */
+        function createAIPlayers() {
+            otherPlayers = [];
+            
+            // Create 2 teammates (red team)
+            for (let i = 0; i < 2; i++) {
+                const spawn = SPAWN_POINTS.red[i + 1];
+                otherPlayers.push({
+                    id: `ai_red_${i}`,
+                    name: aiNames[i],
+                    x: spawn.x + Math.random() * 100,
+                    y: spawn.y + Math.random() * 100,
+                    angle: 0,
+                    health: PLAYER_MAX_HEALTH,
+                    team: 'red',
+                    kills: 0,
+                    deaths: 0,
+                    assists: 0,
+                    currentWeapon: Math.floor(Math.random() * 4),
+                    alive: true,
+                    respawnTimer: 0,
+                    targetX: 0,
+                    targetY: 0,
+                    moveTimer: 0,
+                    shootTimer: 0,
+                    lastShotTime: 0,
+                    speed: 2.5 + Math.random() * 1.5
+                });
+            }
+            
+            // Create 3 enemies (blue team)
+            for (let i = 0; i < 3; i++) {
+                const spawn = SPAWN_POINTS.blue[i];
+                otherPlayers.push({
+                    id: `ai_blue_${i}`,
+                    name: aiNames[i + 3],
+                    x: spawn.x + Math.random() * 100,
+                    y: spawn.y + Math.random() * 100,
+                    angle: 0,
+                    health: PLAYER_MAX_HEALTH,
+                    team: 'blue',
+                    kills: 0,
+                    deaths: 0,
+                    assists: 0,
+                    currentWeapon: Math.floor(Math.random() * 4),
+                    alive: true,
+                    respawnTimer: 0,
+                    targetX: 0,
+                    targetY: 0,
+                    moveTimer: 0,
+                    shootTimer: 0,
+                    lastShotTime: 0,
+                    speed: 2.5 + Math.random() * 1.5
+                });
+            }
+        }
+
+        /**
+         * Resize canvas to fill the window
+         */
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+
+        /**
+         * Set up all keyboard and mouse event listeners
+         */
+        function setupEventListeners() {
+            // Keyboard events
+            window.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                
+                // Weapon switching with number keys
+                if (e.key >= '1' && e.key <= '4') {
+                    selectWeapon(parseInt(e.key) - 1);
+                }
+                
+                // Reload with R
+                if (e.key.toLowerCase() === 'r') {
+                    startReload();
+                }
+                
+                // Scoreboard with Tab
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    document.getElementById('scoreboard-overlay').classList.add('visible');
+                    updateScoreboard();
+                }
+                
+                // Chat with Enter
+                if (e.key === 'Enter') {
+                    const chatInput = document.getElementById('chat-input');
+                    if (document.activeElement === chatInput) {
+                        sendChatMessage();
+                        chatInput.blur();
+                    } else {
+                        chatInput.focus();
+                    }
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+                
+                if (e.key === 'Tab') {
+                    document.getElementById('scoreboard-overlay').classList.remove('visible');
+                }
+            });
+            
+            // Mouse events
+            canvas.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+            
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) mouse.down = true;
+            });
+            
+            canvas.addEventListener('mouseup', (e) => {
+                if (e.button === 0) mouse.down = false;
+            });
+            
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+            // Window resize
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        // ============================================
+        // GAME LOOP
+        // ============================================
+
+        /**
+         * Main game loop - called every frame
+         */
+        function gameLoop() {
+            if (!gameState.running) return;
+            
+            update();
+            render();
+            
+            animFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * Update all game entities and logic
+         */
+        function update() {
+            if (gameState.paused) return;
+            
+            updatePlayer();
+            updateAIPlayers();
+            updateBullets();
+            updateEffects();
+            updateCamera();
+            checkGameState();
+        }
+
+        /**
+         * Update local player movement and actions
+         */
+        function updatePlayer() {
+            if (!player.alive) {
+                player.respawnTimer -= 1/60;
+                if (player.respawnTimer <= 0) {
+                    respawnPlayer();
+                }
+                document.getElementById('respawn-timer').textContent = Math.ceil(player.respawnTimer);
+                return;
+            }
+            
+            // Movement
+            let dx = 0, dy = 0;
+            if (keys['w'] || keys['arrowup']) dy -= 1;
+            if (keys['s'] || keys['arrowdown']) dy += 1;
+            if (keys['a'] || keys['arrowleft']) dx -= 1;
+            if (keys['d'] || keys['arrowright']) dx += 1;
+            
+            // Normalize diagonal movement
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.707;
+                dy *= 0.707;
+            }
+            
+            let newX = player.x + dx * player.speed;
+            let newY = player.y + dy * player.speed;
+            
+            // Collision with map boundaries
+            newX = Math.max(PLAYER_RADIUS, Math.min(MAP_WIDTH - PLAYER_RADIUS, newX));
+            newY = Math.max(PLAYER_RADIUS, Math.min(MAP_HEIGHT - PLAYER_RADIUS, newY));
+            
+            // Collision with obstacles
+            if (!checkObstacleCollision(newX, player.y, PLAYER_RADIUS)) {
+                player.x = newX;
+            }
+            if (!checkObstacleCollision(player.x, newY, PLAYER_RADIUS)) {
+                player.y = newY;
+            }
+            
+            // Calculate angle towards mouse
+            const worldMouseX = mouse.x + camera.x;
+            const worldMouseY = mouse.y + camera.y;
+            player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
+            
+            // Shooting
+            if (mouse.down && document.activeElement !== document.getElementById('chat-input')) {
+                shoot(player);
+            }
+            
+            // Reload timer
+            if (player.isReloading) {
+                player.reloadTimer -= 1/60;
+                if (player.reloadTimer <= 0) {
+                    finishReload();
+                }
+            }
+        }
+
+        /**
+         * Update AI player behavior
+         */
+        function updateAIPlayers() {
+            otherPlayers.forEach(ai => {
+                if (!ai.alive) {
+                    ai.respawnTimer -= 1/60;
+                    if (ai.respawnTimer <= 0) {
+                        respawnAI(ai);
+                    }
+                    return;
+                }
+                
+                // Movement AI - pick new target periodically
+                ai.moveTimer -= 1/60;
+                if (ai.moveTimer <= 0) {
+                    ai.moveTimer = 2 + Math.random() * 3;
+                    // Pick a random target position
+                    ai.targetX = 200 + Math.random() * (MAP_WIDTH - 400);
+                    ai.targetY = 200 + Math.random() * (MAP_HEIGHT - 400);
+                }
+                
+                // Move towards target
+                const dx = ai.targetX - ai.x;
+                const dy = ai.targetY - ai.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 20) {
+                    let moveX = (dx / dist) * ai.speed;
+                    let moveY = (dy / dist) * ai.speed;
+                    
+                    let newX = ai.x + moveX;
+                    let newY = ai.y + moveY;
+                    
+                    newX = Math.max(PLAYER_RADIUS, Math.min(MAP_WIDTH - PLAYER_RADIUS, newX));
+                    newY = Math.max(PLAYER_RADIUS, Math.min(MAP_HEIGHT - PLAYER_RADIUS, newY));
+                    
+                    if (!checkObstacleCollision(newX, ai.y, PLAYER_RADIUS)) {
+                        ai.x = newX;
+                    } else {
+                        ai.moveTimer = 0; // Pick new target
+                    }
+                    if (!checkObstacleCollision(ai.x, newY, PLAYER_RADIUS)) {
+                        ai.y = newY;
+                    } else {
+                        ai.moveTimer = 0;
+                    }
+                }
+                
+                // Find nearest enemy and shoot
+                let nearestEnemy = null;
+                let nearestDist = Infinity;
+                
+                // Check against player
+                if (player.alive && player.team !== ai.team) {
+                    const d = Math.sqrt((player.x - ai.x) ** 2 + (player.y - ai.y) ** 2);
+                    if (d < nearestDist) {
+                        nearestDist = d;
+                        nearestEnemy = player;
+                    }
+                }
+                
+                // Check against other AI
+                otherPlayers.forEach(other => {
+                    if (other.id !== ai.id && other.alive && other.team !== ai.team) {
+                        const d = Math.sqrt((other.x - ai.x) ** 2 + (other.y - ai.y) ** 2);
+                        if (d < nearestDist) {
+                            nearestDist = d;
+                            nearestEnemy = other;
+                        }
+                    }
+                });
+                
+                // Aim and shoot at nearest enemy
+                if (nearestEnemy && nearestDist < 600) {
+                    ai.angle = Math.atan2(nearestEnemy.y - ai.y, nearestEnemy.x - ai.x);
+                    
+                    ai.shootTimer -= 1/60;
+                    if (ai.shootTimer <= 0) {
+                        const weapon = WEAPONS[ai.currentWeapon];
+                        ai.shootTimer = weapon.fireRate / 1000 + Math.random() * 0.3;
+                        aiShoot(ai, nearestEnemy);
+                    }
+                }
+            });
+        }
+
+        /**
+         * AI shooting logic
+         */
+        function aiShoot(shooter, target) {
+            const weapon = WEAPONS[shooter.currentWeapon];
+            const now = Date.now();
+            
+            if (now - shooter.lastShotTime < weapon.fireRate) return;
+            shooter.lastShotTime = now;
+            
+            const pellets = weapon.pellets || 1;
+            
+            for (let i = 0; i < pellets; i++) {
+                const spread = (Math.random() - 0.5) * weapon.spread * 2;
+                const angle = shooter.angle + spread;
+                
+                bullets.push({
+                    x: shooter.x + Math.cos(shooter.angle) * 20,
+                    y: shooter.y + Math.sin(shooter.angle) * 20,
+                    vx: Math.cos(angle) * weapon.bulletSpeed,
+                    vy: Math.sin(angle) * weapon.bulletSpeed,
+                    damage: weapon.damage,
+                    owner: shooter.id,
+                    ownerTeam: shooter.team,
+                    range: weapon.range,
+                    traveled: 0,
+                    color: weapon.color
+                });
+            }
+            
+            // Add muzzle flash effect
+            effects.push({
+                type: 'muzzle',
+                x: shooter.x + Math.cos(shooter.angle) * 25,
+                y: shooter.y + Math.sin(shooter.angle) * 25,
+                life: 0.1,
+                maxLife: 0.1
+            });
+        }
+
+        /**
+         * Update all active bullets
+         */
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+                bullet.traveled += Math.sqrt(bullet.vx ** 2 + bullet.vy ** 2);
+                
+                // Remove if out of range
+                if (bullet.traveled > bullet.range) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Remove if out of map
+                if (bullet.x < 0 || bullet.x > MAP_WIDTH || bullet.y < 0 || bullet.y > MAP_HEIGHT) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check obstacle collision
+                if (checkObstacleCollision(bullet.x, bullet.y, 3)) {
+                    // Add impact effect
+                    effects.push({
+                        type: 'impact',
+                        x: bullet.x,
+                        y: bullet.y,
+                        life: 0.3,
+                        maxLife: 0.3,
+                        color: '#ffaa00'
+                    });
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check hit against player
+                if (bullet.ownerTeam !== player.team && player.alive) {
+                    const dist = Math.sqrt((bullet.x - player.x) ** 2 + (bullet.y - player.y) ** 2);
+                    if (dist < PLAYER_RADIUS) {
+                        damagePlayer(bullet.damage, bullet.owner);
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                }
+                
+                // Check hit against AI players
+                let hitAI = false;
+                for (let j = 0; j < otherPlayers.length; j++) {
+                    const ai = otherPlayers[j];
+                    if (ai.id === bullet.owner || ai.team === bullet.ownerTeam || !ai.alive) continue;
+                    
+                    const dist = Math.sqrt((bullet.x - ai.x) ** 2 + (bullet.y - ai.y) ** 2);
+                    if (dist < PLAYER_RADIUS) {
+                        damageAI(ai, bullet.damage, bullet.owner);
+                        bullets.splice(i, 1);
+                        hitAI = true;
+                        break;
+                    }
+                }
+                if (hitAI) continue;
+            }
+        }
+
+        /**
+         * Update visual effects
+         */
+        function updateEffects() {
+            for (let i = effects.length - 1; i >= 0; i--) {
+                effects[i].life -= 1/60;
+                if (effects[i].life <= 0) {
+                    effects.splice(i, 1);
+                }
+            }
+        }
+
+        /**
+         * Update camera to follow player
+         */
+        function updateCamera() {
+            camera.x = player.x - canvas.width / 2;
+            camera.y = player.y - canvas.height / 2;
+            
+            // Clamp camera to map bounds
+            camera.x = Math.max(0, Math.min(MAP_WIDTH - canvas.width, camera.x));
+            camera.y = Math.max(0, Math.min(MAP_HEIGHT - canvas.height, camera.y));
+        }
+
+        // ============================================
+        // COMBAT SYSTEM
+        // ============================================
+
+        /**
+         * Player shooting logic
+         */
+        function shoot(shooter) {
+            const weapon = player.weapons[player.currentWeapon];
+            const now = Date.now();
+            
+            if (player.isReloading) return;
+            if (now - player.lastShotTime < weapon.fireRate) return;
+            if (weapon.currentAmmo <= 0) {
+                startReload();
+                return;
+            }
+            
+            player.lastShotTime = now;
+            weapon.currentAmmo--;
+            
+            const pellets = weapon.pellets || 1;
+            
+            for (let i = 0; i < pellets; i++) {
+                const spread = (Math.random() - 0.5) * weapon.spread * 2;
+                const angle = player.angle + spread;
+                
+                bullets.push({
+                    x: player.x + Math.cos(player.angle) * 20,
+                    y: player.y + Math.sin(player.angle) * 20,
+                    vx: Math.cos(angle) * weapon.bulletSpeed,
+                    vy: Math.sin(angle) * weapon.bulletSpeed,
+                    damage: weapon.damage,
+                    owner: player.id,
+                    ownerTeam: player.team,
+                    range: weapon.range,
+                    traveled: 0,
+                    color: weapon.color
+                });
+            }
+            
+            // Muzzle flash effect
+            effects.push({
+                type: 'muzzle',
+                x: player.x + Math.cos(player.angle) * 25,
+                y: player.y + Math.sin(player.angle) * 25,
+                life: 0.08,
+                maxLife: 0.08
+            });
+            
+            // Update ammo display
+            updateAmmoDisplay();
+        }
+
+        /**
+         * Start weapon reload
+         */
+        function startReload() {
+            const weapon = player.weapons[player.currentWeapon];
+            if (player.isReloading) return;
+            if (weapon.currentAmmo >= weapon.ammo) return;
+            if (weapon.reserveAmmo <= 0) return;
+            
+            player.isReloading = true;
+            player.reloadTimer = weapon.reloadTime / 1000;
+            showNotification('Reloading...');
+        }
+
+        /**
+         * Finish weapon reload
+         */
+        function finishReload() {
+            const weapon = player.weapons[player.currentWeapon];
+            const needed = weapon.ammo - weapon.currentAmmo;
+            const available = Math.min(needed, weapon.reserveAmmo);
+            
+            weapon.currentAmmo += available;
+            weapon.reserveAmmo -= available;
+            player.isReloading = false;
+            
+            updateAmmoDisplay();
+        }
+
+        /**
+         * Apply damage to the local player
+         */
+        function damagePlayer(amount, attackerId) {
+            player.health -= amount;
+            
+            // Show damage indicator
+            const indicator = document.getElementById('damage-indicator');
+            indicator.classList.add('active');
+            setTimeout(() => indicator.classList.remove('active'), 200);
+            
+            // Update health display
+            updateHealthDisplay();
+            
+            if (player.health <= 0) {
+                player.health = 0;
+                player.alive = false;
+                player.deaths++;
+                player.respawnTimer = 3;
+                
+                // Show respawn screen
+                document.getElementById('respawn-screen').classList.add('visible');
+                
+                // Find attacker and credit kill
+                const attacker = otherPlayers.find(p => p.id === attackerId);
+                if (attacker) {
+                    attacker.kills++;
+                    addKillFeed(attacker.name, player.name, WEAPONS[attacker.currentWeapon].name);
+                    
+                    // Update team score
+                    if (attacker.team === 'blue') {
+                        gameState.blueScore++;
+                        document.getElementById('blue-score').textContent = gameState.blueScore;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Apply damage to an AI player
+         */
+        function damageAI(ai, amount, attackerId) {
+            ai.health -= amount;
+            
+            // Show hit marker if player is the attacker
+            if (attackerId === player.id) {
+                const hitMarker = document.getElementById('hit-marker');
+                hitMarker.classList.remove('show');
+                void hitMarker.offsetWidth; // Force reflow
+                hitMarker.classList.add('show');
+            }
+            
+            // Add blood effect
+            effects.push({
+                type: 'blood',
+                x: ai.x,
+                y: ai.y,
+                life: 0.5,
+                maxLife: 0.5
+            });
+            
+            if (ai.health <= 0) {
+                ai.alive = false;
+                ai.deaths++;
+                ai.respawnTimer = 3;
+                
+                // Credit kill
+                if (attackerId === player.id) {
+                    player.kills++;
+                    addKillFeed(player.name, ai.name, WEAPONS[player.currentWeapon].name);
+                    
+                    if (player.team === 'red') {
+                        gameState.redScore++;
+                        document.getElementById('red-score').textContent = gameState.redScore;
+                    }
+                } else {
+                    const attacker = otherPlayers.find(p => p.id === attackerId);
+                    if (attacker) {
+                        attacker.kills++;
+                        addKillFeed(attacker.name, ai.name, WEAPONS[attacker.currentWeapon].name);
+                        
+                        if (attacker.team === 'red') {
+                            gameState.redScore++;
+                            document.getElementById('red-score').textContent = gameState.redScore;
+                        } else {
+                            gameState.blueScore++;
+                            document.getElementById('blue-score').textContent = gameState.blueScore;
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Respawn the local player
+         */
+        function respawnPlayer() {
+            const spawnPoints = SPAWN_POINTS[player.team];
+            const spawn = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+            
+            player.x = spawn.x;
+            player.y = spawn.y;
+            player.health = PLAYER_MAX_HEALTH;
+            player.alive = true;
+            player.isReloading = false;
+            
+            // Refill ammo
+            player.weapons = WEAPONS.map(w => ({ ...w, currentAmmo: w.ammo, reserveAmmo: w.maxAmmo }));
+            
+            document.getElementById('respawn-screen').classList.remove('visible');
+            updateHealthDisplay();
+            updateAmmoDisplay();
+        }
+
+        /**
+         * Respawn an AI player
+         */
+        function respawnAI(ai) {
+            const spawnPoints = SPAWN_POINTS[ai.team];
+            const spawn = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+            
+            ai.x = spawn.x + Math.random() * 50;
+            ai.y = spawn.y + Math.random() * 50;
+            ai.health = PLAYER_MAX_HEALTH;
+            ai.alive = true;
+            ai.currentWeapon = Math.floor(Math.random() * 4);
+        }
+
+        // ============================================
+        // COLLISION DETECTION
+        // ============================================
+
+        /**
+         * Check if a circle collides with any obstacle
+         */
+        function checkObstacleCollision(x, y, radius) {
+            for (const obs of OBSTACLES) {
+                const closestX = Math.max(obs.x, Math.min(x, obs.x + obs.w));
+                const closestY = Math.max(obs.y, Math.min(y, obs.y + obs.h));
+                
+                const distX = x - closestX;
+                const distY = y - closestY;
+                const dist = Math.sqrt(distX * distX + distY * distY);
+                
+                if (dist < radius) return true;
+            }
+            return false;
+        }
+
+        // ============================================
+        // RENDERING
+        // ============================================
+
+        /**
+         * Main render function - draws everything on screen
+         */
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Save context and apply camera transform
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+            
+            // Draw map
+            drawMap();
+            
+            // Draw obstacles
+            drawObstacles();
+            
+            // Draw bullets
+            drawBullets();
+            
+            // Draw effects
+            drawEffects();
+            
+            // Draw AI players
+            drawAIPlayers();
+            
+            // Draw local player
+            if (player.alive) {
+                drawPlayer(player, true);
+            }
+            
+            ctx.restore();
+            
+            // Draw minimap
+            drawMinimap();
+            
+            // Draw crosshair
+            drawCrosshair();
+        }
+
+        /**
+         * Draw the game map background
+         */
+        function drawMap() {
+            // Grid pattern
+            ctx.strokeStyle = 'rgba(50, 50, 80, 0.3)';
+            ctx.lineWidth = 1;
+            
+            const gridSize = 100;
+            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            const startY = Math.floor(camera.y / gridSize) * gridSize;
+            
+            for (let x = startX; x < camera.x + canvas.width + gridSize; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, camera.y);
+                ctx.lineTo(x, camera.y + canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = startY; y < camera.y + canvas.height + gridSize; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(camera.x, y);
+                ctx.lineTo(camera.x + canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Map border
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        }
+
+        /**
+         * Draw all obstacles on the map
+         */
+        function drawObstacles() {
+            OBSTACLES.forEach(obs => {
+                // Only draw if visible on screen
+                if (obs.x + obs.w < camera.x || obs.x > camera.x + canvas.width ||
+                    obs.y + obs.h < camera.y || obs.y > camera.y + canvas.height) return;
+                
+                // Main body
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                
+                // Border
+                ctx.strokeStyle = 'rgba(100, 100, 150, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                
+                // Top highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(obs.x, obs.y, obs.w, 5);
+            });
+        }
+
+        /**
+         * Draw a player entity
+         */
+        function drawPlayer(p, isLocal) {
+            const screenX = p.x;
+            const screenY = p.y;
+            
+            // Player body
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, PLAYER_RADIUS, 0, Math.PI * 2);
+            
+            if (p.team === 'red') {
+                ctx.fillStyle = isLocal ? '#ff4444' : '#cc3333';
+            } else {
+                ctx.fillStyle = isLocal ? '#4488ff' : '#3366cc';
+            }
+            ctx.fill();
+            
+            // Player border
+            ctx.strokeStyle = isLocal ? '#ffffff' : 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = isLocal ? 3 : 2;
+            ctx.stroke();
+            
+            // Direction indicator (gun barrel)
+            const gunLength = 25;
+            const gunX = screenX + Math.cos(p.angle) * gunLength;
+            const gunY = screenY + Math.sin(p.angle) * gunLength;
+            
+            ctx.beginPath();
+            ctx.moveTo(screenX + Math.cos(p.angle) * PLAYER_RADIUS, screenY + Math.sin(p.angle) * PLAYER_RADIUS);
+            ctx.lineTo(gunX, gunY);
+            ctx.strokeStyle = '#888888';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // Health bar above player
+            if (!isLocal || true) {
+                const barWidth = 40;
+                const barHeight = 5;
+                const barX = screenX - barWidth / 2;
+                const barY = screenY - PLAYER_RADIUS - 15;
+                
+                // Background
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Health fill
+                const healthPercent = p.health / PLAYER_MAX_HEALTH;
+                let healthColor = '#00ff64';
+                if (healthPercent < 0.3) healthColor = '#ff4444';
+                else if (healthPercent < 0.6) healthColor = '#ffaa00';
+                
+                ctx.fillStyle = healthColor;
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+            }
+            
+            // Name tag
+            ctx.font = '11px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = p.team === 'red' ? '#ff8888' : '#88aaff';
+            ctx.fillText(p.name, screenX, screenY - PLAYER_RADIUS - 20);
+        }
+
+        /**
+         * Draw all AI players
+         */
+        function drawAIPlayers() {
+            otherPlayers.forEach(ai => {
+                if (!ai.alive) return;
+                
+                // Only draw if on screen
+                if (ai.x < camera.x - 50 || ai.x > camera.x + canvas.width + 50 ||
+                    ai.y < camera.y - 50 || ai.y > camera.y + canvas.height + 50) return;
+                
+                drawPlayer(ai, false);
+            });
+        }
+
+        /**
+         * Draw all active bullets
+         */
+        function drawBullets() {
+            bullets.forEach(bullet => {
+                // Only draw if on screen
+                if (bullet.x < camera.x - 10 || bullet.x > camera.x + canvas.width + 10 ||
+                    bullet.y < camera.y - 10 || bullet.y > camera.y + canvas.height + 10) return;
+                
+                // Bullet trail
+                ctx.beginPath();
+                ctx.moveTo(bullet.x, bullet.y);
+                ctx.lineTo(bullet.x - bullet.vx * 2, bullet.y - bullet.vy * 2);
+                ctx.strokeStyle = bullet.color;
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.6;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                
+                // Bullet head
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = bullet.color;
+                ctx.fill();
+            });
+        }
+
+        /**
+         * Draw visual effects
+         */
+        function drawEffects() {
+            effects.forEach(effect => {
+                const alpha = effect.life / effect.maxLife;
+                
+                if (effect.type === 'muzzle') {
+                    ctx.beginPath();
+                    ctx.arc(effect.x, effect.y, 10 * alpha, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 200, 0, ${alpha})`;
+                    ctx.fill();
+                } else if (effect.type === 'impact') {
+                    ctx.beginPath();
+                    ctx.arc(effect.x, effect.y, 8 * (1 - alpha), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255, 170, 0, ${alpha})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (effect.type === 'blood') {
+                    for (let i = 0; i < 5; i++) {
+                        const offsetX = (Math.random() - 0.5) * 20 * (1 - alpha);
+                        const offsetY = (Math.random() - 0.5) * 20 * (1 - alpha);
+                        ctx.beginPath();
+                        ctx.arc(effect.x + offsetX, effect.y + offsetY, 3 * alpha, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.7})`;
+                        ctx.fill();
+                    }
+                }
+            });
+        }
+
+        /**
+         * Draw the crosshair at mouse position
+         */
+        function drawCrosshair() {
+            const cx = mouse.x;
+            const cy = mouse.y;
+            const size = 12;
+            const gap = 5;
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            
+            // Top
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - gap);
+            ctx.lineTo(cx, cy - size);
+            ctx.stroke();
+            
+            // Bottom
+            ctx.beginPath();
+            ctx.moveTo(cx, cy + gap);
+            ctx.lineTo(cx, cy + size);
+            ctx.stroke();
+            
+            // Left
+            ctx.beginPath();
+            ctx.moveTo(cx - gap, cy);
+            ctx.lineTo(cx - size, cy);
+            ctx.stroke();
+            
+            // Right
+            ctx.beginPath();
+            ctx.moveTo(cx + gap, cy);
+            ctx.lineTo(cx + size, cy);
+            ctx.stroke();
+            
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff0000';
+            ctx.fill();
+        }
+
+        /**
+         * Draw the minimap
+         */
+        function drawMinimap() {
+            const mw = minimapCanvas.width;
+            const mh = minimapCanvas.height;
+            const scaleX = mw / MAP_WIDTH;
+            const scaleY = mh / MAP_HEIGHT;
+            
+            // Clear
+            minimapCtx.fillStyle = 'rgba(10, 10, 20, 0.9)';
+            minimapCtx.fillRect(0, 0, mw, mh);
+            
+            // Draw obstacles
+            minimapCtx.fillStyle = 'rgba(60, 60, 80, 0.8)';
+            OBSTACLES.forEach(obs => {
+                minimapCtx.fillRect(
+                    obs.x * scaleX, obs.y * scaleY,
+                    obs.w * scaleX, obs.h * scaleY
+                );
+            });
+            
+            // Draw AI players
+            otherPlayers.forEach(ai => {
+                if (!ai.alive) return;
+                minimapCtx.beginPath();
+                minimapCtx.arc(ai.x * scaleX, ai.y * scaleY, 3, 0, Math.PI * 2);
+                minimapCtx.fillStyle = ai.team === 'red' ? '#ff4444' : '#4488ff';
+                minimapCtx.fill();
+            });
+            
+            // Draw local player
+            if (player.alive) {
+                minimapCtx.beginPath();
+                minimapCtx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
+                minimapCtx.fillStyle = '#00ff00';
+                minimapCtx.fill();
+                minimapCtx.strokeStyle = '#ffffff';
+                minimapCtx.lineWidth = 1;
+                minimapCtx.stroke();
+            }
+            
+            // Draw camera viewport
+            minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            minimapCtx.lineWidth = 1;
+            minimapCtx.strokeRect(
+                camera.x * scaleX, camera.y * scaleY,
+                canvas.width * scaleX, canvas.height * scaleY
+            );
+        }
+
+        // ============================================
+        // UI UPDATES
+        // ============================================
+
+        /**
+         * Update the health bar display
+         */
+        function updateHealthDisplay() {
+            const healthBar = document.getElementById('health-bar');
+            const healthText = document.getElementById('health-text');
+            const percent = (player.health / PLAYER_MAX_HEALTH) * 100;
+            
+            healthBar.style.width = percent + '%';
+            healthText.textContent = Math.max(0, Math.ceil(player.health)) + ' HP';
+            
+            healthBar.classList.remove('low', 'medium');
+            if (percent < 30) healthBar.classList.add('low');
+            else if (percent < 60) healthBar.classList.add('medium');
+        }
+
+        /**
+         * Update the ammo display
+         */
+        function updateAmmoDisplay() {
+            const weapon = player.weapons[player.currentWeapon];
+            document.getElementById('ammo-current').textContent = weapon.currentAmmo;
+            document.getElementById('ammo-reserve').textContent = weapon.reserveAmmo;
+        }
+
+        /**
+         * Select a weapon by index
+         */
+        function selectWeapon(index) {
+            if (index < 0 || index >= WEAPONS.length) return;
+            if (player.isReloading) return;
+            
+            player.currentWeapon = index;
+            
+            // Update UI
+            document.querySelectorAll('.weapon-slot').forEach((slot, i) => {
+                slot.classList.toggle('active', i === index);
+            });
+            
+            updateAmmoDisplay();
+        }
+
+        /**
+         * Add a kill feed entry
+         */
+        function addKillFeed(killer, victim, weapon) {
+            const feed = document.getElementById('kill-feed');
+            const entry = document.createElement('div');
+            entry.className = 'kill-entry';
+            entry.innerHTML = `
+                <span class="killer">${killer}</span>
+                <span class="weapon-used">[${weapon}]</span>
+                <span class="victim">${victim}</span>
+            `;
+            feed.appendChild(entry);
+            
+            // Remove old entries
+            if (feed.children.length > 5) {
+                feed.removeChild(feed.firstChild);
+            }
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (entry.parentNode) entry.parentNode.removeChild(entry);
+            }, 5000);
+        }
+
+        /**
+         * Add a chat message
+         */
+        function addChatMessage(sender, message, team) {
+            const container = document.getElementById('chat-messages');
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-message';
+            
+            let senderClass = 'team-red';
+            if (team === 'blue') senderClass = 'team-blue';
+            if (team === 'system') senderClass = 'system';
+            
+            msgEl.innerHTML = `<span class="sender ${senderClass}">${sender}:</span> ${message}`;
+            container.appendChild(msgEl);
+            container.scrollTop = container.scrollHeight;
+            
+            // Limit messages
+            if (container.children.length > 50) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        /**
+         * Handle chat input keypress
+         */
+        function handleChatInput(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        /**
+         * Send a chat message from the local player
+         */
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addChatMessage(player.name, message, player.team);
+            input.value = '';
+            input.blur();
+        }
+
+        /**
+         * Update the scoreboard display
+         */
+        function updateScoreboard() {
+            const tbody = document.getElementById('scoreboard-body');
+            tbody.innerHTML = '';
+            
+            // Combine all players
+            const allPlayers = [
+                { ...player, isSelf: true },
+                ...otherPlayers.map(p => ({ ...p, isSelf: false }))
+            ];
+            
+            // Sort by kills
+            allPlayers.sort((a, b) => b.kills - a.kills);
+            
+            allPlayers.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = `team-${p.team} ${p.isSelf ? 'self' : ''}`;
+                tr.innerHTML = `
+                    <td>${p.name} ${p.isSelf ? '(You)' : ''}</td>
+                    <td>${p.kills}</td>
+                    <td>${p.deaths}</td>
+                    <td>${p.assists}</td>
+                    <td>${p.kills * 100 - p.deaths * 50 + p.assists * 25}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /**
+         * Show a temporary notification
+         */
+        function showNotification(text) {
+            const notif = document.getElementById('notification');
+            notif.textContent = text;
+            notif.classList.add('visible');
+            setTimeout(() => notif.classList.remove('visible'), 2000);
+        }
+
+        // ============================================
+        // GAME TIMER & STATE
+        // ============================================
+
+        /**
+         * Start the game countdown timer
+         */
+        function startGameTimer() {
+            const timerInterval = setInterval(() => {
+                if (!gameState.running) {
+                    clearInterval(timerInterval);
+                    return;
+                }
+                
+                gameState.timeRemaining--;
+                
+                const minutes = Math.floor(gameState.timeRemaining / 60);
+                const seconds = gameState.timeRemaining % 60;
+                document.getElementById('game-timer').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (gameState.timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        /**
+         * Check if game end conditions are met
+         */
+        function checkGameState() {
+            if (gameState.redScore >= gameState.scoreLimit || 
+                gameState.blueScore >= gameState.scoreLimit) {
+                endGame();
+            }
+        }
+
+        /**
+         * End the game and show results
+         */
+        function endGame() {
+            gameState.running = false;
+            
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const title = document.getElementById('game-over-title');
+            
+            const playerWon = (player.team === 'red' && gameState.redScore > gameState.blueScore) ||
+                             (player.team === 'blue' && gameState.blueScore > gameState.redScore);
+            
+            title.textContent = playerWon ? 'VICTORY!' : 'DEFEAT';
+            title.className = `game-over-title ${playerWon ? 'victory' : 'defeat'}`;
+            
+            document.getElementById('final-kills').textContent = player.kills;
+            document.getElementById('final-deaths').textContent = player.deaths;
+            document.getElementById('final-score').textContent = player.kills * 100 - player.deaths * 50;
+            
+            gameOverScreen.classList.add('visible');
+        }
+
+        /**
+         * Return to lobby from game over screen
+         */
+        function returnToLobby() {
+            document.getElementById('game-over-screen').classList.remove('visible');
+            document.getElementById('game-screen').style.display = 'none';
+            document.getElementById('lobby-screen').style.display = 'flex';
+            
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+        }
+
+        // ============================================
+        // AI CHAT SIMULATION
+        // ============================================
+
+        /**
+         * Simulate other players sending chat messages
+         */
+        function startAIChatSimulation() {
+            const chatInterval = setInterval(() => {
+                if (!gameState.running) {
+                    clearInterval(chatInterval);
+                    return;
+                }
+                
+                // Random chance to send a message
+                if (Math.random() < 0.3) {
+                    const aiPlayer = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+                    const message = mockChatMessages[Math.floor(Math.random() * mockChatMessages.length)];
+                    addChatMessage(aiPlayer.name, message, aiPlayer.team);
+                }
+            }, 5000 + Math.random() * 10000);
+        }
+
+        // ============================================
+        // INITIALIZATION ON LOAD
+        // ============================================
+        
+        window.onload = function() {
+            initLobby();
+        };
+    </script>
+</body>
+</html>

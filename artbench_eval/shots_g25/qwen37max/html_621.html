@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Maintenance Reminder System</title>
+    <style>
+        /* ========== CSS Reset & Base Styles ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* ========== Header ========== */
+        .header {
+            background: linear-gradient(135deg, #1a237e, #283593);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 .icon {
+            font-size: 28px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-badge.normal { background: rgba(76,175,80,0.2); color: #a5d6a7; }
+        .stat-badge.warning { background: rgba(255,193,7,0.2); color: #ffe082; }
+        .stat-badge.overdue { background: rgba(244,67,54,0.2); color: #ef9a9a; }
+
+        .stat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .stat-dot.normal { background: #4caf50; }
+        .stat-dot.warning { background: #ffc107; }
+        .stat-dot.overdue { background: #f44336; }
+
+        /* ========== Toolbar ========== */
+        .toolbar {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px 10px 42px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #1a237e;
+        }
+
+        .search-box::before {
+            content: '🔍';
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 8px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover { border-color: #1a237e; color: #1a237e; }
+        .filter-btn.active { background: #1a237e; color: white; border-color: #1a237e; }
+
+        .btn-add-device {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #1a237e, #3949ab);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-add-device:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(26,35,126,0.4);
+        }
+
+        /* ========== Device Grid ========== */
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            padding: 0 40px 40px;
+        }
+
+        .device-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+        }
+
+        .device-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card-status-bar {
+            height: 6px;
+            width: 100%;
+        }
+
+        .card-status-bar.normal { background: linear-gradient(90deg, #43a047, #66bb6a); }
+        .card-status-bar.warning { background: linear-gradient(90deg, #f9a825, #fdd835); }
+        .card-status-bar.overdue { background: linear-gradient(90deg, #e53935, #ef5350); }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .device-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a237e;
+        }
+
+        .device-type {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .status-tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-tag.normal { background: #e8f5e9; color: #2e7d32; }
+        .status-tag.warning { background: #fff8e1; color: #f57f17; }
+        .status-tag.overdue { background: #ffebee; color: #c62828; }
+
+        .card-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .info-item {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .info-item .label {
+            color: #999;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .info-item .value {
+            font-weight: 600;
+            color: #444;
+        }
+
+        .card-footer {
+            padding: 12px 20px;
+            background: #fafafa;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .days-remaining {
+            font-weight: 700;
+        }
+
+        .days-remaining.normal { color: #43a047; }
+        .days-remaining.warning { color: #f9a825; }
+        .days-remaining.overdue { color: #e53935; }
+
+        /* ========== Modal Overlay ========== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+            margin: auto;
+        }
+
+        .modal.detail-modal {
+            max-width: 750px;
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 24px 30px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            color: #1a237e;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .modal-close:hover { background: #e0e0e0; }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        /* ========== Form Styles ========== */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e8e8e8;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #1a237e;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .cycle-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .cycle-input-group input {
+            flex: 1;
+        }
+
+        .cycle-input-group select {
+            width: 160px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1a237e, #3949ab);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(26,35,126,0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828, #e53935);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 4px 15px rgba(198,40,40,0.4);
+        }
+
+        /* ========== Detail View ========== */
+        .detail-status-banner {
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .detail-status-banner.normal { background: #e8f5e9; }
+        .detail-status-banner.warning { background: #fff8e1; }
+        .detail-status-banner.overdue { background: #ffebee; }
+
+        .detail-status-banner .status-icon {
+            font-size: 28px;
+        }
+
+        .detail-status-banner .status-text h3 {
+            font-size: 16px;
+        }
+
+        .detail-status-banner .status-text p {
+            font-size: 13px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .detail-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .detail-info-card {
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .detail-info-card .label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-info-card .value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-top: 4px;
+        }
+
+        /* ========== Maintenance History ========== */
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a237e;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 24px;
+        }
+
+        .history-item {
+            padding: 14px 16px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #1a237e;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .history-date {
+            font-weight: 700;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .history-personnel {
+            font-size: 12px;
+            color: #1a237e;
+            background: #e8eaf6;
+            padding: 2px 10px;
+            border-radius: 10px;
+        }
+
+        .history-consumables {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .history-consumables span {
+            display: inline-block;
+            background: #fff3e0;
+            color: #e65100;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin: 2px 4px 2px 0;
+            font-size: 11px;
+        }
+
+        .history-notes {
+            font-size: 12px;
+            color: #888;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .no-history {
+            text-align: center;
+            padding: 30px;
+            color: #bbb;
+            font-size: 14px;
+        }
+
+        /* ========== Consumables Tag Input ========== */
+        .consumables-input-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        .consumables-input-wrapper input {
+            flex: 1;
+        }
+
+        .btn-add-tag {
+            padding: 10px 16px;
+            background: #e8eaf6;
+            color: #1a237e;
+            border: 2px solid #c5cae9;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: background 0.3s;
+        }
+
+        .btn-add-tag:hover { background: #c5cae9; }
+
+        .consumables-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .consumable-tag {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #fff3e0;
+            color: #e65100;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .consumable-tag .remove-tag {
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 2px;
+            opacity: 0.7;
+        }
+
+        .consumable-tag .remove-tag:hover { opacity: 1; }
+
+        /* ========== Empty State ========== */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #bbb;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        /* ========== Delete Button ========== */
+        .btn-delete-device {
+            padding: 8px 16px;
+            background: #ffebee;
+            color: #c62828;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .btn-delete-device:hover { background: #ffcdd2; }
+
+        /* ========== Scrollbar ========== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+        /* ========== Responsive ========== */
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; flex-direction: column; gap: 12px; }
+            .toolbar { padding: 16px 20px; }
+            .device-grid { padding: 0 20px 20px; grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .detail-info-grid { grid-template-columns: 1fr 1fr; }
+            .header-stats { flex-wrap: wrap; justify-content: center; }
+            .modal-body { padding: 20px; }
+        }
+
+        /* ========== Toast Notification ========== */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 14px 24px;
+            background: #323232;
+            color: white;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 2000;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .toast.success { background: #2e7d32; }
+        .toast.error { background: #c62828; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* ========== Hours Update ========== */
+        .hours-update-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .hours-update-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .btn-update-hours {
+            padding: 10px 16px;
+            background: #e8eaf6;
+            color: #1a237e;
+            border: 2px solid #c5cae9;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: background 0.3s;
+            height: 42px;
+        }
+
+        .btn-update-hours:hover { background: #c5cae9; }
+    </style>
+</head>
+<body>
+
+    <!-- ========== Header ========== -->
+    <div class="header">
+        <h1><span class="icon">🔧</span> Device Maintenance Reminder</h1>
+        <div class="header-stats">
+            <div class="stat-badge normal">
+                <span class="stat-dot normal"></span>
+                Normal: <span id="statNormal">0</span>
+            </div>
+            <div class="stat-badge warning">
+                <span class="stat-dot warning"></span>
+                Due Soon: <span id="statWarning">0</span>
+            </div>
+            <div class="stat-badge overdue">
+                <span class="stat-dot overdue"></span>
+                Overdue: <span id="statOverdue">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Toolbar ========== -->
+    <div class="toolbar">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search devices by name, type, or serial..." oninput="renderDevices()">
+        </div>
+        <div class="filter-group">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+            <button class="filter-btn" data-filter="normal" onclick="setFilter('normal', this)">🟢 Normal</button>
+            <button class="filter-btn" data-filter="warning" onclick="setFilter('warning', this)">🟡 Due Soon</button>
+            <button class="filter-btn" data-filter="overdue" onclick="setFilter('overdue', this)">🔴 Overdue</button>
+        </div>
+        <button class="btn-add-device" onclick="openAddDeviceModal()">
+            <span>＋</span> Register Device
+        </button>
+    </div>
+
+    <!-- ========== Device Grid ========== -->
+    <div class="device-grid" id="deviceGrid"></div>
+
+    <!-- ========== Add Device Modal ========== -->
+    <div class="modal-overlay" id="addDeviceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📋 Register New Device</h2>
+                <button class="modal-close" onclick="closeModal('addDeviceModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="addDeviceForm" onsubmit="addDevice(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Device Name *</label>
+                            <input type="text" id="deviceName" required placeholder="e.g. CNC Machine A1">
+                        </div>
+                        <div class="form-group">
+                            <label>Device Type *</label>
+                            <select id="deviceType" required>
+                                <option value="">Select type...</option>
+                                <option value="CNC Machine">CNC Machine</option>
+                                <option value="Compressor">Compressor</option>
+                                <option value="Conveyor Belt">Conveyor Belt</option>
+                                <option value="Hydraulic Press">Hydraulic Press</option>
+                                <option value="Generator">Generator</option>
+                                <option value="Pump">Pump</option>
+                                <option value="Welding Machine">Welding Machine</option>
+                                <option value="HVAC Unit">HVAC Unit</option>
+                                <option value="Robot Arm">Robot Arm</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Serial Number</label>
+                            <input type="text" id="serialNumber" placeholder="e.g. SN-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label>Registration Date *</label>
+                            <input type="date" id="registrationDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Maintenance Cycle Type *</label>
+                        <select id="cycleType" required onchange="updateCycleLabels()">
+                            <option value="days">Calendar Days</option>
+                            <option value="hours">Operating Hours</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Maintenance Cycle Value *</label>
+                            <input type="number" id="cycleValue" required min="1" placeholder="e.g. 30">
+                        </div>
+                        <div class="form-group">
+                            <label>Current Operating Hours</label>
+                            <input type="number" id="currentHours" min="0" value="0" placeholder="Total hours run">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Last Maintenance Date</label>
+                            <input type="date" id="lastMaintenanceDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Hours at Last Maintenance</label>
+                            <input type="number" id="lastMaintenanceHours" min="0" value="0">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit">✓ Register Device</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Device Detail Modal ========== -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal detail-modal">
+            <div class="modal-header">
+                <h2 id="detailTitle">Device Details</h2>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button class="btn-delete-device" onclick="deleteCurrentDevice()">🗑 Delete</button>
+                    <button class="modal-close" onclick="closeModal('detailModal')">✕</button>
+                </div>
+            </div>
+            <div class="modal-body" id="detailBody">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Add Maintenance Record Modal ========== -->
+    <div class="modal-overlay" id="addMaintenanceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🔩 Add Maintenance Record</h2>
+                <button class="modal-close" onclick="closeModal('addMaintenanceModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="addMaintenanceForm" onsubmit="addMaintenanceRecord(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Maintenance Date *</label>
+                            <input type="date" id="maintenanceDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Maintenance Personnel *</label>
+                            <input type="text" id="maintenancePersonnel" required placeholder="e.g. John Smith">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Operating Hours at Maintenance</label>
+                        <input type="number" id="maintenanceHours" min="0" placeholder="Current operating hours">
+                    </div>
+                    <div class="form-group">
+                        <label>Consumables Used</label>
+                        <div class="consumables-input-wrapper">
+                            <input type="text" id="consumableInput" placeholder="e.g. Oil Filter, Lubricant...">
+                            <button type="button" class="btn-add-tag" onclick="addConsumableTag()">+ Add</button>
+                        </div>
+                        <div class="consumables-tags" id="consumablesTags"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="maintenanceNotes" placeholder="Additional notes about the maintenance..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-submit">✓ Save Maintenance Record</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // DATA LAYER - LocalStorage based persistence
+        // ============================================================
+
+        /** Load devices from localStorage or return demo data */
+        function loadDevices() {
+            const stored = localStorage.getItem('maintenance_devices');
+            if (stored) {
+                return JSON.parse(stored);
+            }
+            // Return demo/seed data for first-time users
+            return getSeedData();
+        }
+
+        /** Save devices array to localStorage */
+        function saveDevices(devices) {
+            localStorage.setItem('maintenance_devices', JSON.stringify(devices));
+        }
+
+        /** Generate seed/demo data so the app is not empty on first load */
+        function getSeedData() {
+            const today = new Date();
+            const daysAgo = (d) => {
+                const date = new Date(today);
+                date.setDate(date.getDate() - d);
+                return date.toISOString().split('T')[0];
+            };
+
+            return [
+                {
+                    id: 'dev_001',
+                    name: 'CNC Machine A1',
+                    type: 'CNC Machine',
+                    serialNumber: 'CNC-2023-0451',
+                    registrationDate: '2023-06-15',
+                    cycleType: 'days',
+                    cycleValue: 30,
+                    currentHours: 4520,
+                    lastMaintenanceDate: daysAgo(5),
+                    lastMaintenanceHours: 4480,
+                    records: [
+                        {
+                            id: 'rec_001',
+                            date: daysAgo(5),
+                            personnel: 'Mike Johnson',
+                            hours: 4480,
+                            consumables: ['Cutting Oil', 'Spindle Bearing'],
+                            notes: 'Replaced spindle bearing and topped up cutting oil.'
+                        },
+                        {
+                            id: 'rec_002',
+                            date: daysAgo(35),
+                            personnel: 'Sarah Lee',
+                            hours: 4200,
+                            consumables: ['Coolant Filter', 'Drive Belt'],
+                            notes: 'Routine 30-day service completed.'
+                        }
+                    ]
+                },
+                {
+                    id: 'dev_002',
+                    name: 'Air Compressor #3',
+                    type: 'Compressor',
+                    serialNumber: 'AC-2022-1187',
+                    registrationDate: '2022-03-10',
+                    cycleType: 'hours',
+                    cycleValue: 500,
+                    currentHours: 8750,
+                    lastMaintenanceDate: daysAgo(60),
+                    lastMaintenanceHours: 8200,
+                    records: [
+                        {
+                            id: 'rec_003',
+                            date: daysAgo(60),
+                            personnel: 'Tom Chen',
+                            hours: 8200,
+                            consumables: ['Air Filter', 'Compressor Oil 5L'],
+                            notes: 'Full service including valve inspection.'
+                        }
+                    ]
+                },
+                {
+                    id: 'dev_003',
+                    name: 'Hydraulic Press B2',
+                    type: 'Hydraulic Press',
+                    serialNumber: 'HP-2024-0033',
+                    registrationDate: '2024-01-20',
+                    cycleType: 'days',
+                    cycleValue: 14,
+                    currentHours: 1200,
+                    lastMaintenanceDate: daysAgo(20),
+                    lastMaintenanceHours: 1100,
+                    records: [
+                        {
+                            id: 'rec_004',
+                            date: daysAgo(20),
+                            personnel: 'Emily Davis',
+                            hours: 1100,
+                            consumables: ['Hydraulic Fluid 10L', 'O-Ring Set'],
+                            notes: 'Replaced all O-rings and flushed hydraulic system.'
+                        }
+                    ]
+                },
+                {
+                    id: 'dev_004',
+                    name: 'Conveyor Belt Line 1',
+                    type: 'Conveyor Belt',
+                    serialNumber: 'CB-2021-0789',
+                    registrationDate: '2021-11-05',
+                    cycleType: 'days',
+                    cycleValue: 90,
+                    currentHours: 15600,
+                    lastMaintenanceDate: daysAgo(10),
+                    lastMaintenanceHours: 15400,
+                    records: [
+                        {
+                            id: 'rec_005',
+                            date: daysAgo(10),
+                            personnel: 'Robert Kim',
+                            hours: 15400,
+                            consumables: ['Belt Section 2m', 'Roller Bearings x4'],
+                            notes: 'Replaced worn belt section and 4 roller bearings.'
+                        }
+                    ]
+                },
+                {
+                    id: 'dev_005',
+                    name: 'Backup Generator',
+                    type: 'Generator',
+                    serialNumber: 'GEN-2020-0222',
+                    registrationDate: '2020-08-12',
+                    cycleType: 'hours',
+                    cycleValue: 200,
+                    currentHours: 3450,
+                    lastMaintenanceDate: daysAgo(90),
+                    lastMaintenanceHours: 3200,
+                    records: [
+                        {
+                            id: 'rec_006',
+                            date: daysAgo(90),
+                            personnel: 'James Wilson',
+                            hours: 3200,
+                            consumables: ['Engine Oil 8L', 'Fuel Filter', 'Spark Plugs x4'],
+                            notes: 'Full engine service and load test passed.'
+                        }
+                    ]
+                },
+                {
+                    id: 'dev_006',
+                    name: 'Robot Arm Station 5',
+                    type: 'Robot Arm',
+                    serialNumber: 'RA-2023-0567',
+                    registrationDate: '2023-09-01',
+                    cycleType: 'days',
+                    cycleValue: 60,
+                    currentHours: 2800,
+                    lastMaintenanceDate: daysAgo(55),
+                    lastMaintenanceHours: 2650,
+                    records: [
+                        {
+                            id: 'rec_007',
+                            date: daysAgo(55),
+                            personnel: 'Lisa Park',
+                            hours: 2650,
+                            consumables: ['Joint Grease', 'Servo Motor Brush Set'],
+                            notes: 'Calibrated all joints and replaced servo brushes.'
+                        }
+                    ]
+                }
+            ];
+        }
+
+        // ============================================================
+        // STATE
+        // ============================================================
+
+        let devices = loadDevices();
+        let currentFilter = 'all';
+        let currentDeviceId = null;
+        let tempConsumables = [];
+
+        // ============================================================
+        // STATUS CALCULATION
+        // ============================================================
+
+        /**
+         * Calculate the maintenance status of a device.
+         * Returns: { status: 'normal'|'warning'|'overdue', daysRemaining: number, hoursRemaining: number, message: string }
+         */
+        function calculateStatus(device) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (device.cycleType === 'days') {
+                // Calendar-day based maintenance cycle
+                const lastDate = device.lastMaintenanceDate
+                    ? new Date(device.lastMaintenanceDate)
+                    : new Date(device.registrationDate);
+                lastDate.setHours(0, 0, 0, 0);
+
+                const nextDue = new Date(lastDate);
+                nextDue.setDate(nextDue.getDate() + device.cycleValue);
+
+                const diffTime = nextDue.getTime() - today.getTime();
+                const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (daysRemaining < 0) {
+                    return {
+                        status: 'overdue',
+                        daysRemaining: daysRemaining,
+                        message: `Overdue by ${Math.abs(daysRemaining)} day(s)`
+                    };
+                } else if (daysRemaining <= 7) {
+                    return {
+                        status: 'warning',
+                        daysRemaining: daysRemaining,
+                        message: `Due in ${daysRemaining} day(s)`
+                    };
+                } else {
+                    return {
+                        status: 'normal',
+                        daysRemaining: daysRemaining,
+                        message: `${daysRemaining} day(s) remaining`
+                    };
+                }
+            } else {
+                // Operating-hours based maintenance cycle
+                const lastHours = device.lastMaintenanceHours || 0;
+                const nextDueHours = lastHours + device.cycleValue;
+                const currentHours = device.currentHours || 0;
+                const hoursRemaining = nextDueHours - currentHours;
+
+                // Estimate days based on average daily usage
+                let avgDailyHours = 8; // default assumption
+                if (device.records && device.records.length >= 2) {
+                    const sorted = [...device.records].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    const first = sorted[0];
+                    const last = sorted[sorted.length - 1];
+                    const daySpan = (new Date(last.date) - new Date(first.date)) / (1000 * 60 * 60 * 24);
+                    if (daySpan > 0) {
+                        avgDailyHours = Math.max(1, (last.hours - first.hours) / daySpan);
+                    }
+                }
+
+                const estimatedDays = Math.ceil(hoursRemaining / avgDailyHours);
+
+                if (hoursRemaining < 0) {
+                    return {
+                        status: 'overdue',
+                        daysRemaining: estimatedDays,
+                        hoursRemaining: hoursRemaining,
+                        message: `Overdue by ${Math.abs(hoursRemaining)} hour(s)`
+                    };
+                } else if (estimatedDays <= 7) {
+                    return {
+                        status: 'warning',
+                        daysRemaining: estimatedDays,
+                        hoursRemaining: hoursRemaining,
+                        message: `~${hoursRemaining}h remaining (~${estimatedDays}d)`
+                    };
+                } else {
+                    return {
+                        status: 'normal',
+                        daysRemaining: estimatedDays,
+                        hoursRemaining: hoursRemaining,
+                        message: `${hoursRemaining}h remaining (~${estimatedDays}d)`
+                    };
+                }
+            }
+        }
+
+        // ============================================================
+        // RENDERING
+        // ============================================================
+
+        /** Main render function: renders device cards and updates stats */
+        function renderDevices() {
+            const grid = document.getElementById('deviceGrid');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            // Filter and search
+            let filtered = devices.filter(d => {
+                const statusInfo = calculateStatus(d);
+                const matchesFilter = currentFilter === 'all' || statusInfo.status === currentFilter;
+                const matchesSearch = !searchTerm ||
+                    d.name.toLowerCase().includes(searchTerm) ||
+                    d.type.toLowerCase().includes(searchTerm) ||
+                    (d.serialNumber && d.serialNumber.toLowerCase().includes(searchTerm));
+                return matchesFilter && matchesSearch;
+            });
+
+            // Update stats
+            let normalCount = 0, warningCount = 0, overdueCount = 0;
+            devices.forEach(d => {
+                const s = calculateStatus(d).status;
+                if (s === 'normal') normalCount++;
+                else if (s === 'warning') warningCount++;
+                else overdueCount++;
+            });
+            document.getElementById('statNormal').textContent = normalCount;
+            document.getElementById('statWarning').textContent = warningCount;
+            document.getElementById('statOverdue').textContent = overdueCount;
+
+            // Render cards
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="icon">📭</div>
+                        <h3>${devices.length === 0 ? 'No Devices Registered' : 'No Matching Devices'}</h3>
+                        <p>${devices.length === 0 ? 'Click "Register Device" to add your first device.' : 'Try adjusting your search or filter.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(device => {
+                const statusInfo = calculateStatus(device);
+                const s = statusInfo.status;
+                const lastDate = device.lastMaintenanceDate || 'Never';
+                const recordCount = device.records ? device.records.length : 0;
+
+                return `
+                    <div class="device-card" onclick="openDetailModal('${device.id}')">
+                        <div class="card-status-bar ${s}"></div>
+                        <div class="card-body">
+                            <div class="card-header">
+                                <div>
+                                    <div class="device-name">${escapeHtml(device.name)}</div>
+                                    <div class="device-type">${escapeHtml(device.type)}${device.serialNumber ? ' · ' + escapeHtml(device.serialNumber) : ''}</div>
+                                </div>
+                                <span class="status-tag ${s}">${s === 'normal' ? '✓ Normal' : s === 'warning' ? '⚠ Due Soon' : '✕ Overdue'}</span>
+                            </div>
+                            <div class="card-info">
+                                <div class="info-item">
+                                    <span class="label">Cycle</span>
+                                    <span class="value">Every ${device.cycleValue} ${device.cycleType === 'days' ? 'days' : 'hours'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">Last Service</span>
+                                    <span class="value">${lastDate === 'Never' ? 'Never' : formatDate(lastDate)}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">Op. Hours</span>
+                                    <span class="value">${(device.currentHours || 0).toLocaleString()}h</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">Records</span>
+                                    <span class="value">${recordCount} maintenance(s)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <span class="days-remaining ${s}">${statusInfo.message}</span>
+                            <span>Click for details →</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ============================================================
+        // DEVICE REGISTRATION
+        // ============================================================
+
+        function openAddDeviceModal() {
+            document.getElementById('addDeviceForm').reset();
+            document.getElementById('registrationDate').value = new Date().toISOString().split('T')[0];
+            openModal('addDeviceModal');
+        }
+
+        function addDevice(e) {
+            e.preventDefault();
+
+            const device = {
+                id: 'dev_' + Date.now(),
+                name: document.getElementById('deviceName').value.trim(),
+                type: document.getElementById('deviceType').value,
+                serialNumber: document.getElementById('serialNumber').value.trim(),
+                registrationDate: document.getElementById('registrationDate').value,
+                cycleType: document.getElementById('cycleType').value,
+                cycleValue: parseInt(document.getElementById('cycleValue').value),
+                currentHours: parseInt(document.getElementById('currentHours').value) || 0,
+                lastMaintenanceDate: document.getElementById('lastMaintenanceDate').value || '',
+                lastMaintenanceHours: parseInt(document.getElementById('lastMaintenanceHours').value) || 0,
+                records: []
+            };
+
+            devices.push(device);
+            saveDevices(devices);
+            closeModal('addDeviceModal');
+            renderDevices();
+            showToast('Device registered successfully!', 'success');
+        }
+
+        // ============================================================
+        // DEVICE DETAIL VIEW
+        // ============================================================
+
+        function openDetailModal(deviceId) {
+            currentDeviceId = deviceId;
+            const device = devices.find(d => d.id === deviceId);
+            if (!device) return;
+
+            const statusInfo = calculateStatus(device);
+            const s = statusInfo.status;
+
+            document.getElementById('detailTitle').textContent = device.name;
+
+            const statusIcons = { normal: '✅', warning: '⚠️', overdue: '🚨' };
+            const statusLabels = { normal: 'Normal Operation', warning: 'Maintenance Due Soon', overdue: 'Maintenance Overdue' };
+
+            let historyHtml = '';
+            if (device.records && device.records.length > 0) {
+                const sorted = [...device.records].sort((a, b) => new Date(b.date) - new Date(a.date));
+                historyHtml = sorted.map(rec => `
+                    <div class="history-item">
+                        <div class="history-item-header">
+                            <span class="history-date">📅 ${formatDate(rec.date)}</span>
+                            <span class="history-personnel">👤 ${escapeHtml(rec.personnel)}</span>
+                        </div>
+                        ${rec.hours !== undefined ? `<div style="font-size:12px;color:#888;margin-bottom:4px;">⏱ Hours: ${rec.hours.toLocaleString()}h</div>` : ''}
+                        ${rec.consumables && rec.consumables.length > 0 ? `
+                            <div class="history-consumables">
+                                🔧 Consumables: ${rec.consumables.map(c => `<span>${escapeHtml(c)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${rec.notes ? `<div class="history-notes">"${escapeHtml(rec.notes)}"</div>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                historyHtml = '<div class="no-history">📋 No maintenance records yet</div>';
+            }
+
+            document.getElementById('detailBody').innerHTML = `
+                <!-- Status Banner -->
+                <div class="detail-status-banner ${s}">
+                    <span class="status-icon">${statusIcons[s]}</span>
+                    <div class="status-text">
+                        <h3>${statusLabels[s]}</h3>
+                        <p>${statusInfo.message}</p>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="detail-info-grid">
+                    <div class="detail-info-card">
+                        <div class="label">Device Type</div>
+                        <div class="value" style="font-size:14px;">${escapeHtml(device.type)}</div>
+                    </div>
+                    <div class="detail-info-card">
+                        <div class="label">Serial Number</div>
+                        <div class="value" style="font-size:14px;">${device.serialNumber ? escapeHtml(device.serialNumber) : 'N/A'}</div>
+                    </div>
+                    <div class="detail-info-card">
+                        <div class="label">Registered</div>
+                        <div class="value" style="font-size:14px;">${formatDate(device.registrationDate)}</div>
+                    </div>
+                    <div class="detail-info-card">
+                        <div class="label">Maintenance Cycle</div>
+                        <div class="value" style="font-size:14px;">${device.cycleValue} ${device.cycleType === 'days' ? 'Days' : 'Hours'}</div>
+                    </div>
+                    <div class="detail-info-card">
+                        <div class="label">Current Hours</div>
+                        <div class="value">${(device.currentHours || 0).toLocaleString()}h</div>
+                    </div>
+                    <div class="detail-info-card">
+                        <div class="label">Last Maintenance</div>
+                        <div class="value" style="font-size:14px;">${device.lastMaintenanceDate ? formatDate(device.lastMaintenanceDate) : 'Never'}</div>
+                    </div>
+                </div>
+
+                <!-- Update Operating Hours -->
+                <div style="margin-bottom:24px;">
+                    <div class="section-title">⏱ Update Operating Hours</div>
+                    <div class="hours-update-row">
+                        <div class="form-group">
+                            <input type="number" id="updateHoursInput" min="0" value="${device.currentHours || 0}" placeholder="Current operating hours">
+                        </div>
+                        <button class="btn-update-hours" onclick="updateOperatingHours()">Update</button>
+                    </div>
+                </div>
+
+                <!-- Maintenance History -->
+                <div class="section-title">📋 Maintenance History (${device.records ? device.records.length : 0})</div>
+                <div class="history-list">${historyHtml}</div>
+
+                <!-- Add Record Button -->
+                <button class="btn-submit" onclick="openAddMaintenanceModal()">＋ Add Maintenance Record</button>
+            `;
+
+            openModal('detailModal');
+        }
+
+        /** Update the current operating hours for a device */
+        function updateOperatingHours() {
+            const device = devices.find(d => d.id === currentDeviceId);
+            if (!device) return;
+
+            const newHours = parseInt(document.getElementById('updateHoursInput').value);
+            if (isNaN(newHours) || newHours < 0) {
+                showToast('Please enter a valid number of hours.', 'error');
+                return;
+            }
+
+            device.currentHours = newHours;
+            saveDevices(devices);
+            openDetailModal(currentDeviceId); // refresh detail view
+            renderDevices();
+            showToast('Operating hours updated!', 'success');
+        }
+
+        /** Delete the currently viewed device */
+        function deleteCurrentDevice() {
+            if (!currentDeviceId) return;
+            const device = devices.find(d => d.id === currentDeviceId);
+            if (!device) return;
+
+            if (confirm(`Are you sure you want to delete "${device.name}"?\nThis action cannot be undone.`)) {
+                devices = devices.filter(d => d.id !== currentDeviceId);
+                saveDevices(devices);
+                closeModal('detailModal');
+                renderDevices();
+                showToast('Device deleted.', 'success');
+                currentDeviceId = null;
+            }
+        }
+
+        // ============================================================
+        // MAINTENANCE RECORDS
+        // ============================================================
+
+        function openAddMaintenanceModal() {
+            document.getElementById('addMaintenanceForm').reset();
+            document.getElementById('maintenanceDate').value = new Date().toISOString().split('T')[0];
+
+            // Pre-fill current hours
+            const device = devices.find(d => d.id === currentDeviceId);
+            if (device) {
+                document.getElementById('maintenanceHours').value = device.currentHours || 0;
+            }
+
+            tempConsumables = [];
+            renderConsumableTags();
+            openModal('addMaintenanceModal');
+        }
+
+        function addConsumableTag() {
+            const input = document.getElementById('consumableInput');
+            const value = input.value.trim();
+            if (value) {
+                tempConsumables.push(value);
+                input.value = '';
+                renderConsumableTags();
+                input.focus();
+            }
+        }
+
+        function removeConsumableTag(index) {
+            tempConsumables.splice(index, 1);
+            renderConsumableTags();
+        }
+
+        function renderConsumableTags() {
+            const container = document.getElementById('consumablesTags');
+            container.innerHTML = tempConsumables.map((c, i) => `
+                <div class="consumable-tag">
+                    ${escapeHtml(c)}
+                    <span class="remove-tag" onclick="removeConsumableTag(${i})">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function addMaintenanceRecord(e) {
+            e.preventDefault();
+
+            const device = devices.find(d => d.id === currentDeviceId);
+            if (!device) return;
+
+            const record = {
+                id: 'rec_' + Date.now(),
+                date: document.getElementById('maintenanceDate').value,
+                personnel: document.getElementById('maintenancePersonnel').value.trim(),
+                hours: parseInt(document.getElementById('maintenanceHours').value) || 0,
+                consumables: [...tempConsumables],
+                notes: document.getElementById('maintenanceNotes').value.trim()
+            };
+
+            // Initialize records array if needed
+            if (!device.records) device.records = [];
+            device.records.push(record);
+
+            // Update last maintenance info
+            device.lastMaintenanceDate = record.date;
+            if (record.hours > 0) {
+                device.lastMaintenanceHours = record.hours;
+                // Also update current hours if the maintenance hours are higher
+                if (record.hours > (device.currentHours || 0)) {
+                    device.currentHours = record.hours;
+                }
+            }
+
+            saveDevices(devices);
+            closeModal('addMaintenanceModal');
+            openDetailModal(currentDeviceId); // refresh detail view
+            renderDevices();
+            showToast('Maintenance record added!', 'success');
+        }
+
+        // ============================================================
+        // FILTER
+        // ============================================================
+
+        function setFilter(filter, btn) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderDevices();
+        }
+
+        // ============================================================
+        // MODAL HELPERS
+        // ============================================================
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+            // Restore scroll if no other modals are open
+            const anyOpen = document.querySelector('.modal-overlay.active');
+            if (!anyOpen) document.body.style.overflow = '';
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                    const anyOpen = document.querySelector('.modal-overlay.active');
+                    if (!anyOpen) document.body.style.overflow = '';
+                }
+            });
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal-overlay.active');
+                if (modals.length > 0) {
+                    modals[modals.length - 1].classList.remove('active');
+                    const anyOpen = document.querySelector('.modal-overlay.active');
+                    if (!anyOpen) document.body.style.overflow = '';
+                }
+            }
+        });
+
+        // Allow Enter key to add consumable tag
+        document.getElementById('consumableInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addConsumableTag();
+            }
+        });
+
+        // ============================================================
+        // UTILITY FUNCTIONS
+        // ============================================================
+
+        /** Format date string to readable format */
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        /** Escape HTML to prevent XSS */
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /** Show a toast notification */
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        /** Update cycle label hints (optional enhancement) */
+        function updateCycleLabels() {
+            // Could update placeholder text based on cycle type
+        }
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+
+        // Set default date for registration form
+        document.getElementById('registrationDate').value = new Date().toISOString().split('T')[0];
+
+        // Initial render
+        renderDevices();
+    </script>
+</body>
+</html>

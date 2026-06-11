@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Sun Movement Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #canvas {
+            flex: 1;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .controls-panel {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(10, 10, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 18px;
+            color: #e0e0e0;
+            min-width: 280px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .controls-panel h2 {
+            font-size: 16px;
+            margin-bottom: 14px;
+            color: #ffd700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group .value {
+            float: right;
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffd700;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            background: rgba(255, 215, 0, 0.1);
+            color: #ffd700;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 215, 0, 0.25);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.2);
+        }
+
+        .btn.active {
+            background: rgba(255, 215, 0, 0.35);
+            border-color: #ffd700;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(10, 10, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 18px;
+            color: #e0e0e0;
+            min-width: 220px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .info-panel h2 {
+            font-size: 16px;
+            margin-bottom: 14px;
+            color: #87ceeb;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(135, 206, 235, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .info-row .label {
+            color: #888;
+        }
+
+        .info-row .data {
+            color: #fff;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .phase-indicator {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .compass {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            z-index: 10;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(10, 10, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: #e0e0e0;
+            font-size: 11px;
+            z-index: 10;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div class="controls-panel">
+        <h2>☀️ Sun Simulator Controls</h2>
+        <div class="control-group">
+            <label>Time of Day <span class="value" id="timeDisplay">12:00</span></label>
+            <input type="range" id="timeSlider" min="0" max="1440" value="720" step="1">
+        </div>
+        <div class="control-group">
+            <label>Latitude <span class="value" id="latDisplay">40.0°N</span></label>
+            <input type="range" id="latSlider" min="-90" max="90" value="40" step="0.5">
+        </div>
+        <div class="control-group">
+            <label>Day of Year <span class="value" id="dayDisplay">172 (Jun 21)</span></label>
+            <input type="range" id="daySlider" min="1" max="365" value="172" step="1">
+        </div>
+        <div class="control-group">
+            <label>Simulation Speed <span class="value" id="speedDisplay">1x</span></label>
+            <input type="range" id="speedSlider" min="0" max="100" value="20" step="1">
+        </div>
+        <div class="btn-group">
+            <button class="btn active" id="playBtn" onclick="togglePlay()">⏸ Pause</button>
+            <button class="btn" id="resetBtn" onclick="resetSim()">↺ Reset</button>
+            <button class="btn" id="trailBtn" onclick="toggleTrail()">◌ Trail</button>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <h2>📊 Sun Data</h2>
+        <div class="info-row">
+            <span class="label">Altitude</span>
+            <span class="data" id="altitude">0.0°</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Azimuth</span>
+            <span class="data" id="azimuth">0.0°</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Hour Angle</span>
+            <span class="data" id="hourAngle">0.0°</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Declination</span>
+            <span class="data" id="declination">0.0°</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Sunrise</span>
+            <span class="data" id="sunrise">--:--</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Sunset</span>
+            <span class="data" id="sunset">--:--</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Day Length</span>
+            <span class="data" id="dayLength">--h --m</span>
+        </div>
+        <div class="phase-indicator" id="phaseIndicator">NOON</div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#FFD700"></div> Sun Path</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#FF6B35"></div> Sunrise/Sunset</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#C0C0C0"></div> Moon</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fff"></div> Stars</div>
+    </div>
+
+    <canvas class="compass" id="compassCanvas"></canvas>
+
+    <script>
+        // ============ MAIN CANVAS SETUP ============
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const compassCanvas = document.getElementById('compassCanvas');
+        const compassCtx = compassCanvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            compassCanvas.width = 100;
+            compassCanvas.height = 100;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // ============ STATE ============
+        let state = {
+            timeMinutes: 720,
+            latitude: 40,
+            dayOfYear: 172,
+            speed: 20,
+            playing: true,
+            showTrail: true,
+            trailPoints: [],
+            stars: [],
+            clouds: [],
+            lastTimestamp: 0
+        };
+
+        // Generate stars
+        function generateStars() {
+            state.stars = [];
+            for (let i = 0; i < 300; i++) {
+                state.stars.push({
+                    x: Math.random(),
+                    y: Math.random() * 0.65,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random(),
+                    twinkleSpeed: Math.random() * 2 + 1
+                });
+            }
+        }
+        generateStars();
+
+        // Generate clouds
+        function generateClouds() {
+            state.clouds = [];
+            for (let i = 0; i < 6; i++) {
+                state.clouds.push({
+                    x: Math.random() * 1.5 - 0.25,
+                    y: 0.15 + Math.random() * 0.25,
+                    width: 0.08 + Math.random() * 0.12,
+                    height: 0.02 + Math.random() * 0.02,
+                    speed: 0.00001 + Math.random() * 0.00002,
+                    opacity: 0.3 + Math.random() * 0.4
+                });
+            }
+        }
+        generateClouds();
+
+        // ============ ASTRONOMICAL CALCULATIONS ============
+        function degToRad(deg) { return deg * Math.PI / 180; }
+        function radToDeg(rad) { return rad * 180 / Math.PI; }
+
+        function getSolarDeclination(dayOfYear) {
+            return 23.44 * Math.sin(degToRad((360 / 365) * (dayOfYear - 81)));
+        }
+
+        function getHourAngle(timeMinutes) {
+            return (timeMinutes / 60 - 12) * 15;
+        }
+
+        function getSunPosition(lat, declination, hourAngle) {
+            const latRad = degToRad(lat);
+            const decRad = degToRad(declination);
+            const haRad = degToRad(hourAngle);
+
+            const altitude = radToDeg(Math.asin(
+                Math.sin(latRad) * Math.sin(decRad) +
+                Math.cos(latRad) * Math.cos(decRad) * Math.cos(haRad)
+            ));
+
+            const cosAzimuth = (Math.sin(decRad) - Math.sin(latRad) * Math.sin(degToRad(altitude))) /
+                (Math.cos(latRad) * Math.cos(degToRad(altitude)));
+
+            let azimuth = radToDeg(Math.acos(Math.max(-1, Math.min(1, cosAzimuth))));
+            if (hourAngle > 0) azimuth = 360 - azimuth;
+
+            return { altitude, azimuth };
+        }
+
+        function getSunriseSet(lat, declination) {
+            const latRad = degToRad(lat);
+            const decRad = degToRad(declination);
+            const cosHA = -Math.tan(latRad) * Math.tan(decRad);
+
+            if (cosHA < -1) return { sunrise: null, sunset: null, polarDay: true };
+            if (cosHA > 1) return { sunrise: null, sunset: null, polarNight: true };
+
+            const ha = radToDeg(Math.acos(cosHA));
+            const sunriseMinutes = (12 - ha / 15) * 60;
+            const sunsetMinutes = (12 + ha / 15) * 60;
+
+            return { sunrise: sunriseMinutes, sunset: sunsetMinutes };
+        }
+
+        function minutesToTimeStr(minutes) {
+            if (minutes === null) return '--:--';
+            const h = Math.floor(minutes / 60) % 24;
+            const m = Math.floor(minutes % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        }
+
+        // ============ SKY COLORS ============
+        function getSkyColors(altitude) {
+            if (altitude > 10) {
+                return {
+                    top: lerpColor([25, 80, 180], [40, 120, 220], Math.min(altitude / 60, 1)),
+                    bottom: lerpColor([100, 160, 230], [160, 210, 250], Math.min(altitude / 60, 1))
+                };
+            } else if (altitude > 0) {
+                const t = altitude / 10;
+                return {
+                    top: lerpColor([40, 20, 80], [25, 80, 180], t),
+                    bottom: lerpColor([220, 100, 50], [100, 160, 230], t)
+                };
+            } else if (altitude > -6) {
+                const t = (altitude + 6) / 6;
+                return {
+                    top: lerpColor([10, 10, 35], [40, 20, 80], t),
+                    bottom: lerpColor([15, 15, 40], [220, 100, 50], t)
+                };
+            } else if (altitude > -12) {
+                const t = (altitude + 12) / 6;
+                return {
+                    top: lerpColor([5, 5, 20], [10, 10, 35], t),
+                    bottom: lerpColor([8, 8, 25], [15, 15, 40], t)
+                };
+            } else {
+                return {
+                    top: [5, 5, 20],
+                    bottom: [8, 8, 25]
+                };
+            }
+        }
+
+        function lerpColor(c1, c2, t) {
+            t = Math.max(0, Math.min(1, t));
+            return [
+                Math.round(c1[0] + (c2[0] - c1[0]) * t),
+                Math.round(c1[1] + (c2[1] - c1[1]) * t),
+                Math.round(c1[2] + (c2[2] - c1[2]) * t)
+            ];
+        }
+
+        function getSunColor(altitude) {
+            if (altitude > 20) return [255, 250, 200];
+            if (altitude > 5) {
+                const t = (altitude - 5) / 15;
+                return lerpColor([255, 140, 50], [255, 250, 200], t);
+            }
+            if (altitude > -2) {
+                const t = (altitude + 2) / 7;
+                return lerpColor([255, 60, 20], [255, 140, 50], t);
+            }
+            return [255, 60, 20];
+        }
+
+        // ============ RENDERING ============
+        function drawSky(altitude) {
+            const colors = getSkyColors(altitude);
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7);
+            gradient.addColorStop(0, `rgb(${colors.top.join(',')})`);
+            gradient.addColorStop(1, `rgb(${colors.bottom.join(',')})`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.7);
+        }
+
+        function drawStars(altitude, time) {
+            let starOpacity = 0;
+            if (altitude < -6) starOpacity = 1;
+            else if (altitude < 5) starOpacity = 1 - (altitude + 6) / 11;
+
+            if (starOpacity <= 0) return;
+
+            state.stars.forEach(star => {
+                const twinkle = 0.5 + 0.5 * Math.sin(time * star.twinkleSpeed * 0.001);
+                const alpha = starOpacity * star.brightness * twinkle;
+                ctx.beginPath();
+                ctx.arc(
+                    star.x * canvas.width,
+                    star.y * canvas.height,
+                    star.size,
+                    0, Math.PI * 2
+                );
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.fill();
+            });
+        }
+
+        function drawSun(x, y, altitude, time) {
+            if (altitude < -10) return;
+
+            const sunColor = getSunColor(altitude);
+            const radius = 30;
+            let opacity = 1;
+            if (altitude < 0) opacity = Math.max(0, 1 + altitude / 10);
+
+            // Outer glow
+            const glowRadius = radius * 4;
+            const glow = ctx.createRadialGradient(x, y, radius * 0.5, x, y, glowRadius);
+            glow.addColorStop(0, `rgba(${sunColor.join(',')}, ${0.4 * opacity})`);
+            glow.addColorStop(0.3, `rgba(${sunColor.join(',')}, ${0.15 * opacity})`);
+            glow.addColorStop(1, `rgba(${sunColor.join(',')}, 0)`);
+            ctx.beginPath();
+            ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+            ctx.fillStyle = glow;
+            ctx.fill();
+
+            // Corona rays
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(time * 0.0001);
+            for (let i = 0; i < 12; i++) {
+                ctx.rotate(Math.PI / 6);
+                const rayLength = radius * (2 + 0.5 * Math.sin(time * 0.002 + i));
+                const rayGrad = ctx.createLinearGradient(0, 0, rayLength, 0);
+                rayGrad.addColorStop(0, `rgba(${sunColor.join(',')}, ${0.3 * opacity})`);
+                rayGrad.addColorStop(1, `rgba(${sunColor.join(',')}, 0)`);
+                ctx.beginPath();
+                ctx.moveTo(radius * 0.8, -2);
+                ctx.lineTo(rayLength, 0);
+                ctx.lineTo(radius * 0.8, 2);
+                ctx.fillStyle = rayGrad;
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Sun body
+            const sunGrad = ctx.createRadialGradient(x - 5, y - 5, 0, x, y, radius);
+            sunGrad.addColorStop(0, `rgba(255, 255, 240, ${opacity})`);
+            sunGrad.addColorStop(0.7, `rgba(${sunColor.join(',')}, ${opacity})`);
+            sunGrad.addColorStop(1, `rgba(${sunColor.join(',')}, ${0.8 * opacity})`);
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = sunGrad;
+            ctx.fill();
+        }
+
+        function drawMoon(sunAltitude, sunAzimuth, time) {
+            if (sunAltitude > 5) return;
+
+            let moonOpacity = 0;
+            if (sunAltitude < -5) moonOpacity = 1;
+            else if (sunAltitude < 5) moonOpacity = 1 - (sunAltitude + 5) / 10;
+
+            if (moonOpacity <= 0) return;
+
+            // Moon is roughly opposite the sun
+            const moonAzimuth = (sunAzimuth + 180) % 360;
+            const moonAlt = Math.max(10, 50 + 20 * Math.sin(time * 0.0001));
+
+            const horizonY = canvas.height * 0.7;
+            const maxAltY = canvas.height * 0.05;
+            const moonY = horizonY - (moonAlt / 90) * (horizonY - maxAltY);
+
+            const azRad = degToRad(moonAzimuth);
+            const centerX = canvas.width / 2;
+            const moonX = centerX + Math.sin(azRad) * canvas.width * 0.35;
+
+            const moonRadius = 22;
+
+            // Moon glow
+            const moonGlow = ctx.createRadialGradient(moonX, moonY, moonRadius * 0.5, moonX, moonY, moonRadius * 3);
+            moonGlow.addColorStop(0, `rgba(200, 220, 255, ${0.2 * moonOpacity})`);
+            moonGlow.addColorStop(1, `rgba(200, 220, 255, 0)`);
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius * 3, 0, Math.PI * 2);
+            ctx.fillStyle = moonGlow;
+            ctx.fill();
+
+            // Moon body
+            const moonGrad = ctx.createRadialGradient(moonX - 4, moonY - 4, 0, moonX, moonY, moonRadius);
+            moonGrad.addColorStop(0, `rgba(240, 240, 255, ${moonOpacity})`);
+            moonGrad.addColorStop(1, `rgba(200, 200, 220, ${moonOpacity})`);
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fillStyle = moonGrad;
+            ctx.fill();
+
+            // Moon craters
+            ctx.globalAlpha = moonOpacity * 0.3;
+            const craters = [[- 5, -3, 4], [6, 5, 3], [-2, 8, 2.5], [8, -4, 2]];
+            craters.forEach(([cx, cy, cr]) => {
+                ctx.beginPath();
+                ctx.arc(moonX + cx, moonY + cy, cr, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(150, 150, 170, 0.5)';
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        function drawGround(altitude) {
+            const horizonY = canvas.height * 0.7;
+
+            // Ground gradient
+            let groundColor1, groundColor2;
+            if (altitude > 5) {
+                groundColor1 = [34, 85, 34];
+                groundColor2 = [20, 50, 20];
+            } else if (altitude > -5) {
+                const t = (altitude + 5) / 10;
+                groundColor1 = lerpColor([15, 30, 15], [34, 85, 34], t);
+                groundColor2 = lerpColor([8, 15, 8], [20, 50, 20], t);
+            } else {
+                groundColor1 = [15, 30, 15];
+                groundColor2 = [8, 15, 8];
+            }
+
+            const groundGrad = ctx.createLinearGradient(0, horizonY, 0, canvas.height);
+            groundGrad.addColorStop(0, `rgb(${groundColor1.join(',')})`);
+            groundGrad.addColorStop(1, `rgb(${groundColor2.join(',')})`);
+            ctx.fillStyle = groundGrad;
+            ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+
+            // Horizon line glow
+            if (altitude > -5 && altitude < 10) {
+                const horizonGlow = ctx.createLinearGradient(0, horizonY - 20, 0, horizonY + 20);
+                const glowIntensity = Math.max(0, 1 - Math.abs(altitude) / 10) * 0.3;
+                horizonGlow.addColorStop(0, `rgba(255, 150, 50, 0)`);
+                horizonGlow.addColorStop(0.5, `rgba(255, 150, 50, ${glowIntensity})`);
+                horizonGlow.addColorStop(1, `rgba(255, 150, 50, 0)`);
+                ctx.fillStyle = horizonGlow;
+                ctx.fillRect(0, horizonY - 20, canvas.width, 40);
+            }
+
+            // Draw hills
+            drawHills(horizonY, altitude);
+
+            // Draw trees
+            drawTrees(horizonY, altitude);
+        }
+
+        function drawHills(horizonY, altitude) {
+            const brightness = Math.max(0.1, Math.min(1, (altitude + 10) / 30));
+
+            // Far hills
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= canvas.width; x += 5) {
+                const y = horizonY - 30 * Math.sin(x * 0.003) - 20 * Math.sin(x * 0.007 + 1) - 10 * Math.sin(x * 0.015 + 2);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, horizonY);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${Math.round(30 * brightness)}, ${Math.round(60 * brightness)}, ${Math.round(30 * brightness)}, 0.8)`;
+            ctx.fill();
+
+            // Near hills
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= canvas.width; x += 5) {
+                const y = horizonY - 15 * Math.sin(x * 0.005 + 3) - 10 * Math.sin(x * 0.012 + 1);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, horizonY);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${Math.round(25 * brightness)}, ${Math.round(50 * brightness)}, ${Math.round(25 * brightness)}, 0.9)`;
+            ctx.fill();
+        }
+
+        function drawTrees(horizonY, altitude) {
+            const brightness = Math.max(0.15, Math.min(1, (altitude + 10) / 30));
+            const treePositions = [0.05, 0.12, 0.18, 0.3, 0.35, 0.55, 0.62, 0.7, 0.78, 0.85, 0.92, 0.97];
+
+            treePositions.forEach((pos, i) => {
+                const x = pos * canvas.width;
+                const treeHeight = 25 + (i % 3) * 15;
+                const baseY = horizonY - 5 * Math.sin(x * 0.005 + 3) - 3 * Math.sin(x * 0.012 + 1);
+
+                // Trunk
+                ctx.fillStyle = `rgba(${Math.round(40 * brightness)}, ${Math.round(25 * brightness)}, ${Math.round(10 * brightness)}, 0.9)`;
+                ctx.fillRect(x - 2, baseY - treeHeight * 0.4, 4, treeHeight * 0.4);
+
+                // Canopy
+                ctx.beginPath();
+                ctx.moveTo(x, baseY - treeHeight);
+                ctx.lineTo(x - 12, baseY - treeHeight * 0.3);
+                ctx.lineTo(x + 12, baseY - treeHeight * 0.3);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(${Math.round(20 * brightness)}, ${Math.round(55 * brightness)}, ${Math.round(20 * brightness)}, 0.9)`;
+                ctx.fill();
+            });
+        }
+
+        function drawClouds(altitude, time) {
+            if (altitude < -5) return;
+
+            const brightness = Math.max(0.2, Math.min(1, (altitude + 5) / 20));
+
+            state.clouds.forEach(cloud => {
+                cloud.x += cloud.speed;
+                if (cloud.x > 1.3) cloud.x = -0.3;
+
+                const cx = cloud.x * canvas.width;
+                const cy = cloud.y * canvas.height;
+                const w = cloud.width * canvas.width;
+                const h = cloud.height * canvas.height;
+
+                ctx.globalAlpha = cloud.opacity * brightness * 0.6;
+
+                // Cloud shape using multiple ellipses
+                const cloudParts = [
+                    { dx: 0, dy: 0, rx: w * 0.5, ry: h },
+                    { dx: -w * 0.3, dy: h * 0.2, rx: w * 0.35, ry: h * 0.8 },
+                    { dx: w * 0.3, dy: h * 0.1, rx: w * 0.4, ry: h * 0.9 },
+                    { dx: -w * 0.1, dy: -h * 0.3, rx: w * 0.3, ry: h * 0.7 },
+                    { dx: w * 0.15, dy: -h * 0.2, rx: w * 0.35, ry: h * 0.75 }
+                ];
+
+                cloudParts.forEach(part => {
+                    ctx.beginPath();
+                    ctx.ellipse(cx + part.dx, cy + part.dy, part.rx, part.ry, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${Math.round(255 * brightness)}, ${Math.round(255 * brightness)}, ${Math.round(255 * brightness)}, 1)`;
+                    ctx.fill();
+                });
+
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        function drawSunPath(lat, declination) {
+            if (!state.showTrail) return;
+
+            const horizonY = canvas.height * 0.7;
+            const maxAltY = canvas.height * 0.05;
+            const centerX = canvas.width / 2;
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            let first = true;
+            for (let minutes = 0; minutes <= 1440; minutes += 5) {
+                const ha = getHourAngle(minutes);
+                const pos = getSunPosition(lat, declination, ha);
+
+                if (pos.altitude < -5) continue;
+
+                const azRad = degToRad(pos.azimuth);
+                const x = centerX + Math.sin(azRad) * canvas.width * 0.35;
+                const y = horizonY - (Math.max(0, pos.altitude) / 90) * (horizonY - maxAltY);
+
+                if (first) {
+                    ctx.moveTo(x, y);
+                    first = false;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawCompass(azimuth) {
+            const w = compassCanvas.width;
+            const h = compassCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = 38;
+
+            compassCtx.clearRect(0, 0, w, h);
+
+            // Background
+            compassCtx.beginPath();
+            compassCtx.arc(cx, cy, r + 5, 0, Math.PI * 2);
+            compassCtx.fillStyle = 'rgba(10, 10, 30, 0.85)';
+            compassCtx.fill();
+            compassCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            compassCtx.lineWidth = 1;
+            compassCtx.stroke();
+
+            // Cardinal directions
+            const directions = ['N', 'E', 'S', 'W'];
+            directions.forEach((dir, i) => {
+                const angle = i * Math.PI / 2 - Math.PI / 2;
+                const tx = cx + Math.cos(angle) * (r - 8);
+                const ty = cy + Math.sin(angle) * (r - 8);
+                compassCtx.fillStyle = dir === 'N' ? '#ff4444' : '#888';
+                compassCtx.font = 'bold 10px sans-serif';
+                compassCtx.textAlign = 'center';
+                compassCtx.textBaseline = 'middle';
+                compassCtx.fillText(dir, tx, ty);
+            });
+
+            // Sun direction indicator
+            const sunAngle = degToRad(azimuth) - Math.PI / 2;
+            const indicatorX = cx + Math.cos(sunAngle) * (r - 20);
+            const indicatorY = cy + Math.sin(sunAngle) * (r - 20);
+
+            compassCtx.beginPath();
+            compassCtx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
+            compassCtx.fillStyle = '#FFD700';
+            compassCtx.fill();
+            compassCtx.shadowColor = '#FFD700';
+            compassCtx.shadowBlur = 6;
+            compassCtx.fill();
+            compassCtx.shadowBlur = 0;
+
+            // Center dot
+            compassCtx.beginPath();
+            compassCtx.arc(cx, cy, 2, 0, Math.PI * 2);
+            compassCtx.fillStyle = '#fff';
+            compassCtx.fill();
+        }
+
+        function drawShadow(sunX, sunY, altitude) {
+            if (altitude <= 0) return;
+
+            const horizonY = canvas.height * 0.7;
+            const shadowLength = Math.min(200, 50 / Math.tan(degToRad(altitude)));
+            const shadowDir = sunX < canvas.width / 2 ? 1 : -1;
+
+            // Draw a simple post
+            const postX = canvas.width / 2;
+            const postBaseY = horizonY + 30;
+            const postHeight = 40;
+
+            // Post
+            ctx.fillStyle = 'rgba(60, 40, 20, 0.8)';
+            ctx.fillRect(postX - 3, postBaseY - postHeight, 6, postHeight);
+
+            // Shadow
+            ctx.beginPath();
+            ctx.moveTo(postX - 3, postBaseY);
+            ctx.lineTo(postX + 3, postBaseY);
+            ctx.lineTo(postX + shadowDir * shadowLength + 3, postBaseY + 3);
+            ctx.lineTo(postX + shadowDir * shadowLength - 3, postBaseY + 3);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.4, altitude / 90 * 0.5)})`;
+            ctx.fill();
+        }
+
+        function getPhase(altitude, hourAngle) {
+            if (altitude > 60) return { name: 'HIGH NOON', color: '#FFD700' };
+            if (altitude > 30) return { name: 'DAYTIME', color: '#87CEEB' };
+            if (altitude > 10) return { name: hourAngle < 0 ? 'MORNING' : 'AFTERNOON', color: '#90EE90' };
+            if (altitude > 0) return { name: hourAngle < 0 ? 'SUNRISE' : 'SUNSET', color: '#FF6B35' };
+            if (altitude > -6) return { name: hourAngle < 0 ? 'DAWN' : 'DUSK', color: '#9370DB' };
+            if (altitude > -12) return { name: 'TWILIGHT', color: '#483D8B' };
+            return { name: 'NIGHT', color: '#191970' };
+        }
+
+        // ============ MAIN RENDER LOOP ============
+        function render(timestamp) {
+            const dt = timestamp - state.lastTimestamp;
+            state.lastTimestamp = timestamp;
+
+            // Update time
+            if (state.playing) {
+                state.timeMinutes += (state.speed / 20) * (dt / 1000) * 10;
+                if (state.timeMinutes >= 1440) state.timeMinutes -= 1440;
+                if (state.timeMinutes < 0) state.timeMinutes += 1440;
+                document.getElementById('timeSlider').value = state.timeMinutes;
+            }
+
+            // Calculate sun position
+            const declination = getSolarDeclination(state.dayOfYear);
+            const hourAngle = getHourAngle(state.timeMinutes);
+            const sunPos = getSunPosition(state.latitude, declination, hourAngle);
+            const sunRiseSet = getSunriseSet(state.latitude, declination);
+
+            // Convert to screen coordinates
+            const horizonY = canvas.height * 0.7;
+            const maxAltY = canvas.height * 0.05;
+            const centerX = canvas.width / 2;
+
+            const azRad = degToRad(sunPos.azimuth);
+            const sunX = centerX + Math.sin(azRad) * canvas.width * 0.35;
+            const sunY = horizonY - (Math.max(0, sunPos.altitude) / 90) * (horizonY - maxAltY);
+
+            // Clear and draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawSky(sunPos.altitude);
+            drawStars(sunPos.altitude, timestamp);
+            drawSunPath(state.latitude, declination);
+            drawClouds(sunPos.altitude, timestamp);
+            drawMoon(sunPos.altitude, sunPos.azimuth, timestamp);
+            drawSun(sunX, sunY, sunPos.altitude, timestamp);
+            drawGround(sunPos.altitude);
+            drawShadow(sunX, sunY, sunPos.altitude);
+
+            // Draw compass
+            drawCompass(sunPos.azimuth);
+
+            // Update info panel
+            document.getElementById('timeDisplay').textContent = minutesToTimeStr(state.timeMinutes);
+            document.getElementById('altitude').textContent = sunPos.altitude.toFixed(1) + '°';
+            document.getElementById('azimuth').textContent = sunPos.azimuth.toFixed(1) + '°';
+            document.getElementById('hourAngle').textContent = hourAngle.toFixed(1) + '°';
+            document.getElementById('declination').textContent = declination.toFixed(1) + '°';
+            document.getElementById('sunrise').textContent = minutesToTimeStr(sunRiseSet.sunrise);
+            document.getElementById('sunset').textContent = minutesToTimeStr(sunRiseSet.sunset);
+
+            if (sunRiseSet.sunrise !== null && sunRiseSet.sunset !== null) {
+                const dayLen = sunRiseSet.sunset - sunRiseSet.sunrise;
+                const dayH = Math.floor(dayLen / 60);
+                const dayM = Math.floor(dayLen % 60);
+                document.getElementById('dayLength').textContent = `${dayH}h ${dayM}m`;
+            } else if (sunRiseSet.polarDay) {
+                document.getElementById('dayLength').textContent = '24h (Polar Day)';
+            } else {
+                document.getElementById('dayLength').textContent = '0h (Polar Night)';
+            }
+
+            const phase = getPhase(sunPos.altitude, hourAngle);
+            const phaseEl = document.getElementById('phaseIndicator');
+            phaseEl.textContent = phase.name;
+            phaseEl.style.background = phase.color + '33';
+            phaseEl.style.color = phase.color;
+            phaseEl.style.border = `1px solid ${phase.color}66`;
+
+            requestAnimationFrame(render);
+        }
+
+        // ============ CONTROLS ============
+        document.getElementById('timeSlider').addEventListener('input', (e) => {
+            state.timeMinutes = parseFloat(e.target.value);
+        });
+
+        document.getElementById('latSlider').addEventListener('input', (e) => {
+            state.latitude = parseFloat(e.target.value);
+            const dir = state.latitude >= 0 ? 'N' : 'S';
+            document.getElementById('latDisplay').textContent = `${Math.abs(state.latitude).toFixed(1)}°${dir}`;
+        });
+
+        document.getElementById('daySlider').addEventListener('input', (e) => {
+            state.dayOfYear = parseInt(e.target.value);
+            const date = new Date(2024, 0, state.dayOfYear);
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            document.getElementById('dayDisplay').textContent = `${state.dayOfYear} (${monthNames[date.getMonth()]} ${date.getDate()})`;
+        });
+
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            state.speed = parseInt(e.target.value);
+            document.getElementById('speedDisplay').textContent = state.speed === 0 ? 'Paused' : `${(state.speed / 20).toFixed(1)}x`;
+        });
+
+        function togglePlay() {
+            state.playing = !state.playing;
+            const btn = document.getElementById('playBtn');
+            btn.textContent = state.playing ? '⏸ Pause' : '▶ Play';
+            btn.classList.toggle('active', state.playing);
+        }
+
+        function resetSim() {
+            state.timeMinutes = 720;
+            state.latitude = 40;
+            state.dayOfYear = 172;
+            state.speed = 20;
+            state.playing = true;
+            document.getElementById('timeSlider').value = 720;
+            document.getElementById('latSlider').value = 40;
+            document.getElementById('daySlider').value = 172;
+            document.getElementById('speedSlider').value = 20;
+            document.getElementById('latDisplay').textContent = '40.0°N';
+            document.getElementById('dayDisplay').textContent = '172 (Jun 21)';
+            document.getElementById('speedDisplay').textContent = '1.0x';
+            document.getElementById('playBtn').textContent = '⏸ Pause';
+            document.getElementById('playBtn').classList.add('active');
+        }
+
+        function toggleTrail() {
+            state.showTrail = !state.showTrail;
+            const btn = document.getElementById('trailBtn');
+            btn.classList.toggle('active', state.showTrail);
+        }
+
+        // ============ START ============
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Insurance Customer Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>/* {{ url_for( not found in result */</style>
+</head>
+<body>
+    <div class="container">
+        <header class="site-header">
+            <div class="brand">
+                <div class="logo">🛡</div>
+                <div>
+                    <h1>Insurance Customer Management System</h1>
+                    <p class="tagline">Secure, scalable, and simple</p>
+                </div>
+            </div>
+            <nav class="main-nav">
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('index') }}">Home</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h2>Welcome to ICMS</h2>
+            <p>Manage customers, policies, claims, and products with role-based access control.</p>
+            <div class="features">
+                <div class="feature"><strong>🔐 Secure</strong><p>Encrypted passwords and role-based access.</p></div>
+                <div class="feature"><strong>📊 Reports</strong><p>Revenue, claims, and customer analytics.</p></div>
+                <div class="feature"><strong>📱 Responsive</strong><p>Works on desktop and mobile.</p></div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>User Group File Management System</h1>
+            <nav>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('groups') }}">Groups</a>
+                <a href="{{ url_for('admin_groups') }}">Admin Panel</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </header>
+        
+        <main>
+            <div class="section">
+                <h2>Admin Panel</h2>
+                <p>Welcome, {{ current_user.username }}! You have admin privileges.</p>
+                
+                <div class="section">
+                    <h3>Create New Group</h3>
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        <div class="form-group">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                            {% for error in form.name.errors %}
+                                <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control") }}
+                            {% for error in form.description.errors %}
+                                <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="section">
+                    <h3>Existing Groups</h3>
+                    <div class="groups-list">
+                        {% for group in groups %}
+                            <div class="group-item">
+                                <h3>{{ group.name }}</h3>
+                                <p>{{ group.description }}</p>
+                                <p>Created: {{ group.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                                <p>Active: {{ 'Yes' if group.is_active else 'No' }}</p>
+                                <a href="{{ url_for('group_detail', group_id=group.id) }}">View Files</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

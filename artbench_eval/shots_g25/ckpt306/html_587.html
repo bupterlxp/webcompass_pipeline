@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Subtitle Tool</title>
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; }
+
+.app {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #1a1a2e;
+  color: #fff;
+  border-bottom: 1px solid #2a2a42;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+  border-radius: 10px;
+  font-size: 24px;
+}
+.brand h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+
+.actions { display: flex; gap: 8px; }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #3a3a55;
+  background: #2a2a42;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.btn:hover { background: #3a3a55; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary { background: #ff6b6b; border-color: #ff6b6b; }
+.btn-primary:hover { background: #ff8a8a; }
+.btn-secondary { background: #4ecdc4; border-color: #4ecdc4; }
+.btn-secondary:hover { background: #6ee7e2; }
+.btn-ghost { background: transparent; border-color: transparent; }
+
+.workspace {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  border-right: 1px solid #2a2a42;
+  overflow-y: auto;
+}
+
+.panel {
+  padding: 16px;
+  border-bottom: 1px solid #2a2a42;
+}
+.panel:last-child { border-bottom: none; }
+.panel h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9a9aae;
+  margin-bottom: 12px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  color: #d4d4e8;
+}
+.info-row span:first-child { color: #9a9aae; }
+
+.subtitle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.subtitle-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a42;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.subtitle-item:hover { background: #2a2a42; border-color: #3a3a55; }
+.subtitle-item.selected { background: #3a3a55; border-color: #ff6b6b; }
+.subtitle-item .time {
+  font-size: 12px;
+  color: #9a9aae;
+  min-width: 80px;
+}
+.subtitle-item .text {
+  flex: 1;
+  font-size: 13px;
+  color: #d4d4e8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px 24px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2a2a42;
+}
+.toolbar-group { display: flex; flex-direction: column; gap: 6px; }
+.toolbar-group label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9a9aae;
+}
+.toolbar-group select, .toolbar-group input[type="color"],
+.toolbar-group input[type="range"] {
+  background: #2a2a42;
+  color: #fff;
+  border: 1px solid #3a3a55;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.toolbar-group input[type="range"] {
+  accent-color: #ff6b6b;
+  width: 100%;
+}
+#opacity-value {
+  font-size: 11px;
+  color: #d4d4e8;
+  text-align: right;
+  font-weight: 500;
+}
+
+.preview-wrap {
+  padding: 16px 24px;
+  overflow: auto;
+}
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.preview-head h2 {
+  font-size: 16px;
+  color: #fff;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2a42;
+}
+.preview-head span {
+  font-size: 12px;
+  color: #9a9aae;
+}
+
+.video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+#video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.subtitle-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.subtitle-overlay .sub {
+  position: absolute;
+  white-space: pre-wrap;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  line-height: 1.4;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="top-bar">
+      <div class="brand">
+        <div class="logo">🎬</div>
+        <h1>Subtitle Tool</h1>
+      </div>
+      <div class="actions">
+        <button id="btn-upload" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Video
+        </button>
+        <button id="btn-export" class="btn btn-secondary" disabled>Export</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="panel">
+          <h2>Video Info</h2>
+          <div class="info-row"><span>File</span><span id="file-name">—</span></div>
+          <div class="info-row"><span>Duration</span><span id="file-duration">—</span></div>
+          <div class="info-row"><span>Resolution</span><span id="file-res">—</span></div>
+        </div>
+        <div class="panel">
+          <h2>Subtitles</h2>
+          <div id="subtitle-list" class="subtitle-list"></div>
+          <button id="btn-add" class="btn btn-ghost">+ Add Caption</button>
+        </div>
+      </aside>
+
+      <main class="editor">
+        <section class="toolbar">
+          <div class="toolbar-group">
+            <label for="font-select">Font</label>
+            <select id="font-select"></select>
+          </div>
+          <div class="toolbar-group">
+            <label for="color-select">Color</label>
+            <input type="color" id="color-select" value="#ffffff">
+          </div>
+          <div class="toolbar-group">
+            <label for="position-select">Position</label>
+            <select id="position-select">
+              <option value="top-left">Top Left</option>
+              <option value="top-center">Top Center</option>
+              <option value="top-right">Top Right</option>
+              <option value="bottom-left">Bottom Left</option>
+              <option value="bottom-center" selected>Bottom Center</option>
+              <option value="bottom-right">Bottom Right</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="opacity-slider">Opacity</label>
+            <input type="range" id="opacity-slider" min="0" max="100" value="80">
+            <span id="opacity-value">80%</span>
+          </div>
+        </section>
+
+        <section class="preview-wrap">
+          <div class="preview-head">
+            <h2>Preview</h2>
+            <span id="preview-time">00:00:00</span>
+          </div>
+          <div class="video-wrap">
+            <video id="video" controls preload="metadata"></video>
+            <div id="subtitle-overlay" class="subtitle-overlay"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const path = require('path');
+const ffmpeg = require('ffmpeg-static');
+const fs = require('fs').promises;
+const { exec } = require('child_process');
+
+let mainWindow = null;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 720,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+    title: 'Subtitle Tool',
+  });
+
+  const menu = Menu.buildFromTemplate([
+    { label: 'File', submenu: [{ role: 'quit' }] },
+    { label: 'Help', submenu: [{ role: 'about' }] },
+  ]);
+  Menu.setApplicationMenu(menu);
+
+  mainWindow.loadFile('index.html');
+  mainWindow.webContents.openDevTools();
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+ipcMain.handle('open-file', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'mkv', 'webm'] }],
+  });
+  if (canceled) return null;
+  return filePaths[0];
+});
+
+ipcMain.handle('save-project', async (event, project) => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    filters: [{ name: 'Subtitle Project', extensions: ['zip'] }],
+  });
+  if (canceled) return;
+  await fs.writeFile(filePath, JSON.stringify(project, null, 2));
+  event.sender.send('save-project-done', filePath);
+});
+
+ipcMain.handle('ffmpeg-run', async (event, cmd) => {
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err, stdout, stderr) => {
+      if (err) reject(err);
+      else resolve({ stdout, stderr });
+    });
+  });
+});
+
+ipcMain.handle('ffmpeg-get-duration', async (event, filePath) => {
+  const out = await exec(`"${ffmpeg}" -i "${filePath}" 2>&1`);
+  const match = out.stderr.match(/Duration:\s*(\d+):(\d+):(\d+)/);
+  if (match) {
+    const h = parseInt(match[1], 10), m = parseInt(match[2], 10), s = parseInt(match[3], 10);
+    return (h * 3600 + m * 60 + s).toFixed(2);
+  }
+  return '0.00';
+});
+</script></script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

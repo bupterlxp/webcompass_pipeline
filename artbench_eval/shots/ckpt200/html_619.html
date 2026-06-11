@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>/* {{ url_for( not found in result */</style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <div class="brand">
+                <h1>📦 Inventory Manager</h1>
+                <p class="tagline">Track, edit, and alert on your stock</p>
+            </div>
+            <nav class="nav">
+                <a href="{{ url_for('index') }}" class="nav-link active">Dashboard</a>
+                <a href="{{ url_for('add') }}" class="nav-link">Add Product</a>
+                <a href="{{ url_for('alert') }}" class="nav-link">Low Stock</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="page-intro">
+            <h2>Product Inventory</h2>
+            <p class="muted">Manage your products and set alert thresholds.</p>
+        </section>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>Products</h3>
+                <span class="badge" id="totalBadge">{{ products|length }}</span>
+            </div>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Threshold</th>
+                            <th class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in products %}
+                        <tr class="{{ 'warn' if p.quantity <= p.threshold else '' }}">
+                            <td>{{ loop.index }}</td>
+                            <td>{{ p.name }}</td>
+                            <td>${{ "%.2f"|format(p.price) }}</td>
+                            <td>{{ p.quantity }}</td>
+                            <td>{{ p.threshold }}</td>
+                            <td class="col-actions">
+                                <a href="{{ url_for('edit', id=p.id) }}" class="btn btn-sm btn-outline">Edit</a>
+                                <a href="{{ url_for('delete', id=p.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this product?')">Delete</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">© {{ year }} Inventory Manager · Built with Flask</div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>/* {{ url_for( not found in result */</script>
+</body>
+</html>

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Destruction Arena — WebGL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/perlin-noise@4.0.0/dist/perlin-noise.js"></script>
+<style>#app {
+  position: fixed; inset: 0;
+  background: #000;
+  overflow: hidden;
+}
+#game {
+  display: block; width: 100vw; height: 100vh;
+  image-rendering: auto;
+}
+#hud, #controls {
+  position: absolute; color: #fff;
+  font-family: monospace; font-size: 18px;
+  pointer-events: none;
+  text-shadow: 2px 2px 0 #000;
+}
+#hud {
+  top: 10px; left: 10px;
+}
+#hud div { display: inline-block; margin-right: 20px; }
+#hud div:last-child { margin-right: 0; }
+#controls {
+  bottom: 10px; left: 10px; width: 300px;
+  background: rgba(0,0,0,0.5); padding: 8px;
+  border: 1px solid #444;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div>Score: <span id="score">0</span></div>
+    <div>Bullets: <span id="bullets">10</span></div>
+    <div>Water: <span id="water">0</span></div>
+  </div>
+  <div id="controls">WASD move · Left click shoot · Break water containers to escape</div>
+</div>
+<script>import * as THREE from 'three';
+import PerlinNoise from 'perlin-noise';
+
+// ---------- Config ----------
+const CONFIG = {
+  width: 128,
+  height: 64,
+  chunkSize: 24,
+  waterDepth: 2.0,
+  waterSlow: 0.3,
+  bulletPower: 0.08,
+  maxBullets: 10,
+};
+
+// ---------- State ----------
+const state = {
+  camera: null,
+  scene: null,
+  renderer: null,
+  clock: null,
+  score: 0,
+  bullets: CONFIG.maxBullets,
+  waterLevel: 0,
+  mouse: { x: 0.5, y: 0.5 },
+  raycaster: new THREE.Raycaster(),
+  mouse3d: new THREE.Vector3(),
+  mouseWorld: new THREE.Vector3(),
+  mouseDown: false,
+  terrain: null,
+  waterContainers: [],
+  enemies: [],
+  particles: [],
+  bullets: [],
+  waterParticles: [],
+  keys: {},
+};
+
+// ---------- Init ----------
+function init() {
+  state.clock = new THREE.Clock();
+  state.scene = new THREE.Scene();
+  state.scene.background = new THREE.Color(0x87ceeb);
+  state.scene.fog = new THREE.Fog(0x87ceeb, 100, 250);
+
+  const canvas = document.getElementById('game');
+  state.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  state.renderer.setSize(window.innerWidth, window.innerHeight);
+  state.renderer.shadowMap.enabled = true;
+  state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  state.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  state.camera.position.set(0, 20, 50);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  state.scene.add(ambient);
+
+  const hemi = new THREE.HemisphereLight(0xbfd4ff, 0x4a6b3c, 0.5);
+  state.scene.add(hemi);
+
+  const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+  sun.position.set(30, 50, 30);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -60;
+  sun.shadow.camera.right = 60;
+  sun.shadow.camera.top = 60;
+  sun.shadow.camera.bottom = -60;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 120;
+  state.scene.add(sun);
+
+  // Ground plane
+  const planeGeo = new THREE.PlaneGeometry(200, 200);
+  const planeMat = new THREE.MeshStandardMaterial({ color: 0x88ccaa, roughness: 1, metalness: 0 });
+  const plane = new THREE.Mesh(planeGeo, planeMat);
+  plane.rotation.x = -Math.PI / 2;
+  plane.receiveShadow = true;
+  state.scene.add(plane);
+
+  // ---------- Terrain ----------
+  state.terrain = generateTerrain();
+  state.scene.add(state.terrain);
+
+  // ---------- Water containers ----------
+  for (let i = 0; i < 6; i++) {
+    const x = (Math.random() - 0.5) * 100;
+    const z = (Math.random() - 0.5) * 100;
+    const container = createWaterContainer(x, z);
+    state.waterContainers.push(container);
+    state.scene.add(container);
+  }
+
+  // ---------- Enemies ----------
+  for (let i = 0; i < 8; i++) {
+    const x = (Math.random() - 0.5) * 100;
+    const z = (Math.random() - 0.5) * 100;
+    const enemy = createEnemy(x, z);
+    state.enemies.push(enemy);
+    state.scene.add(enemy);
+  }
+
+  // ---------- Player ----------
+  const player = createPlayer();
+  state.scene.add(player);
+
+  // ---------- UI ----------
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('bullets').textContent = state.bullets;
+  document.getElementById('water').textContent = state.waterLevel.toFixed(1);
+
+  // ---------- Resize ----------
+  window.addEventListener('resize', onResize);
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mousedown', onMouseDown);
+  window.addEventListener('mouseup', onMouseUp);
+
+  // ---------- Loop ----------
+  animate();
+}
+
+// ---------- Generate Terrain ----------
+function generateTerrain() {
+  const noise = new PerlinNoise();
+  const geo = new THREE.PlaneGeometry(CONFIG.width, CONFIG.height, CONFIG.chunkSize, CONFIG.chunkSize);
+  const verts = geo.attributes.position.array;
+  const normals = new Float32Array(verts.length);
+  const uv = new Float32Array(verts.length);
+
+  for (let i = 0; i < verts.length; i += 3) {
+    const x = verts[i] / CONFIG.width;
+    const z = verts[i + 2] / CONFIG.height;
+    // Simple noise-based height
+    let h = 0;
+    for (let oct = 1; oct <= 4; oct++) {
+      const amp = Math.pow(0.5, oct - 1);
+      const freq = Math.pow(2, oct);
+      h += amp * noise.noise3d(x * freq, 0, z * freq);
+    }
+    h *= 4; // scale
+    h += 0.5; // base
+    verts[i + 1] = h;
+    // normals
+    normals[i] = 0; normals[i + 1] = 1; normals[i + 2] = 0;
+    // uv
+    uv[i] = x; uv[i + 1] = 0; uv[i + 2] = z;
+  }
+
+  geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x4a7c5a,
+    roughness: 1,
+    metalness: 0,
+    flatShading: true,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.receiveShadow = true;
+
+  // Displacement shader
+  const vertShader = `
+    uniform float time;
+    uniform float bulletPower;
+    uniform float waterDepth;
+    uniform float waterSlow;
+    uniform vec3 playerPos;
+    uniform vec3 mouseWorld;
+    uniform vec3 mouseDir;
+    uniform float mouseDown;
+    uniform float waterLevel;
+
+    attribute vec3 normal;
+    attribute vec2 uv;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying float vHeight;
+    varying float vWater;
+
+    void main() {
+      vUv = uv;
+      vNormal = normalize(normal);
+      vHeight = position.y;
+
+      // Bullet impact depression (mouse)
+      float d = distance(position.xy, mouseWorld.xy);
+      float impact = 0.0;
+      if (mouseDown > 0.5) {
+        float falloff = smoothstep(0.0, 0.25, d);
+        impact = -bulletPower * falloff;
+      }
+      position.y += impact;
+
+      // Water container displacement
+      float w = 0.0;
+      vec3 p = position.xy;
+      float wDist = 100.0;
+      for (int i = 0; i < 6; i++) {
+        vec3 c = waterContainerPositions[i];
+        float d2 = distance(p, c);
+        float r = 1.2;
+        float w2 = smoothstep(r, 0.0, d2);
+        w += w2;
+        wDist = min(wDist, d2);
+      }
+      if (wDist < 1.2) {
+        float wFalloff = smoothstep(0.0, 1.0, wDist / 1.2);
+        position.y += -0.8 * wFalloff;
+      }
+
+      // Water fluid displacement
+      float waterF = 0.0;
+      float waterD = waterDepth * (1.0 - waterLevel / waterDepth);
+      if (waterLevel > 0.01) {
+        waterF = smoothstep(0.0, 1.0, (position.y - waterD) / waterDepth);
+      }
+      position.y += waterF * waterDepth * waterSlow;
+
+      // Player shadow
+      float playerShadow = 0.0;
+      float pd = distance(position.xy, playerPos.xy);
+      if (pd < 2.0) {
+        playerShadow = smoothstep(0.0, 1.0, pd / 2.0);
+      }
+      position.y -= playerShadow * 0.1;
+
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `;
+
+  const fragShader = `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying float vHeight;
+    varying float vWater;
+
+    void main() {
+      vec3 N = normalize(vNormal);
+      vec3 L = normalize(vec3(1.0, 1.0, 0.9));
+      float diff = max(dot(N, L), 0.0);
+      vec3 diffuse = vec3(0.9, 1.0, 0.8) * (0.6 + 0.4 * diff);
+      vec3 view = normalize(vec3(0.0, 0.0, 1.0));
+      float spec = pow(max(dot(N, reflect(-view, N)), 0.0), 30.0);
+      vec3 color = diffuse + vec3(0.3) * spec;
+
+      // Water tint
+      color += vWater * vec3(0.5, 0.8, 1.0);
+
+      // Water ripple
+      float ripple = 0.0;
+      vec3 p = vUv * 100.0;
+      float ripples = 0.0;
+      for (int i = 0; i < 6; i++) {
+        vec3 c = waterContainerPositions[i];
+        float d = distance(p, c);
+        float r = 1.2;
+        float w2 = smoothstep(r, 0.0, d);
+        ripples += w2;
+      }
+      if (ripples > 0.01) {
+        ripple = smoothstep(0.0, 1.0, (1.0 - ripples) * 0.5);
+      }
+      color += ripple * 0.2;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  const uniforms = {
+    time: { value: 0 },
+    bulletPower: { value: CONFIG.bulletPower },
+    waterDepth: { value: CONFIG.waterDepth },
+    waterSlow: { value: CONFIG.waterSlow },
+    playerPos: { value: new THREE.Vector3() },
+    mouseWorld: { value: new THREE.Vector3() },
+    mouseDir: { value: new THREE.Vector3() },
+    mouseDown: { value: 0 },
+    waterLevel: { value: 0 },
+    waterContainerPositions: { value: new THREE.Vector3Array(6) },
+  };
+
+  const shaderMat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: vertShader,
+    fragmentShader: fragShader,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    transparent: true,
+  });
+
+  mesh.material = shaderMat;
+
+  // Water container positions
+  const positions = new THREE.Vector3Array(6);
+  for (let i = 0; i < 6; i++) {
+    positions[i] = new THREE.Vector3(
+      (Math.random() - 0.5) * 100,
+      0,
+      (Math.random() - 0.5) * 100
+    );
+  }
+  uniforms.waterContainerPositions.value = positions;
+
+  // Add water container meshes
+  for (let i = 0; i < 6; i++) {
+    const c = positions[i];
+    const container = createWaterContainer(c.x, c.z);
+    state.scene.add(container);
+    state.waterContainers.push(container);
+  }
+
+  return mesh;
+}
+
+// ---------- Water Container ----------
+function createWaterContainer(x, z) {
+  const geo = new THREE.CylinderGeometry(1.5, 1.5, 2.5, 16);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x4a8a7a,
+    roughness: 0.9,
+    metalness: 0,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 0, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// ---------- Player ----------
+function createPlayer() {
+  const geo = new THREE.BoxGeometry(1, 1.8, 0.8);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, roughness: 0.8 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(0, 1, 0);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// ---------- Enemy ----------
+function createEnemy(x, z) {
+  const geo = new THREE.BoxGeometry(1.2, 1.6, 0.9);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x4a90e2, roughness: 0.8 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 1, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.speed = 1.2;
+  mesh.userData.target = null;
+  return mesh;
+}
+
+// ---------- Input ----------
+function onKeyDown(e) {
+  state.keys[e.code] = true;
+}
+function onKeyUp(e) {
+  state.keys[e.code] = false;
+}
+function onMouseMove(e) {
+  state.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  state.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+}
+function onMouseDown(e) {
+  state.mouseDown = true;
+}
+function onMouseUp(e) {
+  state.mouseDown = false;
+}
+
+// ---------- Update ----------
+function update(dt) {
+  const cam = state.camera;
+  const keys = state.keys;
+
+  // Mouse 3D
+  state.mouse3d.setFromMatrixPosition(cam.matrixWorld);
+  state.mouse3d.sub(state.mouseWorld);
+  state.mouse3d.y = 0;
+  state.mouse3d.normalize();
+  state.mouseWorld.set(
+    state.mouse3d.x * 10,
+    0,
+    state.mouse3d.z * 10
+  );
+
+  // Player input
+  const speed = 4.5;
+  let dx = 0, dz = 0;
+  if (keys['KeyW']) dz -= 1;
+  if (keys['KeyS']) dz += 1;
+  if (keys['KeyD']) dx += 1;
+  if (keys['KeyA']) dx -= 1;
+  const len = Math.hypot(dx, dz);
+  if (len > 0) { dx /= len; dz /= len; }
+  const move = new THREE.Vector3(dx, 0, dz).multiplyScalar(speed * dt);
+
+  // Water level
+  if (state.waterLevel > 0.001) {
+    state.waterLevel -= 0.05 * dt;
+  }
+
+  // Water containers
+  for (let i = 0; i < state.waterContainers.length; i++) {
+    const c = state.waterContainers[i];
+    // Simple break logic
+    if (Math.random() < 0.002) {
+      state.scene.remove(c);
+      state.waterContainers.splice(i, 1);
+      state.waterLevel = Math.min(1, state.waterLevel + 0.3);
+    }
+  }
+
+  // Enemies
+  for (let i = 0; i < state.enemies.length; i++) {
+    const e = state.enemies[i];
+    if (e.userData.target === null) {
+      // Find nearest water container
+      let best = null, bestD = 1000;
+      for (const c of state.waterContainers) {
+        const d = c.position.distanceTo(e.position);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      if (best) e.userData.target = best;
+    }
+    const target = e.userData.target;
+    if (target) {
+      const dir = new THREE.Vector3().subVectors(target.position, e.position).normalize();
+      e.position.addScaledVector(dir, e.userData.speed * dt);
+      // Face target
+      e.rotation.y = Math.atan2(dir.x, dir.z);
+    }
+  }
+
+  // Water particles
+  for (let i = 0; i < state.waterParticles.length; i++) {
+    const p = state.waterParticles[i];
+    p.y += p.vel.y * dt;
+    p.vel.y -= 9.8 * dt;
+    p.vel.x *= 0.98;
+    p.vel.z *= 0.98;
+    if (p.y < -5) state.waterParticles.splice(i, 1);
+  }
+
+  // Bullet particles
+  for (let i = 0; i < state.bullets.length; i++) {
+    const b = state.bullets[i];
+    b.position.addScaledVector(b.dir, 15 * dt);
+    b.life -= dt;
+    if (b.life <= 0) state.bullets.splice(i, 1);
+  }
+
+  // Collision: bullets vs enemies
+  for (let i = 0; i < state.bullets.length; i++) {
+    const b = state.bullets[i];
+    for (let j = 0; j < state.enemies.length; j++) {
+      const e = state.enemies[j];
+      if (b.position.distanceTo(e.position) < 2) {
+        state.scene.remove(e);
+        state.enemies.splice(j, 1);
+        state.score += 10;
+        document.getElementById('score').textContent = state.score;
+        spawnParticles(b.position, 0xffaa00, 20, 1.5);
+        break;
+      }
+    }
+  }
+
+  // Collision: bullets vs water containers
+  for (let i = 0; i < state.bullets.length; i++) {
+    const b = state.bullets[i];
+    for (let j = 0; j < state.waterContainers.length; j++) {
+      const c = state.waterContainers[j];
+      if (b.position.distanceTo(c.position) < 1.5) {
+        state.scene.remove(c);
+        state.waterContainers.splice(j, 1);
+        state.waterLevel = Math.min(1, state.waterLevel + 0.3);
+        state.bullets.splice(i, 1);
+        spawnParticles(b.position, 0x4a8a7a, 40, 2);
+        break;
+      }
+    }
+  }
+
+  // Update uniforms
+  state.terrain.material.uniforms.time.value = state.clock.getElapsedTime();
+  state.terrain.material.uniforms.mouseDown.value = state.mouseDown ? 1 : 0;
+  state.terrain.material.uniforms.mouseWorld.value.copy(state.mouseWorld);
+  state.terrain.material.uniforms.mouseDir.value.copy(state.mouse3d);
+  state.terrain.material.uniforms.waterLevel.value = state.waterLevel;
+
+  // Update water container positions
+  const positions = state.terrain.material.uniforms.waterContainerPositions.value;
+  for (let i = 0; i < 6; i++) {
+    positions[i].set(
+      (Math.random() - 0.5) * 100,
+      0,
+      (Math.random() - 0.5) * 100
+    );
+  }
+
+  // Move player
+  cam.position.add(move);
+  cam.lookAt(state.mouseWorld);
+
+  // Update player shadow
+  state.terrain.material.uniforms.playerPos.value.copy(cam.position);
+
+  // Water particles
+  spawnWaterParticles(dt);
+
+  // HUD
+  document.getElementById('bullets').textContent = state.bullets;
+  document.getElementById('water').textContent = state.waterLevel.toFixed(1);
+}
+
+function spawnParticles(pos, color, count, speed) {
+  for (let i = 0; i < count; i++) {
+    const p = new THREE.Vector3(
+      (Math.random() - 0.5) * 2,
+      Math.random() * 2 + 0.5,
+      (Math.random() - 0.5) * 2
+    );
+    p.addScaledVector(state.mouse3d, 5);
+    state.particles.push({
+      pos: pos.clone(),
+      vel: p.clone().multiplyScalar(speed),
+      life: 1,
+      color: color,
+    });
+  }
+}
+
+function spawnWaterParticles(dt) {
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    const p = new THREE.Vector3(
+      (Math.random() - 0.5) * 2,
+      Math.random() * 2 + 0.5,
+      (Math.random() - 0.5) * 2
+    );
+    p.addScaledVector(state.mouse3d, 5);
+    state.waterParticles.push({
+      pos: p.clone(),
+      vel: new THREE.Vector3(
+        (Math.random() - 0.5) * 4,
+        2 + Math.random() * 4,
+        (Math.random() - 0.5) * 4
+      ),
+      life: 1,
+    });
+  }
+}
+
+// ---------- Render ----------
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, state.clock.getDelta());
+  update(dt);
+  state.renderer.render(state.scene, state.camera);
+}
+
+function onResize() {
+  state.camera.aspect = window.innerWidth / window.innerHeight;
+  state.camera.updateProjectionMatrix();
+  state.renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ---------- Boot ----------
+init();
+</script></script>
+</body>
+</html>

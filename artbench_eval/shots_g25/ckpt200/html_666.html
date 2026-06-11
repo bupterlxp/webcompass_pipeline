@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Matting Tool</title>
+<style>* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a1a;
+  background: #f5f5f7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 20px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4a6cf7, #ff6b6b);
+  box-shadow: 0 4px 12px rgba(74,108,247,.35);
+  position: relative;
+}
+.logo::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.55);
+  mix-blend-mode: normal;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.3px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.control-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.control-group input[type="range"],
+.control-group select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.control-group input[type="range"]:hover,
+.control-group select:hover { border-color: #9ca3af; }
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #4a6cf7;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(74,108,247,.4);
+}
+.control-group input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #4a6cf7;
+  cursor: pointer;
+  border: none;
+}
+
+.control-group button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+}
+.control-group button:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+  transform: translateY(-1px);
+}
+.control-group button:active { transform: translateY(0); }
+.control-group button:focus-visible {
+  outline: 2px solid #4a6cf7;
+  outline-offset: 2px;
+}
+
+.canvas-wrap {
+  position: relative;
+  background: #1a1a1a;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+}
+
+#mainCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  outline: none;
+}
+
+.canvas-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(20,20,25,.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 5;
+}
+.canvas-overlay .overlay-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.canvas-overlay strong {
+  opacity: .75;
+  font-weight: 500;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+.status .sep { opacity: .5; }
+
+@media (max-width: 720px) {
+  .app { padding: 12px; gap: 12px; }
+  .controls { grid-template-columns: 1fr 1fr; }
+  .controls .control-group:last-child { grid-column: span 2; }
+  .topbar h1 { font-size: 15px; }
+  .canvas-overlay { top: 8px; left: 8px; padding: 8px 10px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Matting Tool</h1>
+    </div>
+    <p class="hint">Paint to keep. Unpainted areas become transparent.</p>
+  </header>
+
+  <section class="panel controls">
+    <div class="control-group">
+      <label for="brushSize">Brush Size</label>
+      <input type="range" id="brushSize" min="1" max="100" value="20" />
+      <span id="brushSizeVal">20px</span>
+    </div>
+
+    <div class="control-group">
+      <label for="brushColor">Brush Color</label>
+      <input type="color" id="brushColor" value="#ffffff" />
+    </div>
+
+    <div class="control-group">
+      <label for="modeToggle">Mode</label>
+      <select id="modeToggle">
+        <option value="paint">Paint</option>
+        <option value="erase">Erase</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <button id="undoBtn" title="Undo (Z)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 5V2L7 6l5 4V7a6 6 0 11-6 6H4a8 8 0 108-8z"/></svg></button>
+      <button id="redoBtn" title="Redo (Y)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 19V22l5-4-5-4v5a6 6 0 11-6-6h4a8 8 0 108 8z"/></svg></button>
+      <button id="resetBtn" title="Reset (R)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8.01A8 8 0 0017.65 6.35c-.09-.2-.2-.4-.31-.59-.07-.12-.14-.24-.22-.35A7.9 7.9 0 0012 4c-1.1.1-2.17.35-3.15.66-.11.03-.22.07-.33.12-.11.05-.22.1-.32.16-.11.06-.21.13-.31.21-.09.08-.18.17-.26.26-.08.09-.16.19-.24.29-.07.1-.14.21-.2.32-.06.1-.12.2-.17.31-.05.1-.09.21-.13.32-.04.11-.07.22-.1.33-.03.12-.05.23-.07.35l-.02.35a8 8 0 00-.01 1.14z"/></svg></button>
+      <button id="clearBtn" title="Clear (Esc)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6 19a2 2 0 002-2h8a2 2 0 002-2V7a2 2 0 00-2-2h-4a2 2 0 00-2 2v1h2a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2v-6a2 2 0 012-2h2z"/></svg></button>
+    </div>
+
+    <div class="control-group">
+      <label for="exportBtn">Export</label>
+      <button id="exportBtn">Save PNG</button>
+    </div>
+  </section>
+
+  <section class="panel canvas-wrap">
+    <canvas id="mainCanvas" width="900" height="600" tabindex="0" aria-label="Matting canvas. Use arrow keys to move brush cursor."></canvas>
+    <div class="canvas-overlay" id="overlay">
+      <div class="overlay-item">
+        <strong>Brush:</strong>
+        <span id="brushLabel">Paint</span>
+      </div>
+      <div class="overlay-item">
+        <strong>Size:</strong>
+        <span id="overlaySize">20px</span>
+      </div>
+      <div class="overlay-item">
+        <strong>Color:</strong>
+        <span id="overlayColor">#ffffff</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="status">
+    <span id="status">Ready</span>
+    <span class="sep">•</span>
+    <span id="historyCount">0 steps</span>
+  </footer>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const canvas = document.getElementById('mainCanvas');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+
+  const brushSizeInput = document.getElementById('brushSize');
+  const brushSizeVal = document.getElementById('brushSizeVal');
+  const brushColorInput = document.getElementById('brushColor');
+  const modeToggle = document.getElementById('modeToggle');
+  const brushLabel = document.getElementById('brushLabel');
+  const overlaySize = document.getElementById('overlaySize');
+  const overlayColor = document.getElementById('overlayColor');
+
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const exportBtn = document.getElementById('exportBtn');
+
+  const statusEl = document.getElementById('status');
+  const historyCount = document.getElementById('historyCount');
+
+  // --- State ---
+  const state = {
+    width: canvas.width,
+    height: canvas.height,
+    image: null,
+    imageData: null,
+    history: [], // { step: number, data: ImageData }
+    stepIndex: 0,
+    mode: 'paint', // 'paint' | 'erase'
+    brushSize: 20,
+    brushColor: '#ffffff',
+    isDrawing: false,
+    lastX: 0,
+    lastY: 0,
+    mouseDown: false,
+  };
+
+  // --- Init ---
+  function init() {
+    // Pre-fill with a demo image
+    const img = new Image();
+    img.onload = () => {
+      state.image = img;
+      state.imageData = ctx.createImageData(state.width, state.height);
+      // Convert image to alpha channel: keep foreground, make background transparent
+      const pixels = img.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+      const target = ctx.createImageData(state.width, state.height);
+      for (let i = 0; i < pixels.length; i += 4) {
+        const a = pixels[i + 3];
+        target.data[i] = pixels[i];
+        target.data[i + 1] = pixels[i + 1];
+        target.data[i + 2] = pixels[i + 2];
+        target.data[i + 3] = a;
+      }
+      state.imageData = target;
+      render();
+      statusEl.textContent = `Loaded ${img.width}×${img.height}`;
+    };
+    img.src = 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=900&auto=format&fit=crop&q=80';
+  }
+
+  // --- Rendering ---
+  function render() {
+    // Draw original image with alpha
+    ctx.clearRect(0, 0, state.width, state.height);
+    ctx.putImageData(state.imageData, 0, 0);
+
+    // Draw brush preview if drawing
+    if (state.isDrawing && state.mode === 'paint') {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = state.brushColor;
+      ctx.lineWidth = state.brushSize * 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(state.lastX, state.lastY);
+      ctx.lineTo(state.mouseX, state.mouseY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Erase preview (invisibly removes alpha)
+    if (state.isDrawing && state.mode === 'erase') {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = state.brushColor;
+      ctx.lineWidth = state.brushSize * 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(state.lastX, state.lastY);
+      ctx.lineTo(state.mouseX, state.mouseY);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // --- Brush ---
+  function getBrushColor() {
+    return state.brushColor;
+  }
+
+  function getBrushSize() {
+    return state.brushSize;
+  }
+
+  function paint(x, y) {
+    const r = getBrushSize() / 2;
+    const imgData = state.imageData;
+    const d = imgData.data;
+    const w = state.width;
+    const h = state.height;
+    const offX = Math.floor(x);
+    const offY = Math.floor(y);
+
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const px = offX + dx;
+        const py = offY + dy;
+        if (px < 0 || px >= w || py < 0 || py >= h) continue;
+        const i = (py * w + px) * 4;
+        // If paint mode: set alpha to 255
+        // If erase mode: set alpha to 0 (but preserve color)
+        if (state.mode === 'paint') {
+          d[i + 3] = 255;
+        } else {
+          d[i + 3] = 0;
+        }
+      }
+    }
+    state.imageData = imgData;
+    render();
+  }
+
+  function onPointerDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (state.width / rect.width);
+    const y = (e.clientY - rect.top) * (state.height / rect.height);
+
+    state.mouseDown = true;
+    state.isDrawing = true;
+    state.lastX = x;
+    state.lastY = y;
+    state.mouseX = x;
+    state.mouseY = y;
+    paint(x, y);
+
+    e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (!state.mouseDown) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (state.width / rect.width);
+    const y = (e.clientY - rect.top) * (state.height / rect.height);
+
+    state.mouseX = x;
+    state.mouseY = y;
+    paint(x, y);
+
+    e.preventDefault();
+  }
+
+  function onPointerUp() {
+    if (!state.mouseDown) return;
+    state.mouseDown = false;
+    state.isDrawing = false;
+    state.lastX = state.mouseX;
+    state.lastY = state.mouseY;
+    pushHistory();
+  }
+
+  // --- History ---
+  function pushHistory() {
+    const step = {
+      step: state.stepIndex,
+      data: state.imageData,
+    };
+    state.history = state.history.slice(0, state.stepIndex + 1);
+    state.history.push(step);
+    state.stepIndex = state.history.length - 1;
+    historyCount.textContent = `${state.stepIndex + 1} steps`;
+  }
+
+  function undo() {
+    if (state.stepIndex <= 0) return;
+    state.stepIndex--;
+    state.imageData = state.history[state.stepIndex].data;
+    render();
+    historyCount.textContent = `${state.stepIndex + 1} steps`;
+    statusEl.textContent = 'Undone';
+    setTimeout(() => { statusEl.textContent = 'Ready'; }, 400);
+  }
+
+  function redo() {
+    if (state.stepIndex >= state.history.length - 1) return;
+    state.stepIndex++;
+    state.imageData = state.history[state.stepIndex].data;
+    render();
+    historyCount.textContent = `${state.stepIndex + 1} steps`;
+    statusEl.textContent = 'Redone';
+    setTimeout(() => { statusEl.textContent = 'Ready'; }, 400);
+  }
+
+  // --- UI bindings ---
+  function bindUI() {
+    brushSizeInput.addEventListener('input', () => {
+      state.brushSize = parseInt(brushSizeInput.value, 10);
+      brushSizeVal.textContent = state.brushSize + 'px';
+      overlaySize.textContent = state.brushSize + 'px';
+    });
+
+    brushColorInput.addEventListener('input', () => {
+      state.brushColor = brushColorInput.value;
+      overlayColor.textContent = state.brushColor;
+    });
+
+    modeToggle.addEventListener('change', () => {
+      state.mode = modeToggle.value;
+      brushLabel.textContent = state.mode === 'paint' ? 'Paint' : 'Erase';
+    });
+
+    undoBtn.addEventListener('click', undo);
+    redoBtn.addEventListener('click', redo);
+    resetBtn.addEventListener('click', reset);
+    clearBtn.addEventListener('click', clear);
+
+    exportBtn.addEventListener('click', exportPNG);
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    canvas.addEventListener('mousemove', onPointerMove);
+    canvas.addEventListener('mouseup', onPointerUp);
+    canvas.addEventListener('mouseleave', onPointerUp);
+
+    canvas.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      onPointerDown({ clientX: t.clientX, clientY: t.clientY });
+      e.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      onPointerMove({ clientX: t.clientX, clientY: t.clientY });
+      e.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('touchend', onPointerUp);
+
+    // Keyboard
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        redo();
+      } else if (e.key === 'e') {
+        state.mode = state.mode === 'paint' ? 'erase' : 'paint';
+        modeToggle.value = state.mode;
+        brushLabel.textContent = state.mode === 'paint' ? 'Paint' : 'Erase';
+      } else if (e.key === 'r') {
+        reset();
+      } else if (e.key === 'Escape') {
+        clear();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        exportPNG();
+      }
+    });
+  }
+
+  function reset() {
+    // Restore original image
+    const pixels = state.image.getContext('2d').getImageData(0, 0, state.image.width, state.image.height).data;
+    const target = ctx.createImageData(state.width, state.height);
+    for (let i = 0; i < pixels.length; i += 4) {
+      target.data[i] = pixels[i];
+      target.data[i + 1] = pixels[i + 1];
+      target.data[i + 2] = pixels[i + 2];
+      target.data[i + 3] = pixels[i + 3];
+    }
+    state.imageData = target;
+    state.history = [];
+    state.stepIndex = 0;
+    historyCount.textContent = '0 steps';
+    render();
+    statusEl.textContent = 'Reset';
+    setTimeout(() => { statusEl.textContent = 'Ready'; }, 400);
+  }
+
+  function clear() {
+    const target = ctx.createImageData(state.width, state.height);
+    for (let i = 0; i < target.data.length; i += 4) {
+      target.data[i + 3] = 0; // fully transparent
+    }
+    state.imageData = target;
+    state.history = [];
+    state.stepIndex = 0;
+    historyCount.textContent = '0 steps';
+    render();
+    statusEl.textContent = 'Cleared';
+    setTimeout(() => { statusEl.textContent = 'Ready'; }, 400);
+  }
+
+  function exportPNG() {
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = 'matting-output.png';
+      link.href = dataUrl;
+      link.click();
+      statusEl.textContent = 'Exported';
+      setTimeout(() => { statusEl.textContent = 'Ready'; }, 1500);
+    } catch (err) {
+      statusEl.textContent = 'Export failed';
+      setTimeout(() => { statusEl.textContent = 'Ready'; }, 1500);
+    }
+  }
+
+  // --- Boot ---
+  init();
+  bindUI();
+})();
+</script></script>
+</body>
+</html>

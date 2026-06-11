@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebShot — Online Webpage Screenshot Tool</title>
+    <style>/* ============================================
+   CSS Variables & Reset
+   ============================================ */
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --primary-light: #818cf8;
+    --primary-glow: rgba(99, 102, 241, 0.3);
+    --accent: #06b6d4;
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
+
+    --bg-primary: #0f0f23;
+    --bg-secondary: #1a1a3e;
+    --bg-card: #1e1e42;
+    --bg-card-hover: #252552;
+    --bg-input: #16163a;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --border: rgba(99, 102, 241, 0.15);
+    --border-hover: rgba(99, 102, 241, 0.35);
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 40px var(--primary-glow);
+
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* ============================================
+   Background Decoration
+   ============================================ */
+.bg-decoration {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.bg-circle {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.15;
+}
+
+.bg-circle-1 {
+    width: 600px;
+    height: 600px;
+    background: var(--primary);
+    top: -200px;
+    right: -100px;
+    animation: float 20s ease-in-out infinite;
+}
+
+.bg-circle-2 {
+    width: 400px;
+    height: 400px;
+    background: var(--accent);
+    bottom: -100px;
+    left: -100px;
+    animation: float 25s ease-in-out infinite reverse;
+}
+
+.bg-circle-3 {
+    width: 300px;
+    height: 300px;
+    background: #a855f7;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: float 30s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -30px) scale(1.05); }
+    50% { transform: translate(-20px, 20px) scale(0.95); }
+    75% { transform: translate(20px, 10px) scale(1.02); }
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.container {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+.header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.logo-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: var(--shadow-glow);
+}
+
+.logo h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--text-primary), var(--primary-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+}
+
+.tagline {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+
+/* ============================================
+   Input Card
+   ============================================ */
+.input-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 28px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 32px;
+    transition: var(--transition);
+}
+
+.input-card:focus-within {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+
+.url-input-group {
+    display: flex;
+    align-items: center;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 6px 6px 6px 18px;
+    gap: 12px;
+    transition: var(--transition);
+}
+
+.url-input-group:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.url-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    display: flex;
+}
+
+.url-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 12px 0;
+    min-width: 0;
+}
+
+.url-input::placeholder {
+    color: var(--text-muted);
+}
+
+.capture-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.capture-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--primary-dark), #4338ca);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--primary-glow);
+}
+
+.capture-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.capture-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.capture-btn .btn-icon {
+    display: flex;
+}
+
+/* ============================================
+   Options Row
+   ============================================ */
+.options-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.option-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.device-selector {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-input);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    border: 1px solid var(--border);
+}
+
+.device-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.device-btn:hover {
+    color: var(--text-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.device-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+.device-btn svg {
+    display: flex;
+}
+
+/* Toggle */
+.toggle-group {
+    display: flex;
+    align-items: center;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle input {
+    display: none;
+}
+
+.toggle-slider {
+    width: 44px;
+    height: 24px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    position: relative;
+    transition: var(--transition);
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: var(--transition);
+}
+
+.toggle input:checked + .toggle-slider {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.toggle input:checked + .toggle-slider::after {
+    transform: translateX(20px);
+    background: white;
+}
+
+.toggle-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Size Inputs */
+.size-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.size-input {
+    width: 72px;
+    padding: 8px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: inherit;
+    text-align: center;
+    outline: none;
+    transition: var(--transition);
+}
+
+.size-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.size-input::placeholder {
+    color: var(--text-muted);
+}
+
+.size-separator {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+.loading-state {
+    text-align: center;
+    padding: 60px 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+}
+
+.loader-camera {
+    color: var(--primary-light);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.95); }
+}
+
+.loader-bar {
+    width: 240px;
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.loader-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 2px;
+    animation: loading 2s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% { width: 0%; margin-left: 0; }
+    50% { width: 60%; margin-left: 20%; }
+    100% { width: 0%; margin-left: 100%; }
+}
+
+.loading-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 8px;
+}
+
+.loading-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+}
+
+.loading-subtext {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* ============================================
+   Error State
+   ============================================ */
+.error-state {
+    text-align: center;
+    padding: 48px 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.error-icon {
+    color: var(--error);
+    margin-bottom: 16px;
+    display: inline-flex;
+}
+
+.error-text {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.retry-btn {
+    padding: 10px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.retry-btn:hover {
+    border-color: var(--primary);
+    background: var(--bg-card-hover);
+}
+
+/* ============================================
+   Result Section
+   ============================================ */
+.result-section {
+    animation: fadeIn 0.5s ease;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.result-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.result-title::before {
+    content: '✓';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--success);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.result-url {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    word-break: break-all;
+}
+
+.result-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.action-btn svg {
+    display: flex;
+}
+
+.action-btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    border-color: transparent;
+}
+
+.action-btn-primary:hover {
+    box-shadow: 0 4px 16px var(--primary-glow);
+    transform: translateY(-1px);
+}
+
+.action-btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.action-btn-secondary:hover {
+    border-color: var(--primary);
+    background: var(--bg-card-hover);
+}
+
+.action-btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.action-btn-ghost:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+
+/* ============================================
+   Screenshot Preview (Browser Frame)
+   ============================================ */
+.screenshot-preview {
+    margin-bottom: 32px;
+}
+
+.browser-frame {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.browser-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.browser-dots {
+    display: flex;
+    gap: 7px;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.dot-red { background: #ff5f57; }
+.dot-yellow { background: #febc2e; }
+.dot-green { background: #28c840; }
+
+.browser-url-bar {
+    flex: 1;
+    padding: 6px 14px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.browser-content {
+    background: #fff;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.browser-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.browser-content::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.browser-content::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 4px;
+}
+
+.screenshot-img {
+    width: 100%;
+    display: block;
+}
+
+/* ============================================
+   Thumbnail Section
+   ============================================ */
+.section-subtitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+}
+
+.thumbnail-section {
+    margin-bottom: 40px;
+}
+
+.thumbnail-card {
+    display: inline-block;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    max-width: 320px;
+}
+
+.thumbnail-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.thumbnail-img {
+    width: 100%;
+    display: block;
+}
+
+/* ============================================
+   History Section
+   ============================================ */
+.history-section {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.history-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.history-item:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.history-item img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+}
+
+.history-item-info {
+    padding: 10px 12px;
+}
+
+.history-item-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item-url {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+.footer {
+    text-align: center;
+    padding: 32px 0 16px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+/* ============================================
+   Utility
+   ============================================ */
+.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+    .container {
+        padding: 24px 16px;
+    }
+
+    .logo h1 {
+        font-size: 1.8rem;
+    }
+
+    .url-input-group {
+        flex-wrap: wrap;
+        padding: 12px;
+    }
+
+    .url-input {
+        width: 100%;
+        order: 1;
+    }
+
+    .url-icon {
+        order: 0;
+    }
+
+    .capture-btn {
+        width: 100%;
+        justify-content: center;
+        order: 2;
+        padding: 14px;
+    }
+
+    .options-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .result-header {
+        flex-direction: column;
+    }
+
+    .result-actions {
+        width: 100%;
+    }
+
+    .action-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .device-btn span {
+        display: none;
+    }
+
+    .device-btn {
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .history-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Background decoration -->
+    <div class="bg-decoration">
+        <div class="bg-circle bg-circle-1"></div>
+        <div class="bg-circle bg-circle-2"></div>
+        <div class="bg-circle bg-circle-3"></div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                </div>
+                <h1>WebShot</h1>
+            </div>
+            <p class="tagline">Capture beautiful webpage screenshots instantly</p>
+        </header>
+
+        <!-- Main Input Section -->
+        <main class="main-content">
+            <div class="input-card">
+                <div class="url-input-group">
+                    <div class="url-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        id="urlInput"
+                        class="url-input"
+                        placeholder="Enter website URL (e.g., github.com)"
+                        autocomplete="url"
+                        spellcheck="false"
+                    >
+                    <button id="captureBtn" class="capture-btn" title="Capture Screenshot">
+                        <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                        <span>Capture</span>
+                    </button>
+                </div>
+
+                <!-- Options -->
+                <div class="options-row">
+                    <div class="option-group">
+                        <label class="option-label">Device</label>
+                        <div class="device-selector">
+                            <button class="device-btn active" data-device="desktop" title="Desktop (1920×1080)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                                    <line x1="8" y1="21" x2="16" y2="21"/>
+                                    <line x1="12" y1="17" x2="12" y2="21"/>
+                                </svg>
+                                <span>Desktop</span>
+                            </button>
+                            <button class="device-btn" data-device="tablet" title="Tablet (768×1024)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                </svg>
+                                <span>Tablet</span>
+                            </button>
+                            <button class="device-btn" data-device="mobile" title="Mobile (375×812)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                </svg>
+                                <span>Mobile</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="option-group">
+                        <label class="option-label">Capture Mode</label>
+                        <div class="toggle-group">
+                            <label class="toggle">
+                                <input type="checkbox" id="fullPageToggle">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Full Page</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="option-group">
+                        <label class="option-label">Custom Size</label>
+                        <div class="size-inputs">
+                            <input type="number" id="widthInput" class="size-input" placeholder="W" min="320" max="3840" title="Width">
+                            <span class="size-separator">×</span>
+                            <input type="number" id="heightInput" class="size-input" placeholder="H" min="240" max="2160" title="Height">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="loader">
+                    <div class="loader-camera">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                    </div>
+                    <div class="loader-bar">
+                        <div class="loader-bar-fill"></div>
+                    </div>
+                </div>
+                <p class="loading-text">Capturing screenshot<span class="loading-dots"></span></p>
+                <p class="loading-subtext" id="loadingSubtext">Navigating to page...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-state hidden">
+                <div class="error-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                </div>
+                <p class="error-text" id="errorText">Something went wrong</p>
+                <button class="retry-btn" id="retryBtn">Try Again</button>
+            </div>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="result-section hidden">
+                <div class="result-header">
+                    <div class="result-info">
+                        <h2 class="result-title" id="resultTitle">Screenshot Captured!</h2>
+                        <p class="result-url" id="resultUrl"></p>
+                    </div>
+                    <div class="result-actions">
+                        <button class="action-btn action-btn-primary" id="downloadFullBtn" title="Download full resolution">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            <span>Download Full</span>
+                        </button>
+                        <button class="action-btn action-btn-secondary" id="downloadThumbBtn" title="Download thumbnail">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <span>Download Thumb</span>
+                        </button>
+                        <button class="action-btn action-btn-ghost" id="newCaptureBtn" title="Take another screenshot">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="1 4 1 10 7 10"/>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                            </svg>
+                            <span>New Capture</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Screenshot Preview -->
+                <div class="screenshot-preview" id="screenshotPreview">
+                    <div class="browser-frame">
+                        <div class="browser-bar">
+                            <div class="browser-dots">
+                                <span class="dot dot-red"></span>
+                                <span class="dot dot-yellow"></span>
+                                <span class="dot dot-green"></span>
+                            </div>
+                            <div class="browser-url-bar" id="browserUrlBar"></div>
+                        </div>
+                        <div class="browser-content">
+                            <img id="screenshotImage" class="screenshot-img" alt="Webpage Screenshot" loading="lazy">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thumbnail Preview -->
+                <div class="thumbnail-section">
+                    <h3 class="section-subtitle">Thumbnail Preview</h3>
+                    <div class="thumbnail-card">
+                        <img id="thumbnailImage" class="thumbnail-img" alt="Thumbnail" loading="lazy">
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Section -->
+            <div id="historySection" class="history-section hidden">
+                <h3 class="section-subtitle">Recent Captures</h3>
+                <div class="history-grid" id="historyGrid"></div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Built with Puppeteer & Express &mdash; Screenshots auto-delete after 1 hour</p>
+        </footer>
+    </div>
+
+    <script>const express = require('express');
+const puppeteer = require('puppeteer');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Ensure screenshots directory exists
+const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
+if (!fs.existsSync(SCREENSHOTS_DIR)) {
+    fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+}
+
+// Browser pool for better performance
+let browserInstance = null;
+
+async function getBrowser() {
+    if (!browserInstance || !browserInstance.isConnected()) {
+        browserInstance = await puppeteer.launch({
+            headless: 'new',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-extensions',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--no-first-run',
+                '--safebrowsing-disable-auto-update'
+            ]
+        });
+    }
+    return browserInstance;
+}
+
+// Validate URL
+function isValidUrl(string) {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
+}
+
+// Normalize URL - add https:// if missing
+function normalizeUrl(url) {
+    url = url.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    return url;
+}
+
+/**
+ * POST /api/screenshot
+ * Captures a screenshot of the given URL
+ * 
+ * Body: { url, width, height, fullPage, deviceType }
+ */
+app.post('/api/screenshot', async (req, res) => {
+    const {
+        url: rawUrl,
+        width = 1280,
+        height = 800,
+        fullPage = false,
+        deviceType = 'desktop',
+        thumbnailWidth = 480
+    } = req.body;
+
+    // Validate URL
+    const url = normalizeUrl(rawUrl || '');
+    if (!isValidUrl(url)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid URL. Please enter a valid URL starting with http:// or https://'
+        });
+    }
+
+    // Device presets
+    const devicePresets = {
+        desktop: { width: 1920, height: 1080, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+        tablet: { width: 768, height: 1024, userAgent: 'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15' },
+        mobile: { width: 375, height: 812, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1' }
+    };
+
+    const device = devicePresets[deviceType] || devicePresets.desktop;
+    const viewportWidth = parseInt(width) || device.width;
+    const viewportHeight = parseInt(height) || device.height;
+
+    let page = null;
+
+    try {
+        const browser = await getBrowser();
+        page = await browser.newPage();
+
+        // Set viewport and user agent
+        await page.setViewport({
+            width: viewportWidth,
+            height: viewportHeight,
+            deviceScaleFactor: 2  // Retina quality
+        });
+        await page.setUserAgent(device.userAgent);
+
+        // Block heavy resources for faster loading
+        await page.setRequestInterception(true);
+        page.on('request', (request) => {
+            const resourceType = request.resourceType();
+            if (['font', 'media'].includes(resourceType)) {
+                request.abort();
+            } else {
+                request.continue();
+            }
+        });
+
+        // Navigate to URL
+        await page.goto(url, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
+
+        // Wait a bit for any lazy-loaded content
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Generate unique filename
+        const screenshotId = uuidv4();
+        const fullFilename = `${screenshotId}_full.png`;
+        const thumbFilename = `${screenshotId}_thumb.png`;
+        const fullPath = path.join(SCREENSHOTS_DIR, fullFilename);
+        const thumbPath = path.join(SCREENSHOTS_DIR, thumbFilename);
+
+        // Take full screenshot
+        const fullScreenshotBuffer = await page.screenshot({
+            fullPage: fullPage,
+            type: 'png',
+            encoding: 'binary'
+        });
+
+        // Save full screenshot
+        fs.writeFileSync(fullPath, fullScreenshotBuffer);
+
+        // Create thumbnail using a second screenshot with clip
+        const thumbPage = await browser.newPage();
+        await thumbPage.setViewport({
+            width: viewportWidth,
+            height: viewportHeight,
+            deviceScaleFactor: 1
+        });
+        await thumbPage.setUserAgent(device.userAgent);
+
+        await thumbPage.setRequestInterception(true);
+        thumbPage.on('request', (request) => {
+            const resourceType = request.resourceType();
+            if (['font', 'media'].includes(resourceType)) {
+                request.abort();
+            } else {
+                request.continue();
+            }
+        });
+
+        await thumbPage.goto(url, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Capture thumbnail (viewport-sized crop)
+        const thumbBuffer = await thumbPage.screenshot({
+            fullPage: false,
+            type: 'png',
+            encoding: 'binary',
+            clip: {
+                x: 0,
+                y: 0,
+                width: viewportWidth,
+                height: viewportHeight
+            }
+        });
+
+        fs.writeFileSync(thumbPath, thumbBuffer);
+        await thumbPage.close();
+
+        // Get page title
+        const pageTitle = await page.title() || url;
+
+        await page.close();
+
+        // Return result
+        res.json({
+            success: true,
+            data: {
+                id: screenshotId,
+                url: url,
+                title: pageTitle,
+                viewport: { width: viewportWidth, height: viewportHeight },
+                deviceType: deviceType,
+                fullImage: `/screenshots/${fullFilename}`,
+                thumbnail: `/screenshots/${thumbFilename}`,
+                timestamp: new Date().toISOString()
+            }
+        });
+
+    } catch (error) {
+        console.error('Screenshot error:', error.message);
+
+        if (page) {
+            try { await page.close(); } catch (e) { /* ignore */ }
+        }
+
+        let errorMessage = 'Failed to capture screenshot.';
+        if (error.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+            errorMessage = 'Domain not found. Please check the URL.';
+        } else if (error.message.includes('net::ERR_CONNECTION_REFUSED')) {
+            errorMessage = 'Connection refused. The website may be down.';
+        } else if (error.message.includes('Navigation timeout')) {
+            errorMessage = 'Page load timed out. The website may be too slow.';
+        } else if (error.message.includes('net::ERR_CERT')) {
+            errorMessage = 'SSL certificate error. The website may have security issues.';
+        }
+
+        res.status(500).json({
+            success: false,
+            error: errorMessage
+        });
+    }
+});
+
+// Serve screenshots statically
+app.use('/screenshots', express.static(SCREENSHOTS_DIR));
+
+/**
+ * GET /api/screenshot/:id/download
+ * Download a screenshot file
+ */
+app.get('/api/screenshot/:filename/download', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(SCREENSHOTS_DIR, filename);
+
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ success: false, error: 'File not found' });
+    }
+
+    res.download(filePath, `screenshot_${Date.now()}.png`);
+});
+
+/**
+ * DELETE /api/screenshots/cleanup
+ * Clean up old screenshots (older than 1 hour)
+ */
+app.delete('/api/screenshots/cleanup', (req, res) => {
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
+    let deletedCount = 0;
+
+    fs.readdirSync(SCREENSHOTS_DIR).forEach(file => {
+        const filePath = path.join(SCREENSHOTS_DIR, file);
+        const stats = fs.statSync(filePath);
+        if (now - stats.mtimeMs > oneHour) {
+            fs.unlinkSync(filePath);
+            deletedCount++;
+        }
+    });
+
+    res.json({ success: true, deleted: deletedCount });
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        browserConnected: browserInstance ? browserInstance.isConnected() : false,
+        uptime: process.uptime()
+    });
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\nShutting down gracefully...');
+    if (browserInstance) {
+        await browserInstance.close();
+    }
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    if (browserInstance) {
+        await browserInstance.close();
+    }
+    process.exit(0);
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`
+╔══════════════════════════════════════════════════╗
+║   📸 Webpage Screenshot Tool                     ║
+║   Server running at http://localhost:${PORT}        ║
+║   Press Ctrl+C to stop                           ║
+╚══════════════════════════════════════════════════╝
+    `);
+});
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

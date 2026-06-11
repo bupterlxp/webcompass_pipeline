@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .login-form, .admin-form {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .login-form h2, .admin-form h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        input[type="text"], input[type="password"], button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .drone-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .drone-card {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .drone-status {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .drone-controls {
+            margin-top: 15px;
+        }
+        .control-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .control-btn:hover {
+            background-color: #27ae60;
+        }
+        .admin-section {
+            display: none;
+        }
+        .admin-section.show {
+            display: block;
+        }
+        .admin-form .form-group {
+            margin-bottom: 15px;
+        }
+        .admin-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .admin-form input[type="text"], .admin-form input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .admin-form button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .admin-form button:hover {
+            background-color: #c0392b;
+        }
+        .auth-message {
+            color: red;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .user-role {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Drone Management System</h1>
+        
+        <!-- Login Form -->
+        <div class="login-form">
+            <h2>Login</h2>
+            <div class="auth-message" id="authMessage"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+
+        <!-- Drone Status Display -->
+        <div id="droneStatusContainer" style="display: none;">
+            <h2>Drone Status</h2>
+            <div class="drone-list" id="droneList">
+                <!-- Drone cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Admin Section -->
+        <div class="admin-section" id="adminSection">
+            <h2>Admin Panel</h2>
+            <div class="admin-form">
+                <h3>Add New Drone</h3>
+                <form id="adminForm">
+                    <div class="form-group">
+                        <label for="droneId">Drone ID:</label>
+                        <input type="text" id="droneId" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="droneName">Drone Name:</label>
+                        <input type="text" id="droneName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="droneModel">Model:</label>
+                        <input type="text" id="droneModel" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="droneStatus">Initial Status:</label>
+                        <select id="droneStatus">
+                            <option value="in-flight">In-Flight</option>
+                            <option value="landing">Landing</option>
+                            <option value="malfunction">Malfunction</option>
+                            <option value="idle">Idle</option>
+                        </select>
+                    </div>
+                    <button type="submit">Add Drone</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Logout Button -->
+        <div id="logoutSection" style="display: none;">
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Simulated drone data
+        let drones = [
+            { id: 1, name: "Drone X1", model: "X1 Pro", status: "in-flight", lastUpdate: new Date().toISOString() },
+            { id: 2, name: "Drone Y2", model: "Y2 Standard", status: "landing", lastUpdate: new Date().toISOString() },
+            { id: 3, name: "Drone Z3", model: "Z3 Advanced", status: "malfunction", lastUpdate: new Date().toISOString() }
+        ];
+
+        // User session
+        let currentUser = null;
+        let isAdmin = false;
+
+        // DOM elements
+        const loginForm = document.getElementById('loginForm');
+        const droneStatusContainer = document.getElementById('droneStatusContainer');
+        const adminSection = document.getElementById('adminSection');
+        const logoutSection = document.getElementById('logoutSection');
+        const authMessage = document.getElementById('authMessage');
+        const adminForm = document.getElementById('adminForm');
+        const droneList = document.getElementById('droneList');
+
+        // Event listeners
+        loginForm.addEventListener('submit', handleLogin);
+        adminForm.addEventListener('submit', handleAdminFormSubmit);
+        logoutSection.addEventListener('click', handleLogout);
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initially show login form
+            droneStatusContainer.style.display = 'none';
+            adminSection.style.display = 'none';
+            logoutSection.style.display = 'none';
+        });
+
+        // Handle login
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // Check if admin credentials
+            if (username === 'uavadmin' && password === '321321') {
+                currentUser = { username: 'uavadmin', role: 'admin' };
+                isAdmin = true;
+                authMessage.textContent = 'Admin login successful!';
+                authMessage.style.color = 'green';
+                showAdminSection();
+                updateDroneStatus();
+            } else {
+                // Check if regular user (for demo, we'll allow any username/password)
+                currentUser = { username, role: 'employee' };
+                isAdmin = false;
+                authMessage.textContent = 'Login successful!';
+                authMessage.style.color = 'green';
+                showDroneStatus();
+                updateDroneStatus();
+            }
+        }
+
+        // Show drone status section
+        function showDroneStatus() {
+            droneStatusContainer.style.display = 'block';
+            adminSection.style.display = 'none';
+            logoutSection.style.display = 'block';
+            document.querySelector('.login-form').style.display = 'none';
+        }
+
+        // Show admin section
+        function showAdminSection() {
+            droneStatusContainer.style.display = 'block';
+            adminSection.classList.add('show');
+            logoutSection.style.display = 'block';
+            document.querySelector('.login-form').style.display = 'none';
+        }
+
+        // Update drone status display
+        function updateDroneStatus() {
+            droneList.innerHTML = '';
+            drones.forEach(drone => {
+                const droneCard = document.createElement('div');
+                droneCard.className = 'drone-card';
+                droneCard.innerHTML = `
+                    <h3>${drone.name} (${drone.model})</h3>
+                    <div class="drone-status">
+                        <span>Status: ${drone.status}</span>
+                    </div>
+                    <div class="drone-controls">
+                        <button class="control-btn" onclick="simulateTakeoff(${drone.id})">Takeoff</button>
+                        <button class="control-btn" onclick="simulateLanding(${drone.id})">Landing</button>
+                    </div>
+                `;
+                droneList.appendChild(droneCard);
+            });
+        }
+
+        // Simulate takeoff
+        function simulateTakeoff(droneId) {
+            const drone = drones.find(d => d.id === droneId);
+            if (drone) {
+                drone.status = 'in-flight';
+                drone.lastUpdate = new Date().toISOString();
+                updateDroneStatus();
+                alert(`Drone ${drone.name} is now in flight!`);
+            }
+        }
+
+        // Simulate landing
+        function simulateLanding(droneId) {
+            const drone = drones.find(d => d.id === droneId);
+            if (drone) {
+                drone.status = 'landing';
+                drone.lastUpdate = new Date().toISOString();
+                updateDroneStatus();
+                alert(`Drone ${drone.name} is now landing!`);
+            }
+        }
+
+        // Handle admin form submission
+        function handleAdminFormSubmit(e) {
+            e.preventDefault();
+            const droneId = document.getElementById('droneId').value;
+            const droneName = document.getElementById('droneName').value;
+            const droneModel = document.getElementById('droneModel').value;
+            const droneStatus = document.getElementById('droneStatus').value;
+
+            // Validate input
+            if (!droneId || !droneName || !droneModel) {
+                authMessage.textContent = 'Please fill in all fields!';
+                authMessage.style.color = 'red';
+                return;
+            }
+
+            // Create new drone
+            const newDrone = {
+                id: parseInt(droneId),
+                name: droneName,
+                model: droneModel,
+                status: droneStatus,
+                lastUpdate: new Date().toISOString()
+            };
+
+            // Add to drones array
+            drones.push(newDrone);
+
+            // Update UI
+            updateDroneStatus();
+            authMessage.textContent = 'Drone added successfully!';
+            authMessage.style.color = 'green';
+
+            // Reset form
+            adminForm.reset();
+        }
+
+        // Handle logout
+        function handleLogout() {
+            currentUser = null;
+            isAdmin = false;
+            authMessage.textContent = 'You have been logged out.';
+            authMessage.style.color = 'red';
+            droneStatusContainer.style.display = 'none';
+            adminSection.style.display = 'none';
+            logoutSection.style.display = 'none';
+            document.querySelector('.login-form').style.display = 'block';
+        }
+
+        // Add event listener for window resize
+        window.addEventListener('resize', () => {
+            // Adjust layout if needed
+        });
+    </script>
+</body>
+</html>

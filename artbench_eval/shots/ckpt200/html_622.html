@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Editor Timeline</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  padding: 24px 16px;
+  overflow-y: auto;
+  border-right: 1px solid #333;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  padding: 0 8px;
+}
+
+.upload-zone {
+  border: 2px dashed #444;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: #ff6b6b;
+  background: #2a2a2a;
+}
+.upload-icon { font-size: 48px; margin-bottom: 8px; }
+.upload-zone p { margin: 0 0 12px; font-size: 14px; }
+
+.clips-list {
+  margin-top: 24px;
+}
+.clips-list h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #999;
+  margin: 0 0 12px;
+}
+
+.clip-card {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: grab;
+}
+.clip-card:hover { background: #3a3a3a; }
+.clip-card.dragging { opacity: 0.4; }
+.clip-card .name { font-size: 13px; }
+.clip-card .meta { font-size: 11px; color: #888; margin-top: 2px; }
+
+/* Editor */
+.editor { padding: 24px; }
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px;
+}
+.toolbar h1 { margin: 0; font-size: 22px; }
+
+.toolbar-right .status {
+  font-size: 13px;
+  color: #4a90e2;
+  background: #e8f4ff;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.timeline-wrap { margin-top: 16px; }
+
+.timeline {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 240px;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  border-bottom: 1px solid #2a2a2a;
+  background: #0f0f0f;
+}
+.lane {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-right: 1px solid #2a2a2a;
+}
+.lane:last-child { border-right: none; }
+.lane span { font-size: 12px; color: #bbb; }
+.lane-label {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4a90e2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.lane.video-lane .lane-label { background: #4a90e2; }
+.lane.audio-lane .lane-label { background: #ff6b6b; }
+
+.playhead {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  cursor: ew-resize;
+  transition: opacity 0.15s;
+}
+.playhead.dragging { opacity: 0.4; }
+.playhead-line {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #4a90e2;
+}
+.playhead-head {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  background: #4a90e2;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: 0 0 8px #4a90e2;
+}
+
+.timeline-body {
+  position: relative;
+  height: calc(100% - 40px);
+  background: #0f0f0f;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.clip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 40px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  border-radius: 4px;
+  transition: transform 0.15s;
+}
+.clip:hover { filter: brightness(0.95); }
+.clip.dragging { opacity: 0.4; }
+.clip.video { background: linear-gradient(90deg, #4a90e2, #1a3a6a); }
+.clip.audio { background: linear-gradient(90deg, #ff6b6b, #7a1a1a); }
+.clip.selected { outline: 2px solid #4a90e2; outline-offset: 2px; }
+
+.clip-handle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  cursor: ew-resize;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.clip:hover .clip-handle { opacity: 1; }
+
+.clip-info {
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.clip:hover .clip-info { opacity: 1; }
+
+.clip-info .name { font-weight: 600; }
+.clip-info .dur { color: #aaa; margin-left: 4px; }
+
+.export-bar {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.export-bar button {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.export-bar button:hover { background: #3575b0; }
+.export-bar button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.progress-bar {
+  width: 200px;
+  height: 10px;
+  background: #2a2a2a;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4a90e2;
+  transition: width 0.3s;
+}
+
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">🎬 Editor</div>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" multiple accept="video/*,audio/*" hidden />
+      <div class="upload-icon">⬆</div>
+      <p>Drag & drop videos or audio files</p>
+      <button type="button" id="browseBtn">Browse Files</button>
+    </div>
+    <div class="clips-list" id="clipsList"></div>
+  </aside>
+
+  <main class="editor">
+    <header class="toolbar">
+      <h1>Timeline Editor</h1>
+      <div class="toolbar-right">
+        <span class="status" id="status">Ready</span>
+      </div>
+    </header>
+
+    <section class="timeline-wrap">
+      <div class="timeline" id="timeline">
+        <div class="timeline-header">
+          <div class="lane video-lane">
+            <span>Video</span>
+            <div class="lane-label">V</div>
+          </div>
+          <div class="lane audio-lane">
+            <span>Audio</span>
+            <div class="lane-label">A</div>
+          </div>
+          <div class="playhead" id="playhead">
+            <div class="playhead-line"></div>
+            <div class="playhead-head"></div>
+          </div>
+        </div>
+        <div class="timeline-body" id="timelineBody"></div>
+      </div>
+    </section>
+
+    <footer class="export-bar">
+      <button type="button" id="exportBtn">Export Video</button>
+      <span class="progress" id="progress" hidden>
+        <span id="progressText">Processing...</span>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </span>
+    </footer>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ffmpeg-static@0.10.18/dist/ffmpeg.min.js"></script>
+<script>const express = require('express');
+const multer = require('multer');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs').promises;
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(dir)) fs.mkdir(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const name = path.basename(file.originalname, ext);
+    cb(null, `${Date.now()}-${name}${ext}`);
+  }
+});
+
+const upload = multer({ storage });
+
+app.use(cors());
+app.use(express.json());
+
+// Upload route
+app.post('/api/upload', upload.array('files', 20), (req, res) => {
+  try {
+    const files = req.files;
+    const metadata = files.map(f => ({
+      id: f.filename,
+      name: f.originalname,
+      type: f.mimetype.startsWith('video') ? 'video' : 'audio',
+      duration: 0, // filled by frontend via ffprobe
+      width: 0,
+      height: 0,
+      url: `/uploads/${f.filename}`
+    }));
+    res.json({ success: true, files: metadata });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Health check
+app.get('/', (req, res) => res.send('Video Editor Server'));
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验室仪器管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .status-available { @apply bg-green-100 text-green-800; }
+        .status-occupied { @apply bg-yellow-100 text-yellow-800; }
+        .status-maintenance { @apply bg-red-100 text-red-800; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <!-- 导航栏 -->
+    <nav class="bg-blue-700 text-white p-4 shadow-lg flex justify-between items-center">
+        <h1 class="text-xl font-bold"><i class="fas fa-microscope mr-2"></i>实验室仪器管理系统</h1>
+        <div id="admin-controls">
+            <button id="btn-admin-login" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded transition">管理员登录</button>
+            <button id="btn-admin-logout" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition hidden">退出管理</button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6">
+        <!-- 搜索与过滤 -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6 flex flex-col md:flex-row gap-4">
+            <input type="text" id="search-input" placeholder="搜索仪器名称或类别..." class="flex-1 border rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select id="status-filter" class="border rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">所有状态</option>
+                <option value="available">可用 (Available)</option>
+                <option value="occupied">占用 (Occupied)</option>
+                <option value="maintenance">维护中 (Maintenance)</option>
+            </select>
+            <button onclick="fetchInstruments()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">搜索</button>
+        </div>
+
+        <!-- 管理员操作台 (默认隐藏) -->
+        <div id="admin-panel" class="bg-white p-6 rounded-lg shadow mb-6 hidden border-l-4 border-blue-500">
+            <h2 class="text-lg font-bold mb-4 text-blue-700"><i class="fas fa-tools mr-2"></i>管理员控制台</h2>
+            <button onclick="openAddInstrumentModal()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4">+ 添加新仪器</button>
+        </div>
+
+        <!-- 仪器列表网格 -->
+        <div id="instrument-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- 动态渲染 -->
+        </div>
+    </main>
+
+    <!-- 详情弹窗 -->
+    <div id="detail-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative">
+            <button onclick="closeModal('detail-modal')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800"><i class="fas fa-times text-xl"></i></button>
+            <div id="detail-content"></div>
+        </div>
+    </div>
+
+    <!-- 添加仪器弹窗 -->
+    <div id="add-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
+            <button onclick="closeModal('add-modal')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800"><i class="fas fa-times"></i></button>
+            <h3 class="text-xl font-bold mb-4">添加新仪器</h3>
+            <form id="add-form" class="space-y-4">
+                <input type="text" id="add-name" placeholder="仪器名称" class="w-full border rounded px-3 py-2" required>
+                <input type="text" id="add-category" placeholder="类别 (如: Spectroscopy)" class="w-full border rounded px-3 py-2" required>
+                <input type="text" id="add-model" placeholder="型号" class="w-full border rounded px-3 py-2" required>
+                <textarea id="add-specs" placeholder="参数 (JSON格式, 如: {'Resolution': '0.1nm'})" class="w-full border rounded px-3 py-2 h-24" required></textarea>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">确认添加</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = localStorage.getItem('adminToken') || '';
+        const API_BASE = '';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchInstruments();
+            updateAdminUI();
+            
+            document.getElementById('btn-admin-login').addEventListener('click', () => {
+                const token = prompt("请输入管理员 Token (默认: lab_admin_2024):");
+                if (token) {
+                    adminToken = token;
+                    localStorage.setItem('adminToken', token);
+                    updateAdminUI();
+                }
+            });
+
+            document.getElementById('btn-admin-logout').addEventListener('click', () => {
+                adminToken = '';
+                localStorage.removeItem('adminToken');
+                updateAdminUI();
+            });
+
+            document.getElementById('add-form').addEventListener('submit', handleAddInstrument);
+        });
+
+        function updateAdminUI() {
+            const isAdmin = !!adminToken;
+            document.getElementById('btn-admin-login').classList.toggle('hidden', isAdmin);
+            document.getElementById('btn-admin-logout').classList.toggle('hidden', !isAdmin);
+            document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
+        }
+
+        async function fetchInstruments() {
+            const search = document.getElementById('search-input').value;
+            const status = document.getElementById('status-filter').value;
+            let url = `${API_BASE}/api/instruments?`;
+            if (search) url += `search=${encodeURIComponent(search)}&`;
+            if (status) url += `status=${status}&`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                renderGrid(data);
+            } catch (err) {
+                console.error("Failed to fetch instruments", err);
+            }
+        }
+
+        function renderGrid(instruments) {
+            const grid = document.getElementById('instrument-grid');
+            grid.innerHTML = instruments.map(inst => `
+                <div class="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer p-5 border-t-4 ${
+                    inst.status === 'available' ? 'border-green-500' : 
+                    inst.status === 'occupied' ? 'border-yellow-500' : 'border-red-500'
+                }" onclick="showDetail(${inst.id})">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-lg text-gray-800">${inst.name}</h3>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full status-${inst.status}">
+                            ${inst.status.toUpperCase()}
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-1">类别: ${inst.category}</p>
+                    <p class="text-sm text-gray-500 mb-4">型号: ${inst.model_number}</p>
+                    <div class="text-xs text-gray-400 flex justify-between items-center">
+                        <span>点击查看详情</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function showDetail(id) {
+            const res = await fetch(`${API_BASE}/api/instruments/${id}`);
+            const inst = await res.json();
+            
+            const specsHtml = Object.entries(inst.specs).map(([k, v]) => `<li><strong>${k}:</strong> ${v}</li>`).join('');
+            const logsHtml = inst.maintenance_logs.length > 0 ? inst.maintenance_logs.map(log => `
+                <div class="border-l-4 ${log.is_resolved ? 'border-green-400' : 'border-red-400'} pl-3 py-2 mb-2 bg-gray-50">
+                    <p class="font-semibold">${log.issue_description}</p>
+                    <p class="text-xs text-gray-500">开始: ${new Date(log.start_date).toLocaleString()} | 状态: ${log.is_resolved ? '已解决' : '进行中'}</p>
+                    ${(!log.is_resolved && adminToken) ? `<button onclick="resolveLog(${log.id}, ${inst.id})" class="mt-1 text-xs bg-green-500 text-white px-2 py-1 rounded">标记为已解决</button>` : ''}
+                </div>
+            `).join('') : '<p class="text-gray-500 text-sm">暂无维护记录</p>';
+
+            document.getElementById('detail-content').innerHTML = `
+                <h2 class="text-2xl font-bold mb-2">${inst.name}</h2>
+                <div class="flex gap-2 mb-4">
+                    <span class="px-3 py-1 text-sm rounded-full status-${inst.status}">${inst.status.toUpperCase()}</span>
+                    <span class="px-3 py-1 text-sm bg-gray-100 rounded-full">${inst.category}</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div><strong>型号:</strong> ${inst.model_number}</div>
+                    <div><strong>录入时间:</strong> ${new Date(inst.created_at).toLocaleDateString()}</div>
+                </div>
+
+                <h3 class="text-lg font-semibold mb-2 border-b pb-1">详细参数</h3>
+                <ul class="list-disc list-inside mb-6 text-sm text-gray-700">${specsHtml}</ul>
+
+                <div class="flex justify-between items-center mb-2 border-b pb-1">
+                    <h3 class="text-lg font-semibold">维护记录</h3>
+                    ${adminToken ? `<button onclick="openAddMaintenanceModal(${inst.id})" class="text-sm bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">+ 报修/维护</button>` : ''}
+                </div>
+                <div class="mt-2">${logsHtml}</div>
+            `;
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function openAddInstrumentModal() {
+            document.getElementById('add-modal').classList.add('active');
+        }
+
+        async function handleAddInstrument(e) {
+            e.preventDefault();
+            try {
+                const specs = JSON.parse(document.getElementById('add-specs').value);
+                const payload = {
+                    name: document.getElementById('add-name').value,
+                    category: document.getElementById('add-category').value,
+                    model_number: document.getElementById('add-model').value,
+                    specs: specs
+                };
+
+                const res = await fetch(`${API_BASE}/api/instruments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 401) throw new Error("权限不足");
+                if (!res.ok) throw new Error("添加失败");
+
+                closeModal('add-modal');
+                document.getElementById('add-form').reset();
+                fetchInstruments();
+                alert("仪器添加成功！");
+            } catch (err) {
+                alert("错误: " + err.message + " (请检查JSON格式或管理员权限)");
+            }
+        }
+
+        function openAddMaintenanceModal(instId) {
+            const issue = prompt("请输入维护/报修原因:");
+            if (issue) {
+                addMaintenanceLog(instId, issue);
+            }
+        }
+
+        async function addMaintenanceLog(instId, issue) {
+            const res = await fetch(`${API_BASE}/api/instruments/${instId}/maintenance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+                body: JSON.stringify({ issue_description: issue })
+            });
+            if (res.ok) {
+                showDetail(instId); // 刷新详情
+                fetchInstruments(); // 刷新列表状态
+            } else {
+                alert("操作失败，请检查管理员权限");
+            }
+        }
+
+        async function resolveLog(logId, instId) {
+            if (!confirm("确认该维护已完成？")) return;
+            const res = await fetch(`${API_BASE}/api/maintenance/${logId}/resolve`, {
+                method: 'PUT',
+                headers: { 'X-Admin-Token': adminToken }
+            });
+            if (res.ok) {
+                showDetail(instId);
+                fetchInstruments();
+            }
+        }
+    </script>
+</body>
+</html>

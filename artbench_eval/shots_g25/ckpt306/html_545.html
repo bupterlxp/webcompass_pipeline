@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Menu System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<style>/* styles.css not found in result */</style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <div class="brand">
+                <div class="brand-logo">🍽</div>
+                <div>
+                    <h1>Menu System</h1>
+                    <p class="brand-tagline">Chef · Manager · Customer</p>
+                </div>
+            </div>
+            <nav class="main-nav">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="alert alert-{{ msg[1] }}">{{ msg[0] }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <p>&copy; {{ year }} Menu System. Crafted with care.</p>
+        </div>
+    </footer>
+</body>
+</html>

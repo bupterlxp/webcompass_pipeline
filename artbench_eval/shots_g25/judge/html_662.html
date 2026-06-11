@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Timeline Marking Tool</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --bg: #f8f9fa;
+            --text: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .main-content {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .sidebar {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .file-btn {
+            background-color: #2ecc71;
+        }
+        .file-btn:hover {
+            background-color: #27ae60;
+        }
+        /* Timeline Styles */
+        .timeline-container {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            background: #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .timeline-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(52, 152, 219, 0.5);
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        .marker {
+            position: absolute;
+            top: -5px;
+            width: 4px;
+            height: 40px;
+            background: #e74c3c;
+            cursor: pointer;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        .marker:hover::after {
+            content: attr(data-note);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        /* Bookmark List Styles */
+        .bookmark-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .bookmark-item:hover {
+            background: #f1f2f6;
+        }
+        .bookmark-thumb {
+            width: 100px;
+            height: 56px;
+            background: #000;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+        .bookmark-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .bookmark-time {
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 14px;
+        }
+        .bookmark-note {
+            font-size: 14px;
+            color: #555;
+        }
+        .delete-btn {
+            margin-left: auto;
+            background: #e74c3c;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-content">
+        <!-- crossorigin="anonymous" is required to allow canvas to capture frames from external URLs -->
+        <video id="videoPlayer" controls crossorigin="anonymous">
+            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+
+        <div class="timeline-container" id="timelineContainer">
+            <div class="timeline-progress" id="timelineProgress"></div>
+            <div id="markersContainer"></div>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="noteInput" placeholder="Enter a note for this bookmark...">
+            <button onclick="addBookmark()">Add Bookmark</button>
+            <button class="file-btn" onclick="exportProject()">Export JSON</button>
+            <button class="file-btn" onclick="document.getElementById('importFile').click()">Import JSON</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importProject(event)">
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h2>Bookmarks</h2>
+        <div id="bookmarkList"></div>
+    </div>
+
+    <!-- Hidden canvas for thumbnail generation -->
+    <canvas id="thumbCanvas" style="display: none;"></canvas>
+
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const timelineContainer = document.getElementById('timelineContainer');
+        const timelineProgress = document.getElementById('timelineProgress');
+        const markersContainer = document.getElementById('markersContainer');
+        const bookmarkList = document.getElementById('bookmarkList');
+        const noteInput = document.getElementById('noteInput');
+        const canvas = document.getElementById('thumbCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let bookmarks = [];
+
+        // Update timeline progress bar
+        video.addEventListener('timeupdate', () => {
+            if (video.duration) {
+                const percent = (video.currentTime / video.duration) * 100;
+                timelineProgress.style.width = `${percent}%`;
+            }
+        });
+
+        // Click on timeline to seek
+        timelineContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('marker')) return; // Let marker handle its own click
+            const rect = timelineContainer.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            video.currentTime = pos * video.duration;
+        });
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function generateThumbnail() {
+            // Set canvas dimensions to match video aspect ratio (scaled down)
+            canvas.width = 160;
+            canvas.height = 90;
+            try {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                return canvas.toDataURL('image/jpeg', 0.7);
+            } catch (e) {
+                console.warn("Canvas tainted by cross-origin data. Thumbnail generation failed.");
+                return ""; // Fallback if CORS prevents image capture
+            }
+        }
+
+        function addBookmark() {
+            if (!video.duration) return alert("Please wait for the video to load.");
+            
+            const time = video.currentTime;
+            const note = noteInput.value.trim() || "Bookmark";
+            const thumbnail = generateThumbnail();
+
+            const bookmark = {
+                id: Date.now().toString(),
+                time: time,
+                note: note,
+                thumbnail: thumbnail
+            };
+
+            bookmarks.push(bookmark);
+            bookmarks.sort((a, b) => a.time - b.time); // Keep sorted by time
+            
+            noteInput.value = ''; // Clear input
+            renderBookmarks();
+        }
+
+        function deleteBookmark(id, event) {
+            event.stopPropagation(); // Prevent triggering the jump-to-time click
+            bookmarks = bookmarks.filter(b => b.id !== id);
+            renderBookmarks();
+        }
+
+        function jumpToTime(time) {
+            video.currentTime = time;
+            video.play();
+        }
+
+        function renderBookmarks() {
+            // Clear current UI
+            markersContainer.innerHTML = '';
+            bookmarkList.innerHTML = '';
+
+            bookmarks.forEach(bookmark => {
+                // 1. Render Timeline Marker
+                const percent = (bookmark.time / video.duration) * 100;
+                const marker = document.createElement('div');
+                marker.className = 'marker';
+                marker.style.left = `${percent}%`;
+                marker.setAttribute('data-note', bookmark.note);
+                marker.onclick = () => jumpToTime(bookmark.time);
+                markersContainer.appendChild(marker);
+
+                // 2. Render Sidebar List Item
+                const item = document.createElement('div');
+                item.className = 'bookmark-item';
+                item.onclick = () => jumpToTime(bookmark.time);
+
+                item.innerHTML = `
+                    <img src="${bookmark.thumbnail}" class="bookmark-thumb" alt="Thumb">
+                    <div class="bookmark-info">
+                        <span class="bookmark-time">${formatTime(bookmark.time)}</span>
+                        <span class="bookmark-note">${bookmark.note}</span>
+                    </div>
+                    <button class="delete-btn" onclick="deleteBookmark('${bookmark.id}', event)">X</button>
+                `;
+                bookmarkList.appendChild(item);
+            });
+        }
+
+        // Export to JSON
+        function exportProject() {
+            const dataStr = JSON.stringify(bookmarks, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'video-bookmarks.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Import from JSON
+        function importProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        bookmarks = importedData;
+                        renderBookmarks();
+                        alert("Project imported successfully!");
+                    } else {
+                        alert("Invalid file format.");
+                    }
+                } catch (err) {
+                    alert("Error parsing JSON file.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset file input
+        }
+
+        // Initial render on video load
+        video.addEventListener('loadedmetadata', renderBookmarks);
+    </script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhythm Trainer</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #111;
+    color: #eee;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 1.1rem;
+    margin-top: 24px;
+    margin-bottom: 12px;
+  }
+  .panel {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  input[type="number"] {
+    width: 60px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #333;
+    color: #fff;
+    text-align: center;
+  }
+  input[type="number"]:focus {
+    outline: 2px solid #0f0;
+    outline-color: #0f0;
+  }
+  button {
+    background: #333;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 10px 18px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+  }
+  button:hover {
+    background: #444;
+    border-color: #666;
+  }
+  button:active {
+    transform: scale(0.97);
+  }
+  button.active {
+    background: #0f0;
+    border-color: #0a0;
+  }
+  .metronome {
+    margin-top: 16px;
+    height: 120px;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 8px;
+    position: relative;
+  }
+  .beat-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #222;
+  }
+  .cursor {
+    position: absolute;
+    top: 50%;
+    width: 2px;
+    height: 20px;
+    background: #00ff00;
+    transform: translateY(-50%);
+    transition: background 0.2s;
+  }
+  .cursor.miss {
+    background: #f00;
+  }
+  .cursor.hit {
+    background: #0f0;
+  }
+  .cursor.missed {
+    background: #ff6b35;
+  }
+  .cursor.beat {
+    background: #fff;
+    animation: blink 0.5s steps(2) infinite;
+  }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.2; }
+  }
+  .feedback {
+    font-size: 1.2rem;
+    margin-top: 16px;
+    min-height: 24px;
+  }
+  .feedback.good { color: #0f0; }
+  .feedback.bad { color: #f00; }
+  .feedback.ok { color: #ff6b35; }
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 1rem;
+  }
+  .score-row span {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: #222;
+    border: 1px solid #444;
+  }
+  .score-row span.hit { background: #0f0; color: #000; }
+  .score-row span.miss { background: #f00; color: #fff; }
+  .score-row span.ok { background: #ff6b35; color: #fff; }
+</style>
+</head>
+<body>
+  <h1>Rhythm Trainer</h1>
+  <p class="feedback" id="feedback">Ready — click the beat when you feel it.</p>
+
+  <div class="panel">
+    <h2>Settings</h2>
+    <div class="controls">
+      <div class="control-group">
+        <label for="bpm">BPM</label>
+        <input type="number" id="bpm" min="60" max="200" value="120">
+      </div>
+      <div class="control-group">
+        <label for="measure">Measure</label>
+        <select id="measure">
+          <option value="4">4/4</option>
+          <option value="8">8/8</option>
+          <option value="16">16/16</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="tolerance">Tolerance (ms)</label>
+        <input type="number" id="tolerance" min="20" max="500" value="120">
+      </div>
+      <div class="control-group">
+        <label for="duration">Duration (seconds)</label>
+        <input type="number" id="duration" min="10" max="180" value="30">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Metronome</h2>
+    <div class="metronome" id="metronome">
+      <div class="beat-line" id="beatLine"></div>
+      <div class="cursor" id="cursor"></div>
+    </div>
+    <div class="score-row" id="scoreRow">
+      <span class="hit">Hits: <span id="hitCount">0</span></span>
+      <span class="miss">Misses: <span id="missCount">0</span></span>
+      <span class="ok">Tolerance: <span id="toleranceCount">0</span></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <script>
+    const state = {
+      running: false,
+      startTime: 0,
+      nextBeatAt: 0,
+      beats: [],
+      hits: 0,
+      misses: 0,
+      tolerance: 120,
+      duration: 30,
+      bpm: 120,
+      measure: 4,
+      measureDuration: 0,
+      toleranceCount: 0,
+      streak: 0,
+      maxStreak: 0,
+      lastTime: 0,
+      lastClickTime: 0,
+      lastBeatTime: 0,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const metronome = $('metronome');
+    const beatLine = $('beatLine');
+    const cursor = $('cursor');
+    const startBtn = $('startBtn');
+    const stopBtn = $('stopBtn');
+    const resetBtn = $('resetBtn');
+    const feedback = $('feedback');
+    const hitCount = $('hitCount');
+    const missCount = $('missCount');
+    const toleranceCount = $('toleranceCount');
+
+    // ---------- Beat generation ----------
+    function generateBeats() {
+      const beats = [];
+      const measure = state.measure;
+      const measureDuration = 60 / state.bpm * 1000;
+      const beatInterval = measureDuration / measure;
+
+      for (let i = 0; i < measure; i++) {
+        beats.push(beatInterval * (i + 0.5));
+      }
+      return beats;
+    }
+
+    // ---------- Start / Stop ----------
+    function start() {
+      state.running = true;
+      state.startTime = performance.now();
+      state.nextBeatAt = state.startTime + 60 / state.bpm * 1000;
+      state.beats = generateBeats();
+      state.hits = 0;
+      state.misses = 0;
+      state.toleranceCount = 0;
+      state.streak = 0;
+      state.maxStreak = 0;
+      state.lastBeatTime = 0;
+      state.lastClickTime = 0;
+      state.lastTime = performance.now();
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      feedback.textContent = 'Ready — click the beat when you feel it.';
+      feedback.className = 'feedback';
+
+      // Schedule first beat
+      setTimeout(() => {
+        state.nextBeatAt = state.startTime + 60 / state.bpm * 1000;
+        tick();
+      }, 1000);
+    }
+
+    function stop() {
+      state.running = false;
+      state.beats = [];
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      feedback.textContent = `Score: ${(state.hits / (state.hits + state.misses)) * 100}% · Streak: ${state.maxStreak}`;
+      feedback.className = 'feedback good';
+      hitCount.textContent = state.hits;
+      missCount.textContent = state.misses;
+      toleranceCount.textContent = state.toleranceCount;
+    }
+
+    function reset() {
+      stop();
+      state.beats = [];
+      state.startTime = 0;
+      state.nextBeatAt = 0;
+      state.hits = 0;
+      state.misses = 0;
+      state.toleranceCount = 0;
+      state.streak = 0;
+      state.maxStreak = 0;
+      state.lastBeatTime = 0;
+      state.lastClickTime = 0;
+      state.lastTime = 0;
+      hitCount.textContent = '0';
+      missCount.textContent = '0';
+      toleranceCount.textContent = '0';
+      feedback.textContent = 'Ready — click the beat when you feel it.';
+      feedback.className = 'feedback';
+    }
+
+    // ---------- Tick loop ----------
+    function tick() {
+      if (!state.running) return;
+
+      const now = performance.now();
+      const elapsed = now - state.startTime;
+
+      // Move cursor
+      const measureDuration = 60 / state.bpm * 1000;
+      const measureTicks = state.measure;
+      const totalTicks = measureDuration / (measureDuration / measureTicks);
+      const ratio = elapsed / totalTicks;
+      const cursorLeft = ratio * 100;
+
+      cursor.style.left = cursorLeft.toFixed(2) + '%';
+      cursor.classList.remove('hit', 'miss', 'missed', 'beat');
+
+      // Draw beat line
+      const beatLineLeft = (elapsed % measureDuration) / measureDuration * 100;
+      beatLine.style.left = beatLineLeft.toFixed(2) + '%';
+
+      // Check if beat is due
+      if (elapsed >= state.nextBeatAt) {
+        state.lastBeatTime = now;
+        cursor.classList.add('beat');
+        state.nextBeatAt += 60 / state.bpm * 1000;
+      }
+
+      // Check click
+      if (now - state.lastClickTime < 500) {
+        state.streak++;
+        state.maxStreak = Math.max(state.maxStreak, state.streak);
+      } else {
+        state.streak = 0;
+      }
+
+      // Render score row
+      hitCount.textContent = state.hits;
+      missCount.textContent = state.misses;
+      toleranceCount.textContent = state.toleranceCount;
+
+      // Render streak
+      const streakEl = document.querySelector('.score-row .ok span:nth-child(3)');
+      if (streakEl) streakEl.textContent = `Streak: ${state.streak}`;
+
+      // Check if session ended
+      if (elapsed >= state.duration * 1000) {
+        stop();
+        return;
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    // ---------- Click handling ----------
+    function handleBeatClick() {
+      if (!state.running) return;
+
+      const now = performance.now();
+      const elapsed = now - state.startTime;
+      const measureDuration = 60 / state.bpm * 1000;
+      const measureTicks = state.measure;
+      const totalTicks = measureDuration / (measureDuration / measureTicks);
+      const ratio = elapsed / totalTicks;
+      const expectedBeatRatio = (state.beats[state.beats.length - 1] / measureDuration);
+      const diff = Math.abs(ratio - expectedBeatRatio);
+
+      state.lastClickTime = now;
+
+      if (diff < state.tolerance / 1000) {
+        state.hits++;
+        state.toleranceCount++;
+        state.streak++;
+        state.maxStreak = Math.max(state.maxStreak, state.streak);
+        cursor.classList.add('hit');
+        feedback.textContent = `✓ Perfect! (${Math.round(diff * 1000)}ms)`;
+        feedback.className = 'feedback good';
+      } else if (diff < 0.05) {
+        state.toleranceCount++;
+        state.streak++;
+        state.maxStreak = Math.max(state.maxStreak, state.streak);
+        cursor.classList.add('ok');
+        feedback.textContent = `~ Good (${Math.round(diff * 1000)}ms)`;
+        feedback.className = 'feedback ok';
+      } else {
+        state.misses++;
+        state.streak = 0;
+        cursor.classList.add('miss');
+        feedback.textContent = `× Missed (expected: ${Math.round(expectedBeatRatio * totalTicks)}ms)`;
+        feedback.className = 'feedback bad';
+      }
+
+      hitCount.textContent = state.hits;
+      missCount.textContent = state.misses;
+      toleranceCount.textContent = state.toleranceCount;
+      const streakEl = document.querySelector('.score-row .ok span:nth-child(3)');
+      if (streakEl) streakEl.textContent = `Streak: ${state.streak}`;
+
+      // Schedule next beat
+      state.nextBeatAt = state.startTime + 60 / state.bpm * 1000;
+    }
+
+    // ---------- Events ----------
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    resetBtn.addEventListener('click', reset);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        handleBeatClick();
+      }
+    });
+
+    $('beatBtn')?.addEventListener('click', handleBeatClick);
+
+    // ---------- Input listeners ----------
+    $('bpm').addEventListener('input', (e) => {
+      state.bpm = parseInt(e.target.value, 10);
+      state.measureDuration = 60 / state.bpm * 1000;
+    });
+    $('measure').addEventListener('change', (e) => {
+      state.measure = parseInt(e.target.value, 10);
+      state.measureDuration = 60 / state.bpm * 1000;
+    });
+    $('tolerance').addEventListener('input', (e) => {
+      state.tolerance = parseInt(e.target.value, 10);
+    });
+    $('duration').addEventListener('input', (e) => {
+      state.duration = parseInt(e.target.value, 10);
+    });
+
+    // ---------- Init ----------
+    state.bpm = 120;
+    state.measure = 4;
+    state.tolerance = 120;
+    state.duration = 30;
+    state.measureDuration = 60 / state.bpm * 1000;
+
+    // Render initial cursor position
+    cursor.style.left = '0%';
+    cursor.classList.remove('hit', 'miss', 'missed', 'beat');
+    beatLine.style.left = '0%';
+
+    // Render score row
+    hitCount.textContent = '0';
+    missCount.textContent = '0';
+    toleranceCount.textContent = '0';
+    const streakEl = document.querySelector('.score-row .ok span:nth-child(3)');
+    if (streakEl) streakEl.textContent = 'Streak: 0';
+
+    // Prevent default spacebar behavior on buttons
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>

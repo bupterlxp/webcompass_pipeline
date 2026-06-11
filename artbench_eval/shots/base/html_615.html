@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Segmentation Labeler</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>/* {{ url_for( not found in result */</style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Segmentation Labeler</h1>
+        
+        <div class="upload-section">
+            <h2>Upload Audio File</h2>
+            <form id="uploadForm">
+                <input type="file" id="audioFile" name="audio_file" accept=".mp3,.wav,.m4a,.ogg,.flac" required>
+                <button type="submit">Upload Audio</button>
+            </form>
+            <div id="uploadStatus"></div>
+        </div>
+        
+        <div id="audioPlayerContainer" style="display: none;">
+            <h2>Audio Player</h2>
+            <div id="audioPlayer">
+                <audio id="audioPlayerElement" controls></audio>
+                <div id="audioInfo"></div>
+                <div id="timeline"></div>
+                <div id="labelDisplay"></div>
+            </div>
+            
+            <div class="controls">
+                <button id="addLabelBtn">Add Label</button>
+                <button id="exportBtn">Export Labels</button>
+                <button id="clearLabelsBtn">Clear All Labels</button>
+            </div>
+            
+            <div id="labelForm" style="display: none;">
+                <h3>Add New Label</h3>
+                <div class="form-group">
+                    <label for="startTime">Start Time (seconds):</label>
+                    <input type="number" id="startTime" step="0.01" min="0" max="1000" required>
+                </div>
+                <div class="form-group">
+                    <label for="endTime">End Time (seconds):</label>
+                    <input type="number" id="endTime" step="0.01" min="0" max="1000" required>
+                </div>
+                <div class="form-group">
+                    <label for="labelText">Label Text:</label>
+                    <input type="text" id="labelText" placeholder="Enter label text" required>
+                </div>
+                <button type="button" id="saveLabelBtn">Save Label</button>
+                <button type="button" id="cancelLabelBtn">Cancel</button>
+            </div>
+            
+            <div id="labelList">
+                <h3>Labels</h3>
+                <ul id="labelsList"></ul>
+            </div>
+        </div>
+        
+        <div id="loading" style="display: none;">
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>/* {{ url_for( not found in result */</script>
+</body>
+</html>

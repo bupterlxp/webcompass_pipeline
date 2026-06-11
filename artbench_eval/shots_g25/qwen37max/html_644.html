@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometric Calculation Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00d2ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, #00d2ff, #3a7bd5);
+            border-radius: 2px;
+        }
+
+        /* Shape Category Tabs */
+        .category-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .category-tab {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .category-tab.active {
+            background: linear-gradient(135deg, #00d2ff22, #3a7bd522);
+            border-color: #00d2ff;
+            color: #00d2ff;
+        }
+
+        .category-tab:hover {
+            border-color: #00d2ff88;
+            color: #fff;
+        }
+
+        /* Shape Selection Grid */
+        .shape-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .shape-btn {
+            padding: 12px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #ccc;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .shape-btn:hover {
+            background: rgba(0, 210, 255, 0.1);
+            border-color: #00d2ff66;
+            transform: translateY(-2px);
+        }
+
+        .shape-btn.active {
+            background: linear-gradient(135deg, #00d2ff22, #3a7bd533);
+            border-color: #00d2ff;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.2);
+        }
+
+        .shape-btn svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        /* Input Fields */
+        .input-group {
+            margin-bottom: 14px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85em;
+            color: #aaa;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 0.95em;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #00d2ff;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+        }
+
+        .input-group input::placeholder {
+            color: #555;
+        }
+
+        /* Canvas Area */
+        .canvas-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #shapeCanvas {
+            width: 100%;
+            max-width: 500px;
+            height: 420px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .shape-name-display {
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #fff;
+        }
+
+        /* Results Panel */
+        .result-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .result-item:hover {
+            border-color: rgba(0, 210, 255, 0.3);
+        }
+
+        .result-label {
+            font-size: 0.8em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .result-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #00d2ff;
+        }
+
+        .result-unit {
+            font-size: 0.7em;
+            color: #666;
+            margin-left: 4px;
+        }
+
+        /* Formula Toggle */
+        .formula-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-switch {
+            width: 40px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 11px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #00d2ff44;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #888;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            left: 20px;
+            background: #00d2ff;
+        }
+
+        .formula-section {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .formula-section.visible {
+            max-height: 600px;
+        }
+
+        .formula-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #b8d4e3;
+            line-height: 1.6;
+        }
+
+        .formula-item .formula-title {
+            color: #00d2ff;
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 4px;
+        }
+
+        /* Dimension Labels Toggle */
+        .options-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .option-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s;
+        }
+
+        .option-btn.active {
+            background: rgba(0, 210, 255, 0.15);
+            border-color: #00d2ff;
+            color: #00d2ff;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #555;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        .error-msg {
+            color: #ff6b6b;
+            font-size: 0.8em;
+            margin-top: 4px;
+        }
+
+        .unit-selector {
+            margin-bottom: 16px;
+        }
+
+        .unit-selector select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 0.9em;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .unit-selector select option {
+            background: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⬡ Geometric Calculation Tool</h1>
+        <p class="subtitle">Interactive calculator with real-time graphical preview for plane & solid figures</p>
+
+        <div class="main-layout">
+            <!-- Left Panel: Shape Selection & Input -->
+            <div class="panel">
+                <div class="panel-title">Shape Selection</div>
+
+                <div class="category-tabs">
+                    <button class="category-tab active" onclick="switchCategory('plane')">Plane Figures</button>
+                    <button class="category-tab" onclick="switchCategory('solid')">Solid Figures</button>
+                </div>
+
+                <div class="shape-grid" id="shapeGrid"></div>
+
+                <div class="panel-title" style="margin-top: 10px;">Parameters</div>
+
+                <div class="unit-selector">
+                    <select id="unitSelect" onchange="recalculate()">
+                        <option value="cm">Centimeters (cm)</option>
+                        <option value="m">Meters (m)</option>
+                        <option value="mm">Millimeters (mm)</option>
+                        <option value="in">Inches (in)</option>
+                        <option value="ft">Feet (ft)</option>
+                    </select>
+                </div>
+
+                <div id="inputFields"></div>
+            </div>
+
+            <!-- Center Panel: Canvas Preview -->
+            <div class="panel canvas-container">
+                <div class="shape-name-display" id="shapeNameDisplay">Circle</div>
+                <canvas id="shapeCanvas" width="500" height="420"></canvas>
+                <div class="options-row">
+                    <button class="option-btn active" id="labelToggle" onclick="toggleLabels()">Show Labels</button>
+                    <button class="option-btn active" id="gridToggle" onclick="toggleGrid()">Show Grid</button>
+                    <button class="option-btn" id="animToggle" onclick="toggleAnimation()">Animate</button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results & Formulas -->
+            <div class="panel">
+                <div class="panel-title">Results</div>
+                <div id="resultsContainer">
+                    <div class="no-results">Select a shape and enter parameters</div>
+                </div>
+
+                <div class="formula-toggle" onclick="toggleFormulas()">
+                    <div class="toggle-switch" id="formulaToggleSwitch"></div>
+                    <span style="font-size: 0.9em;">Show Formulas</span>
+                </div>
+
+                <div class="formula-section" id="formulaSection">
+                    <div id="formulaContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== SHAPE DEFINITIONS ====================
+        const shapes = {
+            plane: {
+                circle: {
+                    name: 'Circle',
+                    icon: `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'radius', label: 'Radius', placeholder: 'Enter radius', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const r = p.radius;
+                        if (r <= 0) return null;
+                        return {
+                            area: { value: Math.PI * r * r, label: 'Area' },
+                            perimeter: { value: 2 * Math.PI * r, label: 'Circumference' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Area', formula: 'A = π × r²' },
+                        { title: 'Circumference', formula: 'C = 2 × π × r' }
+                    ],
+                    draw: drawCircle
+                },
+                triangle: {
+                    name: 'Triangle',
+                    icon: `<svg viewBox="0 0 32 32"><polygon points="16,4 4,28 28,28" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'base', label: 'Base (a)', placeholder: 'Enter base length', min: 0 },
+                        { id: 'sideB', label: 'Side b', placeholder: 'Enter side b', min: 0 },
+                        { id: 'sideC', label: 'Side c', placeholder: 'Enter side c', min: 0 },
+                        { id: 'height', label: 'Height (h)', placeholder: 'Enter height', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { base, sideB, sideC, height } = p;
+                        if (base <= 0 || height <= 0) return null;
+                        const area = 0.5 * base * height;
+                        const perimeter = (base > 0 ? base : 0) + (sideB > 0 ? sideB : 0) + (sideC > 0 ? sideC : 0);
+                        return {
+                            area: { value: area, label: 'Area' },
+                            perimeter: { value: perimeter > 0 ? perimeter : null, label: 'Perimeter' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Area', formula: 'A = ½ × base × height' },
+                        { title: 'Perimeter', formula: 'P = a + b + c' }
+                    ],
+                    draw: drawTriangle
+                },
+                rectangle: {
+                    name: 'Rectangle',
+                    icon: `<svg viewBox="0 0 32 32"><rect x="4" y="8" width="24" height="16" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'width', label: 'Width (w)', placeholder: 'Enter width', min: 0 },
+                        { id: 'height', label: 'Height (h)', placeholder: 'Enter height', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { width, height } = p;
+                        if (width <= 0 || height <= 0) return null;
+                        return {
+                            area: { value: width * height, label: 'Area' },
+                            perimeter: { value: 2 * (width + height), label: 'Perimeter' },
+                            diagonal: { value: Math.sqrt(width * width + height * height), label: 'Diagonal' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Area', formula: 'A = w × h' },
+                        { title: 'Perimeter', formula: 'P = 2 × (w + h)' },
+                        { title: 'Diagonal', formula: 'd = √(w² + h²)' }
+                    ],
+                    draw: drawRectangle
+                },
+                regularPolygon: {
+                    name: 'Regular Polygon',
+                    icon: `<svg viewBox="0 0 32 32"><polygon points="16,3 28,12 24,27 8,27 4,12" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'sides', label: 'Number of Sides (n)', placeholder: 'e.g., 5, 6, 8', min: 3 },
+                        { id: 'sideLength', label: 'Side Length (s)', placeholder: 'Enter side length', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { sides, sideLength } = p;
+                        if (sides < 3 || sideLength <= 0) return null;
+                        const n = Math.floor(sides);
+                        const area = (n * sideLength * sideLength) / (4 * Math.tan(Math.PI / n));
+                        const perimeter = n * sideLength;
+                        const apothem = sideLength / (2 * Math.tan(Math.PI / n));
+                        return {
+                            area: { value: area, label: 'Area' },
+                            perimeter: { value: perimeter, label: 'Perimeter' },
+                            apothem: { value: apothem, label: 'Apothem' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Area', formula: 'A = (n × s²) / (4 × tan(π/n))' },
+                        { title: 'Perimeter', formula: 'P = n × s' },
+                        { title: 'Apothem', formula: 'a = s / (2 × tan(π/n))' }
+                    ],
+                    draw: drawRegularPolygon
+                },
+                ellipse: {
+                    name: 'Ellipse',
+                    icon: `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="13" ry="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'semiMajor', label: 'Semi-major axis (a)', placeholder: 'Enter semi-major axis', min: 0 },
+                        { id: 'semiMinor', label: 'Semi-minor axis (b)', placeholder: 'Enter semi-minor axis', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { semiMajor, semiMinor } = p;
+                        if (semiMajor <= 0 || semiMinor <= 0) return null;
+                        const area = Math.PI * semiMajor * semiMinor;
+                        const h = Math.pow((semiMajor - semiMinor) / (semiMajor + semiMinor), 2);
+                        const perimeter = Math.PI * (semiMajor + semiMinor) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+                        return {
+                            area: { value: area, label: 'Area' },
+                            perimeter: { value: perimeter, label: 'Perimeter (approx)' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Area', formula: 'A = π × a × b' },
+                        { title: 'Perimeter (Ramanujan)', formula: 'P ≈ π(a+b)(1 + 3h/(10+√(4-3h)))\nwhere h = ((a-b)/(a+b))²' }
+                    ],
+                    draw: drawEllipse
+                },
+                trapezoid: {
+                    name: 'Trapezoid',
+                    icon: `<svg viewBox="0 0 32 32"><polygon points="8,8 24,8 28,24 4,24" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'topBase', label: 'Top Base (a)', placeholder: 'Enter top base', min: 0 },
+                        { id: 'bottomBase', label: 'Bottom Base (b)', placeholder: 'Enter bottom base', min: 0 },
+                        { id: 'height', label: 'Height (h)', placeholder: 'Enter height', min: 0 },
+                        { id: 'sideL', label: 'Left Side', placeholder: 'Enter left side', min: 0 },
+                        { id: 'sideR', label: 'Right Side', placeholder: 'Enter right side', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { topBase, bottomBase, height, sideL, sideR } = p;
+                        if (topBase <= 0 || bottomBase <= 0 || height <= 0) return null;
+                        const area = 0.5 * (topBase + bottomBase) * height;
+                        const perimeter = topBase + bottomBase + (sideL > 0 ? sideL : 0) + (sideR > 0 ? sideR : 0);
+                        return {
+                            area: { value: area, label: 'Area' },
+                            perimeter: { value: perimeter > (topBase + bottomBase) ? perimeter : null, label: 'Perimeter' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Area', formula: 'A = ½ × (a + b) × h' },
+                        { title: 'Perimeter', formula: 'P = a + b + c + d' }
+                    ],
+                    draw: drawTrapezoid
+                }
+            },
+            solid: {
+                sphere: {
+                    name: 'Sphere',
+                    icon: `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="16" cy="16" rx="12" ry="4" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2"/></svg>`,
+                    params: [
+                        { id: 'radius', label: 'Radius (r)', placeholder: 'Enter radius', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const r = p.radius;
+                        if (r <= 0) return null;
+                        return {
+                            volume: { value: (4 / 3) * Math.PI * r * r * r, label: 'Volume' },
+                            surfaceArea: { value: 4 * Math.PI * r * r, label: 'Surface Area' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Volume', formula: 'V = (4/3) × π × r³' },
+                        { title: 'Surface Area', formula: 'SA = 4 × π × r²' }
+                    ],
+                    draw: drawSphere
+                },
+                cylinder: {
+                    name: 'Cylinder',
+                    icon: `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="8" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="6" y1="8" x2="6" y2="24" stroke="currentColor" stroke-width="2"/><line x1="26" y1="8" x2="26" y2="24" stroke="currentColor" stroke-width="2"/><ellipse cx="16" cy="24" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'radius', label: 'Radius (r)', placeholder: 'Enter radius', min: 0 },
+                        { id: 'height', label: 'Height (h)', placeholder: 'Enter height', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { radius, height } = p;
+                        if (radius <= 0 || height <= 0) return null;
+                        return {
+                            volume: { value: Math.PI * radius * radius * height, label: 'Volume' },
+                            surfaceArea: { value: 2 * Math.PI * radius * (radius + height), label: 'Surface Area' },
+                            lateralArea: { value: 2 * Math.PI * radius * height, label: 'Lateral Area' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Volume', formula: 'V = π × r² × h' },
+                        { title: 'Surface Area', formula: 'SA = 2πr² + 2πrh = 2πr(r+h)' },
+                        { title: 'Lateral Area', formula: 'LA = 2 × π × r × h' }
+                    ],
+                    draw: drawCylinder
+                },
+                cone: {
+                    name: 'Cone',
+                    icon: `<svg viewBox="0 0 32 32"><line x1="16" y1="4" x2="6" y2="26" stroke="currentColor" stroke-width="2"/><line x1="16" y1="4" x2="26" y2="26" stroke="currentColor" stroke-width="2"/><ellipse cx="16" cy="26" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+                    params: [
+                        { id: 'radius', label: 'Radius (r)', placeholder: 'Enter radius', min: 0 },
+                        { id: 'height', label: 'Height (h)', placeholder: 'Enter height', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { radius, height } = p;
+                        if (radius <= 0 || height <= 0) return null;
+                        const slantHeight = Math.sqrt(radius * radius + height * height);
+                        return {
+                            volume: { value: (1 / 3) * Math.PI * radius * radius * height, label: 'Volume' },
+                            surfaceArea: { value: Math.PI * radius * (radius + slantHeight), label: 'Surface Area' },
+                            lateralArea: { value: Math.PI * radius * slantHeight, label: 'Lateral Area' },
+                            slantHeight: { value: slantHeight, label: 'Slant Height' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Volume', formula: 'V = (1/3) × π × r² × h' },
+                        { title: 'Surface Area', formula: 'SA = πr² + πrl = πr(r+l)' },
+                        { title: 'Lateral Area', formula: 'LA = π × r × l' },
+                        { title: 'Slant Height', formula: 'l = √(r² + h²)' }
+                    ],
+                    draw: drawCone
+                },
+                rectangularPrism: {
+                    name: 'Rectangular Prism',
+                    icon: `<svg viewBox="0 0 32 32"><rect x="4" y="10" width="18" height="16" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="4,10 10,4 28,4 22,10" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="28" y1="4" x2="28" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="22" y1="10" x2="28" y2="4" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2"/></svg>`,
+                    params: [
+                        { id: 'length', label: 'Length (l)', placeholder: 'Enter length', min: 0 },
+                        { id: 'width', label: 'Width (w)', placeholder: 'Enter width', min: 0 },
+                        { id: 'height', label: 'Height (h)', placeholder: 'Enter height', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { length, width, height } = p;
+                        if (length <= 0 || width <= 0 || height <= 0) return null;
+                        return {
+                            volume: { value: length * width * height, label: 'Volume' },
+                            surfaceArea: { value: 2 * (length * width + width * height + length * height), label: 'Surface Area' },
+                            diagonal: { value: Math.sqrt(length * length + width * width + height * height), label: 'Space Diagonal' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Volume', formula: 'V = l × w × h' },
+                        { title: 'Surface Area', formula: 'SA = 2(lw + wh + lh)' },
+                        { title: 'Space Diagonal', formula: 'd = √(l² + w² + h²)' }
+                    ],
+                    draw: drawRectangularPrism
+                },
+                triangularPrism: {
+                    name: 'Triangular Prism',
+                    icon: `<svg viewBox="0 0 32 32"><polygon points="6,24 16,6 26,24" fill="none" stroke="currentColor" stroke-width="2"/><line x1="6" y1="24" x2="10" y2="28" stroke="currentColor" stroke-width="1.5"/><line x1="26" y1="24" x2="30" y2="28" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="28" x2="30" y2="28" stroke="currentColor" stroke-width="1.5"/></svg>`,
+                    params: [
+                        { id: 'base', label: 'Triangle Base (b)', placeholder: 'Enter base', min: 0 },
+                        { id: 'triHeight', label: 'Triangle Height (hₜ)', placeholder: 'Enter triangle height', min: 0 },
+                        { id: 'sideA', label: 'Side a', placeholder: 'Enter side a', min: 0 },
+                        { id: 'sideB', label: 'Side b', placeholder: 'Enter side b', min: 0 },
+                        { id: 'length', label: 'Prism Length (l)', placeholder: 'Enter prism length', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const { base, triHeight, sideA, sideB, length } = p;
+                        if (base <= 0 || triHeight <= 0 || length <= 0) return null;
+                        const triArea = 0.5 * base * triHeight;
+                        const volume = triArea * length;
+                        const triPerimeter = base + (sideA > 0 ? sideA : 0) + (sideB > 0 ? sideB : 0);
+                        const lateralArea = triPerimeter > base ? triPerimeter * length : null;
+                        const surfaceArea = lateralArea !== null ? 2 * triArea + lateralArea : null;
+                        return {
+                            volume: { value: volume, label: 'Volume' },
+                            surfaceArea: { value: surfaceArea, label: 'Surface Area' },
+                            baseArea: { value: triArea, label: 'Base Area' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Volume', formula: 'V = ½ × b × hₜ × l' },
+                        { title: 'Surface Area', formula: 'SA = 2 × (½bhₜ) + (a+b+c) × l' },
+                        { title: 'Base Area', formula: 'A_base = ½ × b × hₜ' }
+                    ],
+                    draw: drawTriangularPrism
+                },
+                cube: {
+                    name: 'Cube',
+                    icon: `<svg viewBox="0 0 32 32"><rect x="6" y="10" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="6,10 12,4 28,4 22,10" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="28" y1="4" x2="28" y2="20" stroke="currentColor" stroke-width="1.5"/></svg>`,
+                    params: [
+                        { id: 'side', label: 'Side Length (a)', placeholder: 'Enter side length', min: 0 }
+                    ],
+                    calculate: (p) => {
+                        const a = p.side;
+                        if (a <= 0) return null;
+                        return {
+                            volume: { value: a * a * a, label: 'Volume' },
+                            surfaceArea: { value: 6 * a * a, label: 'Surface Area' },
+                            diagonal: { value: a * Math.sqrt(3), label: 'Space Diagonal' }
+                        };
+                    },
+                    formulas: [
+                        { title: 'Volume', formula: 'V = a³' },
+                        { title: 'Surface Area', formula: 'SA = 6 × a²' },
+                        { title: 'Space Diagonal', formula: 'd = a × √3' }
+                    ],
+                    draw: drawCube
+                }
+            }
+        };
+
+        // ==================== STATE ====================
+        let currentCategory = 'plane';
+        let currentShape = 'circle';
+        let showLabels = true;
+        let showGrid = true;
+        let showFormulas = false;
+        let animate = false;
+        let animationAngle = 0;
+        let animationId = null;
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            renderShapeGrid();
+            selectShape('circle');
+        }
+
+        function switchCategory(category) {
+            currentCategory = category;
+            document.querySelectorAll('.category-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            renderShapeGrid();
+            const firstShape = Object.keys(shapes[category])[0];
+            selectShape(firstShape);
+        }
+
+        function renderShapeGrid() {
+            const grid = document.getElementById('shapeGrid');
+            grid.innerHTML = '';
+            Object.entries(shapes[currentCategory]).forEach(([key, shape]) => {
+                const btn = document.createElement('button');
+                btn.className = `shape-btn ${key === currentShape ? 'active' : ''}`;
+                btn.innerHTML = `${shape.icon}<span>${shape.name}</span>`;
+                btn.onclick = () => selectShape(key);
+                grid.appendChild(btn);
+            });
+        }
+
+        function selectShape(shapeKey) {
+            currentShape = shapeKey;
+            document.querySelectorAll('.shape-btn').forEach(btn => btn.classList.remove('active'));
+            event && event.target && event.target.closest('.shape-btn')?.classList.add('active');
+
+            // Update active state
+            const grid = document.getElementById('shapeGrid');
+            const buttons = grid.querySelectorAll('.shape-btn');
+            const shapeKeys = Object.keys(shapes[currentCategory]);
+            buttons.forEach((btn, i) => {
+                btn.classList.toggle('active', shapeKeys[i] === shapeKey);
+            });
+
+            const shape = shapes[currentCategory][shapeKey];
+            document.getElementById('shapeNameDisplay').textContent = shape.name;
+            renderInputFields(shape.params);
+            recalculate();
+        }
+
+        function renderInputFields(params) {
+            const container = document.getElementById('inputFields');
+            container.innerHTML = '';
+            params.forEach(param => {
+                const group = document.createElement('div');
+                group.className = 'input-group';
+                group.innerHTML = `
+                    <label>${param.label}</label>
+                    <input type="number" id="param_${param.id}" placeholder="${param.placeholder}" 
+                           min="${param.min || 0}" step="any" oninput="recalculate()">
+                `;
+                container.appendChild(group);
+            });
+        }
+
+        // ==================== CALCULATION ====================
+        function getParams() {
+            const shape = shapes[currentCategory][currentShape];
+            const params = {};
+            shape.params.forEach(p => {
+                const input = document.getElementById(`param_${p.id}`);
+                params[p.id] = input ? parseFloat(input.value) || 0 : 0;
+            });
+            return params;
+        }
+
+        function recalculate() {
+            const shape = shapes[currentCategory][currentShape];
+            const params = getParams();
+            const results = shape.calculate(params);
+            const unit = document.getElementById('unitSelect').value;
+
+            renderResults(results, unit);
+            renderFormulas(shape.formulas);
+            drawShape(params, results);
+        }
+
+        function renderResults(results, unit) {
+            const container = document.getElementById('resultsContainer');
+            if (!results) {
+                container.innerHTML = '<div class="no-results">Enter valid parameters to see results</div>';
+                return;
+            }
+
+            let html = '';
+            Object.entries(results).forEach(([key, data]) => {
+                if (data.value === null || data.value === undefined) return;
+                const isArea = key === 'area' || key === 'surfaceArea' || key === 'lateralArea' || key === 'baseArea';
+                const isVolume = key === 'volume';
+                const unitLabel = isVolume ? `${unit}³` : isArea ? `${unit}²` : unit;
+
+                html += `
+                    <div class="result-item">
+                        <div class="result-label">${data.label}</div>
+                        <div class="result-value">${formatNumber(data.value)}<span class="result-unit">${unitLabel}</span></div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderFormulas(formulas) {
+            const container = document.getElementById('formulaContainer');
+            let html = '';
+            formulas.forEach(f => {
+                html += `
+                    <div class="formula-item">
+                        <div class="formula-title">${f.title}</div>
+                        <div>${f.formula}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '—';
+            if (Number.isInteger(num)) return num.toLocaleString();
+            return num.toFixed(4).replace(/\.?0+$/, '') || '0';
+        }
+
+        // ==================== DRAWING ====================
+        function drawShape(params, results) {
+            const canvas = document.getElementById('shapeCanvas');
+            const ctx = canvas.getContext('2d');
+            const shape = shapes[currentCategory][currentShape];
+
+            // High DPI support
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = 500 * dpr;
+            canvas.height = 420 * dpr;
+            ctx.scale(dpr, dpr);
+
+            // Clear
+            ctx.clearRect(0, 0, 500, 420);
+
+            // Draw grid
+            if (showGrid) {
+                drawGridBackground(ctx);
+            }
+
+            // Draw shape
+            shape.draw(ctx, params, results, animationAngle);
+        }
+
+        function drawGridBackground(ctx) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < 500; x += 25) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 420);
+                ctx.stroke();
+            }
+            for (let y = 0; y < 420; y += 25) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(500, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawDimensionLine(ctx, x1, y1, x2, y2, label, offset = 20) {
+            if (!showLabels) return;
+
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const nx = -dy / len * offset;
+            const ny = dx / len * offset;
+
+            const sx1 = x1 + nx;
+            const sy1 = y1 + ny;
+            const sx2 = x2 + nx;
+            const sy2 = y2 + ny;
+
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+
+            // Extension lines
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(sx1, sy1);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(sx2, sy2);
+            ctx.stroke();
+
+            // Dimension line
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(sx2, sy2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Arrows
+            drawArrow(ctx, sx1, sy1, sx2, sy2);
+            drawArrow(ctx, sx2, sy2, sx1, sy1);
+
+            // Label
+            const mx = (sx1 + sx2) / 2;
+            const my = (sy1 + sy2) / 2;
+            ctx.fillStyle = '#ff9800';
+            ctx.font = 'bold 12px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+
+            const angle = Math.atan2(dy, dx);
+            ctx.save();
+            ctx.translate(mx, my - 5);
+            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+                ctx.rotate(angle + Math.PI);
+            } else {
+                ctx.rotate(angle);
+            }
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+        }
+
+        function drawArrow(ctx, fromX, fromY, toX, toY) {
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            const arrowLen = 8;
+
+            ctx.fillStyle = '#ff9800';
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(fromX + arrowLen * Math.cos(angle - 0.4), fromY + arrowLen * Math.sin(angle - 0.4));
+            ctx.lineTo(fromX + arrowLen * Math.cos(angle + 0.4), fromY + arrowLen * Math.sin(angle + 0.4));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawLabel(ctx, text, x, y, color = '#fff') {
+            if (!showLabels) return;
+            ctx.fillStyle = color;
+            ctx.font = 'bold 13px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+        }
+
+        // ==================== SHAPE DRAWING FUNCTIONS ====================
+
+        function drawCircle(ctx, params, results, angle) {
+            const r = params.radius || 0;
+            if (r <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 210;
+            const maxR = 150;
+            const scale = Math.min(maxR / r, maxR / r);
+            const drawR = Math.min(r * scale, maxR);
+
+            // Fill
+            const gradient = ctx.createRadialGradient(cx - drawR * 0.3, cy - drawR * 0.3, 0, cx, cy, drawR);
+            gradient.addColorStop(0, 'rgba(0, 210, 255, 0.3)');
+            gradient.addColorStop(1, 'rgba(0, 210, 255, 0.05)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, drawR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Stroke
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, drawR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Center point
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Radius line
+            const endAngle = animate ? angle : -Math.PI / 6;
+            const rx = cx + drawR * Math.cos(endAngle);
+            const ry = cy + drawR * Math.sin(endAngle);
+
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(rx, ry);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Radius label
+            const rmx = (cx + rx) / 2;
+            const rmy = (cy + ry) / 2;
+            drawLabel(ctx, `r = ${formatNumber(r)}`, rmx + 15, rmy - 15, '#ff9800');
+
+            // Dimension
+            drawDimensionLine(ctx, cx - drawR, cy + drawR + 10, cx + drawR, cy + drawR + 10, `d = ${formatNumber(2 * r)}`, 20);
+        }
+
+        function drawTriangle(ctx, params, results, angle) {
+            const { base, height, sideB, sideC } = params;
+            if (base <= 0 || height <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 280;
+            const maxDim = 280;
+            const scale = Math.min(maxDim / base, maxDim / height, 1.5);
+            const b = base * scale;
+            const h = height * scale;
+
+            const x1 = cx - b / 2;
+            const y1 = cy;
+            const x2 = cx + b / 2;
+            const y2 = cy;
+            const x3 = cx;
+            const y3 = cy - h;
+
+            // Fill
+            const gradient = ctx.createLinearGradient(cx, y3, cx, y1);
+            gradient.addColorStop(0, 'rgba(76, 175, 80, 0.3)');
+            gradient.addColorStop(1, 'rgba(76, 175, 80, 0.05)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.closePath();
+            ctx.fill();
+
+            // Stroke
+            ctx.strokeStyle = '#4caf50';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Height line
+            ctx.strokeStyle = '#ff980088';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x3, y3);
+            ctx.lineTo(x3, y1);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Right angle marker
+            const markerSize = 10;
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x3 + markerSize, y1);
+            ctx.lineTo(x3 + markerSize, y1 - markerSize);
+            ctx.lineTo(x3, y1 - markerSize);
+            ctx.stroke();
+
+            // Labels
+            drawDimensionLine(ctx, x1, y1, x2, y2, `base = ${formatNumber(base)}`, 25);
+            drawLabel(ctx, `h = ${formatNumber(height)}`, x3 + 30, (y3 + y1) / 2, '#ff9800');
+
+            if (sideB > 0) drawLabel(ctx, `b = ${formatNumber(sideB)}`, (x2 + x3) / 2 + 20, (y2 + y3) / 2, '#aaa');
+            if (sideC > 0) drawLabel(ctx, `c = ${formatNumber(sideC)}`, (x1 + x3) / 2 - 20, (y1 + y3) / 2, '#aaa');
+        }
+
+        function drawRectangle(ctx, params, results, angle) {
+            const { width, height } = params;
+            if (width <= 0 || height <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 210;
+            const maxDim = 280;
+            const scale = Math.min(maxDim / width, maxDim / height, 2);
+            const w = width * scale;
+            const h = height * scale;
+
+            const x = cx - w / 2;
+            const y = cy - h / 2;
+
+            // Fill
+            const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
+            gradient.addColorStop(0, 'rgba(156, 39, 176, 0.25)');
+            gradient.addColorStop(1, 'rgba(156, 39, 176, 0.05)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, w, h);
+
+            // Stroke
+            ctx.strokeStyle = '#ce93d8';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(x, y, w, h);
+
+            // Diagonal
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Labels
+            drawDimensionLine(ctx, x, y + h, x + w, y + h, `w = ${formatNumber(width)}`, 25);
+            drawDimensionLine(ctx, x + w, y, x + w, y + h, `h = ${formatNumber(height)}`, 25);
+
+            if (results && results.diagonal) {
+                drawLabel(ctx, `d = ${formatNumber(results.diagonal.value)}`, cx + 10, cy - 10, '#ff9800');
+            }
+        }
+
+        function drawRegularPolygon(ctx, params, results, angle) {
+            const { sides, sideLength } = params;
+            const n = Math.floor(sides) || 0;
+            if (n < 3 || sideLength <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 210;
+            const maxR = 140;
+            const R = sideLength / (2 * Math.sin(Math.PI / n));
+            const scale = Math.min(maxR / R, 2);
+            const drawR = R * scale;
+
+            const rotOffset = animate ? angle : -Math.PI / 2;
+
+            // Calculate vertices
+            const vertices = [];
+            for (let i = 0; i < n; i++) {
+                const a = rotOffset + (2 * Math.PI * i) / n;
+                vertices.push({
+                    x: cx + drawR * Math.cos(a),
+                    y: cy + drawR * Math.sin(a)
+                });
+            }
+
+            // Fill
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, drawR);
+            gradient.addColorStop(0, 'rgba(255, 193, 7, 0.25)');
+            gradient.addColorStop(1, 'rgba(255, 193, 7, 0.05)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(vertices[0].x, vertices[0].y);
+            for (let i = 1; i < n; i++) {
+                ctx.lineTo(vertices[i].x, vertices[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Stroke
+            ctx.strokeStyle = '#ffc107';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(vertices[0].x, vertices[0].y);
+            for (let i = 1; i < n; i++) {
+                ctx.lineTo(vertices[i].x, vertices[i].y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // Center
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Apothem line
+            if (results && results.apothem) {
+                const midIdx = 0;
+                const nextIdx = 1;
+                const midX = (vertices[midIdx].x + vertices[nextIdx].x) / 2;
+                const midY = (vertices[midIdx].y + vertices[nextIdx].y) / 2;
+
+                ctx.strokeStyle = 'rgba(255, 152, 0, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 3]);
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(midX, midY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                drawLabel(ctx, `a = ${formatNumber(results.apothem.value)}`, (cx + midX) / 2 + 15, (cy + midY) / 2 - 10, '#ff9800');
+            }
+
+            // Side label
+            const v0 = vertices[0];
+            const v1 = vertices[1];
+            drawLabel(ctx, `s = ${formatNumber(sideLength)}`, (v0.x + v1.x) / 2, (v0.y + v1.y) / 2 - 15, '#ffc107');
+
+            // n label
+            drawLabel(ctx, `n = ${n}`, cx, cy + drawR + 30, '#888');
+        }
+
+        function drawEllipse(ctx, params, results, angle) {
+            const { semiMajor, semiMinor } = params;
+            if (semiMajor <= 0 || semiMinor <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 210;
+            const maxDim = 160;
+            const scale = Math.min(maxDim / semiMajor, maxDim / semiMinor, 2);
+            const a = semiMajor * scale;
+            const b = semiMinor * scale;
+
+            // Fill
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, a);
+            gradient.addColorStop(0, 'rgba(0, 188, 212, 0.25)');
+            gradient.addColorStop(1, 'rgba(0, 188, 212, 0.05)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Stroke
+            ctx.strokeStyle = '#00bcd4';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Axes
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(cx - a, cy);
+            ctx.lineTo(cx + a, cy);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - b);
+            ctx.lineTo(cx, cy + b);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Center
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Labels
+            drawLabel(ctx, `a = ${formatNumber(semiMajor)}`, cx + a / 2, cy - 15, '#ff9800');
+            drawLabel(ctx, `b = ${formatNumber(semiMinor)}`, cx + 20, cy - b / 2, '#ff9800');
+
+            // Foci
+            const c = Math.sqrt(Math.abs(a * a - b * b));
+            if (semiMajor >= semiMinor) {
+                ctx.fillStyle = '#ff5722';
+                ctx.beginPath();
+                ctx.arc(cx - c, cy, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(cx + c, cy, 4, 0, Math.PI * 2);
+                ctx.fill();
+                drawLabel(ctx, 'F₁', cx - c, cy + 18, '#ff5722');
+                drawLabel(ctx, 'F₂', cx + c, cy + 18, '#ff5722');
+            }
+        }
+
+        function drawTrapezoid(ctx, params, results, angle) {
+            const { topBase, bottomBase, height } = params;
+            if (topBase <= 0 || bottomBase <= 0 || height <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 260;
+            const maxDim = 280;
+            const scale = Math.min(maxDim / Math.max(topBase, bottomBase), maxDim / height, 1.5);
+            const tb = topBase * scale;
+            const bb = bottomBase * scale;
+            const h = height * scale;
+
+            const x1 = cx - bb / 2;
+            const y1 = cy;
+            const x2 = cx + bb / 2;
+            const y2 = cy;
+            const x3 = cx + tb / 2;
+            const y3 = cy - h;
+            const x4 = cx - tb / 2;
+            const y4 = cy - h;
+
+            // Fill
+            const gradient = ctx.createLinearGradient(cx, y3, cx, y1);
+            gradient.addColorStop(0, 'rgba(233, 30, 99, 0.25)');
+            gradient.addColorStop(1, 'rgba(233, 30, 99, 0.05)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.lineTo(x4, y4);
+            ctx.closePath();
+            ctx.fill();
+
+            // Stroke
+            ctx.strokeStyle = '#e91e63';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.lineTo(x4, y4);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Height
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x4, y4);
+            ctx.lineTo(x4, y1);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Labels
+            drawDimensionLine(ctx, x4, y4, x3, y4, `a = ${formatNumber(topBase)}`, -25);
+            drawDimensionLine(ctx, x1, y1, x2, y2, `b = ${formatNumber(bottomBase)}`, 25);
+            drawLabel(ctx, `h = ${formatNumber(height)}`, x4 - 25, (y4 + y1) / 2, '#ff9800');
+        }
+
+        // ==================== SOLID FIGURE DRAWING ====================
+
+        function drawSphere(ctx, params, results, angle) {
+            const r = params.radius || 0;
+            if (r <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 200;
+            const maxR = 130;
+            const scale = Math.min(maxR / r, 2);
+            const drawR = r * scale;
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(cx + 10, cy + drawR + 20, drawR * 0.8, drawR * 0.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sphere gradient
+            const gradient = ctx.createRadialGradient(cx - drawR * 0.3, cy - drawR * 0.3, drawR * 0.1, cx, cy, drawR);
+            gradient.addColorStop(0, 'rgba(100, 200, 255, 0.5)');
+            gradient.addColorStop(0.7, 'rgba(30, 100, 200, 0.3)');
+            gradient.addColorStop(1, 'rgba(10, 50, 100, 0.2)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, drawR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Outline
+            ctx.strokeStyle = '#4fc3f7';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, drawR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Equator ellipse
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, drawR, drawR * 0.3, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Meridian
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, drawR * 0.3, drawR, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Radius
+            const rAngle = animate ? angle : Math.PI / 4;
+            const rx = cx + drawR * 0.7 * Math.cos(rAngle);
+            const ry = cy + drawR * 0.7 * Math.sin(rAngle);
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(rx, ry);
+            ctx.stroke();
+
+            // Center
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            drawLabel(ctx, `r = ${formatNumber(r)}`, (cx + rx) / 2 + 15, (cy + ry) / 2 - 10, '#ff9800');
+
+            // Highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath();
+            ctx.arc(cx - drawR * 0.3, cy - drawR * 0.3, drawR * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawCylinder(ctx, params, results, angle) {
+            const { radius, height } = params;
+            if (radius <= 0 || height <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 210;
+            const maxDim = 140;
+            const scale = Math.min(maxDim / radius, maxDim / height, 1.5);
+            const r = radius * scale;
+            const h = height * scale;
+            const ellipseH = r * 0.35;
+
+            const topY = cy - h / 2;
+            const botY = cy + h / 2;
+
+            // Body fill
+            const bodyGrad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+            bodyGrad.addColorStop(0, 'rgba(38, 166, 154, 0.1)');
+            bodyGrad.addColorStop(0.5, 'rgba(38, 166, 154, 0.25)');
+            bodyGrad.addColorStop(1, 'rgba(38, 166, 154, 0.1)');
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.moveTo(cx - r, topY);
+            ctx.lineTo(cx - r, botY);
+            ctx.ellipse(cx, botY, r, ellipseH, 0, Math.PI, 0, true);
+            ctx.lineTo(cx + r, topY);
+            ctx.ellipse(cx, topY, r, ellipseH, 0, 0, Math.PI, true);
+            ctx.closePath();
+            ctx.fill();
+
+            // Side lines
+            ctx.strokeStyle = '#26a69a';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cx - r, topY);
+            ctx.lineTo(cx - r, botY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx + r, topY);
+            ctx.lineTo(cx + r, botY);
+            ctx.stroke();
+
+            // Bottom ellipse
+            ctx.strokeStyle = '#26a69a';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, botY, r, ellipseH, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Top ellipse
+            const topGrad = ctx.createRadialGradient(cx, topY, 0, cx, topY, r);
+            topGrad.addColorStop(0, 'rgba(38, 166, 154, 0.3)');
+            topGrad.addColorStop(1, 'rgba(38, 166, 154, 0.1)');
+            ctx.fillStyle = topGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, topY, r, ellipseH, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#26a69a';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Labels
+            drawDimensionLine(ctx, cx + r + 5, topY, cx + r + 5, botY, `h = ${formatNumber(height)}`, 25);
+
+            // Radius on top
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(cx, topY);
+            ctx.lineTo(cx + r, topY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            drawLabel(ctx, `r = ${formatNumber(radius)}`, cx + r / 2, topY - 15, '#ff9800');
+        }
+
+        function drawCone(ctx, params, results, angle) {
+            const { radius, height } = params;
+            if (radius <= 0 || height <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 220;
+            const maxDim = 140;
+            const scale = Math.min(maxDim / radius, maxDim / height, 1.5);
+            const r = radius * scale;
+            const h = height * scale;
+            const ellipseH = r * 0.35;
+
+            const topY = cy - h / 2;
+            const botY = cy + h / 2;
+
+            // Body fill
+            const bodyGrad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+            bodyGrad.addColorStop(0, 'rgba(255, 87, 34, 0.1)');
+            bodyGrad.addColorStop(0.5, 'rgba(255, 87, 34, 0.2)');
+            bodyGrad.addColorStop(1, 'rgba(255, 87, 34, 0.1)');
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.moveTo(cx, topY);
+            ctx.lineTo(cx - r, botY);
+            ctx.ellipse(cx, botY, r, ellipseH, 0, Math.PI, 0, true);
+            ctx.lineTo(cx, topY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Side lines
+            ctx.strokeStyle = '#ff5722';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, topY);
+            ctx.lineTo(cx - r, botY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx, topY);
+            ctx.lineTo(cx + r, botY);
+            ctx.stroke();
+
+            // Bottom ellipse
+            ctx.strokeStyle = '#ff5722';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, botY, r, ellipseH, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Height line
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(cx, topY);
+            ctx.lineTo(cx, botY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Slant height
+            if (results && results.slantHeight) {
+                ctx.strokeStyle = 'rgba(255, 152, 0, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(cx, topY);
+                ctx.lineTo(cx + r, botY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                drawLabel(ctx, `l = ${formatNumber(results.slantHeight.value)}`, cx + r / 2 + 20, (topY + botY) / 2, '#ff9800');
+            }
+
+            // Labels
+            drawDimensionLine(ctx, cx + r + 5, topY, cx + r + 5, botY, `h = ${formatNumber(height)}`, 25);
+
+            // Radius
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(cx, botY);
+            ctx.lineTo(cx + r, botY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            drawLabel(ctx, `r = ${formatNumber(radius)}`, cx + r / 2, botY + 20, '#ff9800');
+
+            // Apex point
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, topY, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawRectangularPrism(ctx, params, results, angle) {
+            const { length, width, height } = params;
+            if (length <= 0 || width <= 0 || height <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 220;
+            const maxDim = 120;
+            const scale = Math.min(maxDim / length, maxDim / width, maxDim / height, 1.5);
+            const l = length * scale;
+            const w = width * scale;
+            const h = height * scale;
+
+            // Isometric offset
+            const isoX = w * 0.4;
+            const isoY = w * 0.25;
+
+            // Front face
+            const fx = cx - l / 2;
+            const fy = cy - h / 2 + isoY / 2;
+
+            // Vertices
+            const front = [
+                { x: fx, y: fy },
+                { x: fx + l, y: fy },
+                { x: fx + l, y: fy + h },
+                { x: fx, y: fy + h }
+            ];
+            const back = front.map(p => ({ x: p.x + isoX, y: p.y - isoY }));
+
+            // Back face
+            ctx.fillStyle = 'rgba(63, 81, 181, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(back[0].x, back[0].y);
+            back.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Top face
+            ctx.fillStyle = 'rgba(63, 81, 181, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            ctx.lineTo(front[1].x, front[1].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.lineTo(back[0].x, back[0].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Right face
+            ctx.fillStyle = 'rgba(63, 81, 181, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(front[1].x, front[1].y);
+            ctx.lineTo(front[2].x, front[2].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Front face fill
+            ctx.fillStyle = 'rgba(63, 81, 181, 0.25)';
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            front.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Edges
+            ctx.strokeStyle = '#5c6bc0';
+            ctx.lineWidth = 2;
+
+            // Front
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            front.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            // Back visible edges
+            ctx.beginPath();
+            ctx.moveTo(back[0].x, back[0].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.stroke();
+
+            // Connecting edges
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            ctx.lineTo(back[0].x, back[0].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(front[1].x, front[1].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(front[2].x, front[2].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.stroke();
+
+            // Hidden edge (dashed)
+            ctx.strokeStyle = 'rgba(92, 107, 192, 0.4)';
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(back[0].x, back[0].y);
+            ctx.lineTo(back[3].x, back[3].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(front[3].x, front[3].y);
+            ctx.lineTo(back[3].x, back[3].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Labels
+            drawDimensionLine(ctx, front[3].x, front[3].y, front[2].x, front[2].y, `l = ${formatNumber(length)}`, 25);
+            drawDimensionLine(ctx, front[0].x, front[0].y, front[3].x, front[3].y, `h = ${formatNumber(height)}`, -25);
+            drawLabel(ctx, `w = ${formatNumber(width)}`, (front[0].x + back[0].x) / 2 - 15, (front[0].y + back[0].y) / 2 - 10, '#ff9800');
+        }
+
+        function drawTriangularPrism(ctx, params, results, angle) {
+            const { base, triHeight, length } = params;
+            if (base <= 0 || triHeight <= 0 || length <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 230;
+            const maxDim = 120;
+            const scale = Math.min(maxDim / base, maxDim / triHeight, maxDim / length, 1.5);
+            const b = base * scale;
+            const th = triHeight * scale;
+            const l = length * scale;
+
+            const isoX = l * 0.35;
+            const isoY = l * 0.2;
+
+            // Front triangle
+            const frontTri = [
+                { x: cx - b / 2, y: cy + th / 3 },
+                { x: cx + b / 2, y: cy + th / 3 },
+                { x: cx, y: cy - 2 * th / 3 }
+            ];
+            const backTri = frontTri.map(p => ({ x: p.x + isoX, y: p.y - isoY }));
+
+            // Side faces
+            ctx.fillStyle = 'rgba(0, 150, 136, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(frontTri[1].x, frontTri[1].y);
+            ctx.lineTo(frontTri[2].x, frontTri[2].y);
+            ctx.lineTo(backTri[2].x, backTri[2].y);
+            ctx.lineTo(backTri[1].x, backTri[1].y);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(0, 150, 136, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(frontTri[0].x, frontTri[0].y);
+            ctx.lineTo(frontTri[2].x, frontTri[2].y);
+            ctx.lineTo(backTri[2].x, backTri[2].y);
+            ctx.lineTo(backTri[0].x, backTri[0].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Bottom face
+            ctx.fillStyle = 'rgba(0, 150, 136, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(frontTri[0].x, frontTri[0].y);
+            ctx.lineTo(frontTri[1].x, frontTri[1].y);
+            ctx.lineTo(backTri[1].x, backTri[1].y);
+            ctx.lineTo(backTri[0].x, backTri[0].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Front face
+            ctx.fillStyle = 'rgba(0, 150, 136, 0.25)';
+            ctx.beginPath();
+            ctx.moveTo(frontTri[0].x, frontTri[0].y);
+            frontTri.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Edges
+            ctx.strokeStyle = '#009688';
+            ctx.lineWidth = 2;
+
+            // Front triangle
+            ctx.beginPath();
+            ctx.moveTo(frontTri[0].x, frontTri[0].y);
+            frontTri.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            // Back triangle
+            ctx.beginPath();
+            ctx.moveTo(backTri[0].x, backTri[0].y);
+            backTri.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            // Connecting edges
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(frontTri[i].x, frontTri[i].y);
+                ctx.lineTo(backTri[i].x, backTri[i].y);
+                ctx.stroke();
+            }
+
+            // Labels
+            drawDimensionLine(ctx, frontTri[0].x, frontTri[0].y, frontTri[1].x, frontTri[1].y, `b = ${formatNumber(base)}`, 25);
+            drawLabel(ctx, `hₜ = ${formatNumber(triHeight)}`, cx + 20, cy, '#ff9800');
+            drawLabel(ctx, `l = ${formatNumber(length)}`, (frontTri[1].x + backTri[1].x) / 2 + 15, (frontTri[1].y + backTri[1].y) / 2 - 10, '#ff9800');
+        }
+
+        function drawCube(ctx, params, results, angle) {
+            const a = params.side || 0;
+            if (a <= 0) { drawPlaceholder(ctx); return; }
+
+            const cx = 250, cy = 220;
+            const maxDim = 130;
+            const scale = Math.min(maxDim / a, 2);
+            const s = a * scale;
+
+            const isoX = s * 0.4;
+            const isoY = s * 0.25;
+
+            const fx = cx - s / 2;
+            const fy = cy - s / 2 + isoY / 2;
+
+            const front = [
+                { x: fx, y: fy },
+                { x: fx + s, y: fy },
+                { x: fx + s, y: fy + s },
+                { x: fx, y: fy + s }
+            ];
+            const back = front.map(p => ({ x: p.x + isoX, y: p.y - isoY }));
+
+            // Top face
+            ctx.fillStyle = 'rgba(171, 71, 188, 0.25)';
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            ctx.lineTo(front[1].x, front[1].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.lineTo(back[0].x, back[0].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Right face
+            ctx.fillStyle = 'rgba(171, 71, 188, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(front[1].x, front[1].y);
+            ctx.lineTo(front[2].x, front[2].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Front face
+            ctx.fillStyle = 'rgba(171, 71, 188, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            front.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Edges
+            ctx.strokeStyle = '#ab47bc';
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            front.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(back[0].x, back[0].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(front[0].x, front[0].y);
+            ctx.lineTo(back[0].x, back[0].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(front[1].x, front[1].y);
+            ctx.lineTo(back[1].x, back[1].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(front[2].x, front[2].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.stroke();
+
+            // Hidden edges
+            ctx.strokeStyle = 'rgba(171, 71, 188, 0.3)';
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(back[0].x, back[0].y);
+            ctx.lineTo(back[3].x, back[3].y);
+            ctx.lineTo(back[2].x, back[2].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(front[3].x, front[3].y);
+            ctx.lineTo(back[3].x, back[3].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Labels
+            drawDimensionLine(ctx, front[3].x, front[3].y, front[2].x, front[2].y, `a = ${formatNumber(a)}`, 25);
+            drawLabel(ctx, `a = ${formatNumber(a)}`, (front[0].x + back[0].x) / 2 - 15, (front[0].y + back[0].y) / 2 - 10, '#ff9800');
+        }
+
+        function drawPlaceholder(ctx) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.font = '16px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Enter valid parameters to preview', 250, 210);
+        }
+
+        // ==================== TOGGLE FUNCTIONS ====================
+
+        function toggleLabels() {
+            showLabels = !showLabels;
+            document.getElementById('labelToggle').classList.toggle('active', showLabels);
+            recalculate();
+        }
+
+        function toggleGrid() {
+            showGrid = !showGrid;
+            document.getElementById('gridToggle').classList.toggle('active', showGrid);
+            recalculate();
+        }
+
+        function toggleFormulas() {
+            showFormulas = !showFormulas;
+            document.getElementById('formulaToggleSwitch').classList.toggle('active', showFormulas);
+            document.getElementById('formulaSection').classList.toggle('visible', showFormulas);
+        }
+
+        function toggleAnimation() {
+            animate = !animate;
+            document.getElementById('animToggle').classList.toggle('active', animate);
+            if (animate) {
+                startAnimation();
+            } else {
+                stopAnimation();
+                recalculate();
+            }
+        }
+
+        function startAnimation() {
+            if (animationId) return;
+            function loop() {
+                animationAngle += 0.02;
+                recalculate();
+                if (animate) {
+                    animationId = requestAnimationFrame(loop);
+                }
+            }
+            animationId = requestAnimationFrame(loop);
+        }
+
+        function stopAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            animationAngle = 0;
+        }
+
+        // ==================== INIT ====================
+        init();
+    </script>
+</body>
+</html>

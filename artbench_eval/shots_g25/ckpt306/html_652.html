@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheduler — Task Scheduler with Notifications</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  body {
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 24px;
+    background: linear-gradient(135deg, #1a2332 0%, #0f172a 100%);
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .logo {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .logo i {
+    margin-right: 6px;
+  }
+  .btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .btn:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: #10b981; }
+  .btn-primary:hover { background: #059669; }
+  .btn-danger { background: #ef4444; }
+  .btn-danger:hover { background: #dc2626; }
+  .card {
+    background: #0b1220;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    margin-bottom: 24px;
+  }
+  .card h2 {
+    margin: 0 0 16px;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card h2 i { color: #3b82f6; }
+  .form-group { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: #cbd5e1;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  .schedule-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .schedule-option {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .schedule-option:hover { border-color: #3b82f6; background: #0f172a; }
+  .schedule-option.active {
+    border-color: #3b82f6;
+    background: rgba(59,130,246,0.1);
+  }
+  .schedule-option i { font-size: 18px; margin-bottom: 4px; }
+  .schedule-option .desc { font-size: 12px; color: #94a3b8; }
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .task {
+    padding: 14px;
+    border-radius: 10px;
+    background: #0f172a;
+    border-left: 3px solid #3b82f6;
+    transition: background 0.2s;
+  }
+  .task.removing { opacity: 0; transform: translateX(-20px); }
+  .task h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+  }
+  .task p {
+    margin: 0;
+    font-size: 13px;
+    color: #94a3b8;
+  }
+  .task-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .task-actions button {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .task-actions button:hover { background: #334155; color: white; }
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+  }
+  .empty i { font-size: 40px; margin-bottom: 12px; opacity: 0.6; }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(16,185,129,0.15);
+    color: #10b981;
+  }
+  .status.done { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .status.running { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    font-size: 14px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo"><i class="fa-solid fa-calendar-check"></i> Scheduler</div>
+    <button id="clearBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Clear All</button>
+  </div>
+
+  <div class="card">
+    <h2><i class="fa-solid fa-plus"></i> Add Task</h2>
+    <form id="taskForm" class="form-group">
+      <label for="taskName">Task Name</label>
+      <input type="text" id="taskName" placeholder="e.g. Daily reminder" required />
+
+      <label for="schedule">Schedule</label>
+      <div class="schedule-options" id="scheduleOptions">
+        <button type="button" class="schedule-option" data-schedule="* * * * *">
+          <i class="fa-solid fa-clock"></i>
+          <span class="desc">Every minute</span>
+        </button>
+        <button type="button" class="schedule-option" data-schedule="0 * * * *">
+          <i class="fa-solid fa-bell"></i>
+          <span class="desc">Every hour</span>
+        </button>
+        <button type="button" class="schedule-option" data-schedule="0 9 * * *">
+          <i class="fa-solid fa-sun"></i>
+          <span class="desc">Daily 9:00 AM</span>
+        </button>
+        <button type="button" class="schedule-option" data-schedule="0 18 * * *">
+          <i class="fa-solid fa-moon"></i>
+          <span class="desc">Daily 6:00 PM</span>
+        </button>
+        <button type="button" class="schedule-option" data-schedule="0 9 * * 1">
+          <i class="fa-solid fa-mug-hot"></i>
+          <span class="desc">Monday 9:00 AM</span>
+        </button>
+        <button type="button" class="schedule-option" data-schedule="0 12 * * 1-5">
+          <i class="fa-solid fa-clipboard-list"></i>
+          <span class="desc">Mon-Fri 12:00 PM</span>
+        </button>
+        <button type="button" class="schedule-option" data-schedule="0 0 * * 0">
+          <i class="fa-solid fa-leaf"></i>
+          <span class="desc">Sunday 12:00 AM</span>
+        </button>
+      </div>
+
+      <label for="jsCode">JavaScript Code</label>
+      <textarea id="jsCode" placeholder="e.g. alert('Hello world'); location.reload(); document.title='Done!';"></textarea>
+      <small style="color:#94a3b8;display:block;margin-top:4px;">Runs in a sandboxed iframe. Use console.log() to debug.</small>
+
+      <button type="submit" class="btn btn-primary" id="addBtn"><i class="fa-solid fa-plus"></i> Add Task</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2><i class="fa-solid fa-list-check"></i> Task List</h2>
+    <div id="taskList" class="task-list"></div>
+    <div id="emptyState" class="empty">
+      <i class="fa-solid fa-clipboard-list"></i>
+      <p>No tasks yet. Add your first task above.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><i class="fa-solid fa-clock-rotate-left"></i> Scheduler Status</h2>
+    <div id="status" class="status running">
+      <i class="fa-solid fa-spinner fa-spin"></i>
+      <span id="statusText">Checking for due tasks…</span>
+    </div>
+    <p id="lastCheck" style="margin:12px 0 0;color:#94a3b8;font-size:13px;">Last check: —</p>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<div id="sandbox" style="display:none;"></div>
+
+<script>
+  // ---------- Schedule definitions ----------
+  const SCHEDULE_LABELS = {
+    '* * * * *': 'Every minute',
+    '0 * * * *': 'Every hour',
+    '0 9 * * *': 'Daily 9:00 AM',
+    '0 18 * * *': 'Daily 6:00 PM',
+    '0 9 * * 1': 'Monday 9:00 AM',
+    '0 12 * * 1-5': 'Mon-Fri 12:00 PM',
+    '0 0 * * 0': 'Sunday 12:00 AM'
+  };
+
+  // ---------- Storage ----------
+  const STORAGE_KEY = 'scheduler.tasks.v1';
+  const loadTasks = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  };
+  const saveTasks = (tasks) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch {}
+  };
+
+  // ---------- Task model ----------
+  const now = () => new Date();
+  const fmt = (d) => d.toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  const scheduleKey = (schedule) => {
+    // Normalize schedule
+    const parts = schedule.split(' ');
+    const hh = parseInt(parts[1] || '0', 10);
+    const mm = parseInt(parts[0] || '0', 10);
+    const day = parts[2] || '*';
+    const month = parts[3] || '*';
+    const dow = parts[4] || '*';
+    return `${hh}:${mm}-${day}-${month}-${dow}`;
+  };
+
+  const matchesSchedule = (schedule, d) => {
+    const parts = schedule.split(' ');
+    const hh = parseInt(parts[1] || '0', 10);
+    const mm = parseInt(parts[0] || '0', 10);
+    const day = parts[2] || '*';
+    const month = parts[3] || '*';
+    const dow = parts[4] || '*';
+
+    const hOk = hh === '*' || d.getHours() === hh;
+    const mOk = mm === '*' || d.getMinutes() === mm;
+    const dOk = day === '*' || d.getDate() === parseInt(day, 10);
+    const moOk = month === '*' || d.getMonth() === parseInt(month, 10);
+    const dowOk = dow === '*' || d.getDay() === parseInt(dow, 10);
+
+    return hOk && mOk && dOk && moOk && dowOk;
+  };
+
+  const taskKey = (id) => `scheduler.task.${id}`;
+
+  // ---------- Persistence ----------
+  const persistTask = (task) => {
+    saveTasks([...loadTasks(), task]);
+  };
+  const removeTask = (id) => {
+    const list = loadTasks().filter(t => t.id !== id);
+    saveTasks(list);
+  };
+
+  // ---------- UI ----------
+  const $ = (sel) => document.querySelector(sel);
+  const taskListEl = $('#taskList');
+  const emptyEl = $('#emptyState');
+  const clearBtn = $('#clearBtn');
+  const addBtn = $('#addBtn');
+  const toast = $('#toast');
+  const statusEl = $('#status');
+  const statusText = $('#statusText');
+  const lastCheckEl = $('#lastCheck');
+  const sandbox = $('#sandbox');
+
+  const renderTasks = () => {
+    const tasks = loadTasks();
+    taskListEl.innerHTML = '';
+    if (tasks.length === 0) {
+      emptyEl.style.display = 'block';
+      clearBtn.disabled = true;
+      return;
+    }
+    emptyEl.style.display = 'none';
+    clearBtn.disabled = false;
+
+    tasks.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'task';
+      el.dataset.id = t.id;
+      el.innerHTML = `
+        <h4>${t.name}</h4>
+        <p><span class="status ${t.status}"><i class="fa-solid ${t.status==='running'?'fa-spinner fa-spin':'fa-check'}</i> ${t.status==='running'?'Running':'Last ran '+(t.lastRun?fmt(new Date(t.lastRun)):t.lastRun?fmt(new Date(t.lastRun)):'—')}</span></p>
+        <p style="margin-top:6px;color:#94a3b8;font-size:12px;">Schedule: ${SCHEDULE_LABELS[t.schedule] || t.schedule}</p>
+        <div class="task-actions">
+          <button data-act="run"><i class="fa-solid fa-play"></i> Run Now</button>
+          <button data-act="edit"><i class="fa-solid fa-pen"></i> Edit</button>
+          <button data-act="delete" class="btn-danger"><i class="fa-solid fa-trash"></i> Delete</button>
+        </div>
+      `;
+      taskListEl.appendChild(el);
+    });
+
+    taskListEl.querySelectorAll('.task').forEach(taskEl => {
+      taskEl.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const act = btn.dataset.act;
+          const id = taskEl.dataset.id;
+          if (act === 'run') runTask(id);
+          else if (act === 'edit') editTask(id);
+          else if (act === 'delete') deleteTask(id);
+        });
+      });
+    });
+  };
+
+  const updateTaskStatus = (id) => {
+    const tasks = loadTasks();
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const el = taskListEl.querySelector(`[data-id="${id}"]`);
+    if (el) {
+      const statusEl = el.querySelector('.status');
+      statusEl.className = 'status ' + task.status;
+      const icon = task.status === 'running' ? 'fa-spinner fa-spin' : 'fa-check';
+      statusEl.innerHTML = `<i class="fa-solid ${icon}"></i> ${task.status==='running'?'Running':'Last ran '+(task.lastRun?fmt(new Date(task.lastRun)):task.lastRun?fmt(new Date(task.lastRun)):'—')}`;
+    }
+  };
+
+  const updateAllStatuses = () => {
+    const tasks = loadTasks();
+    tasks.forEach(t => {
+      const el = taskListEl.querySelector(`[data-id="${t.id}"]`);
+      if (!el) return;
+      const statusEl = el.querySelector('.status');
+      statusEl.className = 'status ' + t.status;
+      const icon = t.status === 'running' ? 'fa-spinner fa-spin' : 'fa-check';
+      statusEl.innerHTML = `<i class="fa-solid ${icon}"></i> ${t.status==='running'?'Running':'Last ran '+(t.lastRun?fmt(new Date(t.lastRun)):t.lastRun?fmt(new Date(t.lastRun)):'—')}`;
+    });
+  };
+
+  const showNotification = (task) => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') showNotification(task);
+      });
+      return;
+    }
+    try {
+      const n = new Notification(task.name, {
+        body: task.scheduleLabel || task.schedule,
+        icon: 'data:image/svg+xml;utf8,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+        )
+      });
+    } catch {}
+  };
+
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 3000);
+  };
+
+  const deleteTask = (id) => {
+    removeTask(id);
+    const el = taskListEl.querySelector(`[data-id="${id}"]`);
+    if (el) {
+      el.classList.add('removing');
+      setTimeout(() => el.remove(), 250);
+    }
+    renderTasks();
+    showToast('Task deleted');
+  };
+
+  const editTask = (id) => {
+    const tasks = loadTasks();
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const name = prompt('Edit task name:', task.name);
+    if (name === null) return;
+    task.name = name;
+    persistTask(task);
+    renderTasks();
+    showToast('Task updated');
+  };
+
+  const runTask = (id) => {
+    const tasks = loadTasks();
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    if (task.status !== 'done') {
+      task.status = 'running';
+      persistTask(task);
+      updateTaskStatus(id);
+      showToast(`Running: ${task.name}`);
+    }
+    // Execute in sandbox iframe
+    executeInSandbox(task.jsCode, task.name);
+  };
+
+  // ---------- Scheduler ----------
+  let schedulerTimer = null;
+  const startScheduler = () => {
+    if (schedulerTimer) clearInterval(schedulerTimer);
+    schedulerTimer = setInterval(() => {
+      const tasks = loadTasks();
+      const nowDate = new Date();
+      const due = tasks.filter(t => matchesSchedule(t.schedule, nowDate) && t.status !== 'done');
+      if (due.length > 0) {
+        statusText.textContent = `${due.length} task${due.length>1?'s':''} due now`;
+        statusEl.classList.remove('running');
+        statusEl.classList.add('done');
+        lastCheckEl.textContent = `Last check: ${fmt(nowDate)}`;
+        due.forEach(t => {
+          t.status = 'done';
+          t.lastRun = nowDate.getTime();
+          persistTask(t);
+          updateTaskStatus(t.id);
+          showNotification(t);
+          executeInSandbox(t.jsCode, t.name);
+        });
+      } else {
+        statusText.textContent = 'No tasks due';
+        statusEl.classList.remove('done');
+        statusEl.classList.add('running');
+        lastCheckEl.textContent = `Last check: ${fmt(nowDate)}`;
+      }
+    }, 60000);
+  };
+
+  // ---------- Sandbox execution ----------
+  const executeInSandbox = (code, taskName) => {
+    if (!code || !code.trim()) return;
+    try {
+      // Create a sandboxed iframe context
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <!doctype html>
+        <html>
+        <head><title>Scheduler Sandbox</title></head>
+        <body style="margin:0;padding:20px;background:#0b1220;color:#e2e8f0;">
+          <h2 style="color:#3b82f6;">Executing: ${taskName}</h2>
+          <pre id="out" style="background:#0f172a;border:1px solid #334155;padding:12px;border-radius:8px;font-family:monospace;"></pre>
+          <script>
+            const out = document.getElementById('out');
+            const log = (msg) => {
+              try { out.appendChild(document.createTextNode(msg + '\n')); out.scrollTop = out.scrollHeight; } catch {}
+            };
+            log('Sandbox started.');
+            try {
+              ${code}
+            } catch (err) {
+              log('ERROR: ' + err.message);
+              if (err.stack) log(err.stack);
+            }
+            log('Sandbox finished.');
+          </script>
+        <script>/* script.js not found in result */</script>
+</body>
+        </html>
+      `);
+      doc.close();
+      // Wait a tick for rendering
+      setTimeout(() => {
+        const iframe = document.querySelector('#sandbox iframe');
+        if (iframe) iframe.remove();
+      }, 500);
+    } catch (err) {
+      showToast('Sandbox error: ' + err.message);
+    }
+  };
+
+  // ---------- Init ----------
+  const init = () => {
+    const tasks = loadTasks();
+    if (tasks.length === 0) {
+      // Seed a demo task
+      persistTask({
+        id: 'seed',
+        name: 'Welcome Demo',
+        schedule: '0 9 * * *',
+        scheduleLabel: 'Daily 9:00 AM',
+        jsCode: 'console.log("Hello world!"); document.title = "Task done!";',
+        status: 'done',
+        lastRun: Date.now() - 86400000
+      });
+    }
+    renderTasks();
+    startScheduler();
+  };
+
+  // ---------- Form ----------
+  const scheduleOptions = document.querySelectorAll('.schedule-option');
+  scheduleOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+      scheduleOptions.forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      $('#schedule').value = opt.dataset.schedule;
+    });
+  });
+
+  $('#taskForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('#taskName').value.trim();
+    const schedule = $('#schedule').value.trim();
+    const code = $('#jsCode').value.trim();
+    if (!name || !schedule || !code) {
+      showToast('Please fill all fields');
+      return;
+    }
+    const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const task = {
+      id,
+      name,
+      schedule,
+      scheduleLabel: SCHEDULE_LABELS[schedule] || schedule,
+      jsCode: code,
+      status: 'done',
+      lastRun: null
+    };
+    persistTask(task);
+    renderTasks();
+    showToast('Task added');
+    $('#taskName').value = '';
+    $('#jsCode').value = '';
+    $('#schedule').value = '0 * * * *';
+    scheduleOptions.forEach(o => o.classList.remove('active'));
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (loadTasks().length === 0) return;
+    if (confirm('Clear all tasks?')) {
+      localStorage.removeItem(STORAGE_KEY);
+      renderTasks();
+      showToast('All tasks cleared');
+    }
+  });
+
+  // ---------- Keyboard ----------
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      const id = taskListEl.querySelector('.task')?.dataset.id;
+      if (id) runTask(id);
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>

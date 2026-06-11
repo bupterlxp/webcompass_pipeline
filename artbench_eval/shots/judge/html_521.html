@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Theory Hub</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --light: #ecf0f1;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            background: #1a252f;
+        }
+        nav a {
+            color: white;
+            padding: 1rem 2rem;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        nav a:hover {
+            background: var(--secondary);
+        }
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        .section {
+            display: none;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .section.active {
+            display: block;
+        }
+        button {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .practice-area {
+            background: var(--light);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        .checkbox-group {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            font-size: 1.2rem;
+        }
+        #result {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .correct { color: var(--success); }
+        .incorrect { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Music Theory Hub</h1>
+        <p>Learn the fundamentals of Scales and Chords</p>
+    </header>
+
+    <nav>
+        <a onclick="showSection('scales')">Scales</a>
+        <a onclick="showSection('chords')">Chords</a>
+        <a onclick="showSection('practice')">Practice</a>
+    </nav>
+
+    <div class="container">
+        <!-- SCALES SECTION -->
+        <div id="scales" class="section active">
+            <h2>Musical Scales</h2>
+            <p>A scale is any set of musical notes ordered by fundamental frequency or pitch. A scale ordered by increasing pitch is an ascending scale, and a scale ordered by decreasing pitch is a descending scale.</p>
+            
+            <h3>The Major Scale</h3>
+            <p>The major scale is one of the most commonly used musical scales, especially in Western music. It is made up of seven notes. The pattern of whole and half steps is: <strong>Whole, Whole, Half, Whole, Whole, Whole, Half</strong>.</p>
+            <button onclick="playScale(['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'])">Listen to C Major Scale</button>
+
+            <h3>The Minor Scale (Natural)</h3>
+            <p>The natural minor scale sounds "sadder" or more serious compared to the major scale. Its step pattern is: <strong>Whole, Half, Whole, Whole, Half, Whole, Whole</strong>.</p>
+            <button onclick="playScale(['A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'])">Listen to A Minor Scale</button>
+        </div>
+
+        <!-- CHORDS SECTION -->
+        <div id="chords" class="section">
+            <h2>Musical Chords</h2>
+            <p>A chord, in music, is any harmonic set of pitches consisting of multiple notes (usually three or more) that are heard as if sounding simultaneously.</p>
+            
+            <h3>Major Triads</h3>
+            <p>A major triad consists of a root note, a major third (4 semitones above the root), and a perfect fifth (7 semitones above the root). It generally has a "happy" or "resolved" sound.</p>
+            <button onclick="playChord(['C4', 'E4', 'G4'])">Listen to C Major Chord</button>
+
+            <h3>Minor Triads</h3>
+            <p>A minor triad consists of a root note, a minor third (3 semitones above the root), and a perfect fifth (7 semitones above the root). It generally has a "melancholy" sound.</p>
+            <button onclick="playChord(['A3', 'C4', 'E4'])">Listen to A Minor Chord</button>
+        </div>
+
+        <!-- PRACTICE SECTION -->
+        <div id="practice" class="section">
+            <h2>Practice: Chord Builder</h2>
+            <p>Test your knowledge by building chords. Select the correct notes that make up the requested chord.</p>
+            
+            <div class="practice-area">
+                <h3>Build a <strong>C Major</strong> Chord</h3>
+                <p>Select exactly 3 notes:</p>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" value="C"> C</label>
+                    <label><input type="checkbox" value="D"> D</label>
+                    <label><input type="checkbox" value="E"> E</label>
+                    <label><input type="checkbox" value="F"> F</label>
+                    <label><input type="checkbox" value="G"> G</label>
+                    <label><input type="checkbox" value="A"> A</label>
+                    <label><input type="checkbox" value="B"> B</label>
+                </div>
+                <button onclick="checkAnswer()">Check Answer</button>
+                <div id="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- UI Navigation Logic ---
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        // --- Web Audio API Setup (Synthesizer) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Frequencies for notes
+        const notes = {
+            'A3': 220.00, 'B3': 246.94,
+            'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
+            'C5': 523.25
+        };
+
+        function playTone(frequency, startTime, duration) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            
+            // Envelope to prevent clicking sounds
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.05);
+            gainNode.gain.setValueAtTime(0.5, startTime + duration - 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+        }
+
+        function playScale(noteArray) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const duration = 0.4; // seconds per note
+            
+            noteArray.forEach((note, index) => {
+                playTone(notes[note], now + (index * duration), duration);
+            });
+        }
+
+        function playChord(noteArray) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const duration = 1.5; // seconds for the chord
+            
+            noteArray.forEach(note => {
+                playTone(notes[note], now, duration);
+            });
+        }
+
+        // --- Practice Logic ---
+        function checkAnswer() {
+            const checkboxes = document.querySelectorAll('.checkbox-group input[type="checkbox"]');
+            const selectedNotes = [];
+            
+            checkboxes.forEach(cb => {
+                if (cb.checked) selectedNotes.push(cb.value);
+            });
+
+            // The correct notes for C Major are C, E, and G
+            const correctNotes = ['C', 'E', 'G'];
+            const resultDiv = document.getElementById('result');
+
+            // Check if arrays match regardless of order
+            const isCorrect = selectedNotes.length === correctNotes.length && 
+                              correctNotes.every(note => selectedNotes.includes(note));
+
+            if (isCorrect) {
+                resultDiv.innerHTML = '<span class="correct">Correct! A C Major chord consists of the root (C), major third (E), and perfect fifth (G).</span>';
+                playChord(['C4', 'E4', 'G4']); // Play it as a reward
+            } else {
+                resultDiv.innerHTML = '<span class="incorrect">Incorrect. Hint: A C Major chord needs a root, a major third, and a perfect fifth. Try again!</span>';
+            }
+        }
+    </script>
+</body>
+</html>

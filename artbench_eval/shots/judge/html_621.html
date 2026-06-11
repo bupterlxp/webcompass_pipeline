@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Maintenance Reminder System</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --bg: #f4f7f6;
+            --green: #2ecc71;
+            --yellow: #f1c40f;
+            --red: #e74c3c;
+            --text: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .device-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+            border-top: 5px solid gray;
+        }
+        .device-card:hover {
+            transform: translateY(-5px);
+        }
+        .status-green { border-top-color: var(--green); }
+        .status-yellow { border-top-color: var(--yellow); }
+        .status-red { border-top-color: var(--red); }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+            margin-bottom: 10px;
+        }
+        .bg-green { background-color: var(--green); }
+        .bg-yellow { background-color: var(--yellow); color: black; }
+        .bg-red { background-color: var(--red); }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .close-btn {
+            background: none;
+            color: var(--text);
+            font-size: 20px;
+            padding: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .history-list {
+            list-style: none;
+            padding: 0;
+        }
+        .history-item {
+            background: #f9f9f9;
+            padding: 10px;
+            border-left: 3px solid var(--primary);
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Device Maintenance System</h1>
+        <button onclick="openAddDeviceModal()">+ Register New Device</button>
+    </header>
+
+    <div class="device-grid" id="deviceGrid">
+        <!-- Devices will be rendered here -->
+    </div>
+
+    <!-- Add Device Modal -->
+    <div class="modal" id="addDeviceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Register Device</h2>
+                <button class="close-btn" onclick="closeModal('addDeviceModal')">&times;</button>
+            </div>
+            <form id="addDeviceForm" onsubmit="handleAddDevice(event)">
+                <div class="form-group">
+                    <label>Device Name</label>
+                    <input type="text" id="devName" required>
+                </div>
+                <div class="form-group">
+                    <label>Maintenance Cycle Type</label>
+                    <select id="devCycleType" onchange="toggleCycleInput()" required>
+                        <option value="days">Calendar Days</option>
+                        <option value="hours">Operating Hours</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="cycleLabel">Cycle Value (Days)</label>
+                    <input type="number" id="devCycleValue" required min="1">
+                </div>
+                <div class="form-group">
+                    <label>Last Maintenance Date</label>
+                    <input type="date" id="devLastDate" required>
+                </div>
+                <div class="form-group" id="currentHoursGroup" style="display:none;">
+                    <label>Current Operating Hours</label>
+                    <input type="number" id="devCurrentHours" value="0" min="0">
+                </div>
+                <button type="submit" style="width: 100%;">Register Device</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Device Details & Maintenance Modal -->
+    <div class="modal" id="deviceDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="detailName">Device Details</h2>
+                <button class="close-btn" onclick="closeModal('deviceDetailsModal')">&times;</button>
+            </div>
+            
+            <div id="detailInfo" style="margin-bottom: 20px; font-size: 14px;"></div>
+            
+            <h3>Maintenance History</h3>
+            <ul class="history-list" id="historyList"></ul>
+
+            <hr>
+
+            <h3>Add Maintenance Record</h3>
+            <form id="addRecordForm" onsubmit="handleAddRecord(event)">
+                <input type="hidden" id="recordDeviceId">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="recordDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Maintenance Personnel</label>
+                    <input type="text" id="recordPersonnel" required>
+                </div>
+                <div class="form-group">
+                    <label>Consumables Used</label>
+                    <input type="text" id="recordConsumables" placeholder="e.g., Oil, Filters, Belts" required>
+                </div>
+                <div class="form-group" id="recordHoursGroup" style="display:none;">
+                    <label>Operating Hours at Maintenance</label>
+                    <input type="number" id="recordHours" min="0">
+                </div>
+                <button type="submit" style="width: 100%;">Save Record</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Simulated Data
+        let devices = [
+            {
+                id: 1,
+                name: "CNC Milling Machine",
+                cycleType: "days",
+                cycleValue: 30,
+                lastMaintenanceDate: new Date(Date.now() - 25 * 86400000).toISOString().split('T')[0], // 25 days ago
+                currentHours: 0,
+                history: [
+                    { date: new Date(Date.now() - 25 * 86400000).toISOString().split('T')[0], personnel: "John Doe", consumables: "Coolant, Lubricant" }
+                ]
+            },
+            {
+                id: 2,
+                name: "Air Compressor",
+                cycleType: "days",
+                cycleValue: 90,
+                lastMaintenanceDate: new Date(Date.now() - 95 * 86400000).toISOString().split('T')[0], // 95 days ago (Overdue)
+                currentHours: 0,
+                history: [
+                    { date: new Date(Date.now() - 95 * 86400000).toISOString().split('T')[0], personnel: "Jane Smith", consumables: "Air Filter" }
+                ]
+            },
+            {
+                id: 3,
+                name: "Forklift",
+                cycleType: "hours",
+                cycleValue: 500,
+                lastMaintenanceDate: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0],
+                currentHours: 480, // Close to 500
+                history: [
+                    { date: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0], personnel: "Mike Johnson", consumables: "Hydraulic Fluid", hoursAtMaintenance: 0 }
+                ]
+            }
+        ];
+
+        // Utility: Calculate Status
+        function getDeviceStatus(device) {
+            if (device.cycleType === 'days') {
+                const lastDate = new Date(device.lastMaintenanceDate);
+                const nextDate = new Date(lastDate.getTime() + device.cycleValue * 86400000);
+                const today = new Date();
+                const diffDays = Math.ceil((nextDate - today) / 86400000);
+
+                if (diffDays < 0) return { color: 'red', text: `Overdue by ${Math.abs(diffDays)} days` };
+                if (diffDays <= 7) return { color: 'yellow', text: `Due in ${diffDays} days` };
+                return { color: 'green', text: `Normal (${diffDays} days left)` };
+            } else {
+                // Hours logic
+                let lastMaintenanceHours = 0;
+                if (device.history.length > 0 && device.history[device.history.length - 1].hoursAtMaintenance !== undefined) {
+                    lastMaintenanceHours = device.history[device.history.length - 1].hoursAtMaintenance;
+                }
+                const hoursSinceLast = device.currentHours - lastMaintenanceHours;
+                const hoursLeft = device.cycleValue - hoursSinceLast;
+
+                if (hoursLeft < 0) return { color: 'red', text: `Overdue by ${Math.abs(hoursLeft)} hours` };
+                if (hoursLeft <= (device.cycleValue * 0.1)) return { color: 'yellow', text: `Due in ${hoursLeft} hours` }; // 10% threshold
+                return { color: 'green', text: `Normal (${hoursLeft} hours left)` };
+            }
+        }
+
+        // Render Dashboard
+        function renderDashboard() {
+            const grid = document.getElementById('deviceGrid');
+            grid.innerHTML = '';
+
+            devices.forEach(dev => {
+                const status = getDeviceStatus(dev);
+                const card = document.createElement('div');
+                card.className = `device-card status-${status.color}`;
+                card.onclick = () => openDeviceDetails(dev.id);
+
+                card.innerHTML = `
+                    <span class="status-badge bg-${status.color}">${status.text}</span>
+                    <h3>${dev.name}</h3>
+                    <p style="font-size: 14px; color: #666;">
+                        Cycle: ${dev.cycleValue} ${dev.cycleType}<br>
+                        Last Maint: ${dev.lastMaintenanceDate}
+                        ${dev.cycleType === 'hours' ? `<br>Current Hrs: ${dev.currentHours}` : ''}
+                    </p>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Modal Management
+        function openAddDeviceModal() {
+            document.getElementById('addDeviceForm').reset();
+            document.getElementById('devLastDate').valueAsDate = new Date();
+            toggleCycleInput();
+            document.getElementById('addDeviceModal').style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function toggleCycleInput() {
+            const type = document.getElementById('devCycleType').value;
+            document.getElementById('cycleLabel').innerText = type === 'days' ? 'Cycle Value (Days)' : 'Cycle Value (Hours)';
+            document.getElementById('currentHoursGroup').style.display = type === 'hours' ? 'block' : 'none';
+        }
+
+        // Add Device Logic
+        function handleAddDevice(e) {
+            e.preventDefault();
+            const newDevice = {
+                id: Date.now(),
+                name: document.getElementById('devName').value,
+                cycleType: document.getElementById('devCycleType').value,
+                cycleValue: parseInt(document.getElementById('devCycleValue').value),
+                lastMaintenanceDate: document.getElementById('devLastDate').value,
+                currentHours: parseInt(document.getElementById('devCurrentHours').value) || 0,
+                history: []
+            };
+            devices.push(newDevice);
+            closeModal('addDeviceModal');
+            renderDashboard();
+        }
+
+        // Open Device Details
+        function openDeviceDetails(id) {
+            const device = devices.find(d => d.id === id);
+            if (!device) return;
+
+            document.getElementById('detailName').innerText = device.name;
+            document.getElementById('detailInfo').innerHTML = `
+                <strong>Cycle:</strong> ${device.cycleValue} ${device.cycleType} <br>
+                <strong>Last Maintenance:</strong> ${device.lastMaintenanceDate}
+                ${device.cycleType === 'hours' ? `<br><strong>Current Hours:</strong> ${device.currentHours}` : ''}
+            `;
+
+            // Render History
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            if (device.history.length === 0) {
+                historyList.innerHTML = '<li>No maintenance records found.</li>';
+            } else {
+                // Sort history descending by date
+                const sortedHistory = [...device.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+                sortedHistory.forEach(record => {
+                    historyList.innerHTML += `
+                        <li class="history-item">
+                            <strong>Date:</strong> ${record.date} <br>
+                            <strong>Personnel:</strong> ${record.personnel} <br>
+                            <strong>Consumables:</strong> ${record.consumables}
+                            ${record.hoursAtMaintenance !== undefined ? `<br><strong>Hours:</strong> ${record.hoursAtMaintenance}` : ''}
+                        </li>
+                    `;
+                });
+            }
+
+            // Setup Add Record Form
+            document.getElementById('addRecordForm').reset();
+            document.getElementById('recordDate').valueAsDate = new Date();
+            document.getElementById('recordDeviceId').value = device.id;
+            document.getElementById('recordHoursGroup').style.display = device.cycleType === 'hours' ? 'block' : 'none';
+            if(device.cycleType === 'hours') {
+                document.getElementById('recordHours').value = device.currentHours;
+            }
+
+            document.getElementById('deviceDetailsModal').style.display = 'flex';
+        }
+
+        // Add Maintenance Record Logic
+        function handleAddRecord(e) {
+            e.preventDefault();
+            const deviceId = parseInt(document.getElementById('recordDeviceId').value);
+            const device = devices.find(d => d.id === deviceId);
+            
+            const newRecord = {
+                date: document.getElementById('recordDate').value,
+                personnel: document.getElementById('recordPersonnel').value,
+                consumables: document.getElementById('recordConsumables').value
+            };
+
+            if (device.cycleType === 'hours') {
+                newRecord.hoursAtMaintenance = parseInt(document.getElementById('recordHours').value);
+                device.currentHours = newRecord.hoursAtMaintenance; // Update current hours to match maintenance
+            }
+
+            device.history.push(newRecord);
+            
+            // Update last maintenance date if the new record is newer
+            if (new Date(newRecord.date) >= new Date(device.lastMaintenanceDate)) {
+                device.lastMaintenanceDate = newRecord.date;
+            }
+
+            closeModal('deviceDetailsModal');
+            renderDashboard();
+        }
+
+        // Initial Render
+        renderDashboard();
+    </script>
+</body>
+</html>

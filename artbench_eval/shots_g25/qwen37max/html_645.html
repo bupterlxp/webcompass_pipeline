@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Rhythm Trainer</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --panel: #1a1f36;
+    --accent: #6ee7ff;
+    --accent-2: #a78bfa;
+    --good: #34d399;
+    --ok: #fbbf24;
+    --bad: #f87171;
+    --text: #e6e9f2;
+    --muted: #8a90a8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #1b2147 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .app {
+    width: 100%;
+    max-width: 760px;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: 0.5px;
+  }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid #262c48;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .field { flex: 1; min-width: 180px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=number] {
+    width: 100%;
+    background: #0f1430;
+    color: var(--text);
+    border: 1px solid #2a3154;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .value { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+  .buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0b0e1c;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    transition: transform 0.08s ease, filter 0.2s ease;
+  }
+  button.secondary {
+    background: #2a3154;
+    color: var(--text);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:active:not(:disabled) { transform: scale(0.97); }
+
+  .beat-pad {
+    width: 100%;
+    padding: 40px 20px;
+    font-size: 22px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #6ee7ff, #a78bfa);
+    color: #0b0e1c;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .beat-pad.pressed { filter: brightness(1.2); transform: scale(0.98); }
+
+  .dots {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    justify-content: center;
+  }
+  .dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #2a3154;
+    border: 2px solid #3a4270;
+    transition: all 0.15s ease;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #0b0e1c; font-weight: 700;
+  }
+  .dot.active { background: var(--accent); border-color: var(--accent); transform: scale(1.25); box-shadow: 0 0 18px var(--accent); }
+  .dot.perfect { background: var(--good); border-color: var(--good); }
+  .dot.good    { background: #86efac; border-color: #86efac; }
+  .dot.ok      { background: var(--ok); border-color: var(--ok); }
+  .dot.miss    { background: var(--bad); border-color: var(--bad); }
+
+  .results { margin-top: 10px; }
+  .score-big {
+    font-size: 56px;
+    font-weight: 800;
+    text-align: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin: 6px 0;
+  }
+  .grade { text-align: center; font-size: 18px; color: var(--muted); margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #262c48; }
+  th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+  .tag { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .tag.perfect { background: var(--good); color: #06241a; }
+  .tag.good    { background: #86efac; color: #06241a; }
+  .tag.ok      { background: var(--ok); color: #3a2a00; }
+  .tag.miss    { background: var(--bad); color: #2a0606; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>🎵 Rhythm Trainer</h1>
+  <div class="subtitle">Listen to the reference beat, then tap along. Your timing is scored against the audio clock.</div>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <label>BPM: <span class="value" id="bpmVal">90</span></label>
+        <input type="range" id="bpm" min="40" max="200" value="90" />
+      </div>
+      <div class="field" style="max-width:140px;">
+        <label>Beats</label>
+        <input type="number" id="beats" min="4" max="32" value="8" />
+      </div>
+      <div class="field" style="max-width:140px;">
+        <label>Count-in</label>
+        <input type="number" id="countin" min="0" max="4" value="2" />
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="listenBtn">▶ Listen</button>
+      <button id="practiceBtn">🎯 Practice</button>
+      <button id="stopBtn" class="secondary">■ Stop</button>
+    </div>
+    <div class="hint">Tip: use the spacebar or click the pad below during practice.</div>
+  </div>
+
+  <div class="panel">
+    <button id="pad" class="beat-pad" disabled>TAP THE BEAT</button>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <div class="panel results" id="resultsPanel" style="display:none;">
+    <div class="score-big" id="scoreBig">0</div>
+    <div class="grade" id="grade">—</div>
+    <table>
+      <thead><tr><th>Beat</th><th>Expected</th><th>Actual</th><th>Δ ms</th><th>Rating</th></tr></thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Audio engine (Web Audio API for sample-accurate scheduling) ----------
+  let audioCtx = null;
+  const ensureCtx = () => {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  };
+
+  // Short percussive beep. `accent` boosts pitch/volume for downbeats.
+  function playBeep(time, accent = false) {
+    const ctx = audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = accent ? 1200 : 800;
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(accent ? 0.6 : 0.35, time + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.08);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.1);
+  }
+
+  // ---------- State ----------
+  const state = {
+    mode: null,           // 'listen' | 'practice'
+    scheduledBeats: [],   // { time (audioCtx seconds), index }
+    userTaps: [],         // audioCtx seconds
+    timers: [],           // setTimeout ids for UI updates
+    running: false,
+  };
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const bpmInput = $('bpm'), bpmVal = $('bpmVal');
+  const beatsInput = $('beats'), countinInput = $('countin');
+  const listenBtn = $('listenBtn'), practiceBtn = $('practiceBtn'), stopBtn = $('stopBtn');
+  const pad = $('pad'), dots = $('dots');
+  const resultsPanel = $('resultsPanel'), scoreBig = $('scoreBig'), grade = $('grade'), resultsBody = $('resultsBody');
+
+  bpmInput.addEventListener('input', () => bpmVal.textContent = bpmInput.value);
+
+  // ---------- Build dot indicators ----------
+  function buildDots(n) {
+    dots.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot';
+      d.textContent = i + 1;
+      dots.appendChild(d);
+    }
+  }
+
+  // ---------- Schedule a run ----------
+  function scheduleRun(mode) {
+    stop();
+    const ctx = ensureCtx();
+    const bpm = parseInt(bpmInput.value, 10);
+    const beatCount = Math.max(4, Math.min(32, parseInt(beatsInput.value, 10) || 8));
+    const countIn = Math.max(0, Math.min(4, parseInt(countinInput.value, 10) || 0));
+    const interval = 60 / bpm;
+
+    state.mode = mode;
+    state.running = true;
+    state.scheduledBeats = [];
+    state.userTaps = [];
+    buildDots(beatCount);
+    resultsPanel.style.display = 'none';
+    pad.disabled = mode !== 'practice';
+
+    // Start slightly in the future to avoid clicks from scheduling latency
+    const startTime = ctx.currentTime + 0.15;
+
+    // Count-in (silent or accented beeps, not scored)
+    for (let i = 0; i < countIn; i++) {
+      playBeep(startTime + i * interval, i === 0);
+    }
+
+    // Main beats
+    const firstBeatTime = startTime + countIn * interval;
+    for (let i = 0; i < beatCount; i++) {
+      const t = firstBeatTime + i * interval;
+      state.scheduledBeats.push({ time: t, index: i });
+      if (mode === 'listen') playBeep(t, i === 0);
+      else playBeep(t, false); // quiet reference click during practice too (optional: remove for "silent" practice)
+
+      // UI pulse scheduled via setTimeout relative to now
+      const delayMs = (t - ctx.currentTime) * 1000;
+      state.timers.push(setTimeout(() => pulseDot(i), Math.max(0, delayMs)));
+    }
+
+    // End-of-run scoring
+    const endTime = firstBeatTime + beatCount * interval + 0.3;
+    const endDelay = (endTime - ctx.currentTime) * 1000;
+    state.timers.push(setTimeout(() => finishRun(), Math.max(0, endDelay)));
+  }
+
+  function pulseDot(i) {
+    const dotEls = dots.children;
+    if (!dotEls[i]) return;
+    dotEls[i].classList.add('active');
+    setTimeout(() => dotEls[i].classList.remove('active'), 140);
+  }
+
+  // ---------- Tap handling ----------
+  function handleTap() {
+    if (!state.running || state.mode !== 'practice') return;
+    const ctx = ensureCtx();
+    const t = ctx.currentTime;
+    state.userTaps.push(t);
+
+    // Visual + audio feedback
+    pad.classList.add('pressed');
+    setTimeout(() => pad.classList.remove('pressed'), 80);
+    playBeep(t, false);
+  }
+
+  pad.addEventListener('pointerdown', e => { e.preventDefault(); handleTap(); });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !e.repeat) { e.preventDefault(); handleTap(); }
+  });
+
+  // ---------- Scoring ----------
+  // For each expected beat, find the closest user tap within a tolerance window.
+  // Each tap can only match one beat (greedy nearest, processed in order).
+  function scoreRun() {
+    const tolerance = 0.25; // seconds; beyond this = miss
+    const taps = state.userTaps.slice().sort((a, b) => a - b);
+    const used = new Array(taps.length).fill(false);
+    const results = [];
+
+    for (const beat of state.scheduledBeats) {
+      let bestIdx = -1, bestDelta = Infinity;
+      for (let i = 0; i < taps.length; i++) {
+        if (used[i]) continue;
+        const d = Math.abs(taps[i] - beat.time);
+        if (d < bestDelta) { bestDelta = d; bestIdx = i; }
+      }
+      let rating, deltaMs;
+      if (bestIdx === -1 || bestDelta > tolerance) {
+        rating = 'miss'; deltaMs = null;
+      } else {
+        used[bestIdx] = true;
+        deltaMs = Math.round((taps[bestIdx] - beat.time) * 1000);
+        const abs = Math.abs(deltaMs);
+        if (abs <= 30) rating = 'perfect';
+        else if (abs <= 60) rating = 'good';
+        else if (abs <= 110) rating = 'ok';
+        else rating = 'miss';
+      }
+      results.push({ index: beat.index, expected: beat.time, actual: bestIdx >= 0 && used[bestIdx] ? taps[bestIdx] : null, deltaMs, rating });
+    }
+
+    // Overall score: perfect=100, good=80, ok=50, miss=0, averaged
+    const weights = { perfect: 100, good: 75, ok: 45, miss: 0 };
+    const total = results.reduce((s, r) => s + weights[r.rating], 0);
+    const score = Math.round(total / results.length);
+
+    let g = 'D';
+    if (score >= 95) g = 'S — Perfect';
+    else if (score >= 85) g = 'A — Excellent';
+    else if (score >= 70) g = 'B — Good';
+    else if (score >= 50) g = 'C — Needs work';
+    else g = 'D — Keep practicing';
+
+    return { results, score, grade: g };
+  }
+
+  function renderResults({ results, score, grade: g }) {
+    resultsPanel.style.display = 'block';
+    scoreBig.textContent = score;
+    grade.textContent = g;
+    resultsBody.innerHTML = '';
+    const t0 = state.scheduledBeats[0]?.time ?? 0;
+    const fmt = t => (t == null ? '—' : ((t - t0).toFixed(3) + 's'));
+    results.forEach(r => {
+      // Update dot color
+      const dot = dots.children[r.index];
+      if (dot) dot.classList.add(r.rating);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>#${r.index + 1}</td>
+        <td>${fmt(r.expected)}</td>
+        <td>${fmt(r.actual)}</td>
+        <td>${r.deltaMs == null ? '—' : (r.deltaMs > 0 ? '+' : '') + r.deltaMs + ' ms'}</td>
+        <td><span class="tag ${r.rating}">${r.rating.toUpperCase()}</span></td>
+      `;
+      resultsBody.appendChild(tr);
+    });
+  }
+
+  function finishRun() {
+    if (!state.running) return;
+    if (state.mode === 'practice') {
+      renderResults(scoreRun());
+    }
+    state.running = false;
+    pad.disabled = true;
+  }
+
+  function stop() {
+    state.running = false;
+    state.timers.forEach(clearTimeout);
+    state.timers = [];
+    pad.disabled = true;
+  }
+
+  // ---------- Button wiring ----------
+  listenBtn.addEventListener('click', () => scheduleRun('listen'));
+  practiceBtn.addEventListener('click', () => scheduleRun('practice'));
+  stopBtn.addEventListener('click', stop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Sticker Tool</title>
+    <!-- Load gif.js for GIF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .toolbar {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        button, input[type="file"] {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        canvas {
+            background: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            cursor: grab;
+        }
+        canvas:active { cursor: grabbing; }
+        .instructions {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <div>
+            <label for="bg-upload">1. Upload Background:</label>
+            <input type="file" id="bg-upload" accept="image/*">
+        </div>
+        <div>
+            <label>2. Add Sticker:</label>
+            <button onclick="addSticker('😀', 'bounce')">Add Bouncing 😀</button>
+            <button onclick="addSticker('⭐', 'rotate')">Add Rotating ⭐</button>
+        </div>
+        <div>
+            <label>3. Export:</label>
+            <button id="export-btn" onclick="exportGIF()">Download as GIF</button>
+        </div>
+    </div>
+
+    <canvas id="canvas" width="600" height="400"></canvas>
+    <div class="instructions">Drag stickers to move them. Animations are previewed in real-time.</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let bgImage = null;
+        let stickers = [];
+        let isDragging = false;
+        let draggedSticker = null;
+        let animationFrameId;
+        let globalTick = 0;
+
+        // Handle Background Upload
+        document.getElementById('bg-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    bgImage = img;
+                    // Resize canvas to fit image while maintaining aspect ratio (max width 600)
+                    const scale = Math.min(600 / img.width, 400 / img.height);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        // Add a new sticker
+        function addSticker(text, animType) {
+            stickers.push({
+                text: text,
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                size: 50,
+                animType: animType,
+                tickOffset: Math.random() * 100
+            });
+        }
+
+        // Mouse Events for Dragging
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Check if clicked on a sticker (reverse order to pick top-most)
+            for (let i = stickers.length - 1; i >= 0; i--) {
+                const s = stickers[i];
+                // Simple bounding box check
+                if (mouseX >= s.x - s.size/2 && mouseX <= s.x + s.size/2 &&
+                    mouseY >= s.y - s.size/2 && mouseY <= s.y + s.size/2) {
+                    isDragging = true;
+                    draggedSticker = s;
+                    break;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging && draggedSticker) {
+                const rect = canvas.getBoundingClientRect();
+                draggedSticker.x = e.clientX - rect.left;
+                draggedSticker.y = e.clientY - rect.top;
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            draggedSticker = null;
+        });
+
+        // Main Render Loop
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background
+            if (bgImage) {
+                ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#e9ecef';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#adb5bd';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Please upload a background image', canvas.width/2, canvas.height/2);
+            }
+
+            // Draw Stickers
+            stickers.forEach(s => {
+                ctx.save();
+                
+                let currentY = s.y;
+                let currentAngle = 0;
+
+                // Calculate Animation states
+                if (s.animType === 'bounce') {
+                    currentY += Math.sin((globalTick + s.tickOffset) * 0.1) * 15;
+                } else if (s.animType === 'rotate') {
+                    currentAngle = (globalTick + s.tickOffset) * 0.05;
+                }
+
+                ctx.translate(s.x, currentY);
+                ctx.rotate(currentAngle);
+                
+                ctx.font = `${s.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(s.text, 0, 0);
+                
+                ctx.restore();
+            });
+
+            globalTick++;
+            animationFrameId = requestAnimationFrame(render);
+        }
+
+        // Start the render loop
+        render();
+
+        // Export to GIF
+        function exportGIF() {
+            const btn = document.getElementById('export-btn');
+            btn.innerText = "Rendering...";
+            btn.disabled = true;
+
+            // Note: gif.js requires a worker script. We use a public CDN for the worker.
+            const gif = new GIF({
+                workers: 2,
+                quality: 10,
+                workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+                width: canvas.width,
+                height: canvas.height
+            });
+
+            // Capture 30 frames (approx 1 second of animation)
+            const totalFrames = 30;
+            let frameTick = globalTick;
+
+            for (let i = 0; i < totalFrames; i++) {
+                // Temporarily hijack the global tick to render specific frames
+                globalTick = frameTick + i;
+                
+                // Force a synchronous render for the frame
+                cancelAnimationFrame(animationFrameId);
+                render(); 
+                
+                // Add the canvas state to the GIF
+                gif.addFrame(canvas, {copy: true, delay: 33}); // ~30fps
+            }
+
+            // Restore normal animation loop
+            globalTick = frameTick;
+            render();
+
+            gif.on('finished', function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'dynamic-sticker.gif';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                btn.innerText = "Download as GIF";
+                btn.disabled = false;
+            });
+
+            gif.render();
+        }
+    </script>
+</body>
+</html>

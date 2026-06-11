@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FurniSpace - Virtual Room Designer & Furniture Store</title>
+<style>
+  :root {
+    --primary: #2c3e50;
+    --primary-light: #34495e;
+    --accent: #e67e22;
+    --accent-hover: #d35400;
+    --success: #27ae60;
+    --danger: #e74c3c;
+    --bg: #ecf0f1;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+    --text-light: #7f8c8d;
+    --border: #dcdde1;
+    --shadow: 0 2px 15px rgba(0,0,0,0.08);
+    --shadow-lg: 0 5px 30px rgba(0,0,0,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+  }
+
+  .logo {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .header-btn:hover {
+    background: rgba(255,255,255,0.2);
+    transform: translateY(-1px);
+  }
+
+  .cart-badge {
+    position: absolute;
+    top: -6px; right: -6px;
+    background: var(--danger);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--primary);
+  }
+
+  .cart-badge.hidden { display: none; }
+
+  /* Navigation Tabs */
+  .nav-tabs {
+    background: white;
+    display: flex;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .nav-tab {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-light);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Main Layout */
+  .main-container {
+    display: flex;
+    height: calc(100vh - 64px - 49px);
+  }
+
+  /* Sidebar - Furniture Catalog */
+  .sidebar {
+    width: 320px;
+    background: white;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .search-box {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-box:focus { border-color: var(--accent); }
+
+  .category-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .category-pill {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    background: white;
+    transition: all 0.2s;
+  }
+
+  .category-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .category-pill.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .furniture-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .furniture-item {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    user-select: none;
+  }
+
+  .furniture-item:hover {
+    border-color: var(--accent);
+    transform: translateX(4px);
+    box-shadow: var(--shadow);
+  }
+
+  .furniture-item:active { cursor: grabbing; }
+
+  .furniture-preview {
+    width: 56px; height: 56px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+
+  .furniture-info { flex: 1; min-width: 0; }
+  .furniture-name {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .furniture-dims {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+  }
+
+  .furniture-price {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+
+  .add-cart-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .add-cart-btn:hover {
+    background: var(--accent-hover);
+    transform: scale(1.1);
+  }
+
+  /* Room Canvas Area */
+  .room-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .room-toolbar {
+    background: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tool-btn {
+    padding: 8px 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+    color: var(--text);
+  }
+
+  .tool-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tool-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .tool-btn.danger { color: var(--danger); }
+  .tool-btn.danger:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+  .room-size-info {
+    font-size: 12px;
+    color: var(--text-light);
+    font-weight: 600;
+  }
+
+  .room-canvas-wrapper {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 20px 20px, #d5d8dc 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .room-canvas {
+    width: 800px;
+    height: 600px;
+    background: white;
+    border: 3px solid var(--primary);
+    border-radius: 4px;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .room-label {
+    position: absolute;
+    top: 8px; left: 12px;
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .room-dimensions {
+    position: absolute;
+    bottom: 8px; right: 12px;
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  /* Placed Furniture */
+  .placed-furniture {
+    position: absolute;
+    cursor: move;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(0,0,0,0.15);
+    border-radius: 6px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    user-select: none;
+    z-index: 10;
+  }
+
+  .placed-furniture:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(230,126,34,0.2);
+    z-index: 20;
+  }
+
+  .placed-furniture.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(230,126,34,0.3);
+    z-index: 30;
+  }
+
+  .placed-furniture .item-icon {
+    font-size: 24px;
+    pointer-events: none;
+  }
+
+  .placed-furniture .item-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(0,0,0,0.6);
+    text-align: center;
+    pointer-events: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 4px;
+  }
+
+  .placed-furniture .delete-btn {
+    position: absolute;
+    top: -10px; right: -10px;
+    width: 22px; height: 22px;
+    background: var(--danger);
+    color: white;
+    border: 2px solid white;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    line-height: 1;
+  }
+
+  .placed-furniture:hover .delete-btn,
+  .placed-furniture.selected .delete-btn {
+    display: flex;
+  }
+
+  .placed-furniture .rotate-handle {
+    position: absolute;
+    bottom: -10px; right: -10px;
+    width: 22px; height: 22px;
+    background: var(--primary);
+    color: white;
+    border: 2px solid white;
+    border-radius: 50%;
+    font-size: 11px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+  }
+
+  .placed-furniture:hover .rotate-handle,
+  .placed-furniture.selected .rotate-handle {
+    display: flex;
+  }
+
+  /* Drop indicator */
+  .drop-indicator {
+    position: absolute;
+    border: 2px dashed var(--accent);
+    background: rgba(230,126,34,0.08);
+    border-radius: 6px;
+    pointer-events: none;
+    display: none;
+    z-index: 5;
+  }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: white;
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    animation: modalIn 0.25s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .modal-close {
+    width: 36px; height: 36px;
+    border: none;
+    background: var(--bg);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover { background: var(--danger); color: white; }
+
+  .modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-secondary { background: var(--bg); color: var(--text); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { background: #219a52; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #c0392b; }
+  .btn-block { width: 100%; justify-content: center; }
+
+  /* Form */
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus { border-color: var(--accent); }
+
+  /* Cart Items */
+  .cart-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+
+  .cart-item-icon {
+    width: 48px; height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .cart-item-info { flex: 1; }
+  .cart-item-name { font-size: 14px; font-weight: 700; }
+  .cart-item-price { font-size: 13px; color: var(--accent); font-weight: 700; }
+
+  .cart-qty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .qty-btn {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+
+  .qty-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .qty-num {
+    font-size: 14px;
+    font-weight: 800;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .cart-remove {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    transition: transform 0.2s;
+  }
+
+  .cart-remove:hover { transform: scale(1.2); }
+
+  .cart-summary {
+    border-top: 2px solid var(--border);
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+
+  .cart-summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .cart-summary-row.total {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 2px dashed var(--border);
+  }
+
+  /* Saved Plans */
+  .plan-card {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+  }
+
+  .plan-card:hover { border-color: var(--accent); }
+
+  .plan-info h4 { font-size: 15px; font-weight: 700; }
+  .plan-info p { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+  .plan-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .plan-action-btn {
+    padding: 6px 12px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .plan-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .plan-action-btn.delete:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Share Link */
+  .share-link-box {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .share-link-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg);
+    outline: none;
+  }
+
+  /* Toast */
+  .toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toast {
+    background: var(--primary);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(100px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(100px); }
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-light);
+  }
+
+  .empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .empty-state p {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* View Mode (shared link) */
+  .view-banner {
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: white;
+    text-align: center;
+    padding: 12px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  /* Room size selector */
+  .room-size-selector {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .room-size-selector select {
+    padding: 6px 10px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+
+  /* Drag ghost */
+  .drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 5000;
+    opacity: 0.8;
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Wall elements */
+  .wall-element {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .door {
+    width: 60px;
+    height: 8px;
+    background: #8B4513;
+    border-radius: 2px;
+  }
+
+  .window-el {
+    width: 80px;
+    height: 6px;
+    background: #87CEEB;
+    border: 2px solid #5DADE2;
+    border-radius: 2px;
+  }
+
+  /* Account section */
+  .account-info {
+    text-align: center;
+    padding: 20px;
+  }
+
+  .avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: white;
+    font-size: 32px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+  }
+
+  .account-name {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .account-email {
+    font-size: 14px;
+    color: var(--text-light);
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 16px;
+  }
+
+  .stat { text-align: center; }
+  .stat-num { font-size: 24px; font-weight: 800; color: var(--accent); }
+  .stat-label { font-size: 12px; color: var(--text-light); font-weight: 600; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { width: 260px; }
+    .room-canvas { width: 500px; height: 400px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo" onclick="switchTab('designer')">
+    <div class="logo-icon">🏠</div>
+    <span>FurniSpace</span>
+  </div>
+  <div class="header-actions">
+    <button class="header-btn" onclick="openModal('plansModal')">
+      📐 My Plans
+    </button>
+    <button class="header-btn" onclick="openModal('accountModal')">
+      👤 Account
+    </button>
+    <button class="header-btn" onclick="openModal('cartModal')" style="position:relative">
+      🛒 Cart
+      <span class="cart-badge hidden" id="cartBadge">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- Navigation -->
+<nav class="nav-tabs">
+  <div class="nav-tab active" data-tab="designer" onclick="switchTab('designer')">
+    🎨 Room Designer
+  </div>
+  <div class="nav-tab" data-tab="catalog" onclick="switchTab('catalog')">
+    🪑 Full Catalog
+  </div>
+</nav>
+
+<!-- Main Content -->
+<div class="main-container">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>🪑 Furniture Catalog</h3>
+      <input type="text" class="search-box" placeholder="Search furniture..." oninput="filterFurniture(this.value)">
+    </div>
+    <div class="category-pills" id="categoryPills"></div>
+    <div class="furniture-list" id="furnitureList"></div>
+  </aside>
+
+  <!-- Room Designer -->
+  <main class="room-area">
+    <div class="room-toolbar">
+      <div class="toolbar-group">
+        <div class="room-size-selector">
+          <span style="font-size:13px;font-weight:700;">Room:</span>
+          <select id="roomSizeSelect" onchange="changeRoomSize(this.value)">
+            <option value="800x600">Standard (8m × 6m)</option>
+            <option value="1000x700">Large (10m × 7m)</option>
+            <option value="600x500">Small (6m × 5m)</option>
+            <option value="1200x800">XL (12m × 8m)</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar-group">
+        <button class="tool-btn" onclick="toggleGrid()" id="gridBtn">
+          ⊞ Grid
+        </button>
+        <button class="tool-btn" onclick="clearRoom()" >
+          🗑️ Clear
+        </button>
+        <button class="tool-btn" onclick="savePlan()">
+          💾 Save Plan
+        </button>
+        <button class="tool-btn" onclick="openShareModal()">
+          🔗 Share
+        </button>
+        <button class="tool-btn" onclick="exportImage()">
+          📷 Export
+        </button>
+      </div>
+      <div class="room-size-info" id="roomInfo">800 × 600 px | 20 items placed</div>
+    </div>
+    <div class="room-canvas-wrapper" id="roomWrapper">
+      <div class="room-canvas" id="roomCanvas"
+           ondragover="handleDragOver(event)"
+           ondrop="handleDrop(event)"
+           ondragleave="handleDragLeave(event)">
+        <div class="room-label">🏠 Virtual Room Preview</div>
+        <div class="room-dimensions" id="roomDims">8m × 6m</div>
+        <div class="drop-indicator" id="dropIndicator"></div>
+
+        <!-- Wall decorations -->
+        <div class="wall-element door" style="bottom:-4px;left:100px;" title="Door"></div>
+        <div class="wall-element window-el" style="top:-3px;left:200px;" title="Window"></div>
+        <div class="wall-element window-el" style="top:-3px;left:500px;" title="Window"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Cart Modal -->
+<div class="modal-overlay" id="cartModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🛒 Shopping Cart</h2>
+      <button class="modal-close" onclick="closeModal('cartModal')">✕</button>
+    </div>
+    <div class="modal-body" id="cartBody">
+      <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <p>Your cart is empty</p>
+      </div>
+    </div>
+    <div class="modal-footer" id="cartFooter" style="display:none">
+      <button class="btn btn-secondary" onclick="clearCart()">Clear Cart</button>
+      <button class="btn btn-success" onclick="checkout()">💳 Checkout</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account Modal -->
+<div class="modal-overlay" id="accountModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>👤 My Account</h2>
+      <button class="modal-close" onclick="closeModal('accountModal')">✕</button>
+    </div>
+    <div class="modal-body" id="accountBody"></div>
+  </div>
+</div>
+
+<!-- Plans Modal -->
+<div class="modal-overlay" id="plansModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📐 Saved Plans</h2>
+      <button class="modal-close" onclick="closeModal('plansModal')">✕</button>
+    </div>
+    <div class="modal-body" id="plansBody">
+      <div class="empty-state">
+        <div class="empty-icon">📐</div>
+        <p>No saved plans yet</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🔗 Share Your Design</h2>
+      <button class="modal-close" onclick="closeModal('shareModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;font-size:14px;color:var(--text-light);">
+        Share your room design with others. They'll be able to view your furniture arrangement.
+      </p>
+      <div class="form-group">
+        <label>Plan Name</label>
+        <input type="text" class="form-input" id="sharePlanName" placeholder="My Living Room Design">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="generateShareLink()">
+        🔗 Generate Share Link
+      </button>
+      <div id="shareLinkResult" style="display:none;margin-top:16px;">
+        <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">Share Link:</label>
+        <div class="share-link-box">
+          <input type="text" class="share-link-input" id="shareLinkInput" readonly>
+          <button class="btn btn-primary" onclick="copyShareLink()">📋 Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>👤 Sign In</h2>
+      <button class="modal-close" onclick="closeModal('loginModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" class="form-input" id="loginUsername" placeholder="Enter username">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="Enter email">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="handleLogin()" style="margin-top:8px;">
+        Sign In / Register
+      </button>
+      <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-light);">
+        Demo: Just enter any username and email to continue
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- View Mode Banner (for shared links) -->
+<div class="view-banner" id="viewBanner" style="display:none;">
+  👁️ Viewing shared design — <strong id="viewPlanName"></strong>
+  <button onclick="exitViewMode()" style="margin-left:12px;padding:4px 12px;border:2px solid white;background:transparent;color:white;border-radius:6px;cursor:pointer;font-weight:700;">
+    Start Your Own Design
+  </button>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ==================== DATA ====================
+const FURNITURE_DATA = [
+  // Living Room
+  { id: 'sofa-1', name: 'Modern Sofa', category: 'Living Room', icon: '🛋️', color: '#8B7355', w: 160, h: 70, price: 899 },
+  { id: 'sofa-2', name: 'L-Shaped Sofa', category: 'Living Room', icon: '🛋️', color: '#6B8E6B', w: 180, h: 120, price: 1299 },
+  { id: 'armchair', name: 'Armchair', category: 'Living Room', icon: '💺', color: '#A0522D', w: 70, h: 70, price: 449 },
+  { id: 'coffee-table', name: 'Coffee Table', category: 'Living Room', icon: '☕', color: '#DEB887', w: 100, h: 55, price: 299 },
+  { id: 'tv-stand', name: 'TV Stand', category: 'Living Room', icon: '📺', color: '#4A4A4A', w: 140, h: 40, price: 399 },
+  { id: 'bookshelf', name: 'Bookshelf', category: 'Living Room', icon: '📚', color: '#8B6914', w: 80, h: 35, price: 349 },
+  { id: 'floor-lamp', name: 'Floor Lamp', category: 'Living Room', icon: '🪔', color: '#FFD700', w: 30, h: 30, price: 129 },
+  { id: 'rug', name: 'Area Rug', category: 'Living Room', icon: '🟫', color: '#C19A6B', w: 160, h: 120, price: 249 },
+
+  // Bedroom
+  { id: 'bed-king', name: 'King Bed', category: 'Bedroom', icon: '🛏️', color: '#7B68AE', w: 160, h: 180, price: 1199 },
+  { id: 'bed-queen', name: 'Queen Bed', category: 'Bedroom', icon: '🛏️', color: '#9370DB', w: 140, h: 160, price: 899 },
+  { id: 'bed-single', name: 'Single Bed', category: 'Bedroom', icon: '🛏️', color: '#B0A0D0', w: 90, h: 160, price: 549 },
+  { id: 'nightstand', name: 'Nightstand', category: 'Bedroom', icon: '🪵', color: '#A0522D', w: 45, h: 40, price: 179 },
+  { id: 'wardrobe', name: 'Wardrobe', category: 'Bedroom', icon: '🚪', color: '#8B7355', w: 120, h: 55, price: 799 },
+  { id: 'dresser', name: 'Dresser', category: 'Bedroom', icon: '🗄️', color: '#CD853F', w: 110, h: 45, price: 549 },
+  { id: 'vanity', name: 'Vanity Table', category: 'Bedroom', icon: '🪞', color: '#DDA0DD', w: 90, h: 40, price: 399 },
+
+  // Kitchen & Dining
+  { id: 'dining-table', name: 'Dining Table', category: 'Kitchen', icon: '🍽️', color: '#DEB887', w: 140, h: 80, price: 699 },
+  { id: 'dining-chair', name: 'Dining Chair', category: 'Kitchen', icon: '🪑', color: '#A0522D', w: 40, h: 40, price: 149 },
+  { id: 'bar-stool', name: 'Bar Stool', category: 'Kitchen', icon: '🪑', color: '#696969', w: 35, h: 35, price: 119 },
+  { id: 'kitchen-island', name: 'Kitchen Island', category: 'Kitchen', icon: '🏝️', color: '#F5F5DC', w: 120, h: 60, price: 899 },
+  { id: 'buffet', name: 'Buffet Cabinet', category: 'Kitchen', icon: '🗄️', color: '#8B7355', w: 130, h: 45, price: 599 },
+
+  // Office
+  { id: 'office-desk', name: 'Office Desk', category: 'Office', icon: '🖥️', color: '#4A4A4A', w: 120, h: 60, price: 499 },
+  { id: 'office-chair', name: 'Office Chair', category: 'Office', icon: '💺', color: '#2F4F4F', w: 50, h: 50, price: 349 },
+  { id: 'filing-cabinet', name: 'Filing Cabinet', category: 'Office', icon: '🗄️', color: '#808080', w: 45, h: 55, price: 199 },
+  { id: 'standing-desk', name: 'Standing Desk', category: 'Office', icon: '🖥️', color: '#556B2F', w: 130, h: 65, price: 699 },
+  { id: 'monitor-stand', name: 'Monitor Stand', category: 'Office', icon: '🖥️', color: '#333', w: 50, h: 25, price: 79 },
+
+  // Bathroom
+  { id: 'bathtub', name: 'Bathtub', category: 'Bathroom', icon: '🛁', color: '#E0E0E0', w: 140, h: 65, price: 899 },
+  { id: 'toilet', name: 'Toilet', category: 'Bathroom', icon: '🚽', color: '#F5F5F5', w: 40, h: 55, price: 299 },
+  { id: 'sink-vanity', name: 'Sink Vanity', category: 'Bathroom', icon: '🚰', color: '#B0C4DE', w: 90, h: 45, price: 449 },
+  { id: 'shower', name: 'Shower Enclosure', category: 'Bathroom', icon: '🚿', color: '#ADD8E6', w: 80, h: 80, price: 699 },
+
+  // Outdoor
+  { id: 'patio-table', name: 'Patio Table', category: 'Outdoor', icon: '☂️', color: '#228B22', w: 100, h: 100, price: 399 },
+  { id: 'patio-chair', name: 'Patio Chair', category: 'Outdoor', icon: '🪑', color: '#2E8B57', w: 50, h: 50, price: 179 },
+  { id: 'hammock', name: 'Hammock', category: 'Outdoor', icon: '🏖️', color: '#F4A460', w: 140, h: 50, price: 199 },
+  { id: 'planter', name: 'Large Planter', category: 'Outdoor', icon: '🪴', color: '#8B4513', w: 40, h: 40, price: 89 },
+  { id: 'bbq-grill', name: 'BBQ Grill', category: 'Outdoor', icon: '🔥', color: '#333', w: 80, h: 50, price: 599 },
+];
+
+const CATEGORIES = ['All', 'Living Room', 'Bedroom', 'Kitchen', 'Office', 'Bathroom', 'Outdoor'];
+
+// ==================== STATE ====================
+let state = {
+  user: null,
+  cart: [],
+  placedItems: [],
+  savedPlans: [],
+  activeCategory: 'All',
+  searchQuery: '',
+  selectedItemId: null,
+  gridVisible: true,
+  roomWidth: 800,
+  roomHeight: 600,
+  viewMode: false,
+  dragData: null,
+  nextItemId: 1,
+};
+
+// ==================== INIT ====================
+function init() {
+  loadState();
+  renderCategories();
+  renderFurnitureList();
+  updateCartBadge();
+  renderPlacedItems();
+  updateRoomInfo();
+  checkSharedLink();
+  renderAccount();
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('furnispace_state');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state.user = parsed.user || null;
+      state.cart = parsed.cart || [];
+      state.savedPlans = parsed.savedPlans || [];
+      state.nextItemId = parsed.nextItemId || 1;
+    }
+  } catch(e) {}
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('furnispace_state', JSON.stringify({
+      user: state.user,
+      cart: state.cart,
+      savedPlans: state.savedPlans,
+      nextItemId: state.nextItemId,
+    }));
+  } catch(e) {}
+}
+
+// ==================== CATEGORIES ====================
+function renderCategories() {
+  const container = document.getElementById('categoryPills');
+  container.innerHTML = CATEGORIES.map(cat => `
+    <div class="category-pill ${state.activeCategory === cat ? 'active' : ''}"
+         onclick="selectCategory('${cat}')">
+      ${getCategoryEmoji(cat)} ${cat}
+    </div>
+  `).join('');
+}
+
+function getCategoryEmoji(cat) {
+  const map = { 'All': '🏠', 'Living Room': '🛋️', 'Bedroom': '🛏️', 'Kitchen': '🍽️', 'Office': '🖥️', 'Bathroom': '🛁', 'Outdoor': '🌿' };
+  return map[cat] || '📦';
+}
+
+function selectCategory(cat) {
+  state.activeCategory = cat;
+  renderCategories();
+  renderFurnitureList();
+}
+
+// ==================== FURNITURE LIST ====================
+function renderFurnitureList() {
+  const container = document.getElementById('furnitureList');
+  let items = FURNITURE_DATA;
+
+  if (state.activeCategory !== 'All') {
+    items = items.filter(i => i.category === state.activeCategory);
+  }
+
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    items = items.filter(i => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <p>No furniture found</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = items.map(item => `
+    <div class="furniture-item"
+         draggable="true"
+         ondragstart="handleDragStart(event, '${item.id}')"
+         ondragend="handleDragEnd(event)">
+      <div class="furniture-preview" style="background:${item.color}20;">
+        ${item.icon}
+      </div>
+      <div class="furniture-info">
+        <div class="furniture-name">${item.name}</div>
+        <div class="furniture-dims">${item.w}×${item.h}px · ${item.category}</div>
+        <div class="furniture-price">$${item.price.toLocaleString()}</div>
+      </div>
+      <button class="add-cart-btn" onclick="event.stopPropagation();addToCart('${item.id}')" title="Add to cart">
+        +
+      </button>
+    </div>
+  `).join('');
+}
+
+function filterFurniture(query) {
+  state.searchQuery = query;
+  renderFurnitureList();
+}
+
+// ==================== DRAG & DROP ====================
+function handleDragStart(e, itemId) {
+  state.dragData = itemId;
+  e.dataTransfer.setData('text/plain', itemId);
+  e.dataTransfer.effectAllowed = 'copy';
+
+  const item = FURNITURE_DATA.find(i => i.id === itemId);
+  if (item) {
+    const ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    ghost.style.width = item.w + 'px';
+    ghost.style.height = item.h + 'px';
+    ghost.style.background = item.color + '40';
+    ghost.textContent = item.icon;
+    ghost.style.fontSize = '28px';
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, item.w/2, item.h/2);
+    setTimeout(() => ghost.remove(), 0);
+  }
+}
+
+function handleDragEnd(e) {
+  state.dragData = null;
+  document.getElementById('dropIndicator').style.display = 'none';
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+
+  const itemId = state.dragData || e.dataTransfer.types.includes('text/plain') ? state.dragData : null;
+  if (!itemId) return;
+
+  const item = FURNITURE_DATA.find(i => i.id === itemId);
+  if (!item) return;
+
+  const canvas = document.getElementById('roomCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.round((e.clientX - rect.left) / 10) * 10;
+  const y = Math.round((e.clientY - rect.top) / 10) * 10;
+
+  const indicator = document.getElementById('dropIndicator');
+  indicator.style.display = 'block';
+  indicator.style.left = Math.max(0, Math.min(x - item.w/2, state.roomWidth - item.w)) + 'px';
+  indicator.style.top = Math.max(0, Math.min(y - item.h/2, state.roomHeight - item.h)) + 'px';
+  indicator.style.width = item.w + 'px';
+  indicator.style.height = item.h + 'px';
+}
+
+function handleDragLeave(e) {
+  document.getElementById('dropIndicator').style.display = 'none';
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropIndicator').style.display = 'none';
+
+  const itemId = e.dataTransfer.getData('text/plain') || state.dragData;
+  if (!itemId) return;
+
+  const item = FURNITURE_DATA.find(i => i.id === itemId);
+  if (!item) return;
+
+  const canvas = document.getElementById('roomCanvas');
+  const rect = canvas.getBoundingClientRect();
+  let x = e.clientX - rect.left - item.w / 2;
+  let y = e.clientY - rect.top - item.h / 2;
+
+  // Snap to grid
+  x = Math.round(x / 10) * 10;
+  y = Math.round(y / 10) * 10;
+
+  // Clamp
+  x = Math.max(0, Math.min(x, state.roomWidth - item.w));
+  y = Math.max(0, Math.min(y, state.roomHeight - item.h));
+
+  const placedItem = {
+    uid: 'placed_' + state.nextItemId++,
+    id: item.id,
+    name: item.name,
+    icon: item.icon,
+    color: item.color,
+    w: item.w,
+    h: item.h,
+    x: x,
+    y: y,
+    rotation: 0,
+    price: item.price,
+  };
+
+  state.placedItems.push(placedItem);
+  renderPlacedItems();
+  updateRoomInfo();
+  showToast(`${item.icon} ${item.name} placed!`, 'success');
+}
+
+// ==================== PLACED ITEMS ====================
+function renderPlacedItems() {
+  const canvas = document.getElementById('roomCanvas');
+
+  // Remove old placed items
+  canvas.querySelectorAll('.placed-furniture').forEach(el => el.remove());
+
+  state.placedItems.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'placed-furniture' + (state.selectedItemId === item.uid ? ' selected' : '');
+    el.style.left = item.x + 'px';
+    el.style.top = item.y + 'px';
+    el.style.width = item.w + 'px';
+    el.style.height = item.h + 'px';
+    el.style.background = item.color + '30';
+    el.style.transform = `rotate(${item.rotation || 0}deg)`;
+    el.dataset.uid = item.uid;
+
+    el.innerHTML = `
+      <span class="item-icon">${item.icon}</span>
+      <span class="item-label">${item.name}</span>
+      <button class="delete-btn" onclick="event.stopPropagation();removePlacedItem('${item.uid}')" title="Remove">✕</button>
+      <button class="rotate-handle" onclick="event.stopPropagation();rotateItem('${item.uid}')" title="Rotate">↻</button>
+    `;
+
+    // Click to select
+    el.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('delete-btn') || e.target.classList.contains('rotate-handle')) return;
+      selectItem(item.uid);
+      startDragPlaced(e, item.uid);
+    });
+
+    canvas.appendChild(el);
+  });
+}
+
+function selectItem(uid) {
+  state.selectedItemId = uid;
+  renderPlacedItems();
+}
+
+function removePlacedItem(uid) {
+  const item = state.placedItems.find(i => i.uid === uid);
+  state.placedItems = state.placedItems.filter(i => i.uid !== uid);
+  if (state.selectedItemId === uid) state.selectedItemId = null;
+  renderPlacedItems();
+  updateRoomInfo();
+  if (item) showToast(`${item.icon} ${item.name} removed`, '');
+}
+
+function rotateItem(uid) {
+  const item = state.placedItems.find(i => i.uid === uid);
+  if (item) {
+    item.rotation = ((item.rotation || 0) + 90) % 360;
+    renderPlacedItems();
+  }
+}
+
+// Drag placed items within room
+function startDragPlaced(e, uid) {
+  e.preventDefault();
+  const item = state.placedItems.find(i => i.uid === uid);
+  if (!item) return;
+
+  const canvas = document.getElementById('roomCanvas');
+  const canvasRect = canvas.getBoundingClientRect();
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const origX = item.x;
+  const origY = item.y;
+
+  function onMove(ev) {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    let newX = origX + dx;
+    let newY = origY + dy;
+
+    // Snap
+    newX = Math.round(newX / 10) * 10;
+    newY = Math.round(newY / 10) * 10;
+
+    // Clamp
+    newX = Math.max(0, Math.min(newX, state.roomWidth - item.w));
+    newY = Math.max(0, Math.min(newY, state.roomHeight - item.h));
+
+    item.x = newX;
+    item.y = newY;
+
+    const el = canvas.querySelector(`[data-uid="${uid}"]`);
+    if (el) {
+      el.style.left = newX + 'px';
+      el.style.top = newY + 'px';
+    }
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    updateRoomInfo();
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ==================== ROOM CONTROLS ====================
+function changeRoomSize(val) {
+  const [w, h] = val.split('x').map(Number);
+  state.roomWidth = w;
+  state.roomHeight = h;
+
+  const canvas = document.getElementById('roomCanvas');
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+
+  const wm = (w / 100).toFixed(0);
+  const hm = (h / 100).toFixed(0);
+  document.getElementById('roomDims').textContent = `${wm}m × ${hm}m`;
+
+  // Clamp placed items
+  state.placedItems.forEach(item => {
+    item.x = Math.min(item.x, w - item.w);
+    item.y = Math.min(item.y, h - item.h);
+  });
+
+  renderPlacedItems();
+  updateRoomInfo();
+}
+
+function toggleGrid() {
+  state.gridVisible = !state.gridVisible;
+  const canvas = document.getElementById('roomCanvas');
+  const btn = document.getElementById('gridBtn');
+
+  if (state.gridVisible) {
+    canvas.style.backgroundImage = `
+      linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)`;
+    btn.classList.add('active');
+  } else {
+    canvas.style.backgroundImage = 'none';
+    btn.classList.remove('active');
+  }
+}
+
+function clearRoom() {
+  if (state.placedItems.length === 0) return;
+  if (confirm('Clear all furniture from the room?')) {
+    state.placedItems = [];
+    state.selectedItemId = null;
+    renderPlacedItems();
+    updateRoomInfo();
+    showToast('Room cleared', '');
+  }
+}
+
+function updateRoomInfo() {
+  document.getElementById('roomInfo').textContent =
+    `${state.roomWidth} × ${state.roomHeight} px | ${state.placedItems.length} items placed`;
+}
+
+// ==================== CART ====================
+function addToCart(itemId) {
+  const item = FURNITURE_DATA.find(i => i.id === itemId);
+  if (!item) return;
+
+  const existing = state.cart.find(c => c.id === itemId);
+  if (existing) {
+    existing.qty++;
+  } else {
+    state.cart.push({ id: itemId, qty: 1 });
+  }
+
+  updateCartBadge();
+  saveState();
+  showToast(`${item.icon} ${item.name} added to cart!`, 'success');
+}
+
+function removeFromCart(itemId) {
+  state.cart = state.cart.filter(c => c.id !== itemId);
+  updateCartBadge();
+  renderCart();
+  saveState();
+}
+
+function updateCartQty(itemId, delta) {
+  const item = state.cart.find(c => c.id === itemId);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) {
+    removeFromCart(itemId);
+    return;
+  }
+  updateCartBadge();
+  renderCart();
+  saveState();
+}
+
+function clearCart() {
+  if (confirm('Clear all items from cart?')) {
+    state.cart = [];
+    updateCartBadge();
+    renderCart();
+    saveState();
+    showToast('Cart cleared', '');
+  }
+}
+
+function updateCartBadge() {
+  const badge = document.getElementById('cartBadge');
+  const total = state.cart.reduce((sum, c) => sum + c.qty, 0);
+  badge.textContent = total;
+  badge.classList.toggle('hidden', total === 0);
+}
+
+function renderCart() {
+  const body = document.getElementById('cartBody');
+  const footer = document.getElementById('cartFooter');
+
+  if (state.cart.length === 0) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <p>Your cart is empty</p>
+        <p style="font-size:12px;margin-top:8px;">Browse the catalog and add items</p>
+      </div>
+    `;
+    footer.style.display = 'none';
+    return;
+  }
+
+  let subtotal = 0;
+  let html = '';
+
+  state.cart.forEach(cartItem => {
+    const item = FURNITURE_DATA.find(i => i.id === cartItem.id);
+    if (!item) return;
+    const lineTotal = item.price * cartItem.qty;
+    subtotal += lineTotal;
+
+    html += `
+      <div class="cart-item">
+        <div class="cart-item-icon" style="background:${item.color}20;">${item.icon}</div>
+        <div class="cart-item-info">
+          <div class="cart-item-name">${item.name}</div>
+          <div class="cart-item-price">$${item.price.toLocaleString()} × ${cartItem.qty} = $${lineTotal.toLocaleString()}</div>
+        </div>
+        <div class="cart-qty">
+          <button class="qty-btn" onclick="updateCartQty('${item.id}', -1)">−</button>
+          <span class="qty-num">${cartItem.qty}</span>
+          <button class="qty-btn" onclick="updateCartQty('${item.id}', 1)">+</button>
+        </div>
+        <button class="cart-remove" onclick="removeFromCart('${item.id}')">🗑️</button>
+      </div>
+    `;
+  });
+
+  const tax = Math.round(subtotal * 0.08);
+  const shipping = subtotal > 1000 ? 0 : 49;
+  const total = subtotal + tax + shipping;
+
+  html += `
+    <div class="cart-summary">
+      <div class="cart-summary-row">
+        <span>Subtotal (${state.cart.reduce((s,c) => s+c.qty, 0)} items)</span>
+        <span>$${subtotal.toLocaleString()}</span>
+      </div>
+      <div class="cart-summary-row">
+        <span>Tax (8%)</span>
+        <span>$${tax.toLocaleString()}</span>
+      </div>
+      <div class="cart-summary-row">
+        <span>Shipping ${shipping === 0 ? '🎉 FREE' : ''}</span>
+        <span>${shipping === 0 ? 'FREE' : '$' + shipping}</span>
+      </div>
+      ${shipping > 0 ? '<div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:8px;">💡 Free shipping on orders over $1,000!</div>' : ''}
+      <div class="cart-summary-row total">
+        <span>Total</span>
+        <span>$${total.toLocaleString()}</span>
+      </div>
+    </div>
+  `;
+
+  body.innerHTML = html;
+  footer.style.display = 'flex';
+}
+
+function checkout() {
+  if (!state.user) {
+    closeModal('cartModal');
+    openModal('loginModal');
+    showToast('Please sign in to checkout', 'error');
+    return;
+  }
+
+  const total = calculateTotal();
+  showToast(`🎉 Order placed! Total: $${total.toLocaleString()}`, 'success');
+  state.cart = [];
+  updateCartBadge();
+  renderCart();
+  saveState();
+  setTimeout(() => closeModal('cartModal'), 1500);
+}
+
+function calculateTotal() {
+  let subtotal = 0;
+  state.cart.forEach(cartItem => {
+    const item = FURNITURE_DATA.find(i => i.id === cartItem.id);
+    if (item) subtotal += item.price * cartItem.qty;
+  });
+  const tax = Math.round(subtotal * 0.08);
+  const shipping = subtotal > 1000 ? 0 : 49;
+  return subtotal + tax + shipping;
+}
+
+// ==================== SAVE/LOAD PLANS ====================
+function savePlan() {
+  if (!state.user) {
+    openModal('loginModal');
+    showToast('Please sign in to save plans', 'error');
+    return;
+  }
+
+  if (state.placedItems.length === 0) {
+    showToast('Room is empty! Add some furniture first.', 'error');
+    return;
+  }
+
+  const name = prompt('Enter a name for this plan:', `My Room Design ${state.savedPlans.length + 1}`);
+  if (!name) return;
+
+  const plan = {
+    id: 'plan_' + Date.now(),
+    name: name,
+    date: new Date().toISOString(),
+    items: JSON.parse(JSON.stringify(state.placedItems)),
+    roomWidth: state.roomWidth,
+    roomHeight: state.roomHeight,
+  };
+
+  state.savedPlans.push(plan);
+  saveState();
+  showToast(`💾 Plan "${name}" saved!`, 'success');
+}
+
+function loadPlan(planId) {
+  const plan = state.savedPlans.find(p => p.id === planId);
+  if (!plan) return;
+
+  state.placedItems = JSON.parse(JSON.stringify(plan.items));
+  state.roomWidth = plan.roomWidth || 800;
+  state.roomHeight = plan.roomHeight || 600;
+
+  document.getElementById('roomSizeSelect').value = `${state.roomWidth}x${state.roomHeight}`;
+  changeRoomSize(`${state.roomWidth}x${state.roomHeight}`);
+
+  renderPlacedItems();
+  updateRoomInfo();
+  closeModal('plansModal');
+  showToast(`📐 Plan "${plan.name}" loaded!`, 'success');
+}
+
+function deletePlan(planId) {
+  if (!confirm('Delete this plan?')) return;
+  state.savedPlans = state.savedPlans.filter(p => p.id !== planId);
+  saveState();
+  renderPlans();
+  showToast('Plan deleted', '');
+}
+
+function renderPlans() {
+  const body = document.getElementById('plansBody');
+
+  if (state.savedPlans.length === 0) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📐</div>
+        <p>No saved plans yet</p>
+        <p style="font-size:12px;margin-top:8px;">Design a room and click "Save Plan"</p>
+      </div>
+    `;
+    return;
+  }
+
+  body.innerHTML = state.savedPlans.map(plan => {
+    const date = new Date(plan.date).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+    const itemCount = plan.items.length;
+    const totalValue = plan.items.reduce((sum, item) => sum + (item.price || 0), 0);
+
+    return `
+      <div class="plan-card">
+        <div class="plan-info">
+          <h4>📐 ${plan.name}</h4>
+          <p>${date} · ${itemCount} items · $${totalValue.toLocaleString()} value</p>
+        </div>
+        <div class="plan-actions">
+          <button class="plan-action-btn" onclick="loadPlan('${plan.id}')">📂 Load</button>
+          <button class="plan-action-btn" onclick="sharePlanDirect('${plan.id}')">🔗 Share</button>
+          <button class="plan-action-btn delete" onclick="deletePlan('${plan.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== SHARING ====================
+function openShareModal() {
+  if (state.placedItems.length === 0) {
+    showToast('Room is empty! Add furniture first.', 'error');
+    return;
+  }
+  document.getElementById('sharePlanName').value = `My Room Design`;
+  document.getElementById('shareLinkResult').style.display = 'none';
+  openModal('shareModal');
+}
+
+function generateShareLink() {
+  const name = document.getElementById('sharePlanName').value || 'Shared Design';
+
+  const shareData = {
+    name: name,
+    items: state.placedItems,
+    roomWidth: state.roomWidth,
+    roomHeight: state.roomHeight,
+  };
+
+  const encoded = btoa(encodeURIComponent(JSON.stringify(shareData)));
+  const link = `${window.location.origin}${window.location.pathname}?view=${encoded}`;
+
+  document.getElementById('shareLinkInput').value = link;
+  document.getElementById('shareLinkResult').style.display = 'block';
+  showToast('🔗 Share link generated!', 'success');
+}
+
+function copyShareLink() {
+  const input = document.getElementById('shareLinkInput');
+  input.select();
+  document.execCommand('copy');
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(input.value);
+  }
+
+  showToast('📋 Link copied to clipboard!', 'success');
+}
+
+function sharePlanDirect(planId) {
+  const plan = state.savedPlans.find(p => p.id === planId);
+  if (!plan) return;
+
+  const shareData = {
+    name: plan.name,
+    items: plan.items,
+    roomWidth: plan.roomWidth,
+    roomHeight: plan.roomHeight,
+  };
+
+  const encoded = btoa(encodeURIComponent(JSON.stringify(shareData)));
+  const link = `${window.location.origin}${window.location.pathname}?view=${encoded}`;
+
+  const tempInput = document.createElement('input');
+  tempInput.value = link;
+  document.body.appendChild(tempInput);
+  tempInput.select();
+  document.execCommand('copy');
+  tempInput.remove();
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link);
+  }
+
+  showToast(`🔗 Share link for "${plan.name}" copied!`, 'success');
+}
+
+function checkSharedLink() {
+  const params = new URLSearchParams(window.location.search);
+  const viewData = params.get('view');
+
+  if (viewData) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(atob(viewData)));
+      state.viewMode = true;
+      state.placedItems = decoded.items || [];
+      state.roomWidth = decoded.roomWidth || 800;
+      state.roomHeight = decoded.roomHeight || 600;
+
+      document.getElementById('viewBanner').style.display = 'block';
+      document.getElementById('viewPlanName').textContent = decoded.name || 'Shared Design';
+      document.getElementById('roomSizeSelect').value = `${state.roomWidth}x${state.roomHeight}`;
+
+      changeRoomSize(`${state.roomWidth}x${state.roomHeight}`);
+      renderPlacedItems();
+      updateRoomInfo();
+    } catch(e) {
+      console.error('Invalid share link');
+    }
+  }
+}
+
+function exitViewMode() {
+  state.viewMode = false;
+  state.placedItems = [];
+  document.getElementById('viewBanner').style.display = 'none';
+  window.history.replaceState({}, '', window.location.pathname);
+  renderPlacedItems();
+  updateRoomInfo();
+  showToast('Start designing your own room!', 'success');
+}
+
+// ==================== ACCOUNT ====================
+function renderAccount() {
+  const body = document.getElementById('accountBody');
+
+  if (!state.user) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">👤</div>
+        <p>Not signed in</p>
+        <button class="btn btn-primary" onclick="closeModal('accountModal');openModal('loginModal')" style="margin-top:16px;">
+          Sign In / Register
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  const initial = state.user.username.charAt(0).toUpperCase();
+  const planCount = state.savedPlans.length;
+  const cartCount = state.cart.reduce((s, c) => s + c.qty, 0);
+  const cartValue = state.cart.reduce((sum, c) => {
+    const item = FURNITURE_DATA.find(i => i.id === c.id);
+    return sum + (item ? item.price * c.qty : 0);
+  }, 0);
+
+  body.innerHTML = `
+    <div class="account-info">
+      <div class="avatar">${initial}</div>
+      <div class="account-name">${state.user.username}</div>
+      <div class="account-email">${state.user.email}</div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-num">${planCount}</div>
+          <div class="stat-label">Saved Plans</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">${cartCount}</div>
+          <div class="stat-label">Cart Items</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">$${cartValue.toLocaleString()}</div>
+          <div class="stat-label">Cart Value</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:20px;">
+      <button class="btn btn-danger btn-block" onclick="handleLogout()">
+        🚪 Sign Out
+      </button>
+    </div>
+  `;
+}
+
+function handleLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const email = document.getElementById('loginEmail').value.trim();
+
+  if (!username || !email) {
+    showToast('Please enter username and email', 'error');
+    return;
+  }
+
+  state.user = { username, email };
+  saveState();
+  closeModal('loginModal');
+  renderAccount();
+  showToast(`👋 Welcome, ${username}!`, 'success');
+}
+
+function handleLogout() {
+  if (!confirm('Sign out?')) return;
+  state.user = null;
+  saveState();
+  renderAccount();
+  showToast('Signed out', '');
+}
+
+// ==================== EXPORT ====================
+function exportImage() {
+  if (state.placedItems.length === 0) {
+    showToast('Room is empty!', 'error');
+    return;
+  }
+
+  // Create a simple text-based export
+  let exportText = `FurniSpace Room Design Export\n`;
+  exportText += `============================\n`;
+  exportText += `Room Size: ${state.roomWidth/100}m × ${state.roomHeight/100}m\n`;
+  exportText += `Items: ${state.placedItems.length}\n\n`;
+
+  let totalValue = 0;
+  state.placedItems.forEach((item, i) => {
+    exportText += `${i+1}. ${item.name} - Position: (${item.x}, ${item.y}) - $${item.price}\n`;
+    totalValue += item.price;
+  });
+
+  exportText += `\nTotal Furniture Value: $${totalValue.toLocaleString()}\n`;
+
+  const blob = new Blob([exportText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'furnispace-design.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('📷 Design exported!', 'success');
+}
+
+// ==================== MODALS ====================
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+
+  if (id === 'cartModal') renderCart();
+  if (id === 'plansModal') renderPlans();
+  if (id === 'accountModal') renderAccount();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('active');
+    }
+  });
+});
+
+// ==================== TABS ====================
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+}
+
+// ==================== TOAST ====================
+function showToast(message, type = '') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ==================== KEYBOARD SHORTCUTS ====================
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state.selectedItemId && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      removePlacedItem(state.selectedItemId);
+    }
+  }
+  if (e.key === 'Escape') {
+    state.selectedItemId = null;
+    renderPlacedItems();
+    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+  }
+  if (e.key === 'r' && state.selectedItemId && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    rotateItem(state.selectedItemId);
+  }
+});
+
+// Click on canvas to deselect
+document.getElementById('roomCanvas').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('roomCanvas') || e.target.classList.contains('room-label') || e.target.classList.contains('room-dimensions')) {
+    state.selectedItemId = null;
+    renderPlacedItems();
+  }
+});
+
+// ==================== INIT ====================
+init();
+
+// Set grid button initial state
+document.getElementById('gridBtn').classList.add('active');
+</script>
+</body>
+</html>

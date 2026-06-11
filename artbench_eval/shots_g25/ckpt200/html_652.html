@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheduler — Task Scheduler</title>
+<style>* { box-sizing: border-box; }
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.task:hover {
+  border-color: #d1d5db;
+  background: #fff;
+}
+
+.task .task-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.task .task-meta {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.task .task-js {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  word-break: break-all;
+  margin-top: 8px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+  color: #6b7280;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.task-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.task-form input,
+.task-form textarea,
+.task-form select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.task-form input:focus,
+.task-form textarea:focus,
+.task-form select:focus {
+  outline: none;
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 181, 0.15);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-primary {
+  background: #0f766e;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #0d9488;
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 10%, #eef2ff 0%, transparent 50%),
+    radial-gradient(circle at 90% 90%, #fde68a 0%, transparent 50%),
+    #f8fafc;
+  min-height: 100vh;
+}
+
+@media (max-width: 480px) {
+  .app { padding: 20px 16px; }
+  .app-header h1 { font-size: 22px; }
+  .panel { padding: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1>Scheduler</h1>
+    <p class="subtitle">Your personal task scheduler</p>
+  </header>
+
+  <section class="panel" id="tasks-panel">
+    <h2>Your Tasks</h2>
+    <div id="tasks-list" class="tasks-list"></div>
+    <div id="empty-state" class="empty-state">
+      <p>No tasks yet. Add your first one below!</p>
+    </div>
+  </section>
+
+  <section class="panel" id="add-panel">
+    <h2>Add a Task</h2>
+    <form id="task-form" class="task-form">
+      <label for="task-name">Name</label>
+      <input type="text" id="task-name" placeholder="e.g. Morning coffee reminder" required />
+
+      <label for="task-desc">Description</label>
+      <textarea id="task-desc" rows="2" placeholder="Optional description..."></textarea>
+
+      <div class="row">
+        <label for="task-time">Due time</label>
+        <input type="time" id="task-time" value="09:00" required />
+      </div>
+
+      <div class="row">
+        <label for="task-recur">Recur</label>
+        <select id="task-recur">
+          <option value="daily">Daily</option>
+          <option value="hourly">Hourly</option>
+          <option value="weekly">Weekly</option>
+          <option value="once">Once</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="task-js">JavaScript snippet</label>
+        <textarea id="task-js" rows="3" placeholder="e.g. location.reload() or console.log('done')"></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Add Task</button>
+    </form>
+  </section>
+</div>
+
+<script>(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'scheduler.tasks.v1';
+  const POLL_INTERVAL = 30000; // 30 seconds
+  const PERIODIC_INTERVAL = 60000; // check for hourly recurrence every minute
+
+  const form = document.getElementById('task-form');
+  const nameInput = document.getElementById('task-name');
+  const descInput = document.getElementById('task-desc');
+  const timeInput = document.getElementById('task-time');
+  const recurInput = document.getElementById('task-recur');
+  const jsInput = document.getElementById('task-js');
+  const listEl = document.getElementById('tasks-list');
+  const emptyEl = document.getElementById('empty-state');
+
+  const tasks = loadTasks();
+
+  // --- Storage ---
+  function loadTasks() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveTasks() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch {
+      // ignore
+    }
+  }
+
+  // --- Task model ---
+  class Task {
+    constructor(id, name, description, time, recur, js) {
+      this.id = id;
+      this.name = name.trim();
+      this.description = description.trim();
+      this.time = time; // HH:MM 24h
+      this.recur = recur;
+      this.js = js.trim();
+      this.createdAt = Date.now();
+    }
+
+    isDue(now) {
+      const [h, m] = this.time.split(':').map(Number);
+      const dueHour = h + (m / 60);
+      const nowHour = now.getHours() + (now.getMinutes() / 60);
+
+      // Due today at the specified time
+      const todayDue = nowHour >= dueHour;
+      // For recurring, also check if it's the right day of week
+      const isRightDay = this.recur === 'daily' ||
+                         (this.recur === 'weekly' && now.getDay() === this.dayOfWeek);
+
+      if (this.recur === 'once') return todayDue && nowHour >= dueHour;
+      if (this.recur === 'hourly') return nowHour >= dueHour;
+      if (this.recur === 'daily') return todayDue && nowHour >= dueHour;
+      if (this.recur === 'weekly') return todayDue && nowHour >= dueHour && isRightDay;
+
+      return false;
+    }
+
+    // For weekly: store the dayOfWeek as a number (0..6)
+    static fromJSON(obj) {
+      if (!obj.dayOfWeek && obj.recur === 'weekly') {
+        obj.dayOfWeek = new Date(obj.createdAt).getDay();
+      }
+      return new Task(
+        obj.id,
+        obj.name,
+        obj.description,
+        obj.time,
+        obj.recur,
+        obj.js
+      );
+    }
+  }
+
+  // --- UI ---
+  function renderTasks() {
+    listEl.innerHTML = '';
+    if (tasks.length === 0) {
+      emptyEl.style.display = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    tasks.forEach(t => listEl.appendChild(renderTaskElement(t)));
+  }
+
+  function renderTaskElement(t) {
+    const el = document.createElement('div');
+    el.className = 'task';
+    el.innerHTML = `
+      <div class="task-name">${escapeHtml(t.name)}</div>
+      <div class="task-meta">
+        ${t.description ? `<span class="dot">·</span> ${escapeHtml(t.description)}</div>` : ''}
+        <span class="task-meta">Due: ${formatTime(t.time)} · Recur: ${escapeHtml(t.recur)}</span>
+        ${t.js ? `<div class="task-js">${escapeHtml(t.js)}</div>` : ''}
+      </div>
+    `;
+    return el;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function formatTime(t) {
+    const [h, m] = t.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = ((h + 11) % 12) + 1;
+    return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+
+  // --- Notification ---
+  function showNotification(task) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') showNotification(task);
+      });
+      return;
+    }
+    const icon = 'data:image/svg+xml;utf8,' +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>'
+      );
+    const n = new Notification(
+      task.name,
+      {
+        body: task.description || task.js || 'Task is due!',
+        icon,
+        silent: false
+      }
+    );
+    n.onclick = () => {
+      try { eval(task.js); } catch (e) { /* ignore */ }
+    };
+  }
+
+  // --- Execution ---
+  function executeJs(task) {
+    try {
+      // Wrap in a try/catch to avoid crashing the whole page
+      const fn = new Function('task', 'console.log("Executing task:", task);' + task.js);
+      fn(task);
+    } catch (e) {
+      console.warn('Task JS execution failed:', e);
+    }
+  }
+
+  // --- Polling ---
+  let lastPoll = Date.now();
+  function poll() {
+    const now = Date.now();
+    if (now - lastPoll < POLL_INTERVAL) return;
+    lastPoll = now;
+
+    tasks.forEach(t => {
+      if (t.isDue(now)) {
+        // Mark as executed (optional)
+        t.createdAt = now;
+        showNotification(t);
+        executeJs(t);
+        saveTasks();
+      }
+    });
+  }
+
+  // --- Hourly recurrence check ---
+  function checkHourlyRecurrences() {
+    const now = new Date();
+    const hour = now.getHours();
+    tasks.forEach(t => {
+      if (t.recur === 'hourly' && t.time === '00:00') {
+        if (hour === 0) {
+          showNotification(t);
+          executeJs(t);
+          saveTasks();
+        }
+      }
+    });
+  }
+
+  // --- Add task ---
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = nameInput.value;
+    const desc = descInput.value;
+    const time = timeInput.value;
+    const recur = recurInput.value;
+    const js = jsInput.value;
+
+    if (!name || !time) {
+      alert('Please fill in name and time.');
+      return;
+    }
+
+    const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const task = new Task(id, name, desc, time, recur, js);
+    tasks.push(task);
+    saveTasks();
+    renderTasks();
+    form.reset();
+    nameInput.focus();
+  });
+
+  // --- Cleanup ---
+  window.addEventListener('beforeunload', () => {
+    // Save before leaving
+    saveTasks();
+  });
+
+  // --- Init ---
+  function init() {
+    renderTasks();
+    // Start polling
+    setInterval(poll, POLL_INTERVAL);
+    setInterval(checkHourlyRecurrences, PERIODIC_INTERVAL);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script></script>
+</body>
+</html>

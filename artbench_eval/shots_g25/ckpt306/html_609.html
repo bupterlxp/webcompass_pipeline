@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Watermark Creator</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@1.2.1/dist/wavesurfer.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+
+  <header class="mb-8">
+    <h1 class="text-4xl font-bold mb-2">Audio Watermark Creator</h1>
+    <p class="text-gray-400">Upload an audio file, add a watermark, and save it locally.</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+    <!-- Upload + Controls -->
+    <section class="bg-gray-800 rounded-xl p-6 shadow-lg">
+      <div class="space-y-6">
+
+        <label class="block">
+          <span class="font-semibold">1. Upload Audio</span>
+          <input type="file" id="audioFile" accept="audio/*" class="mt-3 block w-full text-white" />
+        </label>
+
+        <label class="block">
+          <span class="font-semibold">2. Watermark Text</span>
+          <input type="text" id="watermarkText" value="© Sample Watermark" class="mt-3 block w-full text-black bg-white rounded-md py-2 px-4" />
+        </label>
+
+        <label class="block">
+          <span class="font-semibold">3. Watermark Type</span>
+          <div class="mt-3 flex space-x-2">
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="watermarkType" value="text" class="form-radio text-blue-500" checked />
+              <span class="ml-2">Text</span>
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="watermarkType" value="audio" class="form-radio text-blue-500" />
+              <span class="ml-2">Audio Clip</span>
+            </label>
+          </div>
+        </label>
+
+        <label class="block">
+          <span class="font-semibold">4. Placement</span>
+          <div class="mt-3 flex space-x-2">
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="placement" value="beginning" class="form-radio text-blue-500" />
+              <span class="ml-2">Beginning</span>
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="placement" value="middle" class="form-radio text-blue-500" />
+              <span class="ml-2">Middle</span>
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="radio" name="placement" value="end" class="form-radio text-blue-500" />
+              <span class="ml-2">End</span>
+            </label>
+          </div>
+        </label>
+
+        <label class="block">
+          <span class="font-semibold">5. Watermark Volume</span>
+          <input type="range" id="volume" min="0" max="100" value="30" class="w-full mt-3 accent-blue-500" />
+          <div class="flex justify-between text-sm text-gray-400 mt-1">
+            <span id="volumeVal">30%</span>
+            <span>Volume</span>
+          </div>
+        </label>
+
+        <div class="flex space-x-3">
+          <button id="previewBtn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">Preview</button>
+          <button id="saveBtn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg">Save Watermarked</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Waveform -->
+    <section class="bg-gray-800 rounded-xl p-6 shadow-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">Waveform</h2>
+        <span id="duration" class="text-gray-400 text-sm">0:00 / 0:00</span>
+      </div>
+      <div id="waveform" class="w-full h-32"></div>
+      <div class="flex justify-between mt-4 text-sm text-gray-400">
+        <span id="currentTime">0:00</span>
+        <span id="durationText">—</span>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="mt-8 text-center text-gray-400">
+    <p>Tip: Use <code class="bg-gray-700 px-2 rounded">Ctrl/Cmd + Click</code> to save audio directly.</p>
+  </div>
+
+</div>
+
+<script>
+// ---------- State ----------
+const state = {
+  audioCtx: null,
+  originalBuffer: null,
+  watermarkedBuffer: null,
+  sourceNode: null,
+  gainNode: null,
+  wavesurfer: null,
+  isPlaying: false,
+  currentOffset: 0,
+  placement: 'end',
+  volume: 0.3,
+  watermarkType: 'text',
+  watermarkText: '© Sample Watermark',
+  audioFile: null,
+};
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const audioFileInput = $('audioFile');
+const previewBtn = $('previewBtn');
+const saveBtn = $('saveBtn');
+const waveformEl = $('waveform');
+const durationEl = $('duration');
+const currentTimeEl = $('currentTime');
+const durationTextEl = $('durationText');
+const volumeInput = $('volume');
+const volumeVal = $('volumeVal');
+
+// ---------- Audio Context ----------
+function getAudioCtx() {
+  if (!state.audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    state.audioCtx = new Ctx();
+  }
+  if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+  return state.audioCtx;
+}
+
+// ---------- Waveform ----------
+function initWaveform() {
+  if (!state.wavesurfer) {
+    state.wavesurfer = WaveSurfer.create({
+      container: waveformEl,
+      waveColor: 'rgba(147, 197, 253, 0.6)',
+      progressColor: 'rgba(59, 130, 246, 0.8)',
+      barWidth: 2,
+      barGap: 2,
+      cursorWidth: 0,
+      hideScrollbar: true,
+    });
+  }
+  state.wavesurfer.stop();
+  state.wavesurfer.unload();
+}
+
+// ---------- Upload ----------
+audioFileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  state.audioFile = file;
+  loadAudio(file);
+});
+
+async function loadAudio(file) {
+  const ctx = getAudioCtx();
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+  state.originalBuffer = buffer;
+  state.watermarkedBuffer = buffer.slice(0);
+  state.currentOffset = 0;
+  state.placement = 'end';
+  state.volume = 0.3;
+  state.watermarkText = '© Sample Watermark';
+  state.watermarkType = 'text';
+
+  // Update UI
+  volumeInput.value = 30;
+  volumeVal.textContent = '30%';
+  $('watermarkText').value = '© Sample Watermark';
+
+  initWaveform();
+  state.wavesurfer.load(buffer);
+  updateDuration();
+}
+
+// ---------- Watermark (Text) ----------
+function applyTextWatermark(buffer) {
+  const ctx = getAudioCtx();
+  const source = buffer.getChannelData(0);
+  const length = buffer.length;
+  const sampleRate = buffer.sampleRate;
+  const numChannels = buffer.numberOfChannels;
+
+  const text = state.watermarkText;
+  const chars = text.split('').filter(c => c !== ' ').join(' ');
+  const charCount = chars.length;
+  const totalSamples = length;
+
+  // Estimate duration of text (simple)
+  const durationMs = 1500; // ms
+  const samplesPerChar = Math.max(200, Math.round(totalSamples / charCount));
+  const totalSamplesNeeded = samplesPerChar * charCount;
+  const totalDuration = totalSamplesNeeded / sampleRate;
+
+  const newBuffer = ctx.createBuffer(numChannels, totalSamples + totalSamplesNeeded, sampleRate);
+  const newSource = newBuffer.getChannelData(0);
+
+  // Copy original
+  for (let i = 0; i < length; i++) newSource[i] = source[i];
+
+  // Generate sine wave for text
+  const freq = 800;
+  const startTime = length / sampleRate;
+  const gain = state.volume;
+
+  for (let i = 0; i < charCount; i++) {
+    const ch = chars[i];
+    const startSample = length + i * samplesPerChar;
+    const endSample = startSample + samplesPerChar;
+    const startMs = startSample / sampleRate;
+    const endMs = endSample / sampleRate;
+
+    const duration = endMs - startMs;
+    const period = 1 / freq;
+    const steps = Math.round(duration * sampleRate);
+    const phaseStart = freq * startMs;
+
+    for (let s = 0; s < steps; s++) {
+      const t = startMs + s / sampleRate;
+      const sampleIdx = startSample + s;
+      const value = Math.sin(2 * Math.PI * freq * (t - phaseStart)) * gain;
+      newSource[sampleIdx] += value;
+    }
+  }
+
+  return newBuffer;
+}
+
+// ---------- Watermark (Audio Clip) ----------
+async function applyAudioClipWatermark(buffer) {
+  const ctx = getAudioCtx();
+  const source = buffer.getChannelData(0);
+  const length = buffer.length;
+  const sampleRate = buffer.sampleRate;
+  const numChannels = buffer.numberOfChannels;
+
+  const durationMs = 2000;
+  const samplesPerClip = Math.round(sampleRate * (durationMs / 1000));
+  const totalSamples = length;
+  const totalDuration = totalSamples / sampleRate;
+
+  // Simple sine tone for audio clip watermark
+  const freq = 1200;
+  const gain = state.volume;
+
+  const newBuffer = ctx.createBuffer(numChannels, totalSamples + samplesPerClip, sampleRate);
+  const newSource = newBuffer.getChannelData(0);
+
+  // Copy original
+  for (let i = 0; i < length; i++) newSource[i] = source[i];
+
+  // Generate sine wave clip
+  const clipStart = length;
+  const clipEnd = clipStart + samplesPerClip;
+  const clipStartMs = clipStart / sampleRate;
+  const clipEndMs = clipEnd / sampleRate;
+
+  for (let i = clipStart; i < clipEnd; i++) {
+    const t = clipStartMs + (i - clipStart) / sampleRate;
+    const value = Math.sin(2 * Math.PI * freq * t) * gain;
+    newSource[i] += value;
+  }
+
+  return newBuffer;
+}
+
+// ---------- Placement ----------
+function applyPlacement(buffer, placement) {
+  const ctx = getAudioCtx();
+  const source = buffer.getChannelData(0);
+  const length = buffer.length;
+  const sampleRate = buffer.sampleRate;
+  const numChannels = buffer.numberOfChannels;
+
+  const newBuffer = ctx.createBuffer(numChannels, length, sampleRate);
+  const newSource = newBuffer.getChannelData(0);
+
+  for (let i = 0; i < length; i++) newSource[i] = source[i];
+
+  if (placement === 'beginning') {
+    // Already copied
+  } else if (placement === 'middle') {
+    const mid = Math.floor(length / 2);
+    const clipLen = length / 2;
+    const clipStart = mid - clipLen;
+    const clipEnd = mid;
+    const startMs = clipStart / sampleRate;
+    const endMs = clipEnd / sampleRate;
+    const duration = endMs - startMs;
+    const freq = 1000;
+    const gain = state.volume;
+    for (let i = clipStart; i < clipEnd; i++) {
+      const t = startMs + (i - clipStart) / sampleRate;
+      const value = Math.sin(2 * Math.PI * freq * t) * gain;
+      newSource[i] += value;
+    }
+  } else if (placement === 'end') {
+    const end = length;
+    const clipLen = length / 2;
+    const clipStart = end - clipLen;
+    const clipEnd = end;
+    const startMs = clipStart / sampleRate;
+    const endMs = clipEnd / sampleRate;
+    const duration = endMs - startMs;
+    const freq = 1000;
+    const gain = state.volume;
+    for (let i = clipStart; i < clipEnd; i++) {
+      const t = startMs + (i - clipStart) / sampleRate;
+      const value = Math.sin(2 * Math.PI * freq * t) * gain;
+      newSource[i] += value;
+    }
+  }
+
+  return newBuffer;
+}
+
+// ---------- Playback ----------
+function play(buffer) {
+  const ctx = getAudioCtx();
+  if (state.sourceNode) state.sourceNode.disconnect();
+  if (state.gainNode) state.gainNode.disconnect();
+
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(ctx.destination);
+
+  state.gainNode = ctx.createGain();
+  state.gainNode.gain.value = 1;
+  src.connect(state.gainNode);
+  state.gainNode.connect(ctx.destination);
+
+  state.sourceNode = src;
+  src.start(0);
+
+  state.wavesurfer.play();
+  state.isPlaying = true;
+}
+
+function stop() {
+  if (state.sourceNode) {
+    state.sourceNode.stop();
+    state.sourceNode.disconnect();
+    state.sourceNode = null;
+  }
+  state.wavesurfer.pause();
+  state.isPlaying = false;
+}
+
+// ---------- Save ----------
+async function saveWatermarked() {
+  if (!state.watermarkedBuffer) {
+    alert('Please upload an audio file first.');
+    return;
+  }
+  const blob = new Blob([state.watermarkedBuffer], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'watermarked-' + Date.now() + '.wav';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------- Event Bindings ----------
+previewBtn.addEventListener('click', () => {
+  if (!state.watermarkedBuffer) {
+    alert('Upload an audio file first.');
+    return;
+  }
+  play(state.watermarkedBuffer);
+});
+
+saveBtn.addEventListener('click', saveWatermarked);
+
+volumeInput.addEventListener('input', (e) => {
+  state.volume = e.target.value / 100;
+  volumeVal.textContent = e.target.value + '%';
+});
+
+// ---------- Wavesurfer Events ----------
+state.wavesurfer.on('ready', () => {
+  updateDuration();
+});
+state.wavesurfer.on('play', () => { state.isPlaying = true; });
+state.wavesurfer.on('pause', () => { state.isPlaying = false; });
+state.wavesurfer.on('finish', () => {
+  state.isPlaying = false;
+  state.currentOffset = 0;
+  state.wavesurfer.seekTo(0);
+});
+state.wavesurfer.on('seek', (pos) => {
+  state.currentOffset = pos;
+});
+
+// ---------- Helpers ----------
+function updateDuration() {
+  if (!state.originalBuffer) return;
+  const dur = state.originalBuffer.duration || (state.originalBuffer.length / state.originalBuffer.sampleRate);
+  const totalMs = Math.floor(dur * 1000);
+  const h = Math.floor(totalMs / 3600000);
+  const m = Math.floor((totalMs % 3600000) / 60000);
+  const s = Math.floor((totalMs % 60000) / 1000);
+  durationTextEl.textContent = `${h ? h + ':' : ''}${m}:${s.toString().padStart(2, '0')}`;
+  durationEl.textContent = `${h ? h + ':' : ''}${m}:${s.toString().padStart(2, '0')} / ${h ? h + ':' : ''}${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ---------- Init ----------
+initWaveform();
+</script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

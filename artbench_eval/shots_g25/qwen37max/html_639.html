@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Modular Web Synthesizer</title>
+<style>
+  :root {
+    --bg: #1a1d23;
+    --panel: #242832;
+    --panel-hi: #2e3340;
+    --accent: #4fc3f7;
+    --accent2: #ff7043;
+    --text: #e6e8ee;
+    --muted: #8a93a6;
+    --cable: #ffd54f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif;
+    background: var(--bg); color: var(--text); overflow: hidden; user-select: none; }
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 48px;
+    background: var(--panel); display: flex; align-items: center;
+    padding: 0 12px; gap: 8px; border-bottom: 1px solid #000;
+    z-index: 100;
+  }
+  #toolbar button, #toolbar select {
+    background: var(--panel-hi); color: var(--text); border: 1px solid #000;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;
+  }
+  #toolbar button:hover { background: var(--accent); color: #000; }
+  #toolbar .spacer { flex: 1; }
+  #toolbar .hint { color: var(--muted); font-size: 12px; }
+  #canvas {
+    position: absolute; top: 48px; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(circle at 20% 30%, #22262f 0%, #1a1d23 60%);
+    overflow: hidden;
+  }
+  #cables {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  #cables path { fill: none; stroke: var(--cable); stroke-width: 2.5;
+    stroke-linecap: round; pointer-events: stroke; cursor: pointer; }
+  #cables path:hover { stroke: var(--accent2); stroke-width: 3.5; }
+  #cables path.dragging { stroke: #fff; stroke-dasharray: 5 5; }
+
+  .module {
+    position: absolute; width: 200px; background: var(--panel);
+    border: 1px solid #000; border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.5);
+    font-size: 12px;
+  }
+  .module .header {
+    background: linear-gradient(180deg, #3a4050, #2a2f3c);
+    padding: 6px 10px; border-radius: 7px 7px 0 0; cursor: grab;
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600; letter-spacing: .5px;
+  }
+  .module .header .close {
+    cursor: pointer; color: var(--muted); font-size: 14px;
+  }
+  .module .header .close:hover { color: var(--accent2); }
+  .module .body { padding: 8px 10px; display: grid; gap: 6px; }
+  .module .row { display: flex; align-items: center; gap: 6px; }
+  .module label { color: var(--muted); flex: 0 0 60px; font-size: 11px; }
+  .module input[type=range] { flex: 1; accent-color: var(--accent); }
+  .module select { flex: 1; background: #1a1d23; color: var(--text);
+    border: 1px solid #000; border-radius: 3px; padding: 2px; }
+  .module .val { width: 42px; text-align: right; color: var(--accent);
+    font-variant-numeric: tabular-nums; font-size: 11px; }
+
+  .ports { display: flex; justify-content: space-between;
+    padding: 4px 0; margin-top: 4px; }
+  .port-col { display: flex; flex-direction: column; gap: 6px; }
+  .port {
+    display: flex; align-items: center; gap: 6px; cursor: crosshair;
+    font-size: 11px; color: var(--muted);
+  }
+  .port .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #111; border: 2px solid var(--accent);
+  }
+  .port.in .dot { border-color: var(--accent); }
+  .port.out .dot { border-color: var(--accent2); }
+  .port.out { flex-direction: row-reverse; }
+  .port:hover .dot { background: var(--accent); }
+  .port.out:hover .dot { background: var(--accent2); }
+
+  #status {
+    position: fixed; bottom: 8px; left: 8px; color: var(--muted);
+    font-size: 11px; z-index: 50;
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <select id="addMenu">
+    <option value="">+ Add Module…</option>
+    <option value="osc">Oscillator</option>
+    <option value="noise">Noise</option>
+    <option value="filter">Filter</option>
+    <option value="env">Envelope (ADSR)</option>
+    <option value="lfo">LFO</option>
+    <option value="gain">Gain / VCA</option>
+    <option value="delay">Delay</option>
+    <option value="out">Output</option>
+  </select>
+  <button id="playBtn">▶ Play (A–K keys)</button>
+  <button id="stopBtn">■ Stop All</button>
+  <button id="exportBtn">⬇ Export WAV (2s)</button>
+  <button id="clearBtn">🗑 Clear</button>
+  <div class="spacer"></div>
+  <div class="hint">Drag headers to move · Drag output→input to patch · Click cable to delete</div>
+</div>
+
+<div id="canvas">
+  <svg id="cables"></svg>
+</div>
+
+<div id="status">Ready. Add an Oscillator, an Envelope, a Gain, and an Output to start.</div>
+
+<script>
+/* =========================================================
+   Modular Web Synthesizer
+   - Web Audio API graph built from draggable DOM modules
+   - SVG patch cables
+   - Real-time playback + OfflineAudioContext WAV export
+   ========================================================= */
+
+const AC = window.AudioContext || window.webkitAudioContext;
+let ctx = null;
+let masterGain = null;
+
+function ensureCtx() {
+  if (!ctx) {
+    ctx = new AC();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.6;
+    masterGain.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+
+/* ---------- Module registry ---------- */
+const modules = new Map();   // id -> Module instance
+const connections = [];      // {id, from:{mod,port}, to:{mod,port}, audioNode, cableEl}
+let nextId = 1;
+
+/* ---------- Module base ---------- */
+class Module {
+  constructor(type, title, x, y) {
+    this.id = nextId++;
+    this.type = type;
+    this.x = x; this.y = y;
+    this.inputs = {};   // name -> { node, label }
+    this.outputs = {};  // name -> { node, label }
+    this.params = {};
+    this.el = document.createElement('div');
+    this.el.className = 'module';
+    this.el.style.left = x + 'px';
+    this.el.style.top = y + 'px';
+    this.el.dataset.id = this.id;
+    this.build(title);
+    document.getElementById('canvas').appendChild(this.el);
+    modules.set(this.id, this);
+    makeDraggable(this);
+  }
+  build(title) {
+    this.el.innerHTML = `
+      <div class="header">
+        <span>${title}</span>
+        <span class="close" title="Delete">✕</span>
+      </div>
+      <div class="body"></div>
+      <div class="ports">
+        <div class="port-col inputs"></div>
+        <div class="port-col outputs"></div>
+      </div>`;
+    this.body = this.el.querySelector('.body');
+    this.inputsEl = this.el.querySelector('.inputs');
+    this.outputsEl = this.el.querySelector('.outputs');
+    this.el.querySelector('.close').onclick = () => deleteModule(this.id);
+  }
+  addInput(name, label, node) {
+    this.inputs[name] = { node, label };
+    const p = document.createElement('div');
+    p.className = 'port in';
+    p.dataset.mod = this.id; p.dataset.port = name; p.dataset.dir = 'in';
+    p.innerHTML = `<span class="dot"></span><span>${label}</span>`;
+    this.inputsEl.appendChild(p);
+    attachPortEvents(p);
+  }
+  addOutput(name, label, node) {
+    this.outputs[name] = { node, label };
+    const p = document.createElement('div');
+    p.className = 'port out';
+    p.dataset.mod = this.id; p.dataset.port = name; p.dataset.dir = 'out';
+    p.innerHTML = `<span>${label}</span><span class="dot"></span>`;
+    this.outputsEl.appendChild(p);
+    attachPortEvents(p);
+  }
+  addSlider(label, min, max, value, step, onChange) {
+    const row = document.createElement('div'); row.className = 'row';
+    const valId = 'v' + Math.random().toString(36).slice(2,7);
+    row.innerHTML = `
+      <label>${label}</label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${value}">
+      <span class="val" id="${valId}">${value}</span>`;
+    this.body.appendChild(row);
+    const inp = row.querySelector('input');
+    const val = row.querySelector('.val');
+    inp.oninput = () => {
+      const v = parseFloat(inp.value);
+      val.textContent = v.toFixed(step < 1 ? 2 : 0);
+      onChange(v);
+    };
+    return inp;
+  }
+  addSelect(label, options, value, onChange) {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = `<label>${label}</label>
+      <select>${options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select>`;
+    this.body.appendChild(row);
+    const sel = row.querySelector('select');
+    sel.value = value;
+    sel.onchange = () => onChange(sel.value);
+    return sel;
+  }
+  // Called when a note is triggered (for envelope-like modules)
+  triggerNote(freq, velocity, time, duration) {}
+  releaseNote(time) {}
+  dispose() {}
+}
+
+/* ---------- Concrete modules ---------- */
+
+class OscModule extends Module {
+  constructor(x, y) {
+    super('osc', 'OSCILLATOR', x, y);
+    ensureCtx();
+    // We create a fresh oscillator per note; keep a "template" config.
+    this.wave = 'sawtooth';
+    this.detune = 0;
+    this.octave = 0;
+    this.addSelect('Wave', ['sine','square','sawtooth','triangle'], 'sawtooth', v => this.wave = v);
+    this.addSlider('Detune', -100, 100, 0, 1, v => this.detune = v);
+    this.addSelect('Octave', ['-2','-1','0','1','2'], '0', v => this.octave = parseInt(v));
+    // Output is a "bus" gain that all per-note oscillators connect into.
+    this.bus = ctx.createGain();
+    this.bus.gain.value = 0.25;
+    this.addOutput('out', 'Out', this.bus);
+  }
+  triggerNote(freq, velocity, time, duration) {
+    const o = ctx.createOscillator();
+    o.type = this.wave;
+    o.frequency.value = freq * Math.pow(2, this.octave);
+    o.detune.value = this.detune;
+    o.connect(this.bus);
+    o.start(time);
+    o.stop(time + duration + 1.5); // safety tail
+    if (!this._active) this._active = [];
+    this._active.push(o);
+  }
+  dispose() {
+    try { this.bus.disconnect(); } catch(e){}
+  }
+}
+
+class NoiseModule extends Module {
+  constructor(x, y) {
+    super('noise', 'NOISE', x, y);
+    ensureCtx();
+    this.bus = ctx.createGain();
+    this.bus.gain.value = 0.2;
+    // Pre-render white noise buffer
+    const bufSize = 2 * ctx.sampleRate;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<bufSize;i++) d[i] = Math.random()*2-1;
+    this._buf = buf;
+    this.addOutput('out', 'Out', this.bus);
+  }
+  triggerNote(freq, velocity, time, duration) {
+    const src = ctx.createBufferSource();
+    src.buffer = this._buf;
+    src.loop = true;
+    src.connect(this.bus);
+    src.start(time);
+    src.stop(time + duration + 1.5);
+  }
+  dispose() { try { this.bus.disconnect(); } catch(e){} }
+}
+
+class FilterModule extends Module {
+  constructor(x, y) {
+    super('filter', 'FILTER', x, y);
+    ensureCtx();
+    this.node = ctx.createBiquadFilter();
+    this.node.type = 'lowpass';
+    this.node.frequency.value = 1200;
+    this.node.Q.value = 4;
+    this.addSelect('Type', ['lowpass','highpass','bandpass','notch'], 'lowpass',
+      v => this.node.type = v);
+    this.addSlider('Cutoff', 40, 12000, 1200, 10, v => this.node.frequency.value = v);
+    this.addSlider('Q', 0.1, 20, 4, 0.1, v => this.node.Q.value = v);
+    this.addInput('in', 'In', this.node);
+    this.addOutput('out', 'Out', this.node);
+  }
+  dispose() { try { this.node.disconnect(); } catch(e){} }
+}
+
+class EnvModule extends Module {
+  constructor(x, y) {
+    super('env', 'ENVELOPE', x, y);
+    ensureCtx();
+    // Envelope modulates a gain node (VCA behavior)
+    this.vca = ctx.createGain();
+    this.vca.gain.value = 0;
+    this.a = 0.02; this.d = 0.2; this.s = 0.6; this.r = 0.4;
+    this.addSlider('Attack', 0.001, 2, 0.02, 0.001, v => this.a = v);
+    this.addSlider('Decay', 0.001, 2, 0.2, 0.001, v => this.d = v);
+    this.addSlider('Sustain', 0, 1, 0.6, 0.01, v => this.s = v);
+    this.addSlider('Release', 0.001, 4, 0.4, 0.001, v => this.r = v);
+    this.addInput('in', 'In', this.vca);
+    this.addOutput('out', 'Out', this.vca);
+  }
+  triggerNote(freq, velocity, time, duration) {
+    const g = this.vca.gain;
+    g.cancelScheduledValues(time);
+    g.setValueAtTime(0, time);
+    g.linearRampToValueAtTime(velocity, time + this.a);
+    g.linearRampToValueAtTime(this.s * velocity, time + this.a + this.d);
+    // hold sustain until releaseNote
+  }
+  releaseNote(time) {
+    const g = this.vca.gain;
+    g.cancelScheduledValues(time);
+    g.setValueAtTime(g.value, time);
+    g.linearRampToValueAtTime(0, time + this.r);
+  }
+  dispose() { try { this.vca.disconnect(); } catch(e){} }
+}
+
+class LFOModule extends Module {
+  constructor(x, y) {
+    super('lfo', 'LFO', x, y);
+    ensureCtx();
+    this.node = ctx.createOscillator();
+    this.node.type = 'sine';
+    this.node.frequency.value = 4;
+    const depth = ctx.createGain();
+    depth.gain.value = 100;
+    this.node.connect(depth);
+    this.depth = depth;
+    this.node.start();
+    this.addSelect('Wave', ['sine','square','sawtooth','triangle'], 'sine',
+      v => this.node.type = v);
+    this.addSlider('Rate', 0.1, 20, 4, 0.1, v => this.node.frequency.value = v);
+    this.addSlider('Depth', 0, 2000, 100, 1, v => this.depth.gain.value = v);
+    this.addOutput('out', 'CV', this.depth);
+  }
+  dispose() {
+    try { this.node.stop(); this.node.disconnect(); this.depth.disconnect(); } catch(e){}
+  }
+}
+
+class GainModule extends Module {
+  constructor(x, y) {
+    super('gain', 'GAIN / VCA', x, y);
+    ensureCtx();
+    this.node = ctx.createGain();
+    this.node.gain.value = 0.8;
+    this.addSlider('Level', 0, 1.5, 0.8, 0.01, v => this.node.gain.value = v);
+    this.addInput('in', 'In', this.node);
+    this.addInput('cv', 'CV', this.node.gain); // audio-rate modulation
+    this.addOutput('out', 'Out', this.node);
+  }
+  dispose() { try { this.node.disconnect(); } catch(e){} }
+}
+
+class DelayModule extends Module {
+  constructor(x, y) {
+    super('delay', 'DELAY', x, y);
+    ensureCtx();
+    this.delay = ctx.createDelay(5);
+    this.delay.delayTime.value = 0.3;
+    this.fb = ctx.createGain();
+    this.fb.gain.value = 0.4;
+    this.wet = ctx.createGain();
+    this.wet.gain.value = 0.5;
+    this.dry = ctx.createGain();
+    this.dry.gain.value = 1.0;
+    this.mix = ctx.createGain();
+    // routing: in -> dry -> mix; in -> delay -> wet -> mix; delay -> fb -> delay
+    this.delay.connect(this.wet);
+    this.delay.connect(this.fb);
+    this.fb.connect(this.delay);
+    this.wet.connect(this.mix);
+    this.dry.connect(this.mix);
+    this.addSlider('Time', 0.01, 2, 0.3, 0.01, v => this.delay.delayTime.value = v);
+    this.addSlider('Feedback', 0, 0.9, 0.4, 0.01, v => this.fb.gain.value = v);
+    this.addSlider('Mix', 0, 1, 0.5, 0.01, v => this.wet.gain.value = v);
+    // Input must fan out to both dry and delay
+    const inNode = ctx.createGain();
+    inNode.connect(this.dry);
+    inNode.connect(this.delay);
+    this.addInput('in', 'In', inNode);
+    this.addOutput('out', 'Out', this.mix);
+  }
+  dispose() {
+    try {
+      this.delay.disconnect(); this.fb.disconnect();
+      this.wet.disconnect(); this.dry.disconnect(); this.mix.disconnect();
+    } catch(e){}
+  }
+}
+
+class OutputModule extends Module {
+  constructor(x, y) {
+    super('out', 'OUTPUT', x, y);
+    ensureCtx();
+    this.node = ctx.createGain();
+    this.node.gain.value = 1.0;
+    this.node.connect(masterGain);
+    this.addSlider('Master', 0, 1.5, 1.0, 0.01, v => this.node.gain.value = v);
+    this.addInput('in', 'In', this.node);
+  }
+  dispose() { try { this.node.disconnect(); } catch(e){} }
+}
+
+/* ---------- Factory ---------- */
+function createModule(type, x, y) {
+  ensureCtx();
+  switch (type) {
+    case 'osc':    return new OscModule(x, y);
+    case 'noise':  return new NoiseModule(x, y);
+    case 'filter': return new FilterModule(x, y);
+    case 'env':    return new EnvModule(x, y);
+    case 'lfo':    return new LFOModule(x, y);
+    case 'gain':   return new GainModule(x, y);
+    case 'delay':  return new DelayModule(x, y);
+    case 'out':    return new OutputModule(x, y);
+  }
+}
+
+/* ---------- Dragging modules ---------- */
+function makeDraggable(mod) {
+  const header = mod.el.querySelector('.header');
+  let sx, sy, ox, oy, dragging = false;
+  header.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('close')) return;
+    dragging = true;
+    sx = e.clientX; sy = e.clientY;
+    ox = mod.x; oy = mod.y;
+    header.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    mod.x = ox + (e.clientX - sx);
+    mod.y = oy + (e.clientY - sy);
+    mod.el.style.left = mod.x + 'px';
+    mod.el.style.top = mod.y + 'px';
+    redrawCables();
+  });
+  window.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; header.style.cursor = 'grab'; }
+  });
+}
+
+/* ---------- Patch cables ---------- */
+const cablesSvg = document.getElementById('cables');
+let dragCable = null; // {fromMod, fromPort, pathEl}
+
+function portCenter(el) {
+  const r = el.getBoundingClientRect();
+  const c = document.getElementById('canvas').getBoundingClientRect();
+  return { x: r.left + r.width/2 - c.left, y: r.top + r.height/2 - c.top };
+}
+function findPortEl(modId, portName, dir) {
+  return document.querySelector(
+    `.port[data-mod="${modId}"][data-port="${portName}"][data-dir="${dir}"]`);
+}
+function bezier(x1,y1,x2,y2) {
+  const dx = Math.max(40, Math.abs(x2-x1)*0.5);
+  return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+}
+function redrawCables() {
+  connections.forEach(c => {
+    const a = findPortEl(c.from.mod, c.from.port, 'out');
+    const b = findPortEl(c.to.mod, c.to.port, 'in');
+    if (!a || !b) return;
+    const p1 = portCenter(a), p2 = portCenter(b);
+    c.cableEl.setAttribute('d', bezier(p1.x, p1.y, p2.x, p2.y));
+  });
+  if (dragCable) {
+    const a = findPortEl(dragCable.fromMod, dragCable.fromPort, 'out');
+    if (a) {
+      const p1 = portCenter(a);
+      dragCable.pathEl.setAttribute('d',
+        bezier(p1.x, p1.y, dragCable.mx, dragCable.my));
+    }
+  }
+}
+
+function attachPortEvents(portEl) {
+  portEl.addEventListener('mousedown', e => {
+    e.stopPropagation();
+    const dir = portEl.dataset.dir;
+    if (dir === 'out') {
+      ensureCtx();
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.classList.add('dragging');
+      cablesSvg.appendChild(path);
+      dragCable = {
+        fromMod: parseInt(portEl.dataset.mod),
+        fromPort: portEl.dataset.port,
+        pathEl: path,
+        mx: 0, my: 0
+      };
+    }
+  });
+}
+
+window.addEventListener('mousemove', e => {
+  if (!dragCable) return;
+  const c = document.getElementById('canvas').getBoundingClientRect();
+  dragCable.mx = e.clientX - c.left;
+  dragCable.my = e.clientY - c.top;
+  redrawCables();
+});
+window.addEventListener('mouseup', e => {
+  if (!dragCable) return;
+  // Find target input port under cursor
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  const port = target && target.closest('.port');
+  if (port && port.dataset.dir === 'in') {
+    const toMod = parseInt(port.dataset.mod);
+    const toPort = port.dataset.port;
+    if (toMod !== dragCable.fromMod) {
+      connect(dragCable.fromMod, dragCable.fromPort, toMod, toPort);
+    }
+  }
+  dragCable.pathEl.remove();
+  dragCable = null;
+});
+
+function connect(fromModId, fromPort, toModId, toPort) {
+  const a = modules.get(fromModId), b = modules.get(toModId);
+  if (!a || !b) return;
+  const src = a.outputs[fromPort], dst = b.inputs[toPort];
+  if (!src || !dst) return;
+  // Disconnect any existing connection into this input
+  const existing = connections.findIndex(c =>
+    c.to.mod === toModId && c.to.port === toPort);
+  if (existing >= 0) disconnectIdx(existing);
+
+  try {
+    src.node.connect(dst.node);
+  } catch (err) {
+    setStatus('Connection failed: ' + err.message);
+    return;
+  }
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.addEventListener('click', () => {
+    const idx = connections.findIndex(c => c.cableEl === path);
+    if (idx >= 0) disconnectIdx(idx);
+  });
+  cablesSvg.appendChild(path);
+  connections.push({
+    id: nextId++,
+    from: { mod: fromModId, port: fromPort },
+    to:   { mod: toModId,   port: toPort },
+    cableEl: path
+  });
+  redrawCables();
+}
+
+function disconnectIdx(idx) {
+  const c = connections[idx];
+  const a = modules.get(c.from.mod), b = modules.get(c.to.mod);
+  if (a && b) {
+    try { a.outputs[c.from.port].node.disconnect(b.inputs[c.to.port].node); }
+    catch(e){}
+  }
+  c.cableEl.remove();
+  connections.splice(idx, 1);
+}
+
+function deleteModule(id) {
+  // Remove all connections involving this module
+  for (let i = connections.length - 1; i >= 0; i--) {
+    const c = connections[i];
+    if (c.from.mod === id || c.to.mod === id) disconnectIdx(i);
+  }
+  const m = modules.get(id);
+  if (m) { m.dispose(); m.el.remove(); modules.delete(id); }
+}
+
+/* ---------- Playback (keyboard) ---------- */
+const KEY_TO_SEMI = {
+  'a':0,'w':1,'s':2,'e':3,'d':4,'f':5,'t':6,
+  'g':7,'y':8,'h':9,'u':10,'j':11,'k':12
+};
+const activeNotes = new Map(); // key -> {time}
+
+function noteOn(key) {
+  if (activeNotes.has(key)) return;
+  ensureCtx();
+  const semi = KEY_TO_SEMI[key];
+  if (semi === undefined) return;
+  const freq = 440 * Math.pow(2, (semi - 9) / 12); // A4 = 'k' ? actually 'a'=C, let's use A=440 at semi 9 ('u')
+  const now = ctx.currentTime;
+  modules.forEach(m => m.triggerNote(freq, 0.8, now, 4));
+  activeNotes.set(key, { time: now });
+}
+function noteOff(key) {
+  const n = activeNotes.get(key);
+  if (!n) return;
+  const now = ctx.currentTime;
+  modules.forEach(m => m.releaseNote(now));
+  activeNotes.delete(key);
+}
+
+window.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  noteOn(e.key.toLowerCase());
+});
+window.addEventListener('keyup', e => {
+  noteOff(e.key.toLowerCase());
+});
+
+/* ---------- Export to WAV ---------- */
+async function exportWav() {
+  setStatus('Rendering…');
+  const duration = 2.0;
+  const sampleRate = 44100;
+  const off = new OfflineAudioContext(2, sampleRate * duration, sampleRate);
+
+  // Rebuild graph in offline context
+  const offModules = new Map();
+  const offMaster = off.createGain();
+  offMaster.gain.value = 0.6;
+  offMaster.connect(off.destination);
+
+  // Clone each module's audio nodes into offline ctx
+  for (const [id, m] of modules) {
+    const clone = { inputs: {}, outputs: {}, params: {} };
+    switch (m.type) {
+      case 'osc': {
+        const bus = off.createGain(); bus.gain.value = 0.25;
+        clone.outputs.out = bus;
+        clone.wave = m.wave; clone.detune = m.detune; clone.octave = m.octave;
+        break;
+      }
+      case 'noise': {
+        const bus = off.createGain(); bus.gain.value = 0.2;
+        clone.outputs.out = bus;
+        const bufSize = 2 * sampleRate;
+        const buf = off.createBuffer(1, bufSize, sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i=0;i<bufSize;i++) d[i] = Math.random()*2-1;
+        clone._buf = buf;
+        break;
+      }
+      case 'filter': {
+        const n = off.createBiquadFilter();
+        n.type = m.node.type;
+        n.frequency.value = m.node.frequency.value;
+        n.Q.value = m.node.Q.value;
+        clone.inputs.in = n; clone.outputs.out = n;
+        break;
+      }
+      case 'env': {
+        const vca = off.createGain(); vca.gain.value = 0;
+        clone.inputs.in = vca; clone.outputs.out = vca;
+        clone.a = m.a; clone.d = m.d; clone.s = m.s; clone.r = m.r;
+        clone.vca = vca;
+        break;
+      }
+      case 'lfo': {
+        const n = off.createOscillator();
+        n.type = m.node.type; n.frequency.value = m.node.frequency.value;
+        const depth = off.createGain(); depth.gain.value = m.depth.gain.value;
+        n.connect(depth); n.start(0); n.stop(duration);
+        clone.outputs.out = depth;
+        break;
+      }
+      case 'gain': {
+        const n = off.createGain(); n.gain.value = m.node.gain.value;
+        clone.inputs.in = n; clone.inputs.cv = n.gain; clone.outputs.out = n;
+        break;
+      }
+      case 'delay': {
+        const delay = off.createDelay(5);
+        delay.delayTime.value = m.delay.delayTime.value;
+        const fb = off.createGain(); fb.gain.value = m.fb.gain.value;
+        const wet = off.createGain(); wet.gain.value = m.wet.gain.value;
+        const dry = off.createGain(); dry.gain.value = 1.0;
+        const mix = off.createGain();
+        delay.connect(wet); delay.connect(fb); fb.connect(delay);
+        wet.connect(mix); dry.connect(mix);
+        const inNode = off.createGain();
+        inNode.connect(dry); inNode.connect(delay);
+        clone.inputs.in = inNode; clone.outputs.out = mix;
+        break;
+      }
+      case 'out': {
+        const n = off.createGain(); n.gain.value = m.node.gain.value;
+        n.connect(offMaster);
+        clone.inputs.in = n;
+        break;
+      }
+    }
+    offModules.set(id, clone);
+  }
+
+  // Reconnect
+  for (const c of connections) {
+    const a = offModules.get(c.from.mod), b = offModules.get(c.to.mod);
+    if (!a || !b) continue;
+    const src = a.outputs[c.from.port], dst = b.inputs[c.to.port];
+    if (src && dst) {
+      try { src.connect(dst); } catch(e){}
+    }
+  }
+
+  // Trigger a short arpeggio for demo export
+  const notes = [0, 4, 7, 12]; // C major arpeggio
+  const noteDur = 0.4;
+  notes.forEach((semi, i) => {
+    const t = i * noteDur;
+    const freq = 440 * Math.pow(2, (semi - 9) / 12);
+    offModules.forEach(cl => {
+      const orig = modules.get([...offModules.keys()][[...offModules.values()].indexOf(cl)]);
+      if (!orig) return;
+      if (orig.type === 'osc') {
+        const o = off.createOscillator();
+        o.type = cl.wave;
+        o.frequency.value = freq * Math.pow(2, cl.octave);
+        o.detune.value = cl.detune;
+        o.connect(cl.outputs.out);
+        o.start(t); o.stop(t + noteDur + 1.0);
+      } else if (orig.type === 'noise') {
+        const src = off.createBufferSource();
+        src.buffer = cl._buf; src.loop = true;
+        src.connect(cl.outputs.out);
+        src.start(t); src.stop(t + noteDur + 1.0);
+      } else if (orig.type === 'env') {
+        const g = cl.vca.gain;
+        g.setValueAtTime(0, t);
+        g.linearRampToValueAtTime(0.8, t + cl.a);
+        g.linearRampToValueAtTime(cl.s * 0.8, t + cl.a + cl.d);
+        g.setValueAtTime(cl.s * 0.8, t + noteDur);
+        g.linearRampToValueAtTime(0, t + noteDur + cl.r);
+      }
+    });
+  });
+
+  const rendered = await off.startRendering();
+  const wav = audioBufferToWav(rendered);
+  const blob = new Blob([wav], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'synth-export.wav';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setStatus('Exported synth-export.wav');
+}
+
+/* WAV encoder (16-bit PCM) */
+function audioBufferToWav(buffer) {
+  const numCh = buffer.numberOfChannels;
+  const sr = buffer.sampleRate;
+  const len = buffer.length * numCh * 2 + 44;
+  const ab = new ArrayBuffer(len);
+  const view = new DataView(ab);
+  const writeStr = (o, s) => { for (let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+  writeStr(0,'RIFF');
+  view.setUint32(4, len - 8, true);
+  writeStr(8,'WAVE'); writeStr(12,'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true);
+  view.setUint32(24, sr, true);
+  view.setUint32(28, sr * numCh * 2, true);
+  view.setUint16(32, numCh * 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36,'data');
+  view.setUint32(40, buffer.length * numCh * 2, true);
+  let offset = 44;
+  const channels = [];
+  for (let c=0;c<numCh;c++) channels.push(buffer.getChannelData(c));
+  for (let i=0;i<buffer.length;i++) {
+    for (let c=0;c<numCh;c++) {
+      let s = Math.max(-1, Math.min(1, channels[c][i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+      offset += 2;
+    }
+  }
+  return ab;
+}
+
+/* ---------- UI wiring ---------- */
+document.getElementById('addMenu').addEventListener('change', e => {
+  const t = e.target.value;
+  if (!t) return;
+  const x = 80 + Math.random()*200, y = 80 + Math.random()*200;
+  createModule(t, x, y);
+  e.target.value = '';
+});
+document.getElementById('stopBtn').onclick = () => {
+  activeNotes.forEach((_, k) => noteOff(k));
+  setStatus('Stopped');
+};
+document.getElementById('clearBtn').onclick = () => {
+  [...modules.keys()].forEach(deleteModule);
+  setStatus('Cleared');
+};
+document.getElementById('exportBtn').onclick = exportWav;
+document.getElementById('playBtn').onclick = () => {
+  ensureCtx();
+  setStatus('Use keys A W S E D F T G Y H U J K to play (C major scale + sharps).');
+};
+
+function setStatus(s) { document.getElementById('status').textContent = s; }
+
+/* ---------- Starter patch ---------- */
+window.addEventListener('load', () => {
+  const osc  = createModule('osc',    80,  80);
+  const env  = createModule('env',    320, 80);
+  const filt = createModule('filter', 560, 80);
+  const dly  = createModule('delay',  800, 80);
+  const out  = createModule('out',   1040, 80);
+  connect(osc.id,  'out', env.id,  'in');
+  connect(env.id,  'out', filt.id, 'in');
+  connect(filt.id, 'out', dly.id,  'in');
+  connect(dly.id,  'out', out.id,  'in');
+  setStatus('Starter patch loaded. Press keys A–K to play, or add more modules.');
+});
+</script>
+</body>
+</html>

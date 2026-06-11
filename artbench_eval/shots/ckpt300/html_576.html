@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transition Effect Editor</title>
+<style>* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #111;
+  color: #fff;
+  display: flex;
+  overflow: hidden;
+}
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+.sidebar {
+  width: 300px;
+  background: #1f2430;
+  color: #e6e9f2;
+  padding: 20px;
+  overflow-y: auto;
+  border-right: 1px solid #2f3544;
+}
+.sidebar h2 { margin: 0 0 16px; font-size: 16px; }
+.clip-list { display: flex; flex-direction: column; gap: 8px; }
+.clip-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px;
+  background: #2a2f3d;
+  border-radius: 6px;
+  cursor: grab;
+  user-select: none;
+}
+.clip-item:hover { background: #353b4a; }
+.clip-item:active { cursor: grabbing; }
+.clip-color { width: 20px; height: 20px; border-radius: 4px; }
+.clip-info { flex: 1; }
+.clip-name { font-size: 14px; }
+.clip-duration { font-size: 12px; color: #8a93a6; }
+.clip-remove { color: #c94a4a; font-size: 16px; line-height: 1; }
+.btn {
+  background: #3a4152;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background .2s;
+}
+.btn:hover { background: #4a5162; }
+.btn-primary { background: #00b894; }
+.btn-primary:hover { background: #00c8a0; }
+
+.main { flex: 1; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 24px;
+  background: #1a1e2a;
+  border-bottom: 1px solid #2a2f3d;
+}
+.topbar h1 { margin: 0; font-size: 18px; }
+.controls { display: flex; gap: 8px; align-items: center; }
+.controls input {
+  background: #2a2f3d;
+  color: #fff;
+  border: 1px solid #3a4152;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  overflow: auto;
+}
+.timeline-wrap {
+  background: #0f1218;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a2f3d;
+}
+.timeline-header {
+  display: flex; justify-content: space-between;
+  padding: 10px 14px;
+  background: #1a1e2a;
+  font-size: 13px;
+  color: #8a93a6;
+}
+.timeline {
+  position: relative;
+  height: 180px;
+  background: #05070a;
+}
+.timeline-ruler {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 20px;
+  background: #1a1e2a;
+  border-bottom: 1px dashed #2a2f3d;
+  display: flex;
+  align-items: center;
+}
+.timeline-ruler .tick { width: 2px; background: #3a4152; margin: 0 2px; }
+.timeline-ruler .label { margin: 0 4px; font-size: 10px; color: #5a637a; }
+.timeline-track { position: absolute; top: 20px; bottom: 0; left: 0; right: 0; }
+.clip-timeline {
+  position: absolute;
+  top: 0; bottom: 0;
+  cursor: grab;
+  user-select: none;
+}
+.clip-timeline:active { cursor: grabbing; }
+.clip-timeline .clip-bar {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: linear-gradient(90deg, #3a4152, #00b894);
+  border-radius: 4px;
+  transition: transform .15s ease;
+}
+.clip-timeline .clip-bar:hover { transform: scaleX(1.02); }
+.clip-timeline .clip-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1e2a;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.clip-timeline:hover .clip-label { opacity: 1; }
+.clip-timeline .clip-handle {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 12px;
+  background: rgba(0,0,0,0);
+  cursor: ew-resize;
+  transition: background .15s;
+}
+.clip-timeline:hover .clip-handle { background: rgba(0,184,148,.25); }
+.clip-timeline .clip-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 12px; height: 12px;
+  background: #00b894;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.preview {
+  background: #0f1218;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a2f3d;
+}
+.preview-header {
+  display: flex; justify-content: space-between;
+  padding: 10px 14px;
+  background: #1a1e2a;
+  font-size: 13px;
+  color: #8a93a6;
+}
+#preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <h2>Clips</h2>
+    <div id="clip-list" class="clip-list"></div>
+    <button id="add-clip" class="btn">+ Add Clip</button>
+  </aside>
+
+  <section class="main">
+    <header class="topbar">
+      <h1>Transition Effect Editor</h1>
+      <div class="controls">
+        <label>Preview FPS: <input id="fps" type="number" value="30" min="10" max="60"></label>
+        <button id="render-btn" class="btn btn-primary">▶ Render & Export</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <div class="timeline-wrap">
+        <div class="timeline-header">
+          <span>Timeline</span>
+          <span id="timeline-time">0.0s</span>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </div>
+
+      <div class="preview">
+        <div class="preview-header">
+          <h3>Preview</h3>
+          <span id="preview-info">0 frames</span>
+        </div>
+        <canvas id="preview" width="800" height="450"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>// ---------- State ----------
+const state = {
+  clips: [],
+  transitions: [],
+  fps: 30,
+  previewW: 800,
+  previewH: 450,
+  previewCtx: null,
+  previewImg: null,
+  previewInterval: null,
+  previewTime: 0,
+  clipWidth: 0,
+  clipHeight: 0,
+  clipColor: null,
+};
+
+// ---------- Colors ----------
+const COLORS = [
+  '#ff5f56', '#ffc95c', '#28c840', '#3b5bdb', '#5bc0eb',
+  '#a18cd1', '#ff9f43', '#ff6b9d', '#fdcb6e', '#84fab0',
+];
+
+// ---------- Utilities ----------
+function randColor() {
+  return COLORS[Math.floor(Math.random() * COLORS.length)];
+}
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+function uid() { return 'c_' + Math.random().toString(36).slice(2, 9); }
+
+function rgbString(r, g, b) {
+  const c = [r, g, b].map(v => Math.round(v)).map(v => v < 16 ? '0' + v.toString(16) : v.toString(16)).join('');
+  return '#' + c;
+}
+
+// ---------- Clip Management ----------
+function addClip() {
+  const color = randColor();
+  const clip = {
+    id: uid(),
+    color: color,
+    name: 'Clip ' + (state.clips.length + 1),
+    duration: 3,
+    startTime: state.clips.length === 0 ? 0 : state.clips[state.clips.length - 1].endTime,
+    endTime: state.clips[state.clips.length - 1].endTime + 3,
+    transition: null,
+    transitionDuration: 0.5,
+  };
+  state.clips.push(clip);
+  renderTimeline();
+  renderPreview();
+}
+
+function removeClip(id) {
+  state.clips = state.clips.filter(c => c.id !== id);
+  state.transitions = state.transitions.filter(t => t.clipId !== id);
+  renderTimeline();
+  renderPreview();
+}
+
+function updateClip(id, prop, value) {
+  const c = state.clips.find(x => x.id === id);
+  if (!c) return;
+  c[prop] = value;
+  renderTimeline();
+  renderPreview();
+}
+
+function updateTransition(id, prop, value) {
+  const t = state.transitions.find(x => x.id === id);
+  if (!t) return;
+  t[prop] = value;
+  renderTimeline();
+  renderPreview();
+}
+
+// ---------- Timeline Rendering ----------
+function renderTimeline() {
+  const timeline = document.getElementById('timeline');
+  const ruler = document.createElement('div');
+  ruler.className = 'timeline-ruler';
+  ruler.style.height = state.clipHeight + 'px';
+
+  const tickCount = 40;
+  const tickStep = state.clipWidth / tickCount;
+  for (let i = 0; i <= tickCount; i++) {
+    const tick = document.createElement('div');
+    tick.className = 'tick';
+    tick.style.left = (i * tickStep) + 'px';
+    if (i % 5 === 0) {
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = (i * 0.05).toFixed(1) + 's';
+      tick.appendChild(label);
+    }
+    ruler.appendChild(tick);
+  }
+  timeline.appendChild(ruler);
+
+  const track = document.createElement('div');
+  track.className = 'timeline-track';
+  track.style.height = (state.previewH - 20) + 'px';
+
+  state.clips.forEach((clip, idx) => {
+    const clipEl = document.createElement('div');
+    clipEl.className = 'clip-timeline';
+    clipEl.dataset.clipId = clip.id;
+    clipEl.style.left = (idx * state.clipWidth) + 'px';
+    clipEl.style.width = state.clipWidth + 'px';
+
+    // Clip bar
+    const bar = document.createElement('div');
+    bar.className = 'clip-bar';
+    bar.style.left = '0';
+    bar.style.width = '0%';
+    clipEl.appendChild(bar);
+
+    // Clip label
+    const label = document.createElement('div');
+    label.className = 'clip-label';
+    label.textContent = clip.name + ' · ' + clip.duration.toFixed(1) + 's';
+    clipEl.appendChild(label);
+
+    // Clip handle
+    const handle = document.createElement('div');
+    handle.className = 'clip-handle';
+    handle.style.left = '0';
+    clipEl.appendChild(handle);
+
+    // Transition bar (if any)
+    if (clip.transition) {
+      const tBar = document.createElement('div');
+      tBar.className = 'clip-bar';
+      tBar.style.background = 'linear-gradient(90deg, #ff9f43, #ff6b9d)';
+      tBar.style.left = '0';
+      tBar.style.width = '0%';
+      clipEl.appendChild(tBar);
+    }
+
+    track.appendChild(clipEl);
+  });
+
+  timeline.appendChild(track);
+
+  // Update clip widths
+  const first = state.clips[0];
+  if (first) {
+    const firstEl = timeline.querySelector('.clip-timeline[data-clip-id="' + first.id + '"]');
+    if (firstEl) {
+      state.clipWidth = firstEl.offsetWidth;
+      state.clipHeight = firstEl.offsetHeight - firstEl.querySelector('.clip-bar').offsetHeight - 16;
+    }
+  }
+
+  // Set scroll
+  const maxScroll = state.clips.length * state.clipWidth - timeline.clientWidth;
+  timeline.scrollLeft = maxScroll;
+}
+
+// ---------- Preview Rendering ----------
+function renderPreview() {
+  const canvas = document.getElementById('preview');
+  const ctx = canvas.getContext('2d');
+  state.previewCtx = ctx;
+  state.previewW = canvas.width;
+  state.previewH = canvas.height;
+  state.previewImg = document.createElement('img');
+
+  const totalDuration = state.clips.reduce((sum, c) => sum + c.duration, 0);
+  const frameDuration = 1 / state.fps;
+  const frames = Math.max(1, Math.round(totalDuration * state.fps));
+  const frameIndex = Math.round(state.previewTime / frameDuration);
+
+  ctx.clearRect(0, 0, state.previewW, state.previewH);
+
+  // Background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, state.previewW, state.previewH);
+
+  // Draw frame
+  const frameTime = frameIndex * frameDuration;
+  const frameInfo = getFrameInfo(frameTime);
+  if (frameInfo) {
+    const { clip, t, tStart, tEnd, transitionStart, transitionEnd } = frameInfo;
+
+    // Clip background
+    ctx.fillStyle = rgbString(...hexToRgb(clip.color));
+    ctx.fillRect(0, 0, state.previewW, state.previewH);
+
+    // Transition overlay
+    if (transitionStart < transitionEnd) {
+      const transitionColor = hexToRgb(clip.color);
+      const transitionAlpha = Math.max(0, Math.min(1, (frameTime - transitionStart) / transitionEnd));
+      ctx.fillStyle = `rgba(${transitionColor[0]}, ${transitionColor[1]}, ${transitionColor[2]}, ${transitionAlpha})`;
+      ctx.fillRect(0, 0, state.previewW, state.previewH);
+    }
+
+    // Clip rectangle
+    const clipX = (clip.startTime / totalDuration) * state.previewW;
+    const clipY = (clip.endTime / totalDuration) * state.previewH;
+    ctx.fillStyle = rgbString(...hexToRgb(clip.color));
+    ctx.fillRect(clipX, 0, state.previewW - clipX, clipY);
+
+    // Clip label
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(clip.name, 10, 10);
+  }
+
+  // FPS label
+  ctx.fillStyle = '#8a93a6';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText('FPS: ' + state.fps + ' · ' + totalDuration.toFixed(1) + 's', state.previewW - 110, 14);
+
+  // Update info
+  document.getElementById('preview-info').textContent =
+    'Frame ' + frameIndex + ' / ' + frames + ' · ' + frameTime.toFixed(2) + 's';
+
+  // Draw preview image
+  const img = state.previewImg;
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, state.previewW, state.previewH);
+  };
+  img.src = canvas.toDataURL('image/png');
+}
+
+function getFrameInfo(frameTime) {
+  // Find which clip contains this frame
+  let clip = null;
+  for (const c of state.clips) {
+    if (frameTime >= c.startTime && frameTime <= c.endTime) {
+      clip = c;
+      break;
+    }
+  }
+  if (!clip) return null;
+
+  const t = frameTime - clip.startTime;
+  const tStart = clip.transition ? clip.transition.startTime : 0;
+  const tEnd = clip.transition ? clip.transition.endTime : clip.duration;
+  const transitionStart = clip.transition ? clip.transition.transitionStart : 0;
+  const transitionEnd = clip.transition ? clip.transition.transitionEnd : 0;
+
+  return { clip, t, tStart, tEnd, transitionStart, transitionEnd };
+}
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+// ---------- Transition Logic ----------
+function addTransition(clipId) {
+  const clip = state.clips.find(c => c.id === clipId);
+  if (!clip) return;
+  const t = {
+    id: uid(),
+    clipId,
+    type: 'fade',
+    duration: 0.5,
+    startTime: 0,
+    endTime: clip.duration,
+    transitionStart: 0,
+    transitionEnd: clip.duration,
+  };
+  state.transitions.push(t);
+  renderTimeline();
+  renderPreview();
+}
+
+function removeTransition(id) {
+  state.transitions = state.transitions.filter(t => t.id !== id);
+  renderTimeline();
+  renderPreview();
+}
+
+function setTransitionType(id, type) {
+  const t = state.transitions.find(x => x.id === id);
+  if (!t) return;
+  t.type = type;
+  renderTimeline();
+  renderPreview();
+}
+
+// ---------- Preview Loop ----------
+function startPreviewLoop() {
+  if (state.previewInterval) clearInterval(state.previewInterval);
+  state.previewInterval = setInterval(() => {
+    state.previewTime += 1 / state.fps;
+    renderPreview();
+  }, 1000 / state.fps);
+}
+
+function stopPreviewLoop() {
+  if (state.previewInterval) clearInterval(state.previewInterval);
+  state.previewInterval = null;
+}
+
+// ---------- Render / Export ----------
+function renderAllFrames() {
+  const totalDuration = state.clips.reduce((sum, c) => sum + c.duration, 0);
+  const frames = Math.max(1, Math.round(totalDuration * state.fps));
+  const frameDuration = 1 / state.fps;
+
+  const canvas = document.getElementById('preview');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, state.previewW, state.previewH);
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+
+  return new Promise(resolve => {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = state.previewW;
+    tempCanvas.height = state.previewH;
+    const tctx = tempCanvas.getContext('2d');
+    tctx.fillStyle = '#000';
+    tctx.fillRect(0, 0, state.previewW, state.previewH);
+
+    const framesArr = [];
+    for (let i = 0; i < frames; i++) {
+      const frameTime = i * frameDuration;
+      const frameInfo = getFrameInfo(frameTime);
+      if (frameInfo) {
+        const { clip, t, tStart, tEnd, transitionStart, transitionEnd } = frameInfo;
+
+        // Clip background
+        tctx.fillStyle = rgbString(...hexToRgb(clip.color));
+        tctx.fillRect(0, 0, state.previewW, state.previewH);
+
+        // Transition overlay
+        if (transitionStart < transitionEnd) {
+          const transitionColor = hexToRgb(clip.color);
+          const transitionAlpha = Math.max(0, Math.min(1, (frameTime - transitionStart) / transitionEnd));
+          tctx.fillStyle = `rgba(${transitionColor[0]}, ${transitionColor[1]}, ${transitionColor[2]}, ${transitionAlpha})`;
+          tctx.fillRect(0, 0, state.previewW, state.previewH);
+        }
+
+        // Clip rectangle
+        const clipX = (clip.startTime / totalDuration) * state.previewW;
+        const clipY = (clip.endTime / totalDuration) * state.previewH;
+        tctx.fillStyle = rgbString(...hexToRgb(clip.color));
+        tctx.fillRect(clipX, 0, state.previewW - clipX, clipY);
+      }
+
+      // FPS label
+      tctx.fillStyle = '#8a93a6';
+      tctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      tctx.fillText('FPS: ' + state.fps + ' · ' + (i * frameDuration).toFixed(2) + 's', state.previewW - 110, 14);
+
+      framesArr.push(tctx.getImageData(0, 0, state.previewW, state.previewH));
+    }
+
+    // Write frames to file
+    const blob = new Blob(framesArr.map(d => d.data), { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'transitions_' + Date.now() + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    resolve();
+  });
+}
+
+function exportVideo() {
+  const totalDuration = state.clips.reduce((sum, c) => sum + c.duration, 0);
+  const frames = Math.max(1, Math.round(totalDuration * state.fps));
+  const frameDuration = 1 / state.fps;
+
+  const canvas = document.getElementById('preview');
+  const ctx = canvas.getContext('2d');
+
+  // Render all frames to a temporary canvas
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = state.previewW;
+  tempCanvas.height = state.previewH;
+  const tctx = tempCanvas.getContext('2d');
+  tctx.fillStyle = '#000';
+  tctx.fillRect(0, 0, state.previewW, state.previewH);
+
+  const framesArr = [];
+  for (let i = 0; i < frames; i++) {
+    const frameTime = i * frameDuration;
+    const frameInfo = getFrameInfo(frameTime);
+    if (frameInfo) {
+      const { clip, t, tStart, tEnd, transitionStart, transitionEnd } = frameInfo;
+
+      // Clip background
+      tctx.fillStyle = rgbString(...hexToRgb(clip.color));
+      tctx.fillRect(0, 0, state.previewW, state.previewH);
+
+      // Transition overlay
+      if (transitionStart < transitionEnd) {
+        const transitionColor = hexToRgb(clip.color);
+        const transitionAlpha = Math.max(0, Math.min(1, (frameTime - transitionStart) / transitionEnd));
+        tctx.fillStyle = `rgba(${transitionColor[0]}, ${transitionColor[1]}, ${transitionColor[2]}, ${transitionAlpha})`;
+        tctx.fillRect(0, 0, state.previewW, state.previewH);
+      }
+
+      // Clip rectangle
+      const clipX = (clip.startTime / totalDuration) * state.previewW;
+      const clipY = (clip.endTime / totalDuration) * state.previewH;
+      tctx.fillStyle = rgbString(...hexToRgb(clip.color));
+      tctx.fillRect(clipX, 0, state.previewW - clipX, clipY);
+    }
+
+    // FPS label
+    tctx.fillStyle = '#8a93a6';
+    tctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    tctx.fillText('FPS: ' + state.fps + ' · ' + (i * frameDuration).toFixed(2) + 's', state.previewW - 110, 14);
+
+    framesArr.push(tctx.getImageData(0, 0, state.previewW, state.previewH));
+  }
+
+  // Write to file via FFmpeg
+  const blob = new Blob(framesArr.map(d => d.data), { type: 'image/png' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'transitions_' + Date.now() + '.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------- Events ----------
+document.getElementById('add-clip').addEventListener('click', addClip);
+document.getElementById('render-btn').addEventListener('click', () => {
+  const totalDuration = state.clips.reduce((sum, c) => sum + c.duration, 0);
+  const frames = Math.max(1, Math.round(totalDuration * state.fps));
+  document.getElementById('preview-info').textContent =
+    'Rendering ' + frames + ' frames...';
+  renderAllFrames().then(() => {
+    document.getElementById('preview-info').textContent =
+      'Done. Open the downloaded PNG to inspect frames.';
+  });
+});
+
+document.getElementById('fps').addEventListener('input', (e) => {
+  state.fps = parseInt(e.target.value, 10);
+  renderPreview();
+});
+
+// Drag to reorder clips
+const clipList = document.getElementById('clip-list');
+clipList.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.clip-item')) {
+    e.preventDefault();
+    const item = e.target.closest('.clip-item');
+    const id = item.dataset.clipId;
+    const idx = state.clips.findIndex(c => c.id === id);
+    if (idx < 0) return;
+    const dragged = state.clips.splice(idx, 1)[0];
+    state.clips.unshift(dragged);
+    renderTimeline();
+    renderPreview();
+  }
+});
+
+// ---------- Init ----------
+document.getElementById('add-clip').click();
+</script></script>
+<script>/* script.js not found in result */</script>
+</body>
+</html>

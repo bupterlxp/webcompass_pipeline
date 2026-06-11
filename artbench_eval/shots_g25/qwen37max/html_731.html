@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Information Panel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Noto+Serif+SC:wght@400;600;700&family=MedievalSharp&display=swap');
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    min-height: 100vh;
+    background: #0a0a0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(120, 40, 20, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(180, 130, 40, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(200, 60, 30, 0.05) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .particles {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 180, 60, 0.6);
+    border-radius: 50%;
+    animation: floatUp linear infinite;
+    box-shadow: 0 0 6px rgba(255, 150, 30, 0.4);
+  }
+
+  @keyframes floatUp {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+  }
+
+  .panel-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  /* === MAIN PANEL === */
+  .character-panel {
+    background: linear-gradient(165deg, #12101a 0%, #1a1525 30%, #151020 70%, #0e0c16 100%);
+    border: 1px solid rgba(180, 130, 50, 0.25);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow:
+      0 0 60px rgba(180, 100, 30, 0.08),
+      0 20px 60px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 200, 100, 0.05);
+    animation: panelAppear 1s ease-out;
+  }
+
+  @keyframes panelAppear {
+    from { opacity: 0; transform: translateY(30px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* === HEADER === */
+  .panel-header {
+    position: relative;
+    padding: 30px 35px 25px;
+    background: linear-gradient(135deg, rgba(160, 60, 20, 0.15) 0%, rgba(180, 130, 40, 0.08) 50%, rgba(120, 40, 20, 0.12) 100%);
+    border-bottom: 1px solid rgba(180, 130, 50, 0.15);
+    overflow: hidden;
+  }
+
+  .panel-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(200, 80, 30, 0.1) 0%, transparent 70%);
+    animation: headerGlow 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes headerGlow {
+    from { opacity: 0.5; transform: scale(1); }
+    to { opacity: 1; transform: scale(1.2); }
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .avatar-frame {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2a1a10, #1a1020);
+    border: 2px solid rgba(200, 140, 50, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    box-shadow:
+      0 0 20px rgba(200, 100, 30, 0.2),
+      inset 0 0 20px rgba(200, 100, 30, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .avatar::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(from 0deg, transparent, rgba(255, 180, 60, 0.1), transparent, rgba(255, 120, 30, 0.08), transparent);
+    animation: avatarRotate 6s linear infinite;
+  }
+
+  @keyframes avatarRotate {
+    to { transform: rotate(360deg); }
+  }
+
+  .avatar-ring {
+    position: absolute;
+    top: -4px; left: -4px; right: -4px; bottom: -4px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    border-top-color: rgba(255, 180, 60, 0.6);
+    border-right-color: rgba(200, 80, 30, 0.4);
+    animation: ringRotate 3s linear infinite;
+  }
+
+  @keyframes ringRotate {
+    to { transform: rotate(360deg); }
+  }
+
+  .bloodline-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: linear-gradient(135deg, #c8501e, #a03010);
+    color: #ffe0b0;
+    font-size: 9px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 180, 80, 0.4);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(200, 80, 30, 0.4);
+    z-index: 2;
+  }
+
+  .header-info {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+  }
+
+  .char-name {
+    font-family: 'Cinzel', serif;
+    font-size: 32px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffd78a, #e8a840, #ffc860, #d4922a);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: nameShimmer 4s ease-in-out infinite;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
+  @keyframes nameShimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .char-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    color: rgba(220, 170, 90, 0.7);
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+  }
+
+  .char-subtitle {
+    font-family: 'MedievalSharp', cursive;
+    font-size: 12px;
+    color: rgba(180, 140, 100, 0.5);
+    font-style: italic;
+  }
+
+  .header-tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .tag-race {
+    background: rgba(100, 160, 255, 0.1);
+    color: #8ab8ff;
+    border: 1px solid rgba(100, 160, 255, 0.2);
+  }
+
+  .tag-bloodline {
+    background: rgba(220, 80, 30, 0.15);
+    color: #ff9060;
+    border: 1px solid rgba(220, 80, 30, 0.3);
+    animation: bloodlinePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes bloodlinePulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(220, 80, 30, 0.1); }
+    50% { box-shadow: 0 0 15px rgba(220, 80, 30, 0.25); }
+  }
+
+  .tag-realm {
+    background: rgba(160, 100, 220, 0.1);
+    color: #c8a0f0;
+    border: 1px solid rgba(160, 100, 220, 0.2);
+  }
+
+  /* === SECTION STYLES === */
+  .panel-body {
+    padding: 25px 35px 30px;
+  }
+
+  .section {
+    margin-bottom: 28px;
+    animation: sectionFade 0.6s ease-out backwards;
+  }
+
+  .section:nth-child(1) { animation-delay: 0.2s; }
+  .section:nth-child(2) { animation-delay: 0.35s; }
+  .section:nth-child(3) { animation-delay: 0.5s; }
+  .section:nth-child(4) { animation-delay: 0.65s; }
+  .section:nth-child(5) { animation-delay: 0.8s; }
+
+  @keyframes sectionFade {
+    from { opacity: 0; transform: translateX(-15px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .section:last-child {
+    margin-bottom: 0;
+  }
+
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(220, 180, 100, 0.9);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 16px;
+    background: linear-gradient(to bottom, #d4922a, rgba(200, 80, 30, 0.3));
+    border-radius: 2px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, rgba(180, 130, 50, 0.2), transparent);
+  }
+
+  /* === INFO GRID === */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .info-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .info-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(200, 150, 60, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .info-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(200, 150, 60, 0.03), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .info-item:hover::before {
+    opacity: 1;
+  }
+
+  .info-label {
+    font-size: 10px;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: rgba(180, 150, 100, 0.5);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .info-value {
+    font-size: 15px;
+    color: rgba(240, 220, 190, 0.9);
+    font-weight: 500;
+  }
+
+  .info-value.highlight {
+    color: #ffb347;
+    font-weight: 700;
+  }
+
+  .info-value.legendary {
+    background: linear-gradient(90deg, #ff6030, #ffb347, #ff6030);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    animation: legendaryShimmer 3s linear infinite;
+  }
+
+  @keyframes legendaryShimmer {
+    to { background-position: -200% 0; }
+  }
+
+  /* === STAT BARS === */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .stat-item {
+    position: relative;
+  }
+
+  .stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .stat-name {
+    font-size: 12px;
+    color: rgba(200, 180, 150, 0.7);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-icon {
+    font-size: 14px;
+  }
+
+  .stat-value {
+    font-size: 12px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    color: rgba(255, 200, 120, 0.9);
+  }
+
+  .stat-bar-bg {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .stat-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    position: relative;
+    transition: width 1.5s ease-out;
+    width: 0;
+  }
+
+  .stat-bar-fill.animated {
+    /* width set by JS */
+  }
+
+  .stat-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3));
+    border-radius: 3px;
+  }
+
+  .stat-str .stat-bar-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+  .stat-agi .stat-bar-fill { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+  .stat-int .stat-bar-fill { background: linear-gradient(90deg, #2980b9, #3498db); }
+  .stat-end .stat-bar-fill { background: linear-gradient(90deg, #d4922a, #f0b840); }
+  .stat-spi .stat-bar-fill { background: linear-gradient(90deg, #8e44ad, #9b59b6); }
+  .stat-per .stat-bar-fill { background: linear-gradient(90deg, #e84393, #fd79a8); }
+
+  /* === BLOODLINE SECTION === */
+  .bloodline-card {
+    background: linear-gradient(135deg, rgba(180, 60, 20, 0.08), rgba(200, 120, 40, 0.05), rgba(160, 40, 15, 0.08));
+    border: 1px solid rgba(200, 100, 40, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bloodline-card::before {
+    content: '炎黄';
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    font-family: 'Noto Serif SC', serif;
+    font-size: 72px;
+    font-weight: 700;
+    color: rgba(200, 100, 30, 0.04);
+    pointer-events: none;
+    letter-spacing: 5px;
+  }
+
+  .bloodline-name {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ff9050;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .bloodline-grade {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, rgba(255, 80, 30, 0.3), rgba(200, 60, 20, 0.2));
+    border: 1px solid rgba(255, 120, 50, 0.3);
+    border-radius: 4px;
+    color: #ffb080;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .bloodline-desc {
+    font-size: 13px;
+    color: rgba(200, 170, 140, 0.6);
+    line-height: 1.7;
+    margin-top: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .bloodline-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .trait {
+    padding: 5px 14px;
+    background: rgba(200, 100, 40, 0.1);
+    border: 1px solid rgba(200, 100, 40, 0.2);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #e0a060;
+    font-weight: 500;
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .trait:hover {
+    background: rgba(200, 100, 40, 0.2);
+    border-color: rgba(200, 100, 40, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(200, 80, 30, 0.15);
+  }
+
+  /* === SKILLS === */
+  .skills-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .skill-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .skill-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(200, 150, 60, 0.15);
+    transform: translateX(4px);
+  }
+
+  .skill-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .skill-icon-box.fire { background: linear-gradient(135deg, rgba(220, 60, 20, 0.2), rgba(200, 40, 10, 0.1)); border: 1px solid rgba(220, 80, 30, 0.2); }
+  .skill-icon-box.ice { background: linear-gradient(135deg, rgba(60, 140, 220, 0.2), rgba(40, 100, 200, 0.1)); border: 1px solid rgba(80, 150, 220, 0.2); }
+  .skill-icon-box.gold { background: linear-gradient(135deg, rgba(220, 180, 40, 0.2), rgba(200, 160, 30, 0.1)); border: 1px solid rgba(220, 180, 60, 0.2); }
+  .skill-icon-box.dark { background: linear-gradient(135deg, rgba(120, 60, 180, 0.2), rgba(100, 40, 160, 0.1)); border: 1px solid rgba(140, 80, 200, 0.2); }
+  .skill-icon-box.nature { background: linear-gradient(135deg, rgba(60, 180, 80, 0.2), rgba(40, 160, 60, 0.1)); border: 1px solid rgba(80, 200, 100, 0.2); }
+  .skill-icon-box.light { background: linear-gradient(135deg, rgba(240, 220, 100, 0.2), rgba(220, 200, 80, 0.1)); border: 1px solid rgba(240, 220, 120, 0.2); }
+
+  .skill-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .skill-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(230, 210, 180, 0.9);
+    margin-bottom: 2px;
+  }
+
+  .skill-type {
+    font-size: 10px;
+    color: rgba(180, 150, 120, 0.5);
+    letter-spacing: 0.5px;
+  }
+
+  .skill-rank {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .rank-s {
+    color: #ff8040;
+    background: rgba(255, 100, 40, 0.1);
+    border: 1px solid rgba(255, 100, 40, 0.2);
+  }
+
+  .rank-a {
+    color: #c8a0f0;
+    background: rgba(160, 100, 220, 0.1);
+    border: 1px solid rgba(160, 100, 220, 0.2);
+  }
+
+  .rank-b {
+    color: #80b8ff;
+    background: rgba(80, 140, 255, 0.1);
+    border: 1px solid rgba(80, 140, 255, 0.2);
+  }
+
+  /* === BACKGROUND === */
+  .background-text {
+    font-size: 13px;
+    color: rgba(200, 180, 160, 0.55);
+    line-height: 1.9;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.015);
+    border-left: 2px solid rgba(200, 150, 60, 0.15);
+    border-radius: 0 8px 8px 0;
+    font-style: italic;
+  }
+
+  .background-text strong {
+    color: rgba(230, 190, 130, 0.8);
+    font-style: normal;
+  }
+
+  /* === POTENTIAL METER === */
+  .potential-display {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .potential-visual {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .potential-ring {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .potential-ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.05);
+    stroke-width: 4;
+  }
+
+  .potential-ring-fill {
+    fill: none;
+    stroke: url(#potentialGradient);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 226;
+    stroke-dashoffset: 226;
+    transition: stroke-dashoffset 2s ease-out;
+  }
+
+  .potential-ring-fill.animated {
+    stroke-dashoffset: 11.3;
+  }
+
+  .potential-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  .potential-grade {
+    font-family: 'Cinzel', serif;
+    font-size: 24px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ff6030, #ffb347);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+
+  .potential-sub {
+    font-size: 8px;
+    color: rgba(200, 160, 100, 0.5);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .potential-details {
+    flex: 1;
+  }
+
+  .potential-title {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255, 200, 120, 0.9);
+    margin-bottom: 6px;
+  }
+
+  .potential-desc {
+    font-size: 12px;
+    color: rgba(200, 170, 140, 0.5);
+    line-height: 1.6;
+  }
+
+  .potential-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .pot-tag {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: rgba(255, 180, 60, 0.08);
+    border: 1px solid rgba(255, 180, 60, 0.12);
+    color: rgba(255, 200, 120, 0.7);
+    font-weight: 500;
+  }
+
+  /* === FOOTER === */
+  .panel-footer {
+    padding: 16px 35px;
+    border-top: 1px solid rgba(180, 130, 50, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-left {
+    font-size: 10px;
+    color: rgba(150, 130, 100, 0.3);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+  }
+
+  .footer-right {
+    display: flex;
+    gap: 6px;
+  }
+
+  .footer-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(200, 150, 60, 0.2);
+  }
+
+  .footer-dot.active {
+    background: rgba(200, 150, 60, 0.6);
+    box-shadow: 0 0 8px rgba(200, 150, 60, 0.3);
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 700px) {
+    .panel-body { padding: 20px; }
+    .panel-header { padding: 20px; }
+    .header-top { flex-direction: column; text-align: center; }
+    .header-tags { justify-content: center; }
+    .char-name { font-size: 26px; }
+    .info-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .skills-list { grid-template-columns: 1fr; }
+    .potential-display { flex-direction: column; text-align: center; }
+    .potential-tags { justify-content: center; }
+    .panel-footer { padding: 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<div class="panel-container">
+  <div class="character-panel">
+
+    <!-- HEADER -->
+    <div class="panel-header">
+      <div class="header-top">
+        <div class="avatar-frame">
+          <div class="avatar">🔥</div>
+          <div class="avatar-ring"></div>
+          <div class="bloodline-badge">Awakened</div>
+        </div>
+        <div class="header-info">
+          <div class="char-name">Shen Yueyan</div>
+          <div class="char-title">炎 黄 血 脉 · 天 命 之 人</div>
+          <div class="char-subtitle">"The flame of antiquity burns within her mortal vessel."</div>
+          <div class="header-tags">
+            <span class="tag tag-race">👤 Human</span>
+            <span class="tag tag-bloodline">🩸 Yan-Huang Bloodline</span>
+            <span class="tag tag-realm">✦ Nascent Soul</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="panel-body">
+
+      <!-- Basic Info -->
+      <div class="section">
+        <div class="section-title">Basic Information</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Full Name</div>
+            <div class="info-value">Shen Yueyan (沈月炎)</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Gender</div>
+            <div class="info-value">Female</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Age</div>
+            <div class="info-value highlight">19 years</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Race</div>
+            <div class="info-value">Human (Mortal Realm)</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Birthplace</div>
+            <div class="info-value">Azure Dragon Continent</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Affiliation</div>
+            <div class="info-value">Celestial Flame Sect</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Cultivation</div>
+            <div class="info-value highlight">Nascent Soul — 3rd Layer</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Spiritual Root</div>
+            <div class="info-value legendary">Heavenly Fire (Mutated)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Potential -->
+      <div class="section">
+        <div class="section-title">Potential Assessment</div>
+        <div class="potential-display">
+          <div class="potential-visual">
+            <svg class="potential-ring" viewBox="0 0 80 80">
+              <defs>
+                <linearGradient id="potentialGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff6030"/>
+                  <stop offset="50%" stop-color="#ffb347"/>
+                  <stop offset="100%" stop-color="#ff6030"/>
+                </linearGradient>
+              </defs>
+              <circle class="potential-ring-bg" cx="40" cy="40" r="36"/>
+              <circle class="potential-ring-fill" id="potentialRing" cx="40" cy="40" r="36"/>
+            </svg>
+            <div class="potential-center">
+              <div class="potential-grade">SSS</div>
+              <div class="potential-sub">Grade</div>
+            </div>
+          </div>
+          <div class="potential-details">
+            <div class="potential-title">Transcendent — Heaven-Chosen</div>
+            <div class="potential-desc">
+              Possesses the legendary Yan-Huang bloodline, said to descend from the primordial Yan and Huang emperors. 
+              Her potential surpasses the limits of mortal comprehension, with the capacity to ascend beyond the Divine Realm.
+            </div>
+            <div class="potential-tags">
+              <span class="pot-tag">🔥 Fire Affinity: Absolute</span>
+              <span class="pot-tag">⚡ Comprehension: Genius</span>
+              <span class="pot-tag">🌟 Fate: Heaven-Ordained</span>
+              <span class="pot-tag">💎 Body Constitution: Sacred</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attributes -->
+      <div class="section">
+        <div class="section-title">Attributes</div>
+        <div class="stats-grid">
+          <div class="stat-item stat-str">
+            <div class="stat-header">
+              <span class="stat-name"><span class="stat-icon">⚔️</span> Strength</span>
+              <span class="stat-value">78 / 100</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" data-width="78%"></div>
+            </div>
+          </div>
+          <div class="stat-item stat-agi">
+            <div class="stat-header">
+              <span class="stat-name"><span class="stat-icon">💨</span> Agility</span>
+              <span class="stat-value">85 / 100</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" data-width="85%"></div>
+            </div>
+          </div>
+          <div class="stat-item stat-int">
+            <div class="stat-header">
+              <span class="stat-name"><span class="stat-icon">🧠</span> Intelligence</span>
+              <span class="stat-value">92 / 100</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" data-width="92%"></div>
+            </div>
+          </div>
+          <div class="stat-item stat-end">
+            <div class="stat-header">
+              <span class="stat-name"><span class="stat-icon">🛡️</span> Endurance</span>
+              <span class="stat-value">80 / 100</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" data-width="80%"></div>
+            </div>
+          </div>
+          <div class="stat-item stat-spi">
+            <div class="stat-header">
+              <span class="stat-name"><span class="stat-icon">✨</span> Spirit</span>
+              <span class="stat-value">97 / 100</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" data-width="97%"></div>
+            </div>
+          </div>
+          <div class="stat-item stat-per">
+            <div class="stat-header">
+              <span class="stat-name"><span class="stat-icon">🌸</span> Charisma</span>
+              <span class="stat-value">90 / 100</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" data-width="90%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloodline -->
+      <div class="section">
+        <div class="section-title">Bloodline</div>
+        <div class="bloodline-card">
+          <div class="bloodline-name">
+            Yan-Huang Imperial Bloodline
+            <span class="bloodline-grade">MYTHIC</span>
+          </div>
+          <div class="bloodline-desc">
+            The Yan-Huang Bloodline is the most ancient and revered lineage in the mortal realm, tracing its origin to the 
+            primordial Yan Emperor (Flame Sovereign) and Huang Emperor (Earth Sovereign). Those who awaken this bloodline 
+            gain dominion over the Primal Flames of Creation and an innate connection to the Heavenly Dao. Only one awakener 
+            appears every ten thousand years.
+          </div>
+          <div class="bloodline-traits">
+            <span class="trait">🔥 Primal Flame Body</span>
+            <span class="trait">👁️ Emperor's Insight</span>
+            <span class="trait">🩸 Sacred Blood Regeneration</span>
+            <span class="trait">⚡ Heaven's Resonance</span>
+            <span class="trait">🛡️ Ancestral Protection</span>
+            <span class="trait">🌟 Dao Comprehension ×10</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills -->
+      <div class="section">
+        <div class="section-title">Techniques & Skills</div>
+        <div class="skills-list">
+          <div class="skill-item">
+            <div class="skill-icon-box fire">🔥</div>
+            <div class="skill-info">
+              <div class="skill-name">Nine Suns Incineration</div>
+              <div class="skill-type">Offensive · Fire Element</div>
+            </div>
+            <span class="skill-rank rank-s">S</span>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon-box gold">⚔️</div>
+            <div class="skill-info">
+              <div class="skill-name">Emperor's Sword Intent</div>
+              <div class="skill-type">Offensive · Sword Art</div>
+            </div>
+            <span class="skill-rank rank-s">S</span>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon-box dark">🌀</div>
+            <div class="skill-info">
+              <div class="skill-name">Yan-Huang Domain</div>
+              <div class="skill-type">Domain · Bloodline Skill</div>
+            </div>
+            <span class="skill-rank rank-s">S</span>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon-box nature">🌿</div>
+            <div class="skill-info">
+              <div class="skill-name">Phoenix Rebirth</div>
+              <div class="skill-type">Recovery · Passive</div>
+            </div>
+            <span class="skill-rank rank-a">A</span>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon-box ice">❄️</div>
+            <div class="skill-info">
+              <div class="skill-name">Frostfire Dual Arts</div>
+              <div class="skill-type">Hybrid · Elemental Fusion</div>
+            </div>
+            <span class="skill-rank rank-a">A</span>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon-box light">✨</div>
+            <div class="skill-info">
+              <div class="skill-name">Celestial Step</div>
+              <div class="skill-type">Movement · Body Technique</div>
+            </div>
+            <span class="skill-rank rank-b">B+</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Background -->
+      <div class="section">
+        <div class="section-title">Background</div>
+        <div class="background-text">
+          Born into the declining <strong>Shen Clan</strong> of the Eastern Provinces, Yueyan was considered a cripple 
+          with blocked meridians until the age of sixteen. During a near-death encounter in the <strong>Abyssal Flame Caverns</strong>, 
+          the dormant Yan-Huang bloodline within her awakened violently, burning away her impurities and reforging her 
+          entire body. In a single night, she leapt from the Qi Condensation realm to Core Formation — a feat unheard of 
+          in ten thousand years. Now pursued by ancient factions who seek to either control or extinguish the flame of 
+          the Yan-Huang, she walks a path between glory and annihilation, carrying the weight of an imperial legacy 
+          on her young shoulders.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="panel-footer">
+      <div class="footer-left">CHARACTER DOSSIER · VOL. I</div>
+      <div class="footer-right">
+        <div class="footer-dot active"></div>
+        <div class="footer-dot active"></div>
+        <div class="footer-dot active"></div>
+        <div class="footer-dot"></div>
+        <div class="footer-dot"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Create floating particles
+  const particlesContainer = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.animationDuration = (6 + Math.random() * 10) + 's';
+    particle.style.animationDelay = (Math.random() * 10) + 's';
+    particle.style.width = (1 + Math.random() * 2) + 'px';
+    particle.style.height = particle.style.width;
+    particlesContainer.appendChild(particle);
+  }
+
+  // Animate stat bars on load
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      document.querySelectorAll('.stat-bar-fill').forEach(bar => {
+        bar.style.width = bar.getAttribute('data-width');
+      });
+
+      const ring = document.getElementById('potentialRing');
+      if (ring) {
+        ring.classList.add('animated');
+      }
+    }, 500);
+  });
+</script>
+
+</body>
+</html>

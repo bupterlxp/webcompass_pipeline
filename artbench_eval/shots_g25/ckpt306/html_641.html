@@ -1,0 +1,90 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Annotator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="brand">
+      <i class="fa-solid fa-pen-ruler"></i>
+      <h1>Image Annotator</h1>
+    </div>
+    <div class="actions">
+      <div class="upload-btn" id="uploadBtn">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload</span>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <button class="btn" id="clearBtn" title="Clear canvas">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+      <button class="btn" id="exportBtn" title="Export annotated image">
+        <i class="fa-solid fa-download"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="canvas-panel">
+      <div class="canvas-frame" id="canvasFrame">
+        <canvas id="canvas"></canvas>
+        <div class="canvas-empty" id="canvasEmpty">
+          <i class="fa-regular fa-image"></i>
+          <p>Drop an image or click <strong>Upload</strong> to begin</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3>Tools</h3>
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="select" title="Select">
+            <i class="fa-solid fa-mouse-pointer"></i>
+          </button>
+          <button class="tool-btn" data-tool="rectangle" title="Rectangle">
+            <i class="fa-solid fa-square"></i>
+          </button>
+          <button class="tool-btn" data-tool="circle" title="Circle">
+            <i class="fa-solid fa-circle"></i>
+          </button>
+          <button class="tool-btn" data-tool="text" title="Text">
+            <i class="fa-solid fa-font"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Properties</h3>
+        <div class="prop">
+          <label>Color</label>
+          <div class="color-row">
+            <input type="color" id="colorInput" value="#FF5722">
+            <input type="text" id="colorText" value="#FF5722" maxlength="7">
+          </div>
+        </div>
+        <div class="prop">
+          <label>Stroke</label>
+          <input type="range" id="strokeInput" min="1" max="10" value="3">
+        </div>
+        <div class="prop">
+          <label>Fill</label>
+          <input type="checkbox" id="fillInput" checked>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>History</h3>
+        <div class="history" id="history"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

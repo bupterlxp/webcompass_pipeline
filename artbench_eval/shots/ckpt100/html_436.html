@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Simulation — Sunrise to Sunset</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #000;
+    color: #fff;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+    cursor: crosshair;
+  }
+  #canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    touch-action: none;
+  }
+  #hud {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    color: #fff;
+    font-size: 14px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    pointer-events: none;
+    z-index: 10;
+  }
+  #hud span {
+    display: inline-block;
+    margin-right: 16px;
+    min-width: 80px;
+    text-align: right;
+  }
+  #hud .time { font-size: 18px; font-weight: bold; }
+  #hud .angle { color: #ff9900; }
+  #hud .phase { color: #9cf; }
+  #hud .speed { color: #66ffcc; }
+  #controls {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    color: #fff;
+    font-size: 13px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    pointer-events: none;
+    z-index: 10;
+  }
+  #controls button {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-right: 8px;
+    transition: background 0.2s;
+  }
+  #controls button:hover { background: rgba(255,255,255,0.2); }
+  #controls button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  #speed { width: 80px; padding: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; font-size: 12px; }
+  #speed:focus { outline: 2px solid #fff; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="hud">
+  <span class="time"><b>Time:</b> <span id="timeText">00:00</span></span>
+  <span class="angle"><b>Angle:</b> <span id="angleText">0.0°</span></span>
+  <span class="phase"><b>Phase:</b> <span id="phaseText">Night</span></span>
+  <span class="speed"><b>Speed:</b> <span id="speedText">Normal</span></span>
+</div>
+
+<div id="controls">
+  <button id="btnStart" onclick="togglePlay()">▶ Play / Pause</button>
+  <button id="btnReset">↻ Reset</button>
+  <label for="speed">Speed:</label>
+  <input type="range" id="speed" min="0.1" max="4" step="0.1" value="1" />
+</div>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const timeText = document.getElementById('timeText');
+  const angleText = document.getElementById('angleText');
+  const phaseText = document.getElementById('phaseText');
+  const speedText = document.getElementById('speedText');
+  const btnStart = document.getElementById('btnStart');
+  const btnReset = document.getElementById('btnReset');
+  const speedSlider = document.getElementById('speed');
+
+  // State
+  const state = {
+    time: 0,           // seconds since start
+    startTime: 0,
+    elapsed: 0,
+    speed: 1,
+    paused: false,
+    startHour: 6,
+    endHour: 18,
+    phase: 'night',    // 'night' | 'day' | 'dusk'
+    angle: 0,          // degrees from horizon (0 = horizon, 90 = zenith)
+    dayLength: 12 * 60, // seconds
+    lastFrame: 0,
+    stars: [],
+    moon: null,
+  };
+
+  // ---------- Canvas sizing ----------
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // ---------- Starfield ----------
+  function initStars() {
+    state.stars = [];
+    const count = 120;
+    for (let i = 0; i < count; i++) {
+      state.stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.4 + 0.3,
+        twinkle: Math.random() * Math.PI * 2,
+        twinkleSpeed: Math.random() * 0.004 + 0.001,
+        alpha: Math.random() * 0.6 + 0.2,
+      });
+    }
+  }
+
+  // ---------- Moon ----------
+  function initMoon() {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const r = Math.min(canvas.width, canvas.height) * 0.22;
+    const phase = 0.5;
+    state.moon = {
+      cx, cy, r,
+      phase,
+      phaseSpeed: 0.0008,
+      twinkle: Math.random() * Math.PI * 2,
+      twinkleSpeed: 0.004,
+    };
+  }
+
+  // ---------- Sky gradient ----------
+  function getSkyGradient(t) {
+    // t in [0,1] where 0 = sunrise, 1 = sunset
+    const phase = t;
+
+    // Sky color interpolation
+    let skyR, skyG, skyB;
+    if (phase < 0.5) {
+      // Morning
+      skyR = 220 + (255 - 220) * phase * 2;
+      skyG = 240 + (255 - 240) * phase * 2;
+      skyB = 255;
+    } else {
+      // Evening
+      skyR = 255;
+      skyG = 220 + (240 - 220) * (phase - 0.5) * 2;
+      skyB = 220 + (255 - 220) * (phase - 0.5) * 2;
+    }
+
+    // Horizon gradient
+    const horizon = 0.15;
+    const horizonR = skyR * 0.5;
+    const horizonG = skyG * 0.5;
+    const horizonB = skyB * 0.5;
+
+    return {
+      sky: [skyR, skyG, skyB],
+      horizon: [horizonR, horizonG, horizonB],
+    };
+  }
+
+  // ---------- Draw sky ----------
+  function drawSky() {
+    const { sky, horizon } = getSkyGradient(state.time / state.dayLength);
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, `rgb(${sky[0]}, ${sky[1]}, ${sky[2]})`);
+    g.addColorStop(1, `rgb(${horizon[0]}, ${horizon[1]}, ${horizon[2]})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ---------- Horizon / mountains ----------
+  function drawHorizon() {
+    const cx = canvas.width / 2;
+    const cy = canvas.height * 0.58;
+
+    // Ground
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    ctx.lineTo(cx, canvas.height);
+    ctx.lineTo(cx + 100, canvas.height);
+    ctx.lineTo(cx + 100, canvas.height - 10);
+    ctx.lineTo(cx - 100, canvas.height - 10);
+    ctx.lineTo(cx - 100, canvas.height);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fill();
+
+    // Mountains silhouette
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    ctx.lineTo(120, canvas.height - 140);
+    ctx.lineTo(240, canvas.height - 80);
+    ctx.lineTo(360, canvas.height - 180);
+    ctx.lineTo(480, canvas.height - 100);
+    ctx.lineTo(600, canvas.height - 200);
+    ctx.lineTo(720, canvas.height - 90);
+    ctx.lineTo(840, canvas.height - 160);
+    ctx.lineTo(960, canvas.height - 110);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fill();
+
+    // Shadow under mountains
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    ctx.lineTo(120, canvas.height - 140);
+    ctx.lineTo(240, canvas.height - 80);
+    ctx.lineTo(360, canvas.height - 180);
+    ctx.lineTo(480, canvas.height - 100);
+    ctx.lineTo(600, canvas.height - 200);
+    ctx.lineTo(720, canvas.height - 90);
+    ctx.lineTo(840, canvas.height - 160);
+    ctx.lineTo(960, canvas.height - 110);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fill();
+  }
+
+  // ---------- Sun ----------
+  function drawSun() {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    // Sun position: centered horizontally, offset vertically by angle
+    const sunRadius = Math.min(canvas.width, canvas.height) * 0.085;
+    const sunX = cx;
+    const sunY = cy - sunRadius * Math.sin(state.angle * Math.PI / 180);
+
+    // Sun glow
+    const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius * 2.2);
+    glow.addColorStop(0, 'rgba(255, 230, 140, 0.95)');
+    glow.addColorStop(0.4, 'rgba(255, 200, 100, 0.55)');
+    glow.addColorStop(1, 'rgba(255, 180, 80, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunRadius * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun disc
+    const disc = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius);
+    disc.addColorStop(0, '#fff8c6');
+    disc.addColorStop(0.35, '#ffe080');
+    disc.addColorStop(0.7, '#ff9a2e');
+    disc.addColorStop(1, '#ff6a00');
+    ctx.fillStyle = disc;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun rays
+    ctx.strokeStyle = '#ff8a00';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#ff8a00';
+    ctx.shadowBlur = 20;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + Math.PI / 2;
+      const x1 = sunX + Math.cos(a) * sunRadius * 0.6;
+      const y1 = sunY + Math.sin(a) * sunRadius * 0.6;
+      const x2 = sunX + Math.cos(a) * sunRadius * 3.2;
+      const y2 = sunY + Math.sin(a) * sunRadius * 3.2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // ---------- Moon ----------
+  function drawMoon() {
+    if (!state.moon) return;
+    const { cx, cy, r, phase, twinkle } = state.moon;
+    const phaseR = phase * 0.5 + 0.5;
+    const alpha = 0.75 + Math.sin(twinkle) * 0.25;
+
+    // Moon glow
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2.2);
+    glow.addColorStop(0, 'rgba(230, 240, 255, 0.9)');
+    glow.addColorStop(0.5, 'rgba(200, 220, 240, 0.3)');
+    glow.addColorStop(1, 'rgba(180, 200, 220, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Moon disc
+    const disc = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    disc.addColorStop(0, '#ffffff');
+    disc.addColorStop(0.4, '#e8f0f8');
+    disc.addColorStop(0.8, '#c8d8e0');
+    disc.addColorStop(1, '#a8b8c0');
+    ctx.fillStyle = disc;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Moon crater texture
+    ctx.strokeStyle = '#8898a8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.35, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.22, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Phase crescent
+    if (phaseR < 1) {
+      const crescent = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.6);
+      crescent.addColorStop(0, '#ffffff');
+      crescent.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = crescent;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ---------- Stars ----------
+  function drawStars() {
+    if (state.phase !== 'night') return;
+    for (const s of state.stars) {
+      const tw = 0.5 + 0.5 * Math.sin(s.twinkle);
+      ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha * tw})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ---------- Time formatting ----------
+  function formatTime(sec) {
+    const totalSec = sec % (state.dayLength * 2);
+    const hour = Math.floor(totalSec / 3600);
+    const minute = Math.floor((totalSec % 3600) / 60);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const h12 = ((hour + 11) % 12) + 1;
+    return `${String(h12).padStart(2,'0')}:${String(minute).padStart(2,'0')} ${period}`;
+  }
+
+  function updateHUD() {
+    timeText.textContent = formatTime(state.time);
+    angleText.textContent = Math.round(state.angle).toFixed(1) + '°';
+    phaseText.textContent = state.phase;
+    speedText.textContent = state.speed === 1 ? 'Normal' : state.speed < 1 ? 'Slow' : 'Fast';
+  }
+
+  // ---------- Animation loop ----------
+  function loop(ts) {
+    if (!state.lastFrame) state.lastFrame = ts;
+    const dt = Math.min(50, ts - state.lastFrame) / 1000;
+    state.lastFrame = ts;
+
+    if (!state.paused) {
+      state.elapsed += dt * state.speed;
+      state.time = state.elapsed;
+      state.angle = Math.min(90, state.angle + dt * state.speed * 0.15);
+    }
+
+    // Phase transition
+    const t = state.time / state.dayLength;
+    const phaseT = Math.sin(t * Math.PI * 2);
+    state.phase = phaseT < 0.1 ? 'night' : phaseT > 0.9 ? 'night' : 'day';
+
+    // Moon phase
+    if (state.phase === 'night') {
+      state.moon.phase = 0.5 + 0.5 * Math.sin(state.time * 0.0008);
+    }
+
+    // Stars twinkle
+    for (const s of state.stars) {
+      s.twinkle += s.twinkleSpeed;
+    }
+    if (state.moon) {
+      state.moon.twinkle += state.moon.twinkleSpeed;
+    }
+
+    // Redraw
+    drawSky();
+    drawHorizon();
+    drawSun();
+    drawMoon();
+    drawStars();
+
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Controls ----------
+  function togglePlay() {
+    state.paused = !state.paused;
+    btnStart.textContent = state.paused ? '▶ Play' : '❚❚❚ Pause';
+  }
+
+  function reset() {
+    state.time = 0;
+    state.angle = 0;
+    state.phase = 'night';
+    state.elapsed = 0;
+    state.paused = false;
+    state.lastFrame = 0;
+    updateHUD();
+  }
+
+  function setSpeed(v) {
+    state.speed = v;
+    speedSlider.value = v;
+  }
+
+  btnReset.addEventListener('click', reset);
+  speedSlider.addEventListener('input', (e) => setSpeed(parseFloat(e.target.value)));
+
+  // ---------- Init ----------
+  function init() {
+    resizeCanvas();
+    initStars();
+    initMoon();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('focus', () => { state.paused = false; });
+  window.addEventListener('blur', () => { state.paused = true; });
+
+  init();
+</script>
+</body>
+</html>

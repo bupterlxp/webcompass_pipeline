@@ -1,0 +1,84 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SEO Analysis Report — {report['url']}</title>
+<style>
+  body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 32px; color: #1f2937; line-height: 1.6; }}
+  h1 {{ color: #0f172a; border-bottom: 2px solid #0ea5e9; padding-bottom: 8px; margin-top: 0; }}
+  h2 {{ color: #0f172a; margin-top: 24px; }}
+  h3 {{ color: #0f172a; margin-top: 16px; }}
+  table {{ border-collapse: collapse; width: 100%; margin-top: 8px; }}
+  th, td {{ padding: 8px; border: 1px solid #e5e7eb; text-align: left; }}
+  th {{ background: #f1f5f9; font-weight: 600; }}
+  .metric {{ background: #f8fafc; border-left: 4px solid #0ea5e9; padding: 8px 12px; margin: 4px 0; }}
+  .metric.good {{ background: #ecfdf5; border-left-color: #16a34a; }}
+  .metric.warn {{ background: #fffbeb; border-left-color: #d97706; }}
+  .metric.bad {{ background: #fef2f2; border-left-color: #dc2626; }}
+  .highlight {{ background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; }}
+  .error {{ background: #fee2e2; color: #991b1b; padding: 6px 10px; border-radius: 4px; border-left: 4px solid #dc2626; }}
+  .ok {{ color: #16a34a; font-weight: 600; }}
+  .bad {{ color: #dc2626; font-weight: 600; }}
+  .warn {{ color: #d97706; font-weight: 600; }}
+  .info {{ color: #0369a1; font-weight: 600; }}
+  .score {{ display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 0.9em; }}
+  .score.good {{ background: #dcfce7; color: #166534; }}
+  .score.warn {{ background: #fef3c7; color: #92400e; }}
+  .score.bad {{ background: #fee2e2; color: #991b1b; }}
+</style>
+</head>
+<body>
+
+<h1>SEO Analysis Report</h1>
+<p><strong>URL:</strong> <a href="{report['url']}" target="_blank" rel="noopener">{report['url']}</a></p>
+<p><strong>Domain:</strong> <span class="highlight">{report['domain']}</span></p>
+<p><strong>Timestamp:</strong> {report['timestamp']}</p>
+
+{render_errors(report)}
+
+<h2>1. Page Load & Performance</h2>
+<div class="metric">
+  <div><strong>Load Time:</strong> <span class="score {report['metrics'].get('load_time_grade', 'bad')}">{report['metrics'].get('load_time_grade', '—')}</span></div>
+  <div><strong>Seconds:</strong> {report['metrics'].get('load_time_seconds', '—')}</div>
+  <div><strong>SSL Secure:</strong> {report['metrics'].get('ssl_secure', '—') and '✓' or '✗'}</div>
+</div>
+
+<h2>2. Meta Tags</h2>
+<table>
+  <tr><th>Tag</th><th>Content</th></tr>
+  <tr><td>Meta Title</td><td><span class="highlight">{report['metrics'].get('meta_title', '—')}</span></td></tr>
+  <tr><td>Meta Description</td><td><span class="highlight">{report['metrics'].get('meta_description', '—')}</span></td></tr>
+  <tr><td>Meta Keywords</td><td><span class="highlight">{report['metrics'].get('meta_keywords', '—')}</span></td></tr>
+  <tr><td>Meta Robots</td><td><span class="highlight">{report['metrics'].get('meta_robots', '—')}</span></td></tr>
+  <tr><td>Canonical</td><td><span class="highlight">{report['metrics'].get('meta_canonical', '—')}</span></td></tr>
+</table>
+
+<h2>3. Headings (H1–H6)</h2>
+<table>
+  <tr><th>Heading</th><th>Count</th></tr>
+  {render_headings(report)}
+</table>
+
+<h2>4. Links</h2>
+<h3>Internal Links ({len(report['metrics']['internal_links'])})</h3>
+{render_links_table(report['metrics']['internal_links'], 'Internal')}
+<h3>External Links ({len(report['metrics']['external_links'])})</h3>
+{render_links_table(report['metrics']['external_links'], 'External')}
+<h3>Broken Links ({len(report['metrics']['broken_links'])})</h3>
+{render_links_table(report['metrics']['broken_links'], 'Broken')}
+
+<h2>5. Images</h2>
+<table>
+  <tr><th>Src</th><th>Alt</th><th>Title</th></tr>
+  {render_images_table(report['metrics']['images'])}
+</table>
+
+<h2>6. Keyword Density</h2>
+<p><strong>Word Count:</strong> {report['metrics'].get('word_count', '—')}</p>
+{render_keyword_density(report['metrics']['keyword_density'])}
+
+<h2>7. Sitemap</h2>
+<p><strong>Found sitemap URLs:</strong> {len(report['metrics'].get('sitemap_urls', []))}</p>
+{render_sitemap_table(report['metrics'].get('sitemap_urls', []))}
+
+</body>
+</html>

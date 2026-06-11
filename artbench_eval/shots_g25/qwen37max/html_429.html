@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Gravity Drift — 3D Space Flight</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; background:#000; color:#9ef;
+               font-family: "Consolas", monospace; }
+  #hud {
+    position: fixed; top: 12px; left: 12px; padding: 10px 14px;
+    background: rgba(0,20,40,0.55); border: 1px solid #0af3;
+    border-radius: 6px; font-size: 13px; line-height: 1.55;
+    pointer-events: none; text-shadow: 0 0 4px #0af;
+  }
+  #hud b { color:#fff; }
+  #msg {
+    position: fixed; top: 40%; left: 0; right: 0; text-align: center;
+    font-size: 42px; color:#f66; text-shadow: 0 0 12px #f00;
+    pointer-events: none; display:none;
+  }
+  #help {
+    position: fixed; bottom: 10px; left: 12px; font-size: 12px;
+    color:#6cf8; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div>Speed: <b id="spd">0</b> u/s</div>
+  <div>Thrust: <b id="thr">0</b></div>
+  <div>Nearest: <b id="near">—</b></div>
+  <div>Gravity pull: <b id="gforce">0</b></div>
+  <div>Visited: <b id="vis">0</b> / <b id="tot">0</b></div>
+</div>
+<div id="msg"></div>
+<div id="help">↑/↓ or W/S : thrust &nbsp;|&nbsp; ←/→ or A/D : yaw &nbsp;|&nbsp; Q/E : pitch &nbsp;|&nbsp; R : reset</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+/* =========================================================
+   Gravity Drift — Newtonian 3D space flight
+   Physics: a_ship = Σ ( G * M_planet / r^2 ) * r_hat  +  thrust
+   ========================================================= */
+
+const G = 800;                 // gravitational constant (tuned for gameplay)
+const MAX_THRUST = 60;         // max player thrust acceleration
+const THRUST_STEP = 1.2;       // how fast thrust ramps
+const YAW_SPEED = 1.2;
+const PITCH_SPEED = 1.2;
+const CRASH_SPEED = 35;        // impact speed that destroys the ship
+
+// ---------- Scene setup ----------
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000010, 0.0008);
+
+const camera = new THREE.PerspectiveCamera(
+  70, innerWidth/innerHeight, 0.1, 10000);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x334466, 0.6));
+const sun = new THREE.PointLight(0xffffff, 1.6, 0, 1.2);
+sun.position.set(0,0,0);
+scene.add(sun);
+
+// ---------- Starfield ----------
+(function makeStars(){
+  const geo = new THREE.BufferGeometry();
+  const N = 4000, pos = new Float32Array(N*3), col = new Float32Array(N*3);
+  for (let i=0;i<N;i++){
+    const r = 2000 + Math.random()*3000;
+    const t = Math.random()*Math.PI*2;
+    const p = Math.acos(2*Math.random()-1);
+    pos[i*3]   = r*Math.sin(p)*Math.cos(t);
+    pos[i*3+1] = r*Math.sin(p)*Math.sin(t);
+    pos[i*3+2] = r*Math.cos(p);
+    const c = 0.6 + Math.random()*0.4;
+    col[i*3]=c; col[i*3+1]=c; col[i*3+2]=c+Math.random()*0.2;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col,3));
+  const mat = new THREE.PointsMaterial({size:2.2, vertexColors:true,
+                                        sizeAttenuation:false});
+  scene.add(new THREE.Points(geo, mat));
+})();
+
+// ---------- Central star ----------
+const starGeo = new THREE.SphereGeometry(40, 48, 48);
+const starMat = new THREE.MeshBasicMaterial({ color: 0xffcc66 });
+const starMesh = new THREE.Mesh(starGeo, starMat);
+scene.add(starMesh);
+// glow
+const glow = new THREE.Mesh(
+  new THREE.SphereGeometry(55, 32, 32),
+  new THREE.MeshBasicMaterial({ color:0xffaa33, transparent:true, opacity:0.25 })
+);
+scene.add(glow);
+
+// ---------- Planets ----------
+const planets = [];
+const planetDefs = [
+  { name:"Pyra",   r:14, dist:180,  mass:2200, color:0xff5533, speed:0.15 },
+  { name:"Aqua",   r:18, dist:300,  mass:4500, color:0x3399ff, speed:0.10 },
+  { name:"Verdant",r:22, dist:460,  mass:7000, color:0x44cc66, speed:0.07 },
+  { name:"Kronos", r:34, dist:700,  mass:18000,color:0xccaa55, speed:0.045, ring:true },
+  { name:"Nyx",    r:12, dist:900,  mass:1500, color:0x8866cc, speed:0.035 },
+  { name:"Glacius",r:26, dist:1150, mass:9000, color:0xaaddff, speed:0.028 },
+];
+planetDefs.forEach((d,i)=>{
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(d.r, 40, 40),
+    new THREE.MeshStandardMaterial({ color:d.color, roughness:0.8, metalness:0.1 })
+  );
+  const angle = (i/planetDefs.length)*Math.PI*2;
+  mesh.position.set(Math.cos(angle)*d.dist, 0, Math.sin(angle)*d.dist);
+  scene.add(mesh);
+
+  // orbit ring
+  const ringGeo = new THREE.RingGeometry(d.dist-0.5, d.dist+0.5, 200);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color:0x335577, side:THREE.DoubleSide, transparent:true, opacity:0.25 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI/2;
+  scene.add(ring);
+
+  // Saturn-like ring
+  if (d.ring){
+    const sr = new THREE.Mesh(
+      new THREE.RingGeometry(d.r*1.4, d.r*2.2, 64),
+      new THREE.MeshBasicMaterial({ color:0xddcc88, side:THREE.DoubleSide,
+                                    transparent:true, opacity:0.7 })
+    );
+    sr.rotation.x = Math.PI/2.3;
+    mesh.add(sr);
+  }
+
+  planets.push({
+    mesh, name:d.name, radius:d.r, mass:d.mass,
+    dist:d.dist, angle, speed:d.speed, visited:false
+  });
+});
+document.getElementById('tot').textContent = planets.length;
+
+// ---------- Ship ----------
+const ship = new THREE.Group();
+const body = new THREE.Mesh(
+  new THREE.ConeGeometry(1.5, 6, 8),
+  new THREE.MeshStandardMaterial({ color:0xccccdd, metalness:0.7, roughness:0.3 })
+);
+body.rotation.x = Math.PI/2; // point forward (-Z)
+ship.add(body);
+const wing = new THREE.Mesh(
+  new THREE.BoxGeometry(6, 0.3, 2),
+  new THREE.MeshStandardMaterial({ color:0x556688, metalness:0.5 })
+);
+ship.add(wing);
+// engine glow
+const engineGlow = new THREE.Mesh(
+  new THREE.SphereGeometry(1.2, 16, 16),
+  new THREE.MeshBasicMaterial({ color:0x66ccff, transparent:true, opacity:0.0 })
+);
+engineGlow.position.z = 3.2;
+ship.add(engineGlow);
+
+ship.position.set(120, 20, 0);
+scene.add(ship);
+
+// ship state
+const state = {
+  vel: new THREE.Vector3(0, 0, -18), // initial orbital-ish velocity
+  thrust: 0,
+  alive: true
+};
+
+// ---------- Input ----------
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true;
+  if (e.code==='KeyR') resetShip(); });
+addEventListener('keyup',   e => { keys[e.code] = false; });
+
+function resetShip(){
+  ship.position.set(120, 20, 0);
+  ship.rotation.set(0,0,0);
+  state.vel.set(0,0,-18);
+  state.thrust = 0;
+  state.alive = true;
+  document.getElementById('msg').style.display='none';
+}
+
+// ---------- Main loop ----------
+const clock = new THREE.Clock();
+const tmpV = new THREE.Vector3();
+
+function updatePlanets(dt){
+  planets.forEach(p=>{
+    p.angle += p.speed * dt;
+    p.mesh.position.set(
+      Math.cos(p.angle)*p.dist,
+      0,
+      Math.sin(p.angle)*p.dist
+    );
+    p.mesh.rotation.y += dt*0.3;
+  });
+}
+
+function physicsStep(dt){
+  if (!state.alive) return;
+
+  // --- rotation ---
+  if (keys['ArrowLeft']  || keys['KeyA']) ship.rotation.y +=  YAW_SPEED*dt;
+  if (keys['ArrowRight'] || keys['KeyD']) ship.rotation.y += -YAW_SPEED*dt;
+  if (keys['KeyQ']) ship.rotation.x +=  PITCH_SPEED*dt;
+  if (keys['KeyE']) ship.rotation.x += -PITCH_SPEED*dt;
+
+  // --- thrust ---
+  if (keys['ArrowUp']   || keys['KeyW']) state.thrust = Math.min(MAX_THRUST, state.thrust + THRUST_STEP);
+  else if (keys['ArrowDown'] || keys['KeyS']) state.thrust = Math.max(0, state.thrust - THRUST_STEP);
+  else state.thrust *= 0.985; // slight drag when idle
+
+  // forward direction in world space (ship looks down -Z locally)
+  const forward = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+
+  // --- gravity from every planet + central star ---
+  const acc = new THREE.Vector3();
+  let nearest = null, nearestDist = Infinity, totalG = 0;
+
+  // central star gravity
+  tmpV.copy(starMesh.position).sub(ship.position);
+  let r = tmpV.length();
+  if (r < 40){ crash("Burned up in the star!"); return; }
+  const aStar = G * 25000 / (r*r);
+  acc.add(tmpV.normalize().multiplyScalar(aStar));
+  totalG += aStar;
+
+  planets.forEach(p=>{
+    tmpV.copy(p.mesh.position).sub(ship.position);
+    r = tmpV.length();
+    if (r < nearestDist){ nearestDist = r; nearest = p; }
+    const a = G * p.mass / (r*r);
+    acc.add(tmpV.normalize().multiplyScalar(a));
+    totalG += a;
+
+    // collision
+    if (r < p.radius + 1.5){
+      const impactSpeed = state.vel.length();
+      if (impactSpeed > CRASH_SPEED){
+        crash(`Crashed into ${p.name} at ${impactSpeed.toFixed(1)} u/s`);
+      } else {
+        // soft landing / capture
+        if (!p.visited){
+          p.visited = true;
+          document.getElementById('vis').textContent =
+            planets.filter(x=>x.visited).length;
+          flash(`Captured by ${p.name}!`);
+        }
+        // stick to surface, kill velocity
+        state.vel.set(0,0,0);
+        const surf = tmpV.normalize().multiplyScalar(p.radius + 2);
+        ship.position.copy(p.mesh.position).sub(surf);
+      }
+      return;
+    }
+  });
+
+  // --- apply thrust ---
+  acc.add(forward.multiplyScalar(state.thrust));
+
+  // --- integrate (semi-implicit Euler) ---
+  state.vel.add(acc.multiplyScalar(dt));
+  ship.position.add(tmpV.copy(state.vel).multiplyScalar(dt));
+
+  // engine glow scales with thrust
+  engineGlow.material.opacity = 0.3 + 0.7*(state.thrust/MAX_THRUST);
+  engineGlow.scale.setScalar(0.6 + 1.4*(state.thrust/MAX_THRUST));
+
+  // --- HUD ---
+  document.getElementById('spd').textContent  = state.vel.length().toFixed(1);
+  document.getElementById('thr').textContent  = state.thrust.toFixed(1);
+  document.getElementById('gforce').textContent = totalG.toFixed(2);
+  if (nearest){
+    document.getElementById('near').textContent =
+      `${nearest.name} (${nearestDist.toFixed(0)} u)`;
+  }
+}
+
+function crash(reason){
+  state.alive = false;
+  const m = document.getElementById('msg');
+  m.textContent = reason + "  — press R to restart";
+  m.style.display = 'block';
+}
+function flash(text){
+  const m = document.getElementById('msg');
+  m.style.color = '#6f6'; m.style.textShadow='0 0 12px #0f0';
+  m.textContent = text; m.style.display='block';
+  setTimeout(()=>{ m.style.display='none';
+    m.style.color='#f66'; m.style.textShadow='0 0 12px #f00'; }, 1500);
+}
+
+// ---------- Camera follow ----------
+function updateCamera(){
+  const back = new THREE.Vector3(0, 3, 14).applyQuaternion(ship.quaternion);
+  const target = ship.position.clone().add(back);
+  camera.position.lerp(target, 0.15);
+  camera.lookAt(ship.position);
+}
+
+// ---------- Resize ----------
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- Animate ----------
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  updatePlanets(dt);
+  physicsStep(dt);
+  updateCamera();
+  starMesh.rotation.y += dt*0.05;
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

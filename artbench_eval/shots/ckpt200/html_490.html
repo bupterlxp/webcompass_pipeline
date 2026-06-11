@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Background Video Generator</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f1419;
+    color: #e6edf3;
+    overflow: hidden;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 100vh;
+  }
+  .sidebar {
+    background: #1a2028;
+    padding: 20px;
+    overflow-y: auto;
+    border-right: 1px solid #2a333d;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 16px; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    margin-top: 6px;
+    background: #2a333d;
+    color: #e6edf3;
+    border: 1px solid #3a444f;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background: #3a444f; border-color: #4a5560; }
+  .btn:active { transform: translateY(1px); }
+  .btn.active { background: #007bff; border-color: #007bff; }
+  .btn-group { display: flex; flex-direction: column; gap: 4px; }
+  .field { margin-top: 12px; }
+  label { display: block; font-size: 12px; color: #9aa7b2; margin-bottom: 4px; }
+  input[type="text"], input[type="number"], input[type="color"], select {
+    width: 100%;
+    padding: 8px 10px;
+    background: #2a333d;
+    border: 1px solid #3a444f;
+    color: #e6edf3;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, input[type="color"]:focus, select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.2);
+  }
+  .layers-list { margin-top: 16px; }
+  .layer-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #2a333d;
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .layer-item .name { flex: 1; font-size: 13px; }
+  .layer-item .remove { color: #c0392b; cursor: pointer; font-size: 14px; }
+  .layer-item .remove:hover { color: #e74c3c; }
+  .preview-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000;
+  }
+  .canvas-wrap {
+    position: absolute;
+    inset: 0;
+    background: #000;
+  }
+  .canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .player-controls {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    display: flex;
+    gap: 10px;
+    background: rgba(15,20,25,0.75);
+    backdrop-filter: blur(8px);
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .player-controls .btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  .player-controls .btn.active { background: #007bff; }
+  .player-controls .progress {
+    flex: 1;
+    height: 4px;
+    background: #2a333d;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+  }
+  .player-controls .progress::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 0;
+    height: 100%;
+    background: #007bff;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+  }
+  .player-controls .time { font-size: 12px; color: #e6edf3; }
+
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid #2a333d; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="panel">
+      <h2>Background</h2>
+      <div class="btn-group">
+        <button class="btn active" data-bg="particles">Particles</button>
+        <button class="btn" data-bg="smoke">Smoke</button>
+        <button class="btn" data-bg="fire">Fire</button>
+        <button class="btn" data-bg="wave">Wave</button>
+        <button class="btn" data-bg="none">None</button>
+      </div>
+      <div class="field">
+        <label for="bgColor">Background Color</label>
+        <input type="color" id="bgColor" value="#000000" />
+      </div>
+      <div class="field">
+        <label for="bgSpeed">Speed</label>
+        <input type="range" id="bgSpeed" min="0" max="200" value="100" />
+        <span id="bgSpeedVal" style="display:inline-block; margin-left:8px; color:#9aa7b2; font-size:12px;">100%</span>
+      </div>
+      <div class="field">
+        <label for="bgDensity">Density</label>
+        <input type="range" id="bgDensity" min="0" max="200" value="100" />
+        <span id="bgDensityVal" style="display:inline-block; margin-left:8px; color:#9aa7b2; font-size:12px;">100%</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Text Layer</h2>
+      <div class="field">
+        <label for="txtContent">Content</label>
+        <input type="text" id="txtContent" value="Hello World" />
+      </div>
+      <div class="field">
+        <label for="txtSize">Size</label>
+        <input type="number" id="txtSize" min="10" max="200" value="64" />
+      </div>
+      <div class="field">
+        <label for="txtColor">Color</label>
+        <input type="color" id="txtColor" value="#ffffff" />
+      </div>
+      <div class="field">
+        <label for="txtX">X</label>
+        <input type="number" id="txtX" min="0" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label for="txtY">Y</label>
+        <input type="number" id="txtY" min="0" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label for="txtAlign">Align</label>
+        <select id="txtAlign">
+          <option value="center">Center</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
+      <button class="btn" id="addTextBtn">Add Text Layer</button>
+    </div>
+
+    <div class="panel">
+      <h2>Image Layer</h2>
+      <div class="field">
+        <label for="imgFile">Upload Image</label>
+        <input type="file" id="imgFile" accept="image/*" />
+      </div>
+      <div class="field">
+        <label for="imgX">X</label>
+        <input type="number" id="imgX" min="0" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label for="imgY">Y</label>
+        <input type="number" id="imgY" min="0" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label for="imgW">Width</label>
+        <input type="number" id="imgW" min="10" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label for="imgH">Height</label>
+        <input type="number" id="imgH" min="10" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label for="imgColor">Color</label>
+        <input type="color" id="imgColor" value="#ffffff" />
+      </div>
+      <button class="btn" id="addImageBtn">Add Image Layer</button>
+    </div>
+
+    <div class="panel">
+      <h2>Animation</h2>
+      <div class="field">
+        <label for="animType">Effect</label>
+        <select id="animType">
+          <option value="fade">Fade</option>
+          <option value="zoom">Zoom</option>
+          <option value="slide">Slide</option>
+          <option value="pulse">Pulse</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="animDur">Duration (s)</label>
+        <input type="number" id="animDur" min="0.1" max="10" step="0.1" value="2" />
+      </div>
+      <div class="field">
+        <label for="animStart">Start (s)</label>
+        <input type="number" id="animStart" min="0" max="10" step="0.1" value="0" />
+      </div>
+      <div class="field">
+        <label for="animEasing">Easing</label>
+        <select id="animEasing">
+          <option value="ease">ease</option>
+          <option value="ease-in">ease-in</option>
+          <option value="ease-out">ease-out</option>
+          <option value="ease-in-out">ease-in-out</option>
+          <option value="linear">linear</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Layers</h2>
+      <div class="layers-list" id="layersList"></div>
+      <button class="btn" id="clearLayers">Clear All</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="preview-wrap" id="previewWrap">
+      <div class="canvas-wrap" id="canvasWrap"></div>
+      <div class="player-controls" id="playerControls">
+        <button class="btn" id="playBtn" title="Play/Pause">▶</button>
+        <button class="btn" id="stopBtn" title="Stop">■</button>
+        <div class="progress" id="progress"></div>
+        <span class="time" id="currentTime">00:00 / 00:00</span>
+        <button class="btn" id="exportBtn" title="Export as WebM">Export</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// =========================================================
+// State
+// =========================================================
+const state = {
+  bgType: 'particles',
+  bgColor: '#000000',
+  bgSpeed: 100,
+  bgDensity: 100,
+  layers: [],
+  animType: 'fade',
+  animDur: 2,
+  animStart: 0,
+  animEasing: 'ease',
+  previewPlaying: false,
+  previewTime: 0,
+  previewDuration: 3,
+  lastFrame: 0,
+  lastTime: 0,
+  recorder: null,
+  stream: null,
+  recordedChunks: [],
+  previewCanvas: null,
+  previewCtx: null,
+  previewWidth: 1280,
+  previewHeight: 720,
+  fps: 30,
+};
+
+// =========================================================
+// DOM refs
+// =========================================================
+const $ = (id) => document.getElementById(id);
+const canvasWrap = $('canvasWrap');
+const previewWrap = $('previewWrap');
+const previewCanvas = document.createElement('canvas');
+previewCanvas.width = state.previewWidth;
+previewCanvas.height = state.previewHeight;
+state.previewCanvas = previewCanvas;
+state.previewCtx = previewCanvas.getContext('2d');
+
+canvasWrap.appendChild(previewCanvas);
+
+// =========================================================
+// Background rendering
+// =========================================================
+const BACKGROUND_PAINTERS = {
+  particles: (ctx, w, h, t, speed, density) => {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#3a444f');
+    g.addColorStop(1, '#0a0f14');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    const count = Math.floor((density / 100) * 180);
+    for (let i = 0; i < count; i++) {
+      const p = particles[Math.floor(Math.random() * particles.length)];
+      const size = 1 + Math.random() * 3;
+      const alpha = 0.15 + Math.random() * 0.4;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  smoke: (ctx, w, h, t, speed, density) => {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#1a2028');
+    g.addColorStop(1, '#000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    const count = Math.floor((density / 100) * 120);
+    for (let i = 0; i < count; i++) {
+      const x = (Math.random() * w) | 0;
+      const y = h - (Math.random() * 400) | 0;
+      const vy = -Math.random() * 2 - 0.2;
+      const vx = (Math.random() - 0.5) * 0.5;
+      const alpha = 0.1 + Math.random() * 0.3;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.arc(x, y, 2 + Math.random() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  fire: (ctx, w, h, t, speed, density) => {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#1a2028');
+    g.addColorStop(1, '#000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    const count = Math.floor((density / 100) * 60);
+    for (let i = 0; i < count; i++) {
+      const x = (Math.random() * w) | 0;
+      const y = (Math.random() * 200) | 0;
+      const vy = -Math.random() * 1.5 - 0.2;
+      const vx = (Math.random() - 0.5) * 0.3;
+      const alpha = 0.15 + Math.random() * 0.35;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255,120,30,${alpha})`;
+      ctx.arc(x, y, 1 + Math.random() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  wave: (ctx, w, h, t, speed, density) => {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#0a0f14');
+    g.addColorStop(1, '#000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    const amp = 40 + (density / 100) * 60;
+    const freq = 0.008 + (density / 100) * 0.03;
+    const speedX = (speed / 100) * 0.3;
+    const y = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    for (let x = 0; x < w; x++) {
+      const yy = y + Math.sin((x * freq) + t * speedX) * amp;
+      ctx.lineTo(x, yy);
+    }
+    ctx.lineTo(w, y);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255,255,255,${0.05 + (density / 100) * 0.15})`;
+    ctx.fill();
+  },
+  none: (ctx, w, h, t, speed, density) => {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#000000');
+    g.addColorStop(1, '#000000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  },
+};
+
+const particles = [
+  { x: 400, y: 300 },
+  { x: 600, y: 200 },
+  { x: 800, y: 400 },
+  { x: 200, y: 500 },
+  { x: 700, y: 600 },
+  { x: 300, y: 100 },
+  { x: 900, y: 300 },
+  { x: 500, y: 550 },
+  { x: 150, y: 250 },
+  { x: 850, y: 150 },
+  { x: 450, y: 450 },
+  { x: 750, y: 500 },
+  { x: 250, y: 350 },
+  { x: 950, y: 200 },
+  { x: 650, y: 650 },
+  { x: 350, y: 250 },
+  { x: 800, y: 550 },
+  { x: 100, y: 400 },
+  { x: 700, y: 100 },
+  { x: 500, y: 300 },
+];
+
+// =========================================================
+// Layer types
+// =========================================================
+const TEXT_LAYER = 'text';
+const IMAGE_LAYER = 'image';
+
+function addTextLayer() {
+  const content = $('txtContent').value.trim() || 'Text';
+  const layer = {
+    id: 't_' + Date.now(),
+    type: TEXT_LAYER,
+    content,
+    size: parseInt($('txtSize').value, 10) || 64,
+    color: $('txtColor').value,
+    x: parseInt($('txtX').value, 10) || 50,
+    y: parseInt($('txtY').value, 10) || 50,
+    align: $('txtAlign').value,
+    anim: {
+      type: state.animType,
+      duration: parseFloat(state.animDur),
+      start: parseFloat(state.animStart),
+      easing: state.animEasing,
+    },
+  };
+  state.layers.push(layer);
+  renderLayersList();
+  return layer;
+}
+
+function addImageLayer() {
+  const file = $('imgFile').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const layer = {
+        id: 'i_' + Date.now(),
+        type: IMAGE_LAYER,
+        dataUrl: e.target.result,
+        x: parseInt($('imgX').value, 10) || 50,
+        y: parseInt($('imgY').value, 10) || 50,
+        w: parseInt($('imgW').value, 10) || 50,
+        h: parseInt($('imgH').value, 10) || 50,
+        color: $('imgColor').value,
+        anim: {
+          type: state.animType,
+          duration: parseFloat(state.animDur),
+          start: parseFloat(state.animStart),
+          easing: state.animEasing,
+        },
+      };
+      state.layers.push(layer);
+      renderLayersList();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderLayersList() {
+  const list = $('layersList');
+  list.innerHTML = '';
+  state.layers.forEach((layer, idx) => {
+    const el = document.createElement('div');
+    el.className = 'layer-item';
+    el.innerHTML = `
+      <span class="name">${layer.type === TEXT_LAYER ? 'Text' : 'Image'} · ${layer.content || '—'}</span>
+      <span class="remove" data-idx="${idx}">✕</span>
+    `;
+    el.querySelector('.remove').addEventListener('click', () => {
+      state.layers.splice(idx, 1);
+      renderLayersList();
+      updatePreview();
+    });
+    list.appendChild(el);
+  });
+}
+
+function clearLayers() {
+  if (state.layers.length === 0) return;
+  if (!confirm('Clear all layers?')) return;
+  state.layers = [];
+  renderLayersList();
+  updatePreview();
+}
+
+// =========================================================
+// Animation easing
+// =========================================================
+function ease(type, t) {
+  switch (type) {
+    case 'ease': return t * t * (3 - 2 * t);
+    case 'ease-in': return t * t;
+    case 'ease-out': return 1 - (1 - t) * (1 - t);
+    case 'ease-in-out': return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    case 'linear': return t;
+    default: return t;
+  }
+}
+
+// =========================================================
+// Preview loop
+// =========================================================
+function updatePreview() {
+  const w = state.previewWidth;
+  const h = state.previewHeight;
+  state.previewCtx.clearRect(0, 0, w, h);
+
+  // Background
+  const bgPainter = BACKGROUND_PAINTERS[state.bgType];
+  if (bgPainter) {
+    bgPainter(state.previewCtx, w, h, state.previewTime, state.bgSpeed, state.bgDensity);
+  } else {
+    state.previewCtx.fillStyle = state.bgColor;
+    state.previewCtx.fillRect(0, 0, w, h);
+  }
+
+  // Layers
+  state.layers.forEach((layer) => {
+    const t = state.previewTime;
+    const { start, duration, easing } = layer.anim;
+    const elapsed = t - start;
+    const active = elapsed >= 0 && elapsed <= duration;
+
+    if (!active) return;
+
+    const localT = Math.max(0, Math.min(1, elapsed / duration));
+    const eased = ease(easing, localT);
+
+    let x, y, scale, alpha;
+    switch (layer.type) {
+      case TEXT_LAYER:
+        const size = layer.size * eased;
+        const color = layer.color;
+        const align = layer.align;
+        const text = layer.content;
+        const tw = state.previewCtx.measureText(text).width;
+        const th = size;
+        const pad = 10;
+        const wPct = layer.x / 100;
+        const hPct = layer.y / 100;
+        x = w * wPct - tw / 2;
+        y = h * hPct - th / 2;
+        scale = 1 + (eased - 0.5) * 0.3;
+        alpha = 1;
+        state.previewCtx.save();
+        state.previewCtx.globalAlpha = alpha;
+        state.previewCtx.fillStyle = color;
+        state.previewCtx.font = `bold ${size}px 'Segoe UI', sans-serif`;
+        state.previewCtx.textAlign = align;
+        state.previewCtx.textBaseline = 'middle';
+        state.previewCtx.fillText(text, x, y);
+        state.previewCtx.restore();
+        break;
+
+      case IMAGE_LAYER:
+        const img = new Image();
+        img.src = layer.dataUrl;
+        const iw = img.naturalWidth;
+        const ih = img.naturalHeight;
+        const wPct = layer.x / 100;
+        const hPct = layer.y / 100;
+        x = w * wPct - iw * (layer.w / 100) / 2;
+        y = h * hPct - ih * (layer.h / 100) / 2;
+        const sw = iw * (layer.w / 100);
+        const sh = ih * (layer.h / 100);
+        scale = 1 + (eased - 0.5) * 0.3;
+        alpha = 1;
+        state.previewCtx.save();
+        state.previewCtx.globalAlpha = alpha;
+        state.previewCtx.drawImage(img, x, y, sw, sh);
+        state.previewCtx.restore();
+        break;
+    }
+  });
+}
+
+function tick(now) {
+  if (!state.lastTime) state.lastTime = now;
+  const dt = Math.min(100, now - state.lastTime);
+  state.lastTime = now;
+  state.previewTime += dt / 1000;
+  if (state.previewTime >= state.previewDuration) state.previewTime = 0;
+
+  updatePreview();
+  drawProgress();
+  if (state.previewPlaying) {
+    requestAnimationFrame(tick);
+  }
+}
+
+function drawProgress() {
+  const pct = (state.previewTime / state.previewDuration) * 100;
+  const progress = $('progress');
+  progress.style.width = pct + '%';
+  const time = formatTime(state.previewTime);
+  const total = formatTime(state.previewDuration);
+  $('currentTime').textContent = `${time} / ${total}`;
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// =========================================================
+// Controls
+// =========================================================
+function setBgType(type) {
+  state.bgType = type;
+  document.querySelectorAll('.btn[data-bg]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.bg === type);
+  });
+  updatePreview();
+}
+
+function setBgColor(v) {
+  state.bgColor = v;
+  updatePreview();
+}
+
+function setBgSpeed(v) {
+  state.bgSpeed = v;
+  $('bgSpeedVal').textContent = v + '%';
+  updatePreview();
+}
+
+function setBgDensity(v) {
+  state.bgDensity = v;
+  $('bgDensityVal').textContent = v + '%';
+  updatePreview();
+}
+
+function setAnimType(v) {
+  state.animType = v;
+  document.querySelectorAll('#animType option').forEach((o) => {
+    o.selected = o.value === v;
+  });
+  state.layers.forEach((l) => {
+    l.anim.type = v;
+  });
+  renderLayersList();
+  updatePreview();
+}
+
+function setAnimDur(v) {
+  state.animDur = v;
+  document.querySelectorAll('#animDur').forEach((el) => el.value = v);
+  state.layers.forEach((l) => {
+    l.anim.duration = v;
+  });
+  renderLayersList();
+  updatePreview();
+}
+
+function setAnimStart(v) {
+  state.animStart = v;
+  document.querySelectorAll('#animStart').forEach((el) => el.value = v);
+  state.layers.forEach((l) => {
+    l.anim.start = v;
+  });
+  renderLayersList();
+  updatePreview();
+}
+
+function setAnimEasing(v) {
+  state.animEasing = v;
+  document.querySelectorAll('#animEasing').forEach((o) => {
+    o.selected = o.value === v;
+  });
+  state.layers.forEach((l) => {
+    l.anim.easing = v;
+  });
+  renderLayersList();
+  updatePreview();
+}
+
+// =========================================================
+// Audio for fire/smoke (optional subtle audio)
+// =========================================================
+function initAudio() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufferSize = 44100;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    const freq = 440;
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.sin(i * freq / ctx.sampleRate * Math.PI * 2);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(ctx.destination);
+    src.start();
+  } catch (e) { /* ignore */ }
+}
+
+// =========================================================
+// MediaRecorder setup
+// =========================================================
+function startRecording() {
+  if (state.recorder) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('MediaRecorder not supported in this browser.');
+    return;
+  }
+  const stream = navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  stream.then((s) => {
+    state.stream = s;
+    const canvas = previewCanvas;
+    const stream = canvas.captureStream(state.fps);
+    const mime = navigator.mediaDevices && navigator.mediaDevices.getSupportedConstraints && navigator.mediaDevices.getSupportedConstraints().hasMime ? 'video/webm;codecs=vp9' : 'video/webm';
+    state.recorder = new MediaRecorder(stream, { mimeType: mime });
+    state.recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) state.recordedChunks.push(e.data);
+    };
+    state.recorder.onstop = () => {
+      const blob = new Blob(state.recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'output.webm';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    state.recorder.start();
+  }).catch((err) => {
+    console.error(err);
+    alert('Could not access microphone for audio track.');
+  });
+}
+
+function stopRecording() {
+  if (state.recorder) {
+    state.recorder.stop();
+    state.recorder = null;
+  }
+  if (state.stream) {
+    state.stream.getTracks().forEach((t) => t.stop());
+    state.stream = null;
+  }
+  state.recordedChunks = [];
+}
+
+// =========================================================
+// Event wiring
+// =========================================================
+document.querySelectorAll('[data-bg]').forEach((b) => {
+  b.addEventListener('click', () => setBgType(b.dataset.bg));
+});
+
+$('bgColor').addEventListener('input', (e) => setBgColor(e.target.value));
+$('bgSpeed').addEventListener('input', (e) => {
+  setBgSpeed(parseInt(e.target.value, 10));
+  $('bgSpeedVal').textContent = e.target.value + '%';
+});
+$('bgDensity').addEventListener('input', (e) => {
+  setBgDensity(parseInt(e.target.value, 10));
+  $('bgDensityVal').textContent = e.target.value + '%';
+});
+
+$('txtContent').addEventListener('input', updatePreview);
+$('txtSize').addEventListener('input', updatePreview);
+$('txtColor').addEventListener('input', updatePreview);
+$('txtX').addEventListener('input', updatePreview);
+$('txtY').addEventListener('input', updatePreview);
+$('txtAlign').addEventListener('change', updatePreview);
+$('addTextBtn').addEventListener('click', addTextLayer);
+
+$('imgFile').addEventListener('change', (e) => {
+  if (e.target.files[0]) addImageLayer();
+});
+$('imgX').addEventListener('input', updatePreview);
+$('imgY').addEventListener('input', updatePreview);
+$('imgW').addEventListener('input', updatePreview);
+$('imgH').addEventListener('input', updatePreview);
+$('imgColor').addEventListener('input', updatePreview);
+$('addImageBtn').addEventListener('click', addImageLayer);
+
+$('animType').addEventListener('change', (e) => setAnimType(e.target.value));
+$('animDur').addEventListener('input', (e) => setAnimDur(parseFloat(e.target.value)));
+$('animStart').addEventListener('input', (e) => setAnimStart(parseFloat(e.target.value)));
+$('animEasing').addEventListener('change', (e) => setAnimEasing(e.target.value));
+$('clearLayers').addEventListener('click', clearLayers);
+
+$('playBtn').addEventListener('click', () => {
+  state.previewPlaying = !state.previewPlaying;
+  $('playBtn').textContent = state.previewPlaying ? '❚❚' : '▶';
+  $('playBtn').classList.toggle('active', state.previewPlaying);
+  if (state.previewPlaying) {
+    state.previewTime = 0;
+    requestAnimationFrame(tick);
+  } else {
+    cancelAnimationFrame(state.lastFrame);
+  }
+});
+
+$('stopBtn').addEventListener('click', () => {
+  state.previewPlaying = false;
+  $('playBtn').textContent = '▶';
+  $('playBtn').classList.remove('active');
+  cancelAnimationFrame(state.lastFrame);
+});
+
+$('exportBtn').addEventListener('click', () => {
+  if (!state.layers.length) {
+    alert('Add at least one layer before exporting.');
+    return;
+  }
+  if (!state.recorder) {
+    startRecording();
+  } else {
+    state.recorder.stop();
+  }
+});
+
+// =========================================================
+// Init
+// =========================================================
+renderLayersList();
+initAudio();
+</script>
+</body>
+</html>

@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nova Blog — Share Your World</title>
+<style>
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --accent: #ec4899;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --danger: #ef4444;
+    --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow);
+  }
+  .header-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .logo {
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    cursor: pointer;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    overflow-x: auto;
+  }
+  nav button {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  nav button:hover { background: var(--bg); color: var(--text); }
+  nav button.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+  }
+  .header-actions { display: flex; align-items: center; gap: 12px; }
+  .btn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-ghost { background: transparent; color: var(--text); }
+  .btn-ghost:hover { background: var(--bg); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* Avatar */
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-menu {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    min-width: 220px;
+    padding: 8px;
+    display: none;
+    z-index: 200;
+  }
+  .avatar-menu.show { display: block; }
+  .avatar-menu .profile-info {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .avatar-menu .profile-info strong { display: block; }
+  .avatar-menu .profile-info small { color: var(--muted); }
+  .avatar-menu button {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .avatar-menu button:hover { background: var(--bg); }
+
+  /* Main */
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+  .page { display: none; animation: fadeIn 0.3s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .page-subtitle { color: var(--muted); margin-bottom: 24px; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    padding: 48px 40px;
+    border-radius: 20px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+  }
+  .hero h1 { font-size: 36px; margin-bottom: 12px; position: relative; }
+  .hero p { font-size: 16px; opacity: 0.95; max-width: 600px; position: relative; }
+
+  /* Cards */
+  .grid {
+    display: grid;
+    gap: 20px;
+  }
+  .grid-3 { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: all 0.25s;
+    cursor: pointer;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  .card-img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    background: var(--border);
+  }
+  .card-body { padding: 16px; }
+  .card-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .card-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .card-excerpt {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .card-actions { display: flex; gap: 12px; }
+  .card-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .card-actions button:hover { color: var(--primary); }
+  .card-actions button.liked { color: var(--accent); }
+
+  /* Photo grid */
+  .photo-card {
+    aspect-ratio: 1;
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .photo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+  }
+  .photo-card:hover img { transform: scale(1.08); }
+  .photo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex;
+    align-items: flex-end;
+    padding: 16px;
+    color: white;
+    font-weight: 600;
+  }
+  .photo-card:hover .photo-overlay { opacity: 1; }
+
+  /* Video */
+  .video-card .card-img {
+    height: 160px;
+    position: relative;
+  }
+  .play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px;
+    height: 56px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--primary);
+  }
+  .duration {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Social feed */
+  .post {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .post-header .avatar { width: 44px; height: 44px; }
+  .post-author strong { display: block; }
+  .post-author small { color: var(--muted); font-size: 12px; }
+  .post-content { margin-bottom: 12px; }
+  .post-content img {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+  .post-actions {
+    display: flex;
+    gap: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .post-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .post-actions button:hover { background: var(--bg); color: var(--primary); }
+
+  /* Profile */
+  .profile-header {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+  }
+  .profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    font-size: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    overflow: hidden;
+  }
+  .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-name { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+  .profile-bio { color: var(--muted); margin-bottom: 20px; }
+  .profile-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: 20px;
+  }
+  .stat-item { text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 800; color: var(--primary); }
+  .stat-label { font-size: 13px; color: var(--muted); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius);
+    max-width: 440px;
+    width: 100%;
+    padding: 32px;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal.wide { max-width: 720px; }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal h2 { margin-bottom: 8px; }
+  .modal p.subtitle { color: var(--muted); margin-bottom: 20px; }
+  .modal-close {
+    float: right;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .form-group input, .form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .form-footer {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .form-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-block { width: 100%; padding: 12px; }
+
+  /* Messaging */
+  .msg-container {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 560px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .msg-sidebar {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .msg-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+  }
+  .msg-contact {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .msg-contact:hover, .msg-contact.active { background: var(--bg); }
+  .msg-contact .avatar { width: 40px; height: 40px; font-size: 14px; flex-shrink: 0; }
+  .msg-contact-info { flex: 1; min-width: 0; }
+  .msg-contact-info strong { display: block; font-size: 14px; }
+  .msg-contact-info small {
+    color: var(--muted);
+    font-size: 12px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .msg-main { display: flex; flex-direction: column; }
+  .msg-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .msg-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+  .msg-bubble {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    word-wrap: break-word;
+  }
+  .msg-bubble.sent {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-bubble.received {
+    background: var(--surface);
+    border-bottom-left-radius: 4px;
+  }
+  .msg-time {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .msg-input-area {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+  .msg-input-area input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 14px;
+  }
+  .msg-input-area input:focus { outline: none; border-color: var(--primary); }
+  .msg-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    z-index: 2000;
+    animation: slideIn 0.3s ease;
+  }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1500;
+    padding: 20px;
+  }
+  .lightbox.show { display: flex; }
+  .lightbox img { max-width: 90%; max-height: 90vh; border-radius: 8px; }
+  .lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  @media (max-width: 768px) {
+    .header-inner { flex-wrap: wrap; }
+    nav { order: 3; width: 100%; }
+    .msg-container { grid-template-columns: 1fr; height: auto; }
+    .msg-sidebar { max-height: 200px; }
+    .hero { padding: 32px 24px; }
+    .hero h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo" onclick="switchPage('home')">✦ Nova</div>
+    <nav id="mainNav">
+      <button class="active" data-page="home">Home</button>
+      <button data-page="articles">Articles</button>
+      <button data-page="photos">Photos</button>
+      <button data-page="videos">Videos</button>
+      <button data-page="social">Social</button>
+      <button data-page="profile">Profile</button>
+    </nav>
+    <div class="header-actions" id="headerActions">
+      <!-- Dynamic: login/register or avatar -->
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section class="page active" id="page-home">
+    <div class="hero">
+      <h1>Welcome to Nova Blog</h1>
+      <p>Share your stories, photos, and videos with a vibrant community. Connect, create, and inspire.</p>
+    </div>
+    <h2 class="page-title">Featured Articles</h2>
+    <p class="page-subtitle">Hand-picked stories from our community</p>
+    <div class="grid grid-3" id="featuredArticles"></div>
+  </section>
+
+  <!-- ARTICLES -->
+  <section class="page" id="page-articles">
+    <h2 class="page-title">My Articles</h2>
+    <p class="page-subtitle">Thoughts, tutorials, and stories I've written</p>
+    <div class="grid grid-3" id="articlesList"></div>
+  </section>
+
+  <!-- PHOTOS -->
+  <section class="page" id="page-photos">
+    <h2 class="page-title">My Photos</h2>
+    <p class="page-subtitle">Moments captured through my lens</p>
+    <div class="grid grid-4" id="photosList"></div>
+  </section>
+
+  <!-- VIDEOS -->
+  <section class="page" id="page-videos">
+    <h2 class="page-title">My Videos</h2>
+    <p class="page-subtitle">Watch my latest video content</p>
+    <div class="grid grid-3" id="videosList"></div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section class="page" id="page-social">
+    <h2 class="page-title">Social Circle</h2>
+    <p class="page-subtitle">Updates from people you follow</p>
+    <div id="socialFeed"></div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="page" id="page-profile">
+    <div class="profile-header">
+      <div class="profile-avatar" id="profileAvatar">N</div>
+      <div class="profile-name" id="profileName">Guest User</div>
+      <div class="profile-bio" id="profileBio">Welcome to my blog! Click login to get started.</div>
+      <div class="profile-stats">
+        <div class="stat-item">
+          <div class="stat-num" id="statFollowers">0</div>
+          <div class="stat-label">Followers</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="statFollowing">0</div>
+          <div class="stat-label">Following</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="statPosts">0</div>
+          <div class="stat-label">Posts</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="followBtn" onclick="toggleFollow()">Follow</button>
+      <button class="btn btn-outline" style="margin-left:8px" onclick="openMessages()">Message</button>
+    </div>
+    <h3 style="margin-bottom:16px">Recent Activity</h3>
+    <div class="grid grid-3" id="profileActivity"></div>
+  </section>
+</main>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('loginModal')">&times;</button>
+    <h2>Welcome Back</h2>
+    <p class="subtitle">Sign in to continue to Nova</p>
+    <form onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+    </form>
+    <div class="form-footer">
+      Don't have an account? <a onclick="switchModal('loginModal','registerModal')">Sign up</a>
+    </div>
+  </div>
+</div>
+
+<!-- Register Modal -->
+<div class="modal-overlay" id="registerModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('registerModal')">&times;</button>
+    <h2>Create Account</h2>
+    <p class="subtitle">Join the Nova community today</p>
+    <form onsubmit="handleRegister(event)">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="regName" required placeholder="Jane Doe" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" required placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" required minlength="6" placeholder="At least 6 characters" />
+      </div>
+      <div class="form-group">
+        <label>Bio (optional)</label>
+        <textarea id="regBio" placeholder="Tell us about yourself..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+    </form>
+    <div class="form-footer">
+      Already have an account? <a onclick="switchModal('registerModal','loginModal')">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<!-- Messages Modal -->
+<div class="modal-overlay" id="messagesModal">
+  <div class="modal wide">
+    <button class="modal-close" onclick="closeModal('messagesModal')">&times;</button>
+    <h2 style="margin-bottom:16px">Private Messages</h2>
+    <div class="msg-container">
+      <div class="msg-sidebar">
+        <div class="msg-sidebar-header">Conversations</div>
+        <div id="contactsList"></div>
+      </div>
+      <div class="msg-main" id="msgMain">
+        <div class="msg-empty">Select a conversation to start messaging</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close">&times;</button>
+  <img id="lightboxImg" src="" alt="" />
+</div>
+
+<script>
+/* ============ DATA ============ */
+const ARTICLES = [
+  { id:1, title:"The Art of Minimalist Design", tag:"Design", excerpt:"Exploring how less truly becomes more in modern digital interfaces.", img:"https://picsum.photos/seed/a1/600/400", likes:124, comments:18, date:"Mar 15" },
+  { id:2, title:"Building Scalable Web Apps", tag:"Development", excerpt:"A deep dive into architecture patterns that grow with your user base.", img:"https://picsum.photos/seed/a2/600/400", likes:89, comments:12, date:"Mar 12" },
+  { id:3, title:"Photography in Golden Hour", tag:"Photography", excerpt:"Tips for capturing stunning images during the magic hour.", img:"https://picsum.photos/seed/a3/600/400", likes:256, comments:34, date:"Mar 10" },
+  { id:4, title:"Mindful Productivity Habits", tag:"Lifestyle", excerpt:"How to stay focused without burning out in a distracted world.", img:"https://picsum.photos/seed/a4/600/400", likes:178, comments:22, date:"Mar 8" },
+  { id:5, title:"The Future of AI in Creative Work", tag:"Technology", excerpt:"Balancing human creativity with machine intelligence.", img:"https://picsum.photos/seed/a5/600/400", likes:312, comments:45, date:"Mar 5" },
+  { id:6, title:"Traveling Solo Through Japan", tag:"Travel", excerpt:"A two-week journey through temples, cities, and countryside.", img:"https://picsum.photos/seed/a6/600/400", likes:421, comments:67, date:"Mar 2" }
+];
+
+const PHOTOS = Array.from({length:12}, (_,i) => ({
+  id:i+1,
+  src:`https://picsum.photos/seed/p${i+1}/500/500`,
+  caption:["Mountain sunrise","City lights","Ocean waves","Forest path","Desert dunes","Autumn leaves","Snow peaks","Flower field","Street art","Cafe corner","Bridge view","Night sky"][i]
+}));
+
+const VIDEOS = [
+  { id:1, title:"Morning Routine for Creators", thumb:"https://picsum.photos/seed/v1/600/400", duration:"8:24", views:"12K" },
+  { id:2, title:"Behind the Scenes: Photo Shoot", thumb:"https://picsum.photos/seed/v2/600/400", duration:"12:05", views:"8.4K" },
+  { id:3, title:"Coding a Blog from Scratch", thumb:"https://picsum.photos/seed/v3/600/400", duration:"24:18", views:"45K" },
+  { id:4, title:"Travel Vlog: Kyoto in Spring", thumb:"https://picsum.photos/seed/v4/600/400", duration:"15:42", views:"23K" },
+  { id:5, title:"Design Principles Explained", thumb:"https://picsum.photos/seed/v5/600/400", duration:"10:30", views:"18K" },
+  { id:6, title:"Q&A: Your Questions Answered", thumb:"https://picsum.photos/seed/v6/600/400", duration:"18:55", views:"9.2K" }
+];
+
+const SOCIAL_POSTS = [
+  { author:"Alex Chen", avatar:"A", time:"2h ago", content:"Just finished a 10k run through the park! 🏃‍♂️ Feeling amazing.", img:"https://picsum.photos/seed/s1/800/500", likes:42 },
+  { author:"Maya Rodriguez", avatar:"M", time:"5h ago", content:"New recipe alert: homemade sourdough bread. Three days of patience totally worth it! 🍞", img:null, likes:87 },
+  { author:"Jordan Lee", avatar:"J", time:"1d ago", content:"Sunset from my balcony tonight was unreal. Sometimes you don't need to travel far.", img:"https://picsum.photos/seed/s2/800/500", likes:156 },
+  { author:"Sam Patel", avatar:"S", time:"2d ago", content:"Just launched my new portfolio website! Check it out and let me know what you think. 🚀", img:null, likes:203 }
+];
+
+const CONTACTS = [
+  { id:1, name:"Alex Chen", avatar:"A", lastMsg:"Hey! How's the project going?", time:"2m" },
+  { id:2, name:"Maya Rodriguez", avatar:"M", lastMsg:"Thanks for the feedback!", time:"1h" },
+  { id:3, name:"Jordan Lee", avatar:"J", lastMsg:"See you tomorrow 👋", time:"3h" },
+  { id:4, name:"Sam Patel", avatar:"S", lastMsg:"That sounds great!", time:"1d" }
+];
+
+/* ============ STATE ============ */
+let state = {
+  user: JSON.parse(localStorage.getItem('nova_user') || 'null'),
+  likedArticles: JSON.parse(localStorage.getItem('nova_likes') || '[]'),
+  messages: JSON.parse(localStorage.getItem('nova_msgs') || '{}'),
+  following: JSON.parse(localStorage.getItem('nova_following') || 'false'),
+  followers: parseInt(localStorage.getItem('nova_followers') || '1247'),
+  activeContact: null
+};
+
+/* ============ NAVIGATION ============ */
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('#mainNav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === page);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.querySelectorAll('#mainNav button').forEach(btn => {
+  btn.addEventListener('click', () => switchPage(btn.dataset.page));
+});
+
+/* ============ RENDER ============ */
+function renderArticles(containerId, items) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = items.map(a => `
+    <div class="card" onclick="showToast('Opening: ${a.title.replace(/'/g,"\\'")}')">
+      <img class="card-img" src="${a.img}" alt="${a.title}" loading="lazy" />
+      <div class="card-body">
+        <span class="card-tag">${a.tag}</span>
+        <div class="card-title">${a.title}</div>
+        <div class="card-excerpt">${a.excerpt}</div>
+        <div class="card-meta">
+          <span>${a.date}</span>
+          <div class="card-actions">
+            <button class="${state.likedArticles.includes(a.id)?'liked':''}" onclick="event.stopPropagation();toggleLike(${a.id},this)">
+              ♥ <span>${a.likes + (state.likedArticles.includes(a.id)?1:0)}</span>
+            </button>
+            <button>💬 ${a.comments}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPhotos() {
+  const c = document.getElementById('photosList');
+  c.innerHTML = PHOTOS.map(p => `
+    <div class="photo-card" onclick="openLightbox('${p.src}')">
+      <img src="${p.src}" alt="${p.caption}" loading="lazy" />
+      <div class="photo-overlay">${p.caption}</div>
+    </div>
+  `).join('');
+}
+
+function renderVideos() {
+  const c = document.getElementById('videosList');
+  c.innerHTML = VIDEOS.map(v => `
+    <div class="card video-card" onclick="showToast('Playing: ${v.title.replace(/'/g,"\\'")}')">
+      <div style="position:relative">
+        <img class="card-img" src="${v.thumb}" alt="${v.title}" loading="lazy" />
+        <div class="play-icon">▶</div>
+        <div class="duration">${v.duration}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${v.title}</div>
+        <div class="card-meta">
+          <span>${v.views} views</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSocial() {
+  const c = document.getElementById('socialFeed');
+  c.innerHTML = SOCIAL_POSTS.map((p,i) => `
+    <div class="post">
+      <div class="post-header">
+        <div class="avatar">${p.avatar}</div>
+        <div class="post-author">
+          <strong>${p.author}</strong>
+          <small>${p.time}</small>
+        </div>
+      </div>
+      <div class="post-content">
+        ${p.content}
+        ${p.img ? `<img src="${p.img}" alt="post" loading="lazy" />` : ''}
+      </div>
+      <div class="post-actions">
+        <button onclick="this.classList.toggle('liked');this.style.color=this.classList.contains('liked')?'var(--accent)':''">♥ Like (${p.likes})</button>
+        <button>💬 Comment</button>
+        <button>↗ Share</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderProfile() {
+  const u = state.user;
+  document.getElementById('profileAvatar').innerHTML = u
+    ? (u.avatar ? `<img src="${u.avatar}" />` : u.name.charAt(0).toUpperCase())
+    : 'N';
+  document.getElementById('profileName').textContent = u ? u.name : 'Guest User';
+  document.getElementById('profileBio').textContent = u ? (u.bio || 'No bio yet.') : 'Welcome to my blog! Click login to get started.';
+  document.getElementById('statFollowers').textContent = state.followers.toLocaleString();
+  document.getElementById('statFollowing').textContent = u ? '342' : '0';
+  document.getElementById('statPosts').textContent = ARTICLES.length + PHOTOS.length + VIDEOS.length;
+  document.getElementById('followBtn').textContent = state.following ? 'Following ✓' : 'Follow';
+  document.getElementById('followBtn').className = state.following ? 'btn btn-outline' : 'btn btn-primary';
+
+  // Activity: mix of articles and photos
+  const activity = [
+    ...ARTICLES.slice(0,2).map(a => ({type:'article', data:a})),
+    ...PHOTOS.slice(0,1).map(p => ({type:'photo', data:p}))
+  ];
+  const c = document.getElementById('profileActivity');
+  c.innerHTML = activity.map(item => {
+    if (item.type === 'article') {
+      return `<div class="card"><img class="card-img" src="${item.data.img}" /><div class="card-body"><span class="card-tag">${item.data.tag}</span><div class="card-title">${item.data.title}</div></div></div>`;
+    } else {
+      return `<div class="photo-card"><img src="${item.data.src}" /><div class="photo-overlay">${item.data.caption}</div></div>`;
+    }
+  }).join('');
+}
+
+function renderHeaderActions() {
+  const c = document.getElementById('headerActions');
+  if (state.user) {
+    c.innerHTML = `
+      <button class="btn btn-ghost" onclick="openMessages()" title="Messages">✉</button>
+      <div style="position:relative">
+        <div class="avatar" onclick="toggleAvatarMenu(event)">
+          ${state.user.avatar ? `<img src="${state.user.avatar}" />` : state.user.name.charAt(0).toUpperCase()}
+        </div>
+        <div class="avatar-menu" id="avatarMenu">
+          <div class="profile-info">
+            <strong>${state.user.name}</strong>
+            <small>${state.user.email}</small>
+          </div>
+          <button onclick="switchPage('profile');closeAvatarMenu()">👤 My Profile</button>
+          <button onclick="openMessages();closeAvatarMenu()">✉ Messages</button>
+          <button onclick="handleLogout()">🚪 Sign Out</button>
+        </div>
+      </div>
+    `;
+  } else {
+    c.innerHTML = `
+      <button class="btn btn-ghost" onclick="openModal('loginModal')">Log In</button>
+      <button class="btn btn-primary" onclick="openModal('registerModal')">Sign Up</button>
+    `;
+  }
+}
+
+/* ============ AUTH ============ */
+function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+  const user = users.find(u => u.email === email && u.password === password);
+  if (user) {
+    state.user = user;
+    localStorage.setItem('nova_user', JSON.stringify(user));
+    closeModal('loginModal');
+    renderHeaderActions();
+    renderProfile();
+    showToast('Welcome back, ' + user.name + '!', 'success');
+  } else {
+    // Demo: auto-login with any credentials
+    const demoUser = { name: email.split('@')[0], email, bio: 'Nova blog member', avatar: null };
+    state.user = demoUser;
+    localStorage.setItem('nova_user', JSON.stringify(demoUser));
+    closeModal('loginModal');
+    renderHeaderActions();
+    renderProfile();
+    showToast('Signed in as ' + demoUser.name, 'success');
+  }
+}
+
+function handleRegister(e) {
+  e.preventDefault();
+  const user = {
+    name: document.getElementById('regName').value,
+    email: document.getElementById('regEmail').value,
+    password: document.getElementById('regPassword').value,
+    bio: document.getElementById('regBio').value || 'New to Nova!',
+    avatar: null
+  };
+  const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+  if (users.find(u => u.email === user.email)) {
+    showToast('Email already registered', 'error');
+    return;
+  }
+  users.push(user);
+  localStorage.setItem('nova_users', JSON.stringify(users));
+  state.user = user;
+  localStorage.setItem('nova_user', JSON.stringify(user));
+  closeModal('registerModal');
+  renderHeaderActions();
+  renderProfile();
+  showToast('Account created! Welcome, ' + user.name, 'success');
+}
+
+function handleLogout() {
+  state.user = null;
+  localStorage.removeItem('nova_user');
+  closeAvatarMenu();
+  renderHeaderActions();
+  renderProfile();
+  switchPage('home');
+  showToast('Signed out successfully');
+}
+
+/* ============ INTERACTIONS ============ */
+function toggleLike(id, btn) {
+  const idx = state.likedArticles.indexOf(id);
+  if (idx > -1) {
+    state.likedArticles.splice(idx, 1);
+    btn.classList.remove('liked');
+  } else {
+    state.likedArticles.push(id);
+    btn.classList.add('liked');
+  }
+  localStorage.setItem('nova_likes', JSON.stringify(state.likedArticles));
+  const span = btn.querySelector('span');
+  const article = ARTICLES.find(a => a.id === id);
+  span.textContent = article.likes + (state.likedArticles.includes(id) ? 1 : 0);
+}
+
+function toggleFollow() {
+  if (!state.user) {
+    openModal('loginModal');
+    showToast('Please sign in to follow', 'error');
+    return;
+  }
+  state.following = !state.following;
+  state.followers += state.following ? 1 : -1;
+  localStorage.setItem('nova_following', state.following);
+  localStorage.setItem('nova_followers', state.followers);
+  renderProfile();
+  showToast(state.following ? 'Following!' : 'Unfollowed');
+}
+
+/* ============ MESSAGES ============ */
+function openMessages() {
+  if (!state.user) {
+    openModal('loginModal');
+    showToast('Please sign in to message', 'error');
+    return;
+  }
+  renderContacts();
+  openModal('messagesModal');
+}
+
+function renderContacts() {
+  const c = document.getElementById('contactsList');
+  c.innerHTML = CONTACTS.map(ct => {
+    const lastMsg = (state.messages[ct.id] || []).slice(-1)[0];
+    const preview = lastMsg ? lastMsg.text : ct.lastMsg;
+    return `
+      <div class="msg-contact ${state.activeContact===ct.id?'active':''}" onclick="selectContact(${ct.id})">
+        <div class="avatar">${ct.avatar}</div>
+        <div class="msg-contact-info">
+          <strong>${ct.name}</strong>
+          <small>${preview}</small>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectContact(id) {
+  state.activeContact = id;
+  renderContacts();
+  renderConversation();
+}
+
+function renderConversation() {
+  const contact = CONTACTS.find(c => c.id === state.activeContact);
+  if (!contact) return;
+  const msgs = state.messages[contact.id] || [];
+  const main = document.getElementById('msgMain');
+  main.innerHTML = `
+    <div class="msg-header">
+      <div class="avatar">${contact.avatar}</div>
+      <div>
+        <strong>${contact.name}</strong>
+        <div style="font-size:12px;color:var(--muted)">Online</div>
+      </div>
+    </div>
+    <div class="msg-body" id="msgBody">
+      ${msgs.length === 0 ? `<div style="text-align:center;color:var(--muted);padding:40px">No messages yet. Say hello! 👋</div>` :
+        msgs.map(m => `
+          <div class="msg-bubble ${m.sent?'sent':'received'}">
+            ${m.text}
+            <div class="msg-time">${m.time}</div>
+          </div>
+        `).join('')
+      }
+    </div>
+    <div class="msg-input-area">
+      <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMessage()" />
+      <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+    </div>
+  `;
+  const body = document.getElementById('msgBody');
+  body.scrollTop = body.scrollHeight;
+}
+
+function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !state.activeContact) return;
+  if (!state.messages[state.activeContact]) state.messages[state.activeContact] = [];
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  state.messages[state.activeContact].push({ text, sent: true, time });
+  localStorage.setItem('nova_msgs', JSON.stringify(state.messages));
+  input.value = '';
+  renderConversation();
+  renderContacts();
+
+  // Auto-reply demo
+  setTimeout(() => {
+    const replies = ["That's interesting!","Thanks for sharing 😊","I'll think about it.","Sounds good!","Tell me more!","Haha, nice one!"];
+    const reply = replies[Math.floor(Math.random()*replies.length)];
+    state.messages[state.activeContact].push({ text: reply, sent: false, time });
+    localStorage.setItem('nova_msgs', JSON.stringify(state.messages));
+    if (document.getElementById('messagesModal').classList.contains('show')) {
+      renderConversation();
+      renderContacts();
+    }
+  }, 1200);
+}
+
+/* ============ MODALS ============ */
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function switchModal(from, to) { closeModal(from); openModal(to); }
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); });
+});
+
+/* ============ AVATAR MENU ============ */
+function toggleAvatarMenu(e) {
+  e.stopPropagation();
+  document.getElementById('avatarMenu').classList.toggle('show');
+}
+function closeAvatarMenu() {
+  const m = document.getElementById('avatarMenu');
+  if (m) m.classList.remove('show');
+}
+document.addEventListener('click', closeAvatarMenu);
+
+/* ============ LIGHTBOX ============ */
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
+}
+
+/* ============ TOAST ============ */
+function showToast(msg, type='') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2500);
+  setTimeout(() => t.remove(), 2900);
+}
+
+/* ============ INIT ============ */
+renderArticles('featuredArticles', ARTICLES.slice(0,3));
+renderArticles('articlesList', ARTICLES);
+renderPhotos();
+renderVideos();
+renderSocial();
+renderProfile();
+renderHeaderActions();
+</script>
+</body>
+</html>
